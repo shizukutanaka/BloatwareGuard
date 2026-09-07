@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8
+
+      - name: Lint
+        run: |
+          flake8 bloatware_guard.py --max-line-length=120 --statistics
+
+  test-scan:
+    runs-on: windows-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Test config load
+        run: |
+          python -c "from bloatware_guard import load_config; c = load_config(); print(f'Blacklist: {len(c[\"Blacklist\"])} entries')"
+
+      - name: Test scan (non-admin, read-only)
+        run: |
+          python -c "
+          from bloatware_guard import get_blacklisted_packages, load_config
+          config = load_config()
+          pkgs = get_blacklisted_packages(config['Blacklist'])
+          print(f'Found {len(pkgs)} blacklisted packages installed')
+          for f, n in pkgs[:5]:
+            print(f'  - {f}')
+          "
