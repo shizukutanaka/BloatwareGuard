@@ -250,7 +250,7 @@ public static class AppxManager
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = $"-NoProfile -Command \"Get-AppxProvisionedPackage -Online | Where-Object {{$_.DisplayName -match '{pattern}'}} | Select-Object DisplayName | ConvertTo-Json\"",
+            Arguments = $"-NoProfile -Command \"Get-AppxProvisionedPackage -Online | Where-Object {{$_.DisplayName -match '{pattern}'}} | Select-Object PackageName | ConvertTo-Json\"",
             RedirectStandardOutput = true,
             UseShellExecute = false,
             CreateNoWindow = true
@@ -267,12 +267,12 @@ public static class AppxManager
             {
                 foreach (var el in doc.RootElement.EnumerateArray())
                 {
-                    results.Add(el.GetProperty("DisplayName").GetString() ?? "");
+                    results.Add(el.GetProperty("PackageName").GetString() ?? "");
                 }
             }
             else if (doc.RootElement.ValueKind == JsonValueKind.Object)
             {
-                results.Add(doc.RootElement.GetProperty("DisplayName").GetString() ?? "");
+                results.Add(doc.RootElement.GetProperty("PackageName").GetString() ?? "");
             }
         }
         catch { }
@@ -285,7 +285,7 @@ public static class AppxManager
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = $"-NoProfile -Command \"Remove-AppxPackage -Package '{packageFullName}' -ErrorAction SilentlyContinue\"",
+            Arguments = $"-NoProfile -Command \"Remove-AppxPackage -Package '{packageFullName}' -AllUsers -ErrorAction SilentlyContinue\"",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -293,16 +293,19 @@ public static class AppxManager
         };
 
         using var proc = Process.Start(psi);
-        proc?.WaitForExit();
+        proc?.WaitForExit(60000);
+        string stderr = proc?.StandardError.ReadToEnd() ?? "";
+        if (!string.IsNullOrEmpty(stderr))
+            GuardLogger.Warn($"Remove-AppxPackage stderr: {stderr.Trim()}");
         return proc?.ExitCode == 0;
     }
 
-    public static bool RemoveProvisionedPackage(string displayName)
+    public static bool RemoveProvisionedPackage(string packageName)
     {
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = $"-NoProfile -Command \"Remove-AppxProvisionedPackage -Online -PackageName '{displayName}' -ErrorAction SilentlyContinue\"",
+            Arguments = $"-NoProfile -Command \"Remove-AppxProvisionedPackage -Online -PackageName '{packageName}' -ErrorAction SilentlyContinue\"",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -310,7 +313,10 @@ public static class AppxManager
         };
 
         using var proc = Process.Start(psi);
-        proc?.WaitForExit();
+        proc?.WaitForExit(120000);
+        string stderr = proc?.StandardError.ReadToEnd() ?? "";
+        if (!string.IsNullOrEmpty(stderr))
+            GuardLogger.Warn($"RemoveProvisionedPackage stderr: {stderr.Trim()}");
         return proc?.ExitCode == 0;
     }
 }
@@ -640,6 +646,7 @@ public class GuardService : BackgroundService
             FileName = "powershell.exe",
             Arguments = $"-NoProfile -Command \"(Get-AppxPackage -PackageFamilyName '{packageFamilyName}').PackageFullName\"",
             RedirectStandardOutput = true,
+            RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true
         };
@@ -648,7 +655,10 @@ public class GuardService : BackgroundService
         var output = proc?.StandardOutput.ReadToEnd().Trim() ?? "";
         proc?.WaitForExit();
 
-        return string.IsNullOrEmpty(output) ? "" : output.Split('\n').Last().Trim();
+        // Validate: a real PackageFullName contains the family name
+        if (!string.IsNullOrEmpty(output) && output.Contains(packageFamilyName) && !output.Contains("error"))
+            return output.Split('\n').Last().Trim();
+        return "";
     }
 }
 
