@@ -49,6 +49,12 @@
     "Facebook.Facebook",
     "WhatsApp"
   ],
+  "Whitelist": [
+    "Microsoft.WindowsStore",
+    "Microsoft.WindowsCalculator",
+    "Microsoft.WindowsNotepad",
+    "Microsoft.WindowsTerminal"
+  ],
   "Prevention": {
     "RemoveAppxPackages": true,
     "DisableConsumerExperiences": true,

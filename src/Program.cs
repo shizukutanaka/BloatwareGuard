@@ -26,6 +26,12 @@ public class GuardConfig
     /// <summary>Package family name substrings to block (case-insensitive contains match)</summary>
     public List<string> Blacklist { get; set; } = new();
 
+    /// <summary>Package family name substrings to NEVER remove (overrides blacklist)</summary>
+    public List<string> Whitelist { get; set; } = new();
+
+    /// <summary>Backup directory for removed packages (for restore)</summary>
+    public string? BackupDirectory { get; set; }
+
     /// <summary>Prevention layers</summary>
     public PreventionLayers Prevention { get; set; } = new();
 
@@ -63,9 +69,16 @@ public static class GuardLogger
 
     public static void EnsureSourceExists()
     {
-        if (!EventLog.SourceExists(EventSource))
+        try
         {
-            EventLog.CreateEventSource(EventSource, EventLogName);
+            if (!EventLog.SourceExists(EventSource))
+            {
+                EventLog.CreateEventSource(EventSource, EventLogName);
+            }
+        }
+        catch
+        {
+            // Non-admin: cannot create event source, log to file only
         }
     }
 
@@ -186,7 +199,21 @@ public static class ConfigLoader
                 // "Lenovo.",
                 // "ASUS",
                 // "Acer",
-            }
+            },
+            Whitelist = new List<string>
+            {
+                "Microsoft.WindowsStore",
+                "Microsoft.WindowsCalculator",
+                "Microsoft.WindowsNotepad",
+                "Microsoft.WindowsTerminal",
+                "Microsoft.Windows.ShellExperienceHost",
+                "Microsoft.Windows.Cortana",
+                "Microsoft.Windows.SecHealthUI",
+                "Microsoft.Windows.Apprep.ChxApp",
+            },
+            BackupDirectory = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+                "BloatwareGuard", "Backups")
         };
     }
 }
@@ -196,17 +223,15 @@ public static class ConfigLoader
 public static class AppxManager
 {
     /// <summary>Get all installed AppxPackages whose FamilyName matches any blacklist entry</summary>
-    public static List<(string PackageFamilyName, string DisplayName)> GetBlacklistedPackages(
-        List<string> blacklist)
+    public static List<(string PackageFamilyName, string DisplayName, string PackageFullName, bool IsFramework)> GetBlacklistedPackages(
+        List<string> blacklist, List<string> whitelist)
     {
-        var results = new List<(string, string)>();
-
-        // PowerShell: Get-AppxPackage | Where-Object {$_.PackageFamilyName -match "..."}
+        var results = new List<(string, string, string, bool)>();
         var pattern = string.Join("|", blacklist.Select(Regex.Escape));
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = $"-NoProfile -Command \"Get-AppxPackage | Where-Object {{$_.PackageFamilyName -match '{pattern}'}} | Select-Object PackageFamilyName,Name | ConvertTo-Json\"",
+            Arguments = $"-NoProfile -Command \"Get-AppxPackage | Where-Object {{$_.PackageFamilyName -match '{pattern}'}} | Select-Object PackageFamilyName,Name,PackageFullName,IsFramework | ConvertTo-Json\"",
             RedirectStandardOutput = true,
             UseShellExecute = false,
             CreateNoWindow = true
@@ -218,7 +243,6 @@ public static class AppxManager
 
         try
         {
-            // Handle both single object and array JSON
             var doc = JsonDocument.Parse(output.Trim());
             if (doc.RootElement.ValueKind == JsonValueKind.Array)
             {
@@ -226,14 +250,20 @@ public static class AppxManager
                 {
                     var family = el.GetProperty("PackageFamilyName").GetString() ?? "";
                     var name = el.GetProperty("Name").GetString() ?? "";
-                    results.Add((family, name));
+                    var fullName = el.GetProperty("PackageFullName").GetString() ?? "";
+                    var isFw = el.TryGetProperty("IsFramework", out var fw) && fw.ValueKind == JsonValueKind.True;
+                    if (!IsWhitelisted(family, whitelist))
+                        results.Add((family, name, fullName, isFw));
                 }
             }
             else if (doc.RootElement.ValueKind == JsonValueKind.Object)
             {
                 var family = doc.RootElement.GetProperty("PackageFamilyName").GetString() ?? "";
                 var name = doc.RootElement.GetProperty("Name").GetString() ?? "";
-                results.Add((family, name));
+                var fullName = doc.RootElement.GetProperty("PackageFullName").GetString() ?? "";
+                var isFw = doc.RootElement.TryGetProperty("IsFramework", out var fw) && fw.ValueKind == JsonValueKind.True;
+                if (!IsWhitelisted(family, whitelist))
+                    results.Add((family, name, fullName, isFw));
             }
         }
         catch { /* no matches or parse error */ }
@@ -241,8 +271,14 @@ public static class AppxManager
         return results;
     }
 
+    /// <summary>Check if a package family name matches any whitelist entry</summary>
+    public static bool IsWhitelisted(string packageFamilyName, List<string> whitelist)
+    {
+        return whitelist.Any(w => packageFamilyName.Contains(w, StringComparison.OrdinalIgnoreCase));
+    }
+
     /// <summary>Get all provisioned packages (these re-deploy on new user creation)</summary>
-    public static List<string> GetBlacklistedProvisionedPackages(List<string> blacklist)
+    public static List<string> GetBlacklistedProvisionedPackages(List<string> blacklist, List<string> whitelist)
     {
         var results = new List<string>();
         var pattern = string.Join("|", blacklist.Select(Regex.Escape));
@@ -250,7 +286,7 @@ public static class AppxManager
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = $"-NoProfile -Command \"Get-AppxProvisionedPackage -Online | Where-Object {{$_.DisplayName -match '{pattern}'}} | Select-Object PackageName | ConvertTo-Json\"",
+            Arguments = $"-NoProfile -Command \"Get-AppxProvisionedPackage -Online | Where-Object {{$_.PackageName -match '{pattern}'}} | Select-Object PackageName | ConvertTo-Json\"",
             RedirectStandardOutput = true,
             UseShellExecute = false,
             CreateNoWindow = true
@@ -267,12 +303,16 @@ public static class AppxManager
             {
                 foreach (var el in doc.RootElement.EnumerateArray())
                 {
-                    results.Add(el.GetProperty("PackageName").GetString() ?? "");
+                    var pkg = el.GetProperty("PackageName").GetString() ?? "";
+                    if (!IsWhitelisted(pkg, whitelist))
+                        results.Add(pkg);
                 }
             }
             else if (doc.RootElement.ValueKind == JsonValueKind.Object)
             {
-                results.Add(doc.RootElement.GetProperty("PackageName").GetString() ?? "");
+                var pkg = doc.RootElement.GetProperty("PackageName").GetString() ?? "";
+                if (!IsWhitelisted(pkg, whitelist))
+                    results.Add(pkg);
             }
         }
         catch { }
@@ -588,55 +628,105 @@ public class GuardService : BackgroundService
         }
     }
 
-    public void RunScanPublic() => RunScan();
-    private void RunScan()
+    public void RunScanPublic(bool dryRun = false) => RunScan(dryRun);
+    private void RunScan(bool dryRun = false)
     {
-        GuardLogger.Info("Starting bloatware scan...");
+        GuardLogger.Info(dryRun
+            ? "Starting DRY-RUN scan (no changes will be made)..."
+            : "Starting bloatware scan...");
 
         int removed = 0;
+        int skipped = 0;
 
         // 1. Remove installed AppxPackages matching blacklist
         if (_config.Prevention.RemoveAppxPackages)
         {
-            var packages = AppxManager.GetBlacklistedPackages(_config.Blacklist);
-            foreach (var (familyName, displayName) in packages)
+            var packages = AppxManager.GetBlacklistedPackages(_config.Blacklist, _config.Whitelist);
+            foreach (var (familyName, displayName, fullName, isFramework) in packages)
             {
-                // Get full package name for removal
-                var fullName = GetPackageFullName(familyName);
-                if (!string.IsNullOrEmpty(fullName))
+                // Whitelist check
+                if (IsWhitelisted(familyName))
                 {
-                    if (AppxManager.RemoveAppxPackage(fullName))
-                    {
-                        GuardLogger.Info($"Removed AppxPackage: {familyName} ({displayName})");
-                        removed++;
-                    }
-                    else
-                    {
-                        GuardLogger.Warn($"Failed to remove: {familyName}");
-                    }
+                    GuardLogger.Info($"Whitelisted (skip): {familyName}");
+                    skipped++;
+                    continue;
                 }
-            }
 
-            // 2. Remove provisioned packages (prevents re-deploy on new users)
-            var provisioned = AppxManager.GetBlacklistedProvisionedPackages(_config.Blacklist);
-            foreach (var displayName in provisioned)
-            {
-                if (AppxManager.RemoveProvisionedPackage(displayName))
+                // Framework check — never remove framework packages
+                if (isFramework)
                 {
-                    GuardLogger.Info($"Removed ProvisionedPackage: {displayName}");
+                    GuardLogger.Warn($"Framework package (skip): {familyName}");
+                    skipped++;
+                    continue;
+                }
+
+                // Use PackageFullName from the query (no second PowerShell call needed)
+                if (string.IsNullOrEmpty(fullName))
+                {
+                    GuardLogger.Info($"No PackageFullName (skip): {familyName}");
+                    continue;
+                }
+
+                if (dryRun)
+                {
+                    GuardLogger.Info($"[DRY-RUN] Would remove: {fullName}");
+                    removed++;
+                }
+                else if (AppxManager.RemoveAppxPackage(fullName))
+                {
+                    GuardLogger.Info($"Removed AppxPackage: {familyName} ({displayName})");
                     removed++;
                 }
                 else
                 {
-                    GuardLogger.Warn($"Failed to remove provisioned: {displayName}");
+                    GuardLogger.Warn($"Failed to remove: {familyName}");
+                }
+            }
+
+            // 2. Remove provisioned packages (prevents re-deploy on new users)
+            var provisioned = AppxManager.GetBlacklistedProvisionedPackages(_config.Blacklist, _config.Whitelist);
+            foreach (var pkgName in provisioned)
+            {
+                if (IsWhitelisted(pkgName))
+                {
+                    GuardLogger.Info($"Whitelisted provisioned (skip): {pkgName}");
+                    skipped++;
+                    continue;
+                }
+
+                if (dryRun)
+                {
+                    GuardLogger.Info($"[DRY-RUN] Would remove provisioned: {pkgName}");
+                    removed++;
+                }
+                else if (AppxManager.RemoveProvisionedPackage(pkgName))
+                {
+                    GuardLogger.Info($"Removed ProvisionedPackage: {pkgName}");
+                    removed++;
+                }
+                else
+                {
+                    GuardLogger.Warn($"Failed to remove provisioned: {pkgName}");
                 }
             }
         }
 
         // 3. Re-apply registry settings (they can be reset by Windows Update)
-        RegistryGuard.ApplyAll(_config.Prevention);
+        if (!dryRun)
+            RegistryGuard.ApplyAll(_config.Prevention);
+        else
+            GuardLogger.Info("[DRY-RUN] Would re-apply registry prevention settings");
 
-        GuardLogger.Info($"Scan complete. Removed {removed} packages.");
+        GuardLogger.Info($"Scan complete. {(dryRun ? "Would remove" : "Removed")} {removed} packages, skipped {skipped}.");
+    }
+
+    private bool IsWhitelisted(string packageFamilyName)
+    {
+        var match = _config.Whitelist.FirstOrDefault(w =>
+            packageFamilyName.StartsWith(w, StringComparison.OrdinalIgnoreCase));
+        if (match != null)
+            GuardLogger.Info($"  WHITELIST MATCH: '{packageFamilyName}' starts with '{match}'");
+        return match != null;
     }
 
     private string GetPackageFullName(string packageFamilyName)
@@ -677,7 +767,13 @@ public class Program
             switch (args[0].ToLower())
             {
                 case "scan":
-                    RunOnce(config);
+                    RunOnce(config, dryRun: false);
+                    return;
+                case "dry-run":
+                    RunOnce(config, dryRun: true);
+                    return;
+                case "list-installed":
+                    ListInstalled(config);
                     return;
                 case "install":
                     InstallService();
@@ -687,6 +783,11 @@ public class Program
                     return;
                 case "status":
                     ShowStatus();
+                    return;
+                case "help":
+                case "--help":
+                case "-h":
+                    ShowHelp();
                     return;
             }
         }
@@ -718,17 +819,60 @@ public class Program
         }
     }
 
-    private static void RunOnce(GuardConfig config)
+    private static void RunOnce(GuardConfig config, bool dryRun = false)
     {
-        GuardLogger.Info("Running one-time scan...");
+        GuardLogger.Info(dryRun ? "Running DRY-RUN scan (no changes)..." : "Running one-time scan...");
         ServiceConfig.Current = config;
-        RegistryGuard.ApplyAll(config.Prevention);
-        ScheduledTaskGuard.DisableOemTasks();
+
+        if (!dryRun)
+        {
+            RegistryGuard.ApplyAll(config.Prevention);
+            ScheduledTaskGuard.DisableOemTasks();
+        }
+        else
+        {
+            GuardLogger.Info("[DRY-RUN] Skipping registry + task changes.");
+        }
 
         var service = new GuardService();
-        service.RunScanPublic();
+        service.RunScanPublic(dryRun);
 
-        GuardLogger.Info("One-time scan complete.");
+        GuardLogger.Info("Scan complete.");
+    }
+
+    private static void ListInstalled(GuardConfig config)
+    {
+        ServiceConfig.Current = config;
+        GuardLogger.Info("Installed packages matching blacklist:");
+        var packages = AppxManager.GetBlacklistedPackages(config.Blacklist, config.Whitelist);
+        foreach (var (familyName, displayName, _, isFramework) in packages)
+        {
+            var tag = isFramework ? " [FRAMEWORK]" : "";
+            GuardLogger.Info($"  {familyName} ({displayName}){tag}");
+        }
+        GuardLogger.Info($"Total: {packages.Count} package(s) installed.");
+    }
+
+    private static void ShowHelp()
+    {
+        var help = @"
+BloatwareGuard — Windows 11 bloatware removal + prevention
+
+Usage: BloatwareGuard.exe <command>
+
+Commands:
+  scan          Run one-time scan and remove bloatware
+  dry-run       Show what WOULD be removed (no changes made)
+  list-installed  List installed packages matching blacklist
+  install       Install as Windows Service (requires admin)
+  uninstall     Remove Windows Service (requires admin)
+  status        Show Windows Service status
+  help          Show this help
+
+Without arguments: runs in console mode (interactive) or as Windows Service.
+";
+        Console.WriteLine(help);
+        GuardLogger.Info("Help displayed.");
     }
 
     private static void InstallService()
