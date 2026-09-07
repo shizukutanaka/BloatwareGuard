@@ -31,3 +31,4 @@ Thumbs.db
 # config.json
 bin/
 obj/
+*.ps1
