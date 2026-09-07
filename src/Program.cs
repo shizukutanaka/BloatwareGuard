@@ -10,6 +10,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -492,15 +493,22 @@ public static class ScheduledTaskGuard
     }
 }
 
+// ─── Service Config Bridge ───────────────────────────────────────────────────
+
+public static class ServiceConfig
+{
+    public static GuardConfig Current { get; set; } = null!;
+}
+
 // ─── Main Service ────────────────────────────────────────────────────────────
 
 public class GuardService : BackgroundService
 {
     private readonly GuardConfig _config;
 
-    public GuardService(GuardConfig config)
+    public GuardService()
     {
-        _config = config;
+        _config = ServiceConfig.Current;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -634,11 +642,12 @@ public class Program
         }
 
         // Run as Windows Service
+        ServiceConfig.Current = config;
         Host.CreateDefaultBuilder(args)
             .UseWindowsService()
             .ConfigureServices(services =>
             {
-                services.AddHostedService<GuardService>(_ => new GuardService(config));
+                services.AddSingleton<IHostedService, GuardService>();
             })
             .Build()
             .Run();
@@ -647,11 +656,12 @@ public class Program
     private static void RunOnce(GuardConfig config)
     {
         GuardLogger.Info("Running one-time scan...");
+        ServiceConfig.Current = config;
         RegistryGuard.ApplyAll(config.Prevention);
         ScheduledTaskGuard.DisableOemTasks();
 
-        var service = new GuardService(config);
-        // Use reflection to call RunScan via a trick: just instantiate and call
+        var service = new GuardService();
+        // Use reflection to call RunScan (it's private)
         var method = service.GetType().GetMethod("RunScan",
             System.Reflection.BindingFlags.NonPublic |
             System.Reflection.BindingFlags.Instance);
