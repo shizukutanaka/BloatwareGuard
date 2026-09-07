@@ -414,12 +414,51 @@ public static class RegistryGuard
 
 public static class ScheduledTaskGuard
 {
-    // Known OEM bloatware task patterns
+    // Known OEM bloatware task patterns — must be specific enough to avoid matching Microsoft system tasks
     private static readonly string[] OemTaskPatterns = {
-        "OEM", "Dell", "HP", "Lenovo", "ASUS", "Acer", "McAfee", "Norton",
-        "Bloat", "Reinstall", "Restore", "SupportAssist", "Vantage",
-        "Armoury", "Crate", "Update", "Telemetry", "CustomerExperience"
+        "OEM", "Dell", "HPInc", "HPA", "Lenovo", "ASUS", "Acer", "McAfee", "Norton",
+        "SupportAssist", "Vantage", "Armoury", "Crate", "CustomerExperienceImprovement",
+        "Customer Experience Improvement", "Reinstall", "Bloatware"
     };
+
+    // Microsoft system tasks that MUST NEVER be disabled
+    private static readonly string[] MicrosoftSystemPrefixes = {
+        @"\\Microsoft\\Windows\\CloudRestore",
+        @"\\Microsoft\\Windows\\InstallService",
+        @"\\Microsoft\\Windows\\WindowsUpdate",
+        @"\\Microsoft\\Windows\\UpdateOrchestrator",
+        @"\\Microsoft\\Windows\\Defrag",
+        @"\\Microsoft\\Windows\\Diagnosis",
+        @"\\Microsoft\\Windows\\Maintenance",
+        @"\\Microsoft\\Windows\\CloudExperienceHost",
+        @"\\Microsoft\\Windows\\Feedback",
+        @"\\Microsoft\\Windows\\Input",
+        @"\\Microsoft\\Windows\\International",
+        @"\\Microsoft\\Windows\\LanguageComponentsInstaller",
+        @"\\Microsoft\\Windows\\MUI",
+        @"\\Microsoft\\Windows\\PI",
+        @"\\Microsoft\\Windows\\RecoveryEnvironment",
+        @"\\Microsoft\\Windows\\Servicing",
+        @"\\Microsoft\\Windows\\SettingSync",
+        @"\\Microsoft\\Windows\\Shell",
+        @"\\Microsoft\\Windows\\Sysmain",
+        @"\\Microsoft\\Windows\\WDI",
+        @"\\Microsoft\\Windows\\Wlan",
+        @"\\Microsoft\\Windows\\Bluetooth",
+        @"\\Microsoft\\Windows\\NetTrace",
+        @"\\Microsoft\\Windows\\Security Center",
+        @"\\Microsoft\\Windows\\SpaceAgent",
+        @"\\Microsoft\\Windows\\Storage",
+        @"\\Microsoft\\Windows\\SystemRestore",
+        @"\\Microsoft\\Windows\\Task Manager",
+        @"\\Microsoft\\Windows\\VerifiableFileIntegrity",
+        @"\\Microsoft\\Windows\\WebAuth",
+        @"\\Microsoft\\Windows\\WiFi",
+        @"\\Microsoft\\Windows\\Windows Error Reporting",
+        @"\\Microsoft\\Windows\\License Manager",
+        @"\\Microsoft\\Windows\\Clip",
+    };
+
 
     public static void DisableOemTasks()
     {
@@ -543,6 +582,7 @@ public class GuardService : BackgroundService
         }
     }
 
+    public void RunScanPublic() => RunScan();
     private void RunScan()
     {
         GuardLogger.Info("Starting bloatware scan...");
@@ -641,16 +681,31 @@ public class Program
             }
         }
 
-        // Run as Windows Service
+        // Run as Windows Service (if started by SCM) or console (if interactive)
         ServiceConfig.Current = config;
-        Host.CreateDefaultBuilder(args)
-            .UseWindowsService()
-            .ConfigureServices(services =>
-            {
-                services.AddSingleton<IHostedService, GuardService>();
-            })
-            .Build()
-            .Run();
+
+        if (Environment.UserInteractive)
+        {
+            // Console mode: run scan loop in foreground
+            GuardLogger.Info("Running in console mode (interactive)...");
+            var service = new GuardService();
+            service.StartAsync(CancellationToken.None).GetAwaiter().GetResult();
+            GuardLogger.Info("Press any key to stop...");
+            Console.ReadKey(true);
+            service.StopAsync(CancellationToken.None).GetAwaiter().GetResult();
+        }
+        else
+        {
+            // Windows Service mode
+            Host.CreateDefaultBuilder(args)
+                .UseWindowsService()
+                .ConfigureServices(services =>
+                {
+                    services.AddSingleton<IHostedService, GuardService>();
+                })
+                .Build()
+                .Run();
+        }
     }
 
     private static void RunOnce(GuardConfig config)
@@ -661,11 +716,7 @@ public class Program
         ScheduledTaskGuard.DisableOemTasks();
 
         var service = new GuardService();
-        // Use reflection to call RunScan (it's private)
-        var method = service.GetType().GetMethod("RunScan",
-            System.Reflection.BindingFlags.NonPublic |
-            System.Reflection.BindingFlags.Instance);
-        method?.Invoke(service, null);
+        service.RunScanPublic();
 
         GuardLogger.Info("One-time scan complete.");
     }
