@@ -147,7 +147,7 @@ def is_admin() -> bool:
 def run_powershell(cmd: str, timeout: int = 60) -> Tuple[str, str, int]:
     """Run a PowerShell command and return (stdout, stderr, exit_code)."""
     proc = subprocess.run(
-        ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", cmd],
+        ["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", cmd],
         capture_output=True, timeout=timeout
     )
     # Windows console output is often CP932/Shift-JIS — use errors="replace" to avoid crashes

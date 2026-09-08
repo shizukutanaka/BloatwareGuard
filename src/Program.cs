@@ -237,7 +237,7 @@ public static class AppxManager
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = $"-NoProfile -Command \"Get-AppxPackage | Where-Object {{$_.PackageFamilyName -match '{pattern}'}} | Select-Object PackageFamilyName,Name,PackageFullName,IsFramework | ConvertTo-Json\"",
+            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Get-AppxPackage | Where-Object {{$_.PackageFamilyName -match '{pattern}'}} | Select-Object PackageFamilyName,Name,PackageFullName,IsFramework | ConvertTo-Json\"",
             RedirectStandardOutput = true,
             UseShellExecute = false,
             CreateNoWindow = true
@@ -292,7 +292,7 @@ public static class AppxManager
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = $"-NoProfile -Command \"Get-AppxProvisionedPackage -Online | Where-Object {{$_.PackageName -match '{pattern}'}} | Select-Object PackageName | ConvertTo-Json\"",
+            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Get-AppxProvisionedPackage -Online | Where-Object {{$_.PackageName -match '{pattern}'}} | Select-Object PackageName | ConvertTo-Json\"",
             RedirectStandardOutput = true,
             UseShellExecute = false,
             CreateNoWindow = true
@@ -331,7 +331,7 @@ public static class AppxManager
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = $"-NoProfile -Command \"Remove-AppxPackage -Package '{packageFullName}' -AllUsers -ErrorAction SilentlyContinue\"",
+            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Remove-AppxPackage -Package '{packageFullName}' -AllUsers -ErrorAction SilentlyContinue\"",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -346,12 +346,33 @@ public static class AppxManager
         return proc?.ExitCode == 0;
     }
 
+    /// <summary>Remove AppxPackage for CURRENT USER only (no admin required)</summary>
+    public static bool RemoveAppxPackageForUser(string packageFullName)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = "powershell.exe",
+            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Remove-AppxPackage -Package '{packageFullName}' -ErrorAction SilentlyContinue\"",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+
+        using var proc = Process.Start(psi);
+        proc?.WaitForExit(60000);
+        string stderr = proc?.StandardError.ReadToEnd() ?? "";
+        if (!string.IsNullOrEmpty(stderr))
+            GuardLogger.Warn($"Remove-AppxPackage (user) stderr: {stderr.Trim()}");
+        return proc?.ExitCode == 0;
+    }
+
     public static bool RemoveProvisionedPackage(string packageName)
     {
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = $"-NoProfile -Command \"Remove-AppxProvisionedPackage -Online -PackageName '{packageName}' -ErrorAction SilentlyContinue\"",
+            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Remove-AppxProvisionedPackage -Online -PackageName '{packageName}' -ErrorAction SilentlyContinue\"",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -517,7 +538,7 @@ public static class ScheduledTaskGuard
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = "-NoProfile -Command \"Get-ScheduledTask | Where-Object {$_.TaskPath -like '*OEM*' -or $_.TaskName -match 'SupportAssist|Vantage|Armoury|Crate|Dell|HPInc|Lenovo|ASUS|Acer|McAfee|Norton|CustomerExperience|Reinstall|Restore'} | Select-Object TaskName,TaskPath,State | ConvertTo-Json\"",
+            Arguments = "-NoProfile -ExecutionPolicy Bypass -Command \"Get-ScheduledTask | Where-Object {$_.TaskPath -like '*OEM*' -or $_.TaskName -match 'SupportAssist|Vantage|Armoury|Crate|Dell|HPInc|Lenovo|ASUS|Acer|McAfee|Norton|CustomerExperience|Reinstall|Restore'} | Select-Object TaskName,TaskPath,State | ConvertTo-Json\"",
             RedirectStandardOutput = true,
             UseShellExecute = false,
             CreateNoWindow = true
@@ -683,9 +704,22 @@ public class GuardService : BackgroundService
                     GuardLogger.Info($"Removed AppxPackage: {familyName} ({displayName})");
                     removed++;
                 }
+                else if (dryRun)
+                {
+                    // already handled above
+                }
                 else
                 {
-                    GuardLogger.Warn($"Failed to remove: {familyName}");
+                    GuardLogger.Warn($"Admin removal failed for {familyName}, trying user-level...");
+                    if (AppxManager.RemoveAppxPackageForUser(fullName))
+                    {
+                        GuardLogger.Info($"Removed AppxPackage (user-level): {familyName} ({displayName})");
+                        removed++;
+                    }
+                    else
+                    {
+                        GuardLogger.Warn($"Failed to remove: {familyName}");
+                    }
                 }
             }
 
@@ -740,7 +774,7 @@ public class GuardService : BackgroundService
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = $"-NoProfile -Command \"(Get-AppxPackage -PackageFamilyName '{packageFamilyName}').PackageFullName\"",
+            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"(Get-AppxPackage -PackageFamilyName '{packageFamilyName}').PackageFullName\"",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
