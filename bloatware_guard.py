@@ -44,9 +44,13 @@ def setup_logging(log_file: Path) -> logging.Logger:
     fmt = logging.Formatter("[%(asctime)s] [%(levelname)s] %(message)s",
                             datefmt="%Y-%m-%d %H:%M:%S")
 
-    fh = logging.FileHandler(str(log_file), encoding="utf-8")
-    fh.setFormatter(fmt)
-    logger.addHandler(fh)
+    try:
+        fh = logging.FileHandler(str(log_file), encoding="utf-8")
+        fh.setFormatter(fmt)
+        logger.addHandler(fh)
+    except PermissionError:
+        # Non-admin: fall back to console only
+        pass
 
     ch = logging.StreamHandler()
     ch.setFormatter(fmt)
@@ -328,20 +332,25 @@ def disable_oem_scheduled_tasks(logger: logging.Logger):
 
 # ─── Main Scan Logic ─────────────────────────────────────────────────────────
 
-def run_scan(config: dict, logger: logging.Logger) -> int:
+def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int:
     """Run one scan cycle. Returns number of packages removed."""
+    if dry_run:
+        logger.info("=== DRY-RUN MODE — no changes will be made ===")
     blacklist = config.get("Blacklist", [])
     prev = config.get("Prevention", {})
     removed = 0
-
-    logger.info(f"Starting scan (blacklist: {blacklist} entries)")
 
     # 1. Remove installed packages
     if prev.get("RemoveAppxPackages", True):
         packages = get_blacklisted_packages(blacklist)
         for family_name, display_name in packages:
             full_name = get_package_full_name(family_name)
-            if full_name:
+            if dry_run:
+                if full_name:
+                    logger.info(f"[DRY-RUN] Would remove AppxPackage: {family_name} ({full_name})")
+                else:
+                    logger.info(f"[DRY-RUN] Would remove AppxPackage: {family_name} (non-admin: full name not resolvable)")
+            else:
                 if remove_appx_package(full_name):
                     logger.info(f"Removed AppxPackage: {family_name} ({display_name})")
                     removed += 1
@@ -351,18 +360,27 @@ def run_scan(config: dict, logger: logging.Logger) -> int:
         # 2. Remove provisioned packages
         provisioned = get_blacklisted_provisioned(blacklist)
         for display_name in provisioned:
-            if remove_provisioned_package(display_name):
-                logger.info(f"Removed ProvisionedPackage: {display_name}")
-                removed += 1
+            if dry_run:
+                logger.info(f"[DRY-RUN] Would remove ProvisionedPackage: {display_name}")
             else:
-                logger.warning(f"Failed to remove ProvisionedPackage: {display_name}")
+                if remove_provisioned_package(display_name):
+                    logger.info(f"Removed ProvisionedPackage: {display_name}")
+                    removed += 1
+                else:
+                    logger.warning(f"Failed to remove ProvisionedPackage: {display_name}")
 
     # 3. Re-apply registry (idempotent, Windows Update may reset)
-    apply_registry_prevention(config, logger)
+    if dry_run:
+        logger.info("[DRY-RUN] Would apply registry prevention")
+    else:
+        apply_registry_prevention(config, logger)
 
     # 4. Disable OEM tasks
     if prev.get("DisableOemScheduledTasks", True):
-        disable_oem_scheduled_tasks(logger)
+        if dry_run:
+            logger.info("[DRY-RUN] Would disable OEM scheduled tasks")
+        else:
+            disable_oem_scheduled_tasks(logger)
 
     logger.info(f"Scan complete. Removed {removed} packages.")
     return removed
@@ -434,6 +452,7 @@ def uninstall_service():
 def main():
     parser = argparse.ArgumentParser(description="BloatwareGuard - Auto-remove Windows bloatware")
     parser.add_argument("--scan", action="store_true", help="Run one scan and exit")
+    parser.add_argument("--dry-run", action="store_true", help="Scan and log planned actions WITHOUT executing removal")
     parser.add_argument("--service", action="store_true", help="Run in service mode (background loop)")
     parser.add_argument("--install", action="store_true", help="Install as Windows service")
     parser.add_argument("--uninstall", action="store_true", help="Remove Windows service")
@@ -471,9 +490,15 @@ def main():
         logger.warning("Running without admin rights — registry changes and package removal may fail.")
 
     if args.scan:
-        run_scan(config, logger)
-    else:
-        run_service(config, logger)
+        run_scan(config, logger, dry_run=False)
+        return
+
+    if args.dry_run:
+        run_scan(config, logger, dry_run=True)
+        return
+
+    # Default: service mode
+    run_service(config, logger)
 
 
 if __name__ == "__main__":
