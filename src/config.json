@@ -57,10 +57,12 @@
   ],
   "Prevention": {
     "RemoveAppxPackages": true,
+    "RemoveProvisionedPackages": true,
     "DisableConsumerExperiences": true,
     "DisableCloudContent": true,
     "PreventDeviceMetadata": true,
     "DisableOemScheduledTasks": true,
-    "BlockProvisioning": true
+    "BlockProvisioning": true,
+    "ReinstallMonitor": true
   }
 }

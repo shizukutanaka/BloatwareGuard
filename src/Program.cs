@@ -44,6 +44,9 @@ public class PreventionLayers
     /// <summary>Remove AppxPackage + ProvisionedPackage</summary>
     public bool RemoveAppxPackages { get; set; } = true;
 
+    /// <summary>Remove ProvisionedPackage entries (survives reset)</summary>
+    public bool RemoveProvisionedPackages { get; set; } = true;
+
     /// <summary>Disable consumer experiences via Group Policy registry</summary>
     public bool DisableConsumerExperiences { get; set; } = true;
 
@@ -58,6 +61,9 @@ public class PreventionLayers
 
     /// <summary>Block provisioning packages from re-registering</summary>
     public bool BlockProvisioning { get; set; } = true;
+
+    /// <summary>Layer 7: Monitor for re-installed packages and auto-remove</summary>
+    public bool ReinstallMonitor { get; set; } = true;
 }
 
 // ─── Logger helper ───────────────────────────────────────────────────────────
