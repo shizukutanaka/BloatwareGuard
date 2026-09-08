@@ -37,6 +37,9 @@ public class GuardConfig
 
     /// <summary>Log file path (optional, alongside Event Log)</summary>
     public string? LogFilePath { get; set; }
+
+    /// <summary>Run in dry-run mode (scan + log only, no removal)</summary>
+    public bool DryRun { get; set; } = false;
 }
 
 public class PreventionLayers
@@ -644,7 +647,7 @@ public class GuardService : BackgroundService
         {
             try
             {
-                RunScan();
+                RunScan(_config.DryRun);
             }
             catch (Exception ex)
             {
@@ -829,6 +832,10 @@ public class Program
                 case "-h":
                     ShowHelp();
                     return;
+                case "--service-dry-run":
+                    config.DryRun = true;
+                    GuardLogger.Info("Service mode: DRY-RUN (no removal actions will execute)");
+                    break;
             }
         }
 
@@ -903,6 +910,7 @@ Usage: BloatwareGuard.exe <command>
 Commands:
   scan          Run one-time scan and remove bloatware
   dry-run       Show what WOULD be removed (no changes made)
+  --service-dry-run  Run as service in dry-run mode (no removal actions)
   list-installed  List installed packages matching blacklist
   install       Install as Windows Service (requires admin)
   uninstall     Remove Windows Service (requires admin)

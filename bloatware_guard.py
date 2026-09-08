@@ -412,8 +412,8 @@ def run_service(config: dict, logger: logging.Logger):
 
     while True:
         try:
-            # Standard scan
-            removed = run_scan(config, logger)
+            # Standard scan (dry-run mode if configured)
+            removed = run_scan(config, logger, dry_run=config.get("DryRun", False))
             
             # Layer 7: Re-install Monitor
             if prev.get("ReinstallMonitor", True):
@@ -531,6 +531,9 @@ def main():
         return
 
     # Default: service mode
+    if args.service:
+        config["DryRun"] = True
+        logger.info("SERVICE MODE IN DRY-RUN — no removal actions will execute")
     run_service(config, logger)
 
 
