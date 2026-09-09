@@ -4,6 +4,7 @@ REM This script builds the C# exe to a clean location and prepares the SYSTEM ve
 REM Requires: .NET 8 SDK (already installed)
 
 echo [1/4] Building C# project to C:\BGOut ...
+echo Checking version: BloatwareGuard v1.7.0
 cd /d C:\Users\HP\bloatware-guard\src
 dotnet build -c Debug -p:OutputPath="C:/BGOut/" 2>&1 | tail -5
 if %ERRORLEVEL% NEQ 0 (

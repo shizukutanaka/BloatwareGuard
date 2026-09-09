@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard - Python prototype
+BloatwareGuard v1.7.0 - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
   python bloatware_guard.py            # 常駐モード（定期スキャン）
   python bloatware_guard.py --scan     # 1回だけスキャン
+  python bloatware_guard.py --dry-run  # 削除対象を表示のみ（変更なし）
   python bloatware_guard.py --install  # Windowsサービスに登録（要管理者）
+  python bloatware_guard.py --uninstall # サービス削除（要管理者）
   python bloatware_guard.py --status   # 状態確認
+  python bloatware_guard.py --version  # バージョン表示
 
 ※ 管理者権限が必要です。
 """
@@ -28,6 +31,7 @@ from typing import List, Tuple, Optional
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
+APP_VERSION = "1.7.0"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 YAML_CONFIG_PATH = Path(__file__).parent / "config.yaml"
@@ -491,7 +495,12 @@ def main():
     parser.add_argument("--uninstall", action="store_true", help="Remove Windows service")
     parser.add_argument("--status", action="store_true", help="Show service status")
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG_PATH, help="Config file path")
+    parser.add_argument("--version", action="store_true", help="Show version and exit")
     args = parser.parse_args()
+
+    if args.version:
+        print(f"{APP_NAME} v{APP_VERSION}")
+        return
 
     if args.status:
         result = subprocess.run(["sc", "query", SERVICE_NAME], capture_output=True, text=True)

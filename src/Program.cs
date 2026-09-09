@@ -832,6 +832,10 @@ public class Program
                 case "-h":
                     ShowHelp();
                     return;
+                case "--version":
+                case "-v":
+                    Console.WriteLine("BloatwareGuard v1.7.0");
+                    return;
                 case "--service-dry-run":
                     config.DryRun = true;
                     GuardLogger.Info("Service mode: DRY-RUN (no removal actions will execute)");
@@ -903,7 +907,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.7.0 — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
