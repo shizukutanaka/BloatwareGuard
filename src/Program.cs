@@ -232,15 +232,15 @@ public static class ConfigLoader
 public static class AppxManager
 {
     /// <summary>Get all installed AppxPackages whose FamilyName matches any blacklist entry</summary>
-    public static List<(string PackageFamilyName, string DisplayName, string PackageFullName, bool IsFramework)> GetBlacklistedPackages(
+    public static List<(string PackageFamilyName, string DisplayName, string PackageFullName, bool IsFramework, string InstallPath)> GetBlacklistedPackages(
         List<string> blacklist, List<string> whitelist)
     {
-        var results = new List<(string, string, string, bool)>();
+        var results = new List<(string, string, string, bool, string)>();
         var pattern = string.Join("|", blacklist.Select(Regex.Escape));
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Get-AppxPackage | Where-Object {{$_.PackageFamilyName -match '{pattern}'}} | Select-Object PackageFamilyName,Name,PackageFullName,IsFramework | ConvertTo-Json\"",
+            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Get-AppxPackage | Where-Object {{$_.PackageFamilyName -match '{pattern}'}} | Select-Object PackageFamilyName,Name,PackageFullName,IsFramework,InstallPath | ConvertTo-Json\"",
             RedirectStandardOutput = true,
             UseShellExecute = false,
             CreateNoWindow = true
@@ -261,8 +261,9 @@ public static class AppxManager
                     var name = el.GetProperty("Name").GetString() ?? "";
                     var fullName = el.GetProperty("PackageFullName").GetString() ?? "";
                     var isFw = el.TryGetProperty("IsFramework", out var fw) && fw.ValueKind == JsonValueKind.True;
+                    var installPath = el.TryGetProperty("InstallPath", out var ip) ? ip.GetString() : null;
                     if (!IsWhitelisted(family, whitelist))
-                        results.Add((family, name, fullName, isFw));
+                        results.Add((family, name, fullName, isFw, installPath));
                 }
             }
             else if (doc.RootElement.ValueKind == JsonValueKind.Object)
@@ -271,8 +272,9 @@ public static class AppxManager
                 var name = doc.RootElement.GetProperty("Name").GetString() ?? "";
                 var fullName = doc.RootElement.GetProperty("PackageFullName").GetString() ?? "";
                 var isFw = doc.RootElement.TryGetProperty("IsFramework", out var fw) && fw.ValueKind == JsonValueKind.True;
+                var installPath = doc.RootElement.TryGetProperty("InstallPath", out var ip) ? ip.GetString() : null;
                 if (!IsWhitelisted(family, whitelist))
-                    results.Add((family, name, fullName, isFw));
+                    results.Add((family, name, fullName, isFw, installPath));
             }
         }
         catch { /* no matches or parse error */ }
@@ -349,9 +351,17 @@ public static class AppxManager
         return proc?.ExitCode == 0;
     }
 
-    /// <summary>Remove AppxPackage for CURRENT USER only (no admin required)</summary>
-    public static bool RemoveAppxPackageForUser(string packageFullName)
+    /// <summary>Remove AppxPackage for CURRENT USER only (no admin required).
+    /// Returns (success, isSystemApp). SystemApps cannot be removed per-user.</summary>
+    public static (bool Success, bool IsSystemApp) RemoveAppxPackageForUser(string packageFullName, string installPath = null)
     {
+        // SystemApps have null InstallPath — cannot be removed per-user (0x80073CFA)
+        if (string.IsNullOrEmpty(installPath))
+        {
+            GuardLogger.Info($"RemoveAppxPackageForUser: '{packageFullName}' is a SystemApp — cannot remove per-user (skip, requires admin)");
+            return (false, true);
+        }
+
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
@@ -367,7 +377,7 @@ public static class AppxManager
         string stderr = proc?.StandardError.ReadToEnd() ?? "";
         if (!string.IsNullOrEmpty(stderr))
             GuardLogger.Warn($"Remove-AppxPackage (user) stderr: {stderr.Trim()}");
-        return proc?.ExitCode == 0;
+        return (proc?.ExitCode == 0, false);
     }
 
     public static bool RemoveProvisionedPackage(string packageName)
@@ -667,12 +677,14 @@ public class GuardService : BackgroundService
 
         int removed = 0;
         int skipped = 0;
+        int systemAppsSkipped = 0;
+        int failed = 0;
 
         // 1. Remove installed AppxPackages matching blacklist
         if (_config.Prevention.RemoveAppxPackages)
         {
             var packages = AppxManager.GetBlacklistedPackages(_config.Blacklist, _config.Whitelist);
-            foreach (var (familyName, displayName, fullName, isFramework) in packages)
+            foreach (var (familyName, displayName, fullName, isFramework, installPath) in packages)
             {
                 // Whitelist check
                 if (IsWhitelisted(familyName))
@@ -714,14 +726,21 @@ public class GuardService : BackgroundService
                 else
                 {
                     GuardLogger.Warn($"Admin removal failed for {familyName}, trying user-level...");
-                    if (AppxManager.RemoveAppxPackageForUser(fullName))
+                    var (success, isSystemApp) = AppxManager.RemoveAppxPackageForUser(fullName, installPath);
+                    if (success)
                     {
                         GuardLogger.Info($"Removed AppxPackage (user-level): {familyName} ({displayName})");
                         removed++;
                     }
+                    else if (isSystemApp)
+                    {
+                        GuardLogger.Info($"SystemApp skipped (requires admin): {familyName}");
+                        systemAppsSkipped++;
+                    }
                     else
                     {
                         GuardLogger.Warn($"Failed to remove: {familyName}");
+                        failed++;
                     }
                 }
             }
@@ -760,7 +779,7 @@ public class GuardService : BackgroundService
         else
             GuardLogger.Info("[DRY-RUN] Would re-apply registry prevention settings");
 
-        GuardLogger.Info($"Scan complete. {(dryRun ? "Would remove" : "Removed")} {removed} packages, skipped {skipped}.");
+        GuardLogger.Info($"Scan complete. {(dryRun ? "Would remove" : "Removed")} {removed} packages, skipped {skipped}, system apps skipped {systemAppsSkipped}, failed {failed}.");
     }
 
     private bool IsWhitelisted(string packageFamilyName)
@@ -896,7 +915,7 @@ public class Program
         ServiceConfig.Current = config;
         GuardLogger.Info("Installed packages matching blacklist:");
         var packages = AppxManager.GetBlacklistedPackages(config.Blacklist, config.Whitelist);
-        foreach (var (familyName, displayName, _, isFramework) in packages)
+        foreach (var (familyName, displayName, _, isFramework, _) in packages)
         {
             var tag = isFramework ? " [FRAMEWORK]" : "";
             GuardLogger.Info($"  {familyName} ({displayName}){tag}");

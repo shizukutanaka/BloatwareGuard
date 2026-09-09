@@ -168,14 +168,15 @@ def run_cmd(args: List[str], timeout: int = 30) -> Tuple[str, int]:
 
 # ─── Appx Package Manager ────────────────────────────────────────────────────
 
-def get_blacklisted_packages(blacklist: List[str]) -> List[Tuple[str, str]]:
-    """Return (PackageFamilyName, Name) for installed packages matching blacklist."""
+def get_blacklisted_packages(blacklist: List[str]) -> List[Tuple[str, str, str]]:
+    """Return (PackageFamilyName, Name, InstallPath) for packages matching blacklist.
+    InstallPath is None for SystemApps (cannot be removed per-user)."""
     if not blacklist:
         return []
 
     # Build regex: match if any blacklist entry is a substring of PackageFamilyName
     results = []
-    ps_cmd = "Get-AppxPackage | Select-Object PackageFamilyName,Name | ConvertTo-Json"
+    ps_cmd = "Get-AppxPackage | Select-Object PackageFamilyName,Name,InstallPath | ConvertTo-Json"
     stdout, stderr, rc = run_powershell(ps_cmd, timeout=120)
 
     if rc != 0 or not stdout:
@@ -188,8 +189,9 @@ def get_blacklisted_packages(blacklist: List[str]) -> List[Tuple[str, str]]:
         for pkg in data:
             family = pkg.get("PackageFamilyName", "")
             name = pkg.get("Name", "")
+            install_path = pkg.get("InstallPath", "")  # None for SystemApps
             if any(entry.lower() in family.lower() for entry in blacklist):
-                results.append((family, name))
+                results.append((family, name, install_path))
     except (json.JSONDecodeError, TypeError):
         pass
 
@@ -349,15 +351,19 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
     # 1. Remove installed packages
     if prev.get("RemoveAppxPackages", True):
         packages = get_blacklisted_packages(blacklist)
-        for family_name, display_name in packages:
+        for family_name, display_name, install_path in packages:
             full_name = get_package_full_name(family_name)
+            is_system_app = not install_path or install_path.strip() == ""
             if dry_run:
+                note = "[SystemApp: requires admin]" if is_system_app else ""
                 if full_name:
-                    logger.info(f"[DRY-RUN] Would remove AppxPackage: {family_name} ({full_name})")
+                    logger.info(f"[DRY-RUN] Would remove AppxPackage: {family_name} ({full_name}) {note}")
                 else:
-                    logger.info(f"[DRY-RUN] Would remove AppxPackage: {family_name} (non-admin: full name not resolvable)")
+                    logger.info(f"[DRY-RUN] Would remove AppxPackage: {family_name} (non-admin: full name not resolvable) {note}")
             else:
-                if remove_appx_package(full_name):
+                if is_system_app:
+                    logger.info(f"SystemApp skipped (requires admin): {family_name}")
+                elif remove_appx_package(full_name):
                     logger.info(f"Removed AppxPackage: {family_name} ({display_name})")
                     removed += 1
                 else:
@@ -432,7 +438,7 @@ def run_service(config: dict, logger: logging.Logger):
             
             # Also check installed packages for re-appearance
             current_installed = get_blacklisted_packages(blacklist)
-            for family_name, display_name in current_installed:
+            for family_name, display_name, install_path in current_installed:
                 if family_name in known_removed:
                     logger.warning(f"[MONITOR] RE-INSTALLED AppxPackage: {family_name} — removing!")
                     full_name = get_package_full_name(family_name)
