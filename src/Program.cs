@@ -232,10 +232,10 @@ public static class ConfigLoader
 public static class AppxManager
 {
     /// <summary>Get all installed AppxPackages whose FamilyName matches any blacklist entry</summary>
-    public static List<(string PackageFamilyName, string DisplayName, string PackageFullName, bool IsFramework, string InstallPath)> GetBlacklistedPackages(
+    public static List<(string PackageFamilyName, string DisplayName, string PackageFullName, bool IsFramework, string? InstallPath)> GetBlacklistedPackages(
         List<string> blacklist, List<string> whitelist)
     {
-        var results = new List<(string, string, string, bool, string)>();
+        var results = new List<(string, string, string, bool, string?)>();
         var pattern = string.Join("|", blacklist.Select(Regex.Escape));
         var psi = new ProcessStartInfo
         {
@@ -353,7 +353,7 @@ public static class AppxManager
 
     /// <summary>Remove AppxPackage for CURRENT USER only (no admin required).
     /// Returns (success, isSystemApp). SystemApps cannot be removed per-user.</summary>
-    public static (bool Success, bool IsSystemApp) RemoveAppxPackageForUser(string packageFullName, string installPath = null)
+    public static (bool Success, bool IsSystemApp) RemoveAppxPackageForUser(string packageFullName, string? installPath = null)
     {
         // SystemApps have null InstallPath — cannot be removed per-user (0x80073CFA)
         if (string.IsNullOrEmpty(installPath))
@@ -854,7 +854,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.7.0");
+                    Console.WriteLine("BloatwareGuard v1.8.0-mvp");
                     return;
                 case "--service-dry-run":
                     config.DryRun = true;
@@ -927,7 +927,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.7.0 — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.8.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 

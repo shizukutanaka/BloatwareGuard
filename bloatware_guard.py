@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.7.0 - Python prototype
+BloatwareGuard v1.8.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -31,7 +31,7 @@ from typing import List, Tuple, Optional
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.7.0"
+APP_VERSION = "1.8.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 YAML_CONFIG_PATH = Path(__file__).parent / "config.yaml"
