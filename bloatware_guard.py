@@ -374,13 +374,13 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
             provisioned = get_blacklisted_provisioned(blacklist)
             for display_name in provisioned:
                 if dry_run:
-                    logger.info(f"[DRY-RUN] Would remove ProvisionedPackage: {display_name}")
+                    logger.info(f"[DRY-RUN] Would remove ProvisionedPackage: {display_name} [requires admin]")
                 else:
                     if remove_provisioned_package(display_name):
                         logger.info(f"Removed ProvisionedPackage: {display_name}")
                         removed += 1
                     else:
-                        logger.warning(f"Failed to remove ProvisionedPackage: {display_name}")
+                        logger.warning(f"Failed to remove ProvisionedPackage: {display_name} [admin required]")
 
     # 3. Re-apply registry (idempotent, Windows Update may reset)
     if dry_run:

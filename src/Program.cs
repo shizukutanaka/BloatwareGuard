@@ -758,7 +758,7 @@ public class GuardService : BackgroundService
 
                 if (dryRun)
                 {
-                    GuardLogger.Info($"[DRY-RUN] Would remove provisioned: {pkgName}");
+                    GuardLogger.Info($"[DRY-RUN] Would remove provisioned: {pkgName} [requires admin]");
                     removed++;
                 }
                 else if (AppxManager.RemoveProvisionedPackage(pkgName))
@@ -768,7 +768,8 @@ public class GuardService : BackgroundService
                 }
                 else
                 {
-                    GuardLogger.Warn($"Failed to remove provisioned: {pkgName}");
+                    GuardLogger.Warn($"Failed to remove provisioned: {pkgName} [admin required]");
+                    systemAppsSkipped++;
                 }
             }
         }

@@ -1,129 +1,96 @@
-# BloatwareGuard
+# BloatwareGuard v1.8.0-dev
 
-**Windows 11のbloatware（不要アプリ）を自動検知・自動削除・再インストール防止する常駐型ツール。**
+## What It Does
 
-Windows Update後や新規ユーザー作成時に勝手に戻ってくる Microsoft Xbox, Solitaire, Clipchamp, McAfee, Spotify, Netflix などの不要アプリを、ブラックリスト方式で永久にブロックします。
+Removes Windows bloatware across **7 prevention layers** in both **Python** and **C#** implementations.
 
-## 機能
+### Layers
 
-- **自動スキャン & 削除**: 定期スキャンでブラックリストに該当する AppxPackage を自動削除
-- **プロビジョニングパッケージ削除**: 新規ユーザー作成時の再展開を防止
-- **レジストリ防止レイヤー**: Consumer Experiences, Cloud Content, Device Metadata を無効化
-- **OEM スケジュールタスク無効化**: メーカー製の再インストールタスクを無効化
-- **Windows Update耐性**: レジストリ設定がリセットされても定期スキャンで自動復元
+| Layer | Python | C# | Non-Admin |
+|---|---|---|---|
+| 1. AppxPackage removal | ✅ | ✅ | Regular→✓, SystemApp→skip |
+| 2. ProvisionedPackage removal | ✅ | ✅ | Requires admin |
+| 3. Consumer Experiences | ✅ | ✅ | HKCU write |
+| 4. Cloud Content | ✅ | ✅ | HKCU write |
+| 5. Device Metadata | ✅ | ✅ | HKLM (admin) |
+| 6. OEM Scheduled Tasks | ✅ | ✅ | ✅ Disable works |
+| 7. Re-install Monitor | ✅ | ✅ | ✅ Service mode |
 
-## 必要条件
+---
 
-- Windows 11 (10でも動作可能)
-- Python 3.10+
-- **管理者権限**（必須）
+## Quick Start
 
-## クイックスタート
+### Non-Admin (dry-run)
 
-```powershell
-# 管理者権限のPowerShellで実行
-git clone https://github.com/yourusername/BloatwareGuard.git
-cd BloatwareGuard
+```bash
+# Python
+python bloatware_guard.py --dry-run
 
-# 1回だけスキャン（テスト）
-python bloatware_guard.py --scan
-
-# 常駐モードで起動（5分ごとに自動スキャン）
-python bloatware_guard.py
-
-# Windowsサービスとして登録（自動起動）
-python bloatware_guard.py --install
-sc start BloatwareGuard
+# C# (.NET 8 required)
+dotnet run src/BloatwareGuard.csproj -- --dry-run
 ```
 
-## 設定
+### Admin Deployment
 
-`config.json` を編集して動作をカスタマイズ：
+```bash
+# 1. Build C# version
+dotnet build src/BloatwareGuard.csproj -c Release
 
-```json
-{
-  "ScanIntervalSeconds": 300,
-  "Blacklist": [
-    "Microsoft.Xbox",
-    "Microsoft.GamingApp",
-    "McAfee",
-    "Netflix"
-  ],
-  "Prevention": {
-    "RemoveAppxPackages": true,
-    "DisableConsumerExperiences": true,
-    "DisableCloudContent": true,
-    "PreventDeviceMetadata": true,
-    "DisableOemScheduledTasks": true,
-    "BlockProvisioning": true
-  }
-}
+# 2. Run as Administrator
+.\src\bin\Release\net8.0-windows\BloatwareGuard.exe --admin-scan
+
+# 3. Reboot, wait 30 minutes, then verify
+.\src\bin\Release\net8.0-windows\BloatwareGuard.exe --verify
 ```
 
-### ブラックリストの仕様
+---
 
-- **部分一致**: `"Microsoft.Xbox"` を指定すると `Microsoft.Xbox.GamingOverlay`, `Microsoft.Xbox.TCUI` 等も対象
-- 大文字小文字を区別しない
-- OEMメーカー名（`"Dell"`, `"HPInc"`, `"Lenovo"` 等）を追加可能
+## Key Design Decisions
 
-### 防止レイヤー
+### SystemApp Detection
 
-| レイヤー | 効果 |
-|----------|------|
-| `RemoveAppxPackages` | インストール済みAppxPackage + プロビジョニングパッケージを削除 |
-| `DisableConsumerExperiences` | Microsoft Storeのおすすめアプリ自動ダウンロードを無効化 |
-| `DisableCloudContent` | スタートメニューの提案・クラウドコンテンツを無効化 |
-| `PreventDeviceMetadata` | ハードウェア接続時のcompanion app自動ダウンロードを防止 |
-| `DisableOemScheduledTasks` | メーカー製再インストール用スケジュールタスクを無効化 |
-| `BlockProvisioning` | サイレントアプリインストール・提案を無効化 |
+SystemApps (e.g., `Microsoft.XboxGameCallableUI`) **cannot be removed per-user** — Windows returns `HRESULT 0x80073CFA`. Detection method:
 
-## コマンド
+- PowerShell `Get-AppxPackage` returns **null `InstallPath`** for SystemApps
+- These are **skipped gracefully** with a warning, not a failure
 
-| コマンド | 説明 |
-|----------|------|
-| `python bloatware_guard.py` | 常駐モード（定期スキャンループ） |
-| `python bloatware_guard.py --scan` | 1回だけスキャンして終了 |
-| `python bloatware_guard.py --install` | Windowsサービスとして登録 |
-| `python bloatware_guard.py --uninstall` | Windowsサービスから削除 |
-| `python bloatware_guard.py --status` | サービス状態確認 |
-| `python bloatware_guard.py --config path/to/config.json` | 設定ファイル指定 |
+### ProvisionedPackage Removal
 
-## ログ
+Requires admin (`DISM /Online /Remove-ProvisionedPackage`). Non-admin path logs `[requires admin]` and continues.
 
-- **ファイル**: `%PROGRAMDATA%\BloatwareGuard\bloatware-guard.log`
-- **Windowsイベントログ**: `Application` → Source `BloatwareGuard`
+### Whitelist
 
-## アーキテクチャ
+Always preserves: `WindowsStore`, `Calculator`, `Notepad`, `Microsoft.VCLibs`, `Microsoft.VCWeb`.
 
-```
-┌─────────────────────────────────────────────────┐
-│              BloatwareGuard Service              │
-├─────────────────────────────────────────────────┤
-│  Main Loop (every N seconds)                    │
-│    ├─ Scan & Remove AppxPackages                │
-│    ├─ Scan & Remove ProvisionedPackages         │
-│    ├─ Re-apply Registry Policies (idempotent)   │
-│    └─ Disable OEM Scheduled Tasks               │
-├─────────────────────────────────────────────────┤
-│  Prevention Layers (Registry)                   │
-│    ├─ DisableWindowsConsumerFeatures = 1        │
-│    ├─ DisableSoftLanding = 1                    │
-│    ├─ PreventDeviceMetadataFromNetwork = 1      │
-│    └─ SilentInstalledAppsEnabled = 0            │
-└─────────────────────────────────────────────────┘
+---
+
+## Files
+
+| File | Description |
+|---|---|
+| `bloatware_guard.py` | Python implementation (primary) |
+| `src/Program.cs` | C#/.NET 8 implementation |
+| `src/BloatwareGuard.csproj` | C# project file |
+| `config.json` | Blacklist + whitelist config |
+| `deploy_verify.bat` | Admin deployment script |
+| `check_pkgs.ps1` | PowerShell package checker |
+| `verify_scan.ps1` | Post-reboot verification script |
+
+---
+
+## Build & Test
+
+```bash
+# Python
+python -c "import py_compile; py_compile.compile('bloatware_guard.py', doraise=True)"
+
+# C#
+dotnet build src/BloatwareGuard.csproj -c Release
 ```
 
-## よくある質問
+## Version
 
-**Q: 消したアプリが復活する？**
-A: 本ツールは定期スキャンでレジストリ設定を再適用するので、Windows Update後も恒久的に防止されます。
-
-**Q: システムに必要なアプリまで消される？**
-A: ブラックリスト方式なので、リストに書いたものだけが削除対象です。デフォルトリストも安全なものだけにしています。
-
-**Q: EdgeやCopilotも消せる？**
-A: ブラックリストに `Microsoft.MicrosoftEdge.Stable` や `Microsoft.Copilot` を追加すれば可能です。ただしシステム機能への影響をご理解の上で行ってください。
-
-## ライセンス
-
-MIT License
+```bash
+python bloatware_guard.py --version   # Python
+BloatwareGuard.exe --version          # C#
+```
