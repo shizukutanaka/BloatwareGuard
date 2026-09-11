@@ -41,10 +41,10 @@ if %errorlevel% neq 0 (
 echo.
 
 REM --- Build C# Release ---
-echo [3/6] Building C# Release...
+echo [3/6] Building C# Release (self-contained win-x64)...
 cd /d "%~dp0src"
-if not exist "bin\Release\net8.0-windows" mkdir "bin\Release\net8.0-windows"
-dotnet build BloatwareGuard.csproj -c Release -o "bin\Release\net8.0-windows" --nologo -v minimal 2>&1 | findstr /R /C:"error" /C:"warning"
+if not exist "bin\Release\net8.0-windows\win-x64" mkdir "bin\Release\net8.0-windows\win-x64"
+dotnet publish BloatwareGuard.csproj -c Release -r win-x64 --self-contained true -p:PublishTrimmed=true -o "bin\Release\net8.0-windows\win-x64" --nologo -v minimal
 if %errorlevel% neq 0 (
     echo ERROR: C# build failed.
     goto :error_build
@@ -65,7 +65,7 @@ echo.
 
 REM --- Run C# Dry-Run ---
 echo [5/6] Running C# dry-run mode...
-"bin\Release\net8.0-windows\BloatwareGuard.exe" --dry-run
+"bin\Release\net8.0-windows\win-x64\BloatwareGuard.exe" --dry-run
 set cs_exit=!errorlevel!
 if !cs_exit! neq 0 (
     echo ERROR: C# EXE exited with code !cs_exit!

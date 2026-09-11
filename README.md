@@ -1,4 +1,4 @@
-# BloatwareGuard v1.8.0-dev
+# BloatwareGuard v1.8.0-mvp
 
 ## What It Does
 

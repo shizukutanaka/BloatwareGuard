@@ -5,6 +5,10 @@
     <TargetFramework>net8.0-windows</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <PublishTrimmed>true</PublishTrimmed>
     <RootNamespace>BloatwareGuard</RootNamespace>
     <AssemblyName>BloatwareGuard</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
