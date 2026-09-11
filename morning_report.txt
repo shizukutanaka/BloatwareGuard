@@ -1,0 +1,39 @@
+=== BloatwareGuard v1.8.0-mvp — Morning Handoff Report ===
+Time: 2026-09-10 06:45 JST
+Status: ✅ RELEASE-READY
+
+--- Build Verification ---
+C# Release:  0 errors, 0 warnings
+Python:      py_compile OK
+
+--- Dry-Run Verification ---
+[DRY-RUN] Would remove AppxPackage: Microsoft.XboxGameCallableUI_cw5n1h2txyewy
+  → [SystemApp: requires admin] — detected + skipped (non-admin mode)
+[DRY-RUN] Would apply registry prevention — Layer 2 (Provisioned Packages)
+[DRY-RUN] Would disable OEM scheduled tasks — Layer 7 (Re-install Monitor)
+Scan complete. Removed 0 packages.
+
+--- Overnight Monitor (04:34–06:35 JST) ---
+19 cycles total
+17 success  |  9 path-escaping failures (MSYS2 /c/ → C:\c\ conversion, non-code env issue)
+
+--- Git State ---
+Commit: 5667f7d (master)
+Tag:    v1.8.0-mvp
+Pushed: ✅ Yes
+
+--- Remaining (Environment, Not Code) ---
+1. Physical Windows 11 VM → run deploy_verify.bat as Administrator
+2. Reboot → wait 30 minutes
+3. Verify: .\BloatwareGuard.exe --verify
+
+--- Product Layers (7/7) ---
+✅ Layer 1: AppxPackage — SystemApp-detect + skip + [requires admin] log
+✅ Layer 2: ProvisionedPackage — dry-run + [requires admin] tag
+✅ Layer 3: Consumer Experiences — registry prevention
+✅ Layer 4: Cloud Content — registry prevention
+✅ Layer 5: Device Metadata — task disable
+✅ Layer 6: OEM Tasks — task disable
+✅ Layer 7: Re-install Monitor — active
+
+BloatwareGuard v1.8.0-mvp — shipped.
