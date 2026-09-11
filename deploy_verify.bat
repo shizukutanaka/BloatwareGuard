@@ -54,7 +54,7 @@ echo.
 
 REM --- Run Dry-Run ---
 echo [4/6] Running dry-run mode...
-python "%~dp0bloatware_guard.py" --dry-run 2>&1 | tail -20
+python "%~dp0bloatware_guard.py" --dry-run 2>&1
 set py_exit=!errorlevel!
 if !py_exit! neq 0 (
     echo ERROR: Python dry-run exited with code !py_exit!
