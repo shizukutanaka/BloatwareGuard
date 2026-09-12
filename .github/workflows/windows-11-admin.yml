@@ -1,0 +1,80 @@
+name: windows-11-admin-test
+
+# Purpose: Auto-test BloatwareGuard.exe on REAL admin Windows 11
+# Why: UAC requires admin (manifest requireAdministrator) — standard runners can't test
+# Trigger: Manually from GitHub Actions UI, after every commit to master
+
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for triggering C# admin test'
+        required: true
+        default: 'Post-release verification'
+
+jobs:
+  test-exe-on-windows-11-admin:
+    name: Test BloatwareGuard.exe (Admin Windows 11 VM)
+    runs-on: windows-11
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.424
+
+      - name: Publish self-contained single-file
+        run: |
+          dotnet publish src/BloatwareGuard.csproj -c Release -r win-x64 `
+            -p:PublishSingleFile=true `
+            -p:SelfContained=true `
+            -p:IncludeNativeLibrariesForSelfExtract=false `
+            -p:PublishTrimmed=true `
+            -p:TrimmerSingleWarn=false `
+            -p:TrimmerRemoveSymbols=true `
+            -p:EnableCompressionInSingleFile=true `
+            -o src/bin/Release/net8.0-windows/win-x64
+
+      - name: Run --version (capture output)
+        run: |
+          $exe = "src\bin\Release\net8.0-windows\win-x64\BloatwareGuard.exe"
+          $output = & $exe --version 2>&1
+          echo "=== --version output ==="
+          echo "$output"
+          echo "---"
+
+      - name: Run --self-test (capture output)
+        run: |
+          $exe = "src\bin\Release\net8.0-windows\win-x64\BloatwareGuard.exe"
+          $output = & $exe --self-test 2>&1
+          echo "=== --self-test output ==="
+          echo "$output"
+          echo "---"
+
+      - name: Run dry-run (non-admin scan — logs SystemApps as [requires admin])
+        run: |
+          $exe = "src\bin\Release\net8.0-windows\win-x64\BloatwareGuard.exe"
+          $output = & $exe dry-run 2>&1
+          echo "=== dry-run output ==="
+          echo "$output"
+          echo "---"
+
+      - name: Run scan (non-admin — should log SystemApp detection)
+        run: |
+          $exe = "src\bin\Release\net8.0-windows\win-x64\BloatwareGuard.exe"
+          $output = & $exe scan 2>&1
+          echo "=== scan output ==="
+          echo "$output"
+          echo "---"
+
+      - name: Upload all logs as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bloatware-guard-csharp-exe-test-results
+          path: |
+            src/bin/Release/net8.0-windows/win-x64/**/*.log
