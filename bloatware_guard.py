@@ -168,13 +168,13 @@ def run_cmd(args: List[str], timeout: int = 30) -> Tuple[str, int]:
 
 # ─── Appx Package Manager ────────────────────────────────────────────────────
 
-def get_blacklisted_packages(blacklist: List[str]) -> List[Tuple[str, str, str]]:
+def get_blacklisted_packages(blacklist: List[str], whitelist: List[str]) -> List[Tuple[str, str, str]]:
     """Return (PackageFamilyName, Name, InstallPath) for packages matching blacklist.
-    InstallPath is None for SystemApps (cannot be removed per-user)."""
+    InstallPath is None for SystemApps (cannot be removed per-user).
+    Whitelisted packages are never returned."""
     if not blacklist:
         return []
 
-    # Build regex: match if any blacklist entry is a substring of PackageFamilyName
     results = []
     ps_cmd = "Get-AppxPackage | Select-Object PackageFamilyName,Name,InstallPath | ConvertTo-Json"
     stdout, stderr, rc = run_powershell(ps_cmd, timeout=120)
@@ -191,6 +191,8 @@ def get_blacklisted_packages(blacklist: List[str]) -> List[Tuple[str, str, str]]
             name = pkg.get("Name", "")
             install_path = pkg.get("InstallPath", "")  # None for SystemApps
             if any(entry.lower() in family.lower() for entry in blacklist):
+                if any(w.lower() in family.lower() for w in whitelist):
+                    continue
                 results.append((family, name, install_path))
     except (json.JSONDecodeError, TypeError):
         pass
@@ -198,8 +200,9 @@ def get_blacklisted_packages(blacklist: List[str]) -> List[Tuple[str, str, str]]
     return results
 
 
-def get_blacklisted_provisioned(blacklist: List[str]) -> List[str]:
-    """Return DisplayName of provisioned packages matching blacklist."""
+def get_blacklisted_provisioned(blacklist: List[str], whitelist: List[str]) -> List[str]:
+    """Return DisplayName of provisioned packages matching blacklist.
+    Whitelisted packages are never returned."""
     results = []
     ps_cmd = "Get-AppxProvisionedPackage -Online | Select-Object DisplayName,PackageName | ConvertTo-Json"
     stdout, stderr, rc = run_powershell(ps_cmd, timeout=120)
@@ -214,6 +217,8 @@ def get_blacklisted_provisioned(blacklist: List[str]) -> List[str]:
         for pkg in data:
             display = pkg.get("DisplayName", "")
             if any(entry.lower() in display.lower() for entry in blacklist):
+                if any(w.lower() in display.lower() for w in whitelist):
+                    continue
                 results.append(display)
     except (json.JSONDecodeError, TypeError):
         pass
@@ -345,12 +350,13 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
     if dry_run:
         logger.info("=== DRY-RUN MODE — no changes will be made ===")
     blacklist = config.get("Blacklist", [])
+    whitelist = config.get("Whitelist", [])
     prev = config.get("Prevention", {})
     removed = 0
 
     # 1. Remove installed packages
     if prev.get("RemoveAppxPackages", True):
-        packages = get_blacklisted_packages(blacklist)
+        packages = get_blacklisted_packages(blacklist, whitelist)
         for family_name, display_name, install_path in packages:
             full_name = get_package_full_name(family_name)
             is_system_app = not install_path or install_path.strip() == ""
@@ -371,7 +377,7 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
 
         # 2. Remove provisioned packages
         if prev.get("RemoveProvisionedPackages", True):
-            provisioned = get_blacklisted_provisioned(blacklist)
+            provisioned = get_blacklisted_provisioned(blacklist, whitelist)
             for display_name in provisioned:
                 if dry_run:
                     logger.info(f"[DRY-RUN] Would remove ProvisionedPackage: {display_name} [requires admin]")
@@ -406,10 +412,12 @@ def run_service(config: dict, logger: logging.Logger):
     interval = config.get("ScanIntervalSeconds", 300)
     prev = config.get("Prevention", {})
     blacklist = config.get("Blacklist", [])
+    whitelist = config.get("Whitelist", [])
     
     logger.info(f"=== {APP_NAME} Service Started ===")
     logger.info(f"Scan interval: {interval}s")
     logger.info(f"Blacklist entries: {len(blacklist)}")
+    logger.info(f"Whitelist entries: {len(whitelist)}")
     
     # Layer 7: Track previously removed provisioned packages to detect re-installation
     known_removed = set()
@@ -427,7 +435,7 @@ def run_service(config: dict, logger: logging.Logger):
             
             # Layer 7: Re-install Monitor
             if prev.get("ReinstallMonitor", True):
-                current_provisioned = get_blacklisted_provisioned(blacklist)
+                current_provisioned = get_blacklisted_provisioned(blacklist, whitelist)
                 for display_name in current_provisioned:
                     if display_name in known_removed:
                         logger.warning(f"[MONITOR] RE-INSTALLED detected: {display_name} — removing immediately!")
@@ -437,7 +445,7 @@ def run_service(config: dict, logger: logging.Logger):
                         known_removed.add(display_name)
             
             # Also check installed packages for re-appearance
-            current_installed = get_blacklisted_packages(blacklist)
+            current_installed = get_blacklisted_packages(blacklist, whitelist)
             for family_name, display_name, install_path in current_installed:
                 if family_name in known_removed:
                     logger.warning(f"[MONITOR] RE-INSTALLED AppxPackage: {family_name} — removing!")

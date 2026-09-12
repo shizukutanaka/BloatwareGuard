@@ -10,6 +10,8 @@
     <PublishSingleFile>true</PublishSingleFile>
     <IncludeNativeLibrariesForSelfExtract>false</IncludeNativeLibrariesForSelfExtract>
     <PublishTrimmed>true</PublishTrimmed>
+    <TrimmerSingleWarn>false</TrimmerSingleWarn>
+    <TrimmerRemoveSymbols>true</TrimmerRemoveSymbols>
     <RootNamespace>BloatwareGuard</RootNamespace>
     <AssemblyName>BloatwareGuard</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>

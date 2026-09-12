@@ -1,12 +1,12 @@
 # BloatwareGuard Verification Script (SYSTEM-compatible)
 # Intended to run as Scheduled Task at SYSTEM privilege
-# No UAC prompt, no python dependency, uses C# exe directly
+# No UAC prompt, no python dependency, uses C# self-contained exe directly
+# Deploy: run deploy_verify.bat first (builds + verifies)
 
-$ErrorActionPreference = "Continue"
 $ErrorActionPreference = "SilentlyContinue"
 
-$exe = "C:\BGOut\BloatwareGuard.exe"
-$config = "C:\BGOut\config.json"
+$exe = "C:\Users\HP\bloatware-guard\src\bin\Release\net8.0-windows\win-x64\BloatwareGuard.exe"
+$config = "C:\Users\HP\bloatware-guard\src\config.json"
 $log = "C:\temp\verify_scan.log"
 
 "=== BloatwareGuard Verification ===" | Out-File -Append $log
@@ -17,7 +17,7 @@ if (!(Test-Path C:\temp)) { mkdir C:\temp | Out-Null }
 
 # Check exe
 if (-not (Test-Path $exe)) {
-    "ERROR: $exe not found. Run build-to-out.bat first." | Out-File -Append $log
+    "ERROR: $exe not found. Run deploy_verify.bat first." | Out-File -Append $log
     exit 1
 }
 

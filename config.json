@@ -28,6 +28,7 @@
     "Microsoft.ScreenSketch",
     "Microsoft.Clipchamp",
     "MicrosoftTeams",
+    "Microsoft.MicrosoftEdge.Stable",
     "Microsoft.DevHome",
     "Microsoft.Copilot",
     "Clipchamp.Clipchamp",
@@ -40,16 +41,23 @@
     "SynapticsIncorporated",
     "BytedancePte.Ltd.TikTok",
     "KING.COM.CandyCrush",
+    "A278AB0D.DisneyMagicKingdoms",
+    "A278AB0D.MarchofEmpires",
     "D5EA27B7.Duolingo-LearnLanguagesforFree",
     "PandoraMediaInc.29680B314EFC2",
     "Facebook.InstagramBeta",
     "Facebook.Facebook",
-    "WhatsApp",
-    "A278AB0D.DisneyMagicKingdoms",
-    "A278AB0D.MarchofEmpires"
+    "WhatsApp"
+  ],
+  "Whitelist": [
+    "Microsoft.WindowsStore",
+    "Microsoft.WindowsCalculator",
+    "Microsoft.WindowsNotepad",
+    "Microsoft.WindowsTerminal"
   ],
   "Prevention": {
     "RemoveAppxPackages": true,
+    "RemoveProvisionedPackages": true,
     "DisableConsumerExperiences": true,
     "DisableCloudContent": true,
     "PreventDeviceMetadata": true,
