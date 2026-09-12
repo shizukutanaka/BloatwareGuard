@@ -17,7 +17,7 @@ on:
 jobs:
   test-exe-on-windows-11-admin:
     name: Test BloatwareGuard.exe (Admin Windows 11 VM)
-    runs-on: windows-11
+    runs-on: [self-hosted, windows-11]
 
     steps:
       - name: Checkout repo
