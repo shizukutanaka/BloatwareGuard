@@ -624,6 +624,10 @@ def run_self_test() -> int:
             for h in lg.handlers:
                 h.flush()
             assert "self-test marker" in log.read_text(encoding="utf-8")
+            # Windows: FileHandler must be closed before TemporaryDirectory cleanup (WinError 32)
+            for h in list(lg.handlers):
+                h.close()
+                lg.removeHandler(h)
 
     def t_is_admin():
         result = is_admin()
