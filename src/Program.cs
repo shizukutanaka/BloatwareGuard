@@ -571,45 +571,45 @@ public static class ScheduledTaskGuard
     private static readonly string[] OemTaskPatterns = {
         "OEM", "Dell", "HPInc", "HPA", "Lenovo", "ASUS", "Acer", "McAfee", "Norton",
         "SupportAssist", "Vantage", "Armoury", "Crate", "CustomerExperienceImprovement",
-        "Customer Experience Improvement", "Reinstall", "Bloatware"
+        "Customer Experience Improvement", "Reinstall", "Restore", "Bloatware"
     };
 
-    // Microsoft system tasks that MUST NEVER be disabled
+    // Microsoft system tasks that MUST NEVER be disabled (TaskPath prefixes)
     private static readonly string[] MicrosoftSystemPrefixes = {
-        @"\\Microsoft\\Windows\\CloudRestore",
-        @"\\Microsoft\\Windows\\InstallService",
-        @"\\Microsoft\\Windows\\WindowsUpdate",
-        @"\\Microsoft\\Windows\\UpdateOrchestrator",
-        @"\\Microsoft\\Windows\\Defrag",
-        @"\\Microsoft\\Windows\\Diagnosis",
-        @"\\Microsoft\\Windows\\Maintenance",
-        @"\\Microsoft\\Windows\\CloudExperienceHost",
-        @"\\Microsoft\\Windows\\Feedback",
-        @"\\Microsoft\\Windows\\Input",
-        @"\\Microsoft\\Windows\\International",
-        @"\\Microsoft\\Windows\\LanguageComponentsInstaller",
-        @"\\Microsoft\\Windows\\MUI",
-        @"\\Microsoft\\Windows\\PI",
-        @"\\Microsoft\\Windows\\RecoveryEnvironment",
-        @"\\Microsoft\\Windows\\Servicing",
-        @"\\Microsoft\\Windows\\SettingSync",
-        @"\\Microsoft\\Windows\\Shell",
-        @"\\Microsoft\\Windows\\Sysmain",
-        @"\\Microsoft\\Windows\\WDI",
-        @"\\Microsoft\\Windows\\Wlan",
-        @"\\Microsoft\\Windows\\Bluetooth",
-        @"\\Microsoft\\Windows\\NetTrace",
-        @"\\Microsoft\\Windows\\Security Center",
-        @"\\Microsoft\\Windows\\SpaceAgent",
-        @"\\Microsoft\\Windows\\Storage",
-        @"\\Microsoft\\Windows\\SystemRestore",
-        @"\\Microsoft\\Windows\\Task Manager",
-        @"\\Microsoft\\Windows\\VerifiableFileIntegrity",
-        @"\\Microsoft\\Windows\\WebAuth",
-        @"\\Microsoft\\Windows\\WiFi",
-        @"\\Microsoft\\Windows\\Windows Error Reporting",
-        @"\\Microsoft\\Windows\\License Manager",
-        @"\\Microsoft\\Windows\\Clip",
+        @"\Microsoft\Windows\CloudRestore",
+        @"\Microsoft\Windows\InstallService",
+        @"\Microsoft\Windows\WindowsUpdate",
+        @"\Microsoft\Windows\UpdateOrchestrator",
+        @"\Microsoft\Windows\Defrag",
+        @"\Microsoft\Windows\Diagnosis",
+        @"\Microsoft\Windows\Maintenance",
+        @"\Microsoft\Windows\CloudExperienceHost",
+        @"\Microsoft\Windows\Feedback",
+        @"\Microsoft\Windows\Input",
+        @"\Microsoft\Windows\International",
+        @"\Microsoft\Windows\LanguageComponentsInstaller",
+        @"\Microsoft\Windows\MUI",
+        @"\Microsoft\Windows\PI",
+        @"\Microsoft\Windows\RecoveryEnvironment",
+        @"\Microsoft\Windows\Servicing",
+        @"\Microsoft\Windows\SettingSync",
+        @"\Microsoft\Windows\Shell",
+        @"\Microsoft\Windows\Sysmain",
+        @"\Microsoft\Windows\WDI",
+        @"\Microsoft\Windows\Wlan",
+        @"\Microsoft\Windows\Bluetooth",
+        @"\Microsoft\Windows\NetTrace",
+        @"\Microsoft\Windows\Security Center",
+        @"\Microsoft\Windows\SpaceAgent",
+        @"\Microsoft\Windows\Storage",
+        @"\Microsoft\Windows\SystemRestore",
+        @"\Microsoft\Windows\Task Manager",
+        @"\Microsoft\Windows\VerifiableFileIntegrity",
+        @"\Microsoft\Windows\WebAuth",
+        @"\Microsoft\Windows\WiFi",
+        @"\Microsoft\Windows\Windows Error Reporting",
+        @"\Microsoft\Windows\License Manager",
+        @"\Microsoft\Windows\Clip",
     };
 
 
@@ -618,7 +618,7 @@ public static class ScheduledTaskGuard
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = "-NoProfile -ExecutionPolicy Bypass -Command \"Get-ScheduledTask | Where-Object {$_.TaskPath -like '*OEM*' -or $_.TaskName -match 'SupportAssist|Vantage|Armoury|Crate|Dell|HPInc|Lenovo|ASUS|Acer|McAfee|Norton|CustomerExperience|Reinstall|Restore'} | Select-Object TaskName,TaskPath,State | ConvertTo-Json\"",
+            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Get-ScheduledTask | Where-Object {{$_.TaskPath -like '*OEM*' -or $_.TaskName -match '{string.Join("|", OemTaskPatterns.Select(Regex.Escape))}'}} | Select-Object TaskName,TaskPath,State | ConvertTo-Json\"",
             RedirectStandardOutput = true,
             UseShellExecute = false,
             CreateNoWindow = true
@@ -649,12 +649,21 @@ public static class ScheduledTaskGuard
                 tasks.Add((name, path));
             }
 
+            var skipped = 0;
             foreach (var (name, path) in tasks)
             {
+                var fullPath = path.EndsWith("\\") ? path + name : path + "\\" + name;
+                if (MicrosoftSystemPrefixes.Any(p =>
+                    fullPath.StartsWith(p + "\\", StringComparison.OrdinalIgnoreCase)))
+                {
+                    GuardLogger.Warn($"Skipping protected system task: {fullPath}");
+                    skipped++;
+                    continue;
+                }
                 DisableTask(name, path);
             }
 
-            GuardLogger.Info($"Disabled {tasks.Count} OEM scheduled tasks");
+            GuardLogger.Info($"Disabled {tasks.Count - skipped} OEM scheduled tasks ({skipped} protected skipped)");
         }
         catch (Exception ex)
         {

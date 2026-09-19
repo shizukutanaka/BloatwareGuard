@@ -389,11 +389,35 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
 
 # ─── Scheduled Task Prevention ───────────────────────────────────────────────
 
+# Microsoft system tasks that MUST NEVER be disabled (TaskPath prefixes) —
+# kept in parity with C# ScheduledTaskGuard.MicrosoftSystemPrefixes
+MICROSOFT_SYSTEM_TASK_PREFIXES = (
+    "\\Microsoft\\Windows\\CloudRestore", "\\Microsoft\\Windows\\InstallService",
+    "\\Microsoft\\Windows\\WindowsUpdate", "\\Microsoft\\Windows\\UpdateOrchestrator",
+    "\\Microsoft\\Windows\\Defrag", "\\Microsoft\\Windows\\Diagnosis",
+    "\\Microsoft\\Windows\\Maintenance", "\\Microsoft\\Windows\\CloudExperienceHost",
+    "\\Microsoft\\Windows\\Feedback", "\\Microsoft\\Windows\\Input",
+    "\\Microsoft\\Windows\\International", "\\Microsoft\\Windows\\LanguageComponentsInstaller",
+    "\\Microsoft\\Windows\\MUI", "\\Microsoft\\Windows\\PI",
+    "\\Microsoft\\Windows\\RecoveryEnvironment", "\\Microsoft\\Windows\\Servicing",
+    "\\Microsoft\\Windows\\SettingSync", "\\Microsoft\\Windows\\Shell",
+    "\\Microsoft\\Windows\\Sysmain", "\\Microsoft\\Windows\\WDI",
+    "\\Microsoft\\Windows\\Wlan", "\\Microsoft\\Windows\\Bluetooth",
+    "\\Microsoft\\Windows\\NetTrace", "\\Microsoft\\Windows\\Security Center",
+    "\\Microsoft\\Windows\\SpaceAgent", "\\Microsoft\\Windows\\Storage",
+    "\\Microsoft\\Windows\\SystemRestore", "\\Microsoft\\Windows\\Task Manager",
+    "\\Microsoft\\Windows\\VerifiableFileIntegrity", "\\Microsoft\\Windows\\WebAuth",
+    "\\Microsoft\\Windows\\WiFi", "\\Microsoft\\Windows\\Windows Error Reporting",
+    "\\Microsoft\\Windows\\License Manager", "\\Microsoft\\Windows\\Clip",
+)
+
+
 def disable_oem_scheduled_tasks(logger: logging.Logger):
     """Disable known OEM scheduled tasks that reinstall bloatware."""
     patterns = (
-        "SupportAssist|Vantage|Armoury|Crate|Dell|HPInc|Lenovo|ASUS|Acer|"
-        "McAfee|Norton|CustomerExperience|Reinstall|Restore|OEM"
+        "OEM|Dell|HPInc|HPA|Lenovo|ASUS|Acer|McAfee|Norton|"
+        "SupportAssist|Vantage|Armoury|Crate|CustomerExperienceImprovement|"
+        "Customer Experience Improvement|Reinstall|Restore|Bloatware"
     )
     ps_cmd = (
         f"Get-ScheduledTask | "
@@ -410,19 +434,26 @@ def disable_oem_scheduled_tasks(logger: logging.Logger):
         if isinstance(data, dict):
             data = [data]
 
+        skipped = 0
         for task in data:
             name = task.get("TaskName", "")
             path = task.get("TaskPath", "\\")
             if not name:
                 continue
             full_path = path.rstrip("\\") + "\\" + name
+            if any(full_path.lower().startswith(p.lower() + "\\")
+                   for p in MICROSOFT_SYSTEM_TASK_PREFIXES):
+                logger.warning(f"Skipping protected system task: {full_path}")
+                skipped += 1
+                continue
             out, ret = run_cmd(["schtasks", "/Change", "/TN", full_path, "/DISABLE"])
             if ret == 0:
                 logger.info(f"Disabled scheduled task: {full_path}")
             else:
                 logger.warning(f"Failed to disable task: {full_path} ({out})")
 
-        logger.info(f"Processed {len(data)} OEM scheduled tasks")
+        logger.info(f"Processed {len(data) - skipped} OEM scheduled tasks "
+                    f"({skipped} protected skipped)")
     except (json.JSONDecodeError, TypeError) as e:
         logger.warning(f"Scheduled task scan error: {e}")
 
