@@ -41,8 +41,20 @@ src\bin\Release\net8.0-windows\win-x64\BloatwareGuard.exe dry-run
 python bloatware_guard.py --dry-run
 
 # Full removal (requires admin)
-python bloatware_guard.py --execute
+python bloatware_guard.py --scan
+
+# Restore staged packages (from the removal ledger)
+python bloatware_guard.py --restore
+BloatwareGuard.exe restore
 ```
+
+## Removal Ledger & Restore
+
+Every successful removal is appended to `removed-packages.jsonl` under
+`BackupDirectory` (default `C:\ProgramData\BloatwareGuard\Backups`).
+`restore` re-registers staged AppxPackages via their manifest;
+provisioned packages cannot be restored from the image and are reported
+for manual reinstall via the Microsoft Store.
 
 ---
 
