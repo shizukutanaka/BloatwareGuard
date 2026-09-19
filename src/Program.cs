@@ -825,10 +825,6 @@ public class GuardService : BackgroundService
                     RemovalLedger.Record(_config, "appx", displayName, familyName, fullName);
                     removed++;
                 }
-                else if (dryRun)
-                {
-                    // already handled above
-                }
                 else
                 {
                     GuardLogger.Warn($"Admin removal failed for {familyName}, trying user-level...");
@@ -1229,9 +1225,13 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         // Test 5: SystemAppDetector wiring (InstallPath=null logic exists)
         try
         {
-            // Verify SystemApp detection path is wired (not calling DISM)
-            bool hasSystemAppLogic = typeof(GuardService).GetMethod("RunOnce") != null ||
-                                     typeof(ServiceConfig).ToString().Contains("GuardConfig");
+            // Verify SystemApp detection path is wired: the per-user removal
+            // entry point taking string? installPath must exist
+            bool hasSystemAppLogic =
+                typeof(AppxManager).GetMethod("RemoveAppxPackageForUser") != null &&
+                typeof(GuardService).GetMethod("RunScan",
+                    System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Instance) != null;
             if (hasSystemAppLogic)
             {
                 results.Add("[PASS] T5: SystemAppDetector wiring — InstallLocation=null path referenced");
