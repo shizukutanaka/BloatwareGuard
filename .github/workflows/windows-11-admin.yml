@@ -64,11 +64,11 @@ jobs:
           echo "$output"
           echo "---"
 
-      - name: Run scan (non-admin — should log SystemApp detection)
+      - name: Run list-installed (read-only — NEVER run 'scan': it really removes packages on the runner)
         run: |
           $exe = "src\bin\Release\net8.0-windows\win-x64\BloatwareGuard.exe"
-          $output = & $exe scan 2>&1
-          echo "=== scan output ==="
+          $output = & $exe list-installed 2>&1
+          echo "=== list-installed output ==="
           echo "$output"
           echo "---"
 
