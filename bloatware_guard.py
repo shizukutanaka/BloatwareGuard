@@ -28,7 +28,7 @@ import logging
 import tempfile
 import shutil
 from pathlib import Path
-from typing import List, Tuple, Optional
+from typing import List, Tuple
 
 # ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -240,14 +240,6 @@ def get_blacklisted_provisioned(blacklist: List[str], whitelist: List[str]) -> L
         pass
 
     return results
-
-
-def get_package_full_name(package_family_name: str) -> Optional[str]:
-    ps_cmd = f"(Get-AppxPackage -PackageFamilyName '{package_family_name}').PackageFullName"
-    stdout, _, rc = run_powershell(ps_cmd)
-    if rc == 0 and stdout:
-        return stdout.strip().split("\n")[-1].strip()
-    return None
 
 
 def get_package_full_names() -> dict:
@@ -583,10 +575,12 @@ def run_service(config: dict, logger: logging.Logger):
                         else:
                             logger.warning(f"[MONITOR] Re-removal failed: {display_name}")
 
-                    for family_name in current_installed - seen_installed:
+                    reinstalled = current_installed - seen_installed
+                    full_names = get_package_full_names() if reinstalled else {}
+                    for family_name in reinstalled:
                         logger.warning(
                             f"[MONITOR] RE-INSTALLED AppxPackage: {family_name} — removing!")
-                        full_name = get_package_full_name(family_name)
+                        full_name = full_names.get(family_name)
                         if full_name and remove_appx_package(full_name):
                             logger.info(f"[MONITOR] Re-removal complete: {family_name}")
                         else:
