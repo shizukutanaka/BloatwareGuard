@@ -1006,6 +1006,13 @@ public class Program
                     config.DryRun = true;
                     GuardLogger.Info("Service mode: DRY-RUN (no removal actions will execute)");
                     break;
+                default:
+                    // Unrecognized args must NOT fall through to console mode —
+                    // that runs a real scan. Bail out instead.
+                    Console.WriteLine($"Unknown command: {args[0]}");
+                    ShowHelp();
+                    Environment.ExitCode = 1;
+                    return;
             }
         }
 
