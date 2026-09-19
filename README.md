@@ -80,8 +80,8 @@ Always preserves: `WindowsStore`, `Calculator`, `Notepad`, `Microsoft.VCLibs`, `
 || `src/BloatwareGuard.csproj` | C# project (self-contained win-x64) |
 || `config.json` | Blacklist + whitelist config |
 || `deploy_verify.bat` | Admin deployment + verification script |
-|| `check_pkgs.ps1` | PowerShell package checker |
 || `verify_scan.ps1` | Post-reboot verification script |
+|| `verify_scan_sys.ps1` | System-context verification script |
 
 ---
 

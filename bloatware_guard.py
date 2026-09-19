@@ -20,12 +20,11 @@ import json
 import os
 import sys
 import time
-import re
 import ctypes
 import argparse
 import logging
+import tempfile
 from pathlib import Path
-from datetime import datetime
 from typing import List, Tuple, Optional
 
 # ─── Constants ───────────────────────────────────────────────────────────────
@@ -34,9 +33,9 @@ APP_NAME = "BloatwareGuard"
 APP_VERSION = "1.8.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
-YAML_CONFIG_PATH = Path(__file__).parent / "config.yaml"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
 LOG_FILE = LOG_DIR / "bloatware-guard.log"
+
 
 # ─── Logging ─────────────────────────────────────────────────────────────────
 
@@ -168,6 +167,14 @@ def run_cmd(args: List[str], timeout: int = 30) -> Tuple[str, int]:
 
 # ─── Appx Package Manager ────────────────────────────────────────────────────
 
+def is_target_package(pkg_name: str, blacklist: List[str], whitelist: List[str]) -> bool:
+    """True if pkg_name matches any blacklist entry and no whitelist entry."""
+    name = pkg_name.lower()
+    if any(w.lower() in name for w in whitelist):
+        return False
+    return any(entry.lower() in name for entry in blacklist)
+
+
 def get_blacklisted_packages(blacklist: List[str], whitelist: List[str]) -> List[Tuple[str, str, str]]:
     """Return (PackageFamilyName, Name, InstallPath) for packages matching blacklist.
     InstallPath is None for SystemApps (cannot be removed per-user).
@@ -190,9 +197,7 @@ def get_blacklisted_packages(blacklist: List[str], whitelist: List[str]) -> List
             family = pkg.get("PackageFamilyName", "")
             name = pkg.get("Name", "")
             install_path = pkg.get("InstallPath", "")  # None for SystemApps
-            if any(entry.lower() in family.lower() for entry in blacklist):
-                if any(w.lower() in family.lower() for w in whitelist):
-                    continue
+            if is_target_package(family, blacklist, whitelist):
                 results.append((family, name, install_path))
     except (json.JSONDecodeError, TypeError):
         pass
@@ -216,9 +221,7 @@ def get_blacklisted_provisioned(blacklist: List[str], whitelist: List[str]) -> L
             data = [data]
         for pkg in data:
             display = pkg.get("DisplayName", "")
-            if any(entry.lower() in display.lower() for entry in blacklist):
-                if any(w.lower() in display.lower() for w in whitelist):
-                    continue
+            if is_target_package(display, blacklist, whitelist):
                 results.append(display)
     except (json.JSONDecodeError, TypeError):
         pass
@@ -245,7 +248,8 @@ def remove_provisioned_package(display_name: str) -> bool:
     ps_cmd = (
         f"$pkg = Get-AppxProvisionedPackage -Online | "
         f"Where-Object {{$_.DisplayName -eq '{display_name}'}}; "
-        f"if ($pkg) {{ Remove-AppxProvisionedPackage -Online -PackageName $pkg.PackageName -ErrorAction SilentlyContinue }}"
+        f"if ($pkg) {{ Remove-AppxProvisionedPackage -Online "
+        f"-PackageName $pkg.PackageName -ErrorAction SilentlyContinue }}"
     )
     _, _, rc = run_powershell(ps_cmd, timeout=60)
     return rc == 0
@@ -269,40 +273,28 @@ def set_registry_dword(hive, path: str, name: str, value: int) -> bool:
 def apply_registry_prevention(config: dict, logger: logging.Logger):
     prev = config.get("Prevention", {})
 
+    cloud_content = r"SOFTWARE\Policies\Microsoft\Windows\CloudContent"
+    cdm = r"SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
+
     if prev.get("DisableConsumerExperiences", True):
-        if set_registry_dword("HKLM",
-            r"SOFTWARE\Policies\Microsoft\Windows\CloudContent",
-            "DisableWindowsConsumerFeatures", 1):
+        if set_registry_dword("HKLM", cloud_content, "DisableWindowsConsumerFeatures", 1):
             logger.info("Applied: DisableWindowsConsumerFeatures = 1")
 
     if prev.get("DisableCloudContent", True):
-        set_registry_dword("HKLM",
-            r"SOFTWARE\Policies\Microsoft\Windows\CloudContent",
-            "DisableSoftLanding", 1)
-        set_registry_dword("HKLM",
-            r"SOFTWARE\Policies\Microsoft\Windows\CloudContent",
-            "DisableCloudOptimizedContent", 1)
+        set_registry_dword("HKLM", cloud_content, "DisableSoftLanding", 1)
+        set_registry_dword("HKLM", cloud_content, "DisableCloudOptimizedContent", 1)
         logger.info("Applied: DisableSoftLanding + DisableCloudOptimizedContent = 1")
 
     if prev.get("PreventDeviceMetadata", True):
-        if set_registry_dword("HKLM",
-            r"SOFTWARE\Policies\Microsoft\Windows\Device Metadata",
-            "PreventDeviceMetadataFromNetwork", 1):
+        if set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\Device Metadata",
+                              "PreventDeviceMetadataFromNetwork", 1):
             logger.info("Applied: PreventDeviceMetadataFromNetwork = 1")
 
     if prev.get("BlockProvisioning", True):
-        set_registry_dword("HKLM",
-            r"SOFTWARE\Policies\Microsoft\Windows\CloudContent",
-            "DisableConsumerAccountContent", 1)
-        set_registry_dword("HKCU",
-            r"SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager",
-            "SilentInstalledAppsEnabled", 0)
-        set_registry_dword("HKCU",
-            r"SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager",
-            "SystemPaneSuggestionsEnabled", 0)
-        set_registry_dword("HKCU",
-            r"SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager",
-            "SubscribedContent-338389Enabled", 0)
+        set_registry_dword("HKLM", cloud_content, "DisableConsumerAccountContent", 1)
+        set_registry_dword("HKCU", cdm, "SilentInstalledAppsEnabled", 0)
+        set_registry_dword("HKCU", cdm, "SystemPaneSuggestionsEnabled", 0)
+        set_registry_dword("HKCU", cdm, "SubscribedContent-338389Enabled", 0)
         logger.info("Applied: BlockProvisioning (silent installs + suggestions disabled)")
 
 
@@ -310,7 +302,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
 
 def disable_oem_scheduled_tasks(logger: logging.Logger):
     """Disable known OEM scheduled tasks that reinstall bloatware."""
-    patterns = "SupportAssist|Vantage|Armoury|Crate|Dell|HPInc|Lenovo|ASUS|Acer|McAfee|Norton|CustomerExperience|Reinstall|Restore|OEM"
+    patterns = (
+        "SupportAssist|Vantage|Armoury|Crate|Dell|HPInc|Lenovo|ASUS|Acer|"
+        "McAfee|Norton|CustomerExperience|Reinstall|Restore|OEM"
+    )
     ps_cmd = (
         f"Get-ScheduledTask | "
         f"Where-Object {{$_.TaskPath -like '*OEM*' -or $_.TaskName -match '{patterns}'}} | "
@@ -363,9 +358,12 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
             if dry_run:
                 note = "[SystemApp: requires admin]" if is_system_app else ""
                 if full_name:
-                    logger.info(f"[DRY-RUN] Would remove AppxPackage: {family_name} ({full_name}) {note}")
+                    logger.info(
+                        f"[DRY-RUN] Would remove AppxPackage: {family_name} ({full_name}) {note}")
                 else:
-                    logger.info(f"[DRY-RUN] Would remove AppxPackage: {family_name} (non-admin: full name not resolvable) {note}")
+                    logger.info(
+                        f"[DRY-RUN] Would remove AppxPackage: {family_name} "
+                        f"(non-admin: full name not resolvable) {note}")
             else:
                 if is_system_app:
                     logger.info(f"SystemApp skipped (requires admin): {family_name}")
@@ -413,12 +411,12 @@ def run_service(config: dict, logger: logging.Logger):
     prev = config.get("Prevention", {})
     blacklist = config.get("Blacklist", [])
     whitelist = config.get("Whitelist", [])
-    
+
     logger.info(f"=== {APP_NAME} Service Started ===")
     logger.info(f"Scan interval: {interval}s")
     logger.info(f"Blacklist entries: {len(blacklist)}")
     logger.info(f"Whitelist entries: {len(whitelist)}")
-    
+
     # Layer 7: Track previously removed provisioned packages to detect re-installation
     known_removed = set()
 
@@ -431,8 +429,8 @@ def run_service(config: dict, logger: logging.Logger):
     while True:
         try:
             # Standard scan (dry-run mode if configured)
-            removed = run_scan(config, logger, dry_run=config.get("DryRun", False))
-            
+            run_scan(config, logger, dry_run=config.get("DryRun", False))
+
             # Layer 7: Re-install Monitor
             if prev.get("ReinstallMonitor", True):
                 current_provisioned = get_blacklisted_provisioned(blacklist, whitelist)
@@ -443,7 +441,7 @@ def run_service(config: dict, logger: logging.Logger):
                         logger.info(f"[MONITOR] Re-removal complete: {display_name}")
                     else:
                         known_removed.add(display_name)
-            
+
             # Also check installed packages for re-appearance
             current_installed = get_blacklisted_packages(blacklist, whitelist)
             for family_name, display_name, install_path in current_installed:
@@ -498,6 +496,97 @@ def uninstall_service():
     print(result.stdout)
 
 
+# ─── Self-Test ───────────────────────────────────────────────────────────────
+
+def run_self_test() -> int:
+    """Real wiring checks — no admin required. Returns 0 if all pass, 1 otherwise."""
+    print(f"{APP_NAME} v{APP_VERSION} — Self-Test Mode")
+    results: List[Tuple[str, bool, str]] = []
+
+    def check(name: str, fn):
+        try:
+            fn()
+            results.append((name, True, ""))
+        except Exception as e:
+            results.append((name, False, str(e)))
+
+    def t_config_roundtrip():
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "config.json"
+            created = load_config(path)
+            assert created["Blacklist"], "default blacklist empty"
+            reloaded = load_config(path)
+            assert reloaded["Blacklist"] == created["Blacklist"], "round-trip mismatch"
+
+    def t_matching():
+        bl = ["Microsoft.Xbox", "McAfee"]
+        wl = ["Microsoft.XboxGameCallableUI"]
+        assert is_target_package("Microsoft.XboxGamingOverlay_abc", bl, wl)
+        assert is_target_package("McAfee.TotalProtection_xyz", bl, wl)
+        assert not is_target_package("Microsoft.XboxGameCallableUI_abc", bl, wl)
+        assert not is_target_package("Microsoft.WindowsStore_abc", bl, wl)
+
+    def t_get_packages_parse():
+        fake_json = json.dumps([
+            {"PackageFamilyName": "Microsoft.XboxGamingOverlay_8wekyb3d8bbwe",
+             "Name": "Microsoft.XboxGamingOverlay",
+             "InstallPath": "C:\\Program Files\\WindowsApps\\xbox"},
+            {"PackageFamilyName": "Microsoft.WindowsCalculator_8wekyb3d8bbwe",
+             "Name": "Microsoft.WindowsCalculator",
+             "InstallPath": "C:\\Program Files\\WindowsApps\\calc"},
+        ])
+        orig = run_powershell
+        globals()["run_powershell"] = lambda cmd, timeout=60: (fake_json, "", 0)
+        try:
+            pkgs = get_blacklisted_packages(["Microsoft.Xbox"], ["Calculator"])
+            assert len(pkgs) == 1 and pkgs[0][1] == "Microsoft.XboxGamingOverlay", \
+                f"unexpected result: {pkgs}"
+        finally:
+            globals()["run_powershell"] = orig
+
+    def t_logging():
+        with tempfile.TemporaryDirectory() as td:
+            log = Path(td) / "test.log"
+            lg = setup_logging(log)
+            lg.info("self-test marker")
+            for h in lg.handlers:
+                h.flush()
+            assert "self-test marker" in log.read_text(encoding="utf-8")
+
+    def t_is_admin():
+        result = is_admin()
+        assert isinstance(result, bool), f"is_admin returned {type(result)}"
+
+    def t_prevention_layers():
+        prev = load_config(DEFAULT_CONFIG_PATH).get("Prevention", {})
+        required = ["RemoveAppxPackages", "RemoveProvisionedPackages",
+                    "DisableConsumerExperiences", "DisableCloudContent",
+                    "PreventDeviceMetadata", "DisableOemScheduledTasks",
+                    "BlockProvisioning", "ReinstallMonitor"]
+        missing = [k for k in required if k not in prev]
+        assert not missing, f"missing prevention keys: {missing}"
+
+    check("T1: Config default-create + reload", t_config_roundtrip)
+    check("T2: Blacklist/whitelist matching", t_matching)
+    check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
+    check("T4: Logger file + console wiring", t_logging)
+    check("T5: is_admin() callable", t_is_admin)
+    check("T6: Prevention layers — 8 registered", t_prevention_layers)
+
+    print()
+    passed = 0
+    for name, ok, err in results:
+        print(f"[{'PASS' if ok else 'FAIL'}] {name}" + (f" — {err}" if err else ""))
+        passed += ok
+    total = len(results)
+    print(f"=== Self-Test Results: {passed}/{total} PASSED ===")
+    if passed == total:
+        print("Self-test PASSED — structure verified. Runtime requires admin Windows 11.")
+        return 0
+    print("Self-test FAILED — see failures above.")
+    return 1
+
+
 # ─── Entry Point ─────────────────────────────────────────────────────────────
 
 def main():
@@ -518,14 +607,7 @@ def main():
         return
 
     if args.self_test:
-        print(f"{APP_NAME} v{APP_VERSION} — Self-Test Mode")
-        print("T1: Arg parsing — OK")
-        print("T2: Logger wiring — OK")
-        print("T3: Config loading — OK")
-        print("T4: Assembly metadata — OK")
-        print("T5: Prevention layers — 7 layers registered")
-        print("✅ Self-test complete: all internal wiring verified")
-        return
+        sys.exit(run_self_test())
 
     if args.status:
         result = subprocess.run(["sc", "query", SERVICE_NAME], capture_output=True, text=True)
