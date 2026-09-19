@@ -26,6 +26,7 @@ import ctypes
 import argparse
 import logging
 import tempfile
+import shutil
 from pathlib import Path
 from typing import List, Tuple, Optional
 
@@ -564,7 +565,12 @@ def run_service(config: dict, logger: logging.Logger):
 # ─── Windows Service Registration ────────────────────────────────────────────
 
 def install_service():
-    """Register as a Windows service using NSSM or sc.exe."""
+    """Register as a Windows service via NSSM.
+
+    A pythonw.exe process is not SCM-aware, so plain `sc create` produces a
+    service that always fails to start (error 1053). NSSM wraps the script
+    and answers the service control dispatcher correctly. Prefer the C#
+    implementation (`BloatwareGuard.exe install`) which is SCM-native."""
     script_path = Path(__file__).resolve()
     python_path = Path(sys.executable).resolve()
 
@@ -573,17 +579,24 @@ def install_service():
     if not pythonw.exists():
         pythonw = python_path
 
-    bin_path = f'"{pythonw}" "{script_path}" --service'
+    nssm = shutil.which("nssm") or shutil.which("nssm", path=str(script_path.parent))
+    if not nssm:
+        print("ERROR: NSSM not found — a Python process cannot be a Windows service")
+        print("       without a service wrapper. Options:")
+        print("  1. Install NSSM (https://nssm.cc) and retry")
+        print("  2. Use the C# build instead: BloatwareGuard.exe install")
+        print("  3. Register a scheduled task:")
+        print(f'     schtasks /Create /TN "{SERVICE_NAME}" /SC ONSTART /RU SYSTEM '
+              f'/RL HIGHEST /TR "\\"{pythonw}\\" \\"{script_path}\\" --service"')
+        return False
 
-    # Stop and delete existing
     subprocess.run(["sc", "stop", SERVICE_NAME], capture_output=True)
     subprocess.run(["sc", "delete", SERVICE_NAME], capture_output=True)
+    subprocess.run([nssm, "remove", SERVICE_NAME, "confirm"], capture_output=True)
     time.sleep(2)
 
-    # Create
     result = subprocess.run(
-        ["sc", "create", SERVICE_NAME, f"binPath= {bin_path}",
-         "start= " "auto", f"DisplayName= " f'"{APP_NAME}"'],
+        [nssm, "install", SERVICE_NAME, str(pythonw), str(script_path), "--service"],
         capture_output=True, text=True
     )
     print(result.stdout)
@@ -591,7 +604,13 @@ def install_service():
         print(f"Error: {result.stderr}")
         return False
 
-    print(f"Service '{SERVICE_NAME}' installed. Use 'sc start {SERVICE_NAME}' to start.")
+    subprocess.run([nssm, "set", SERVICE_NAME, "Start", "SERVICE_AUTO_START"],
+                   capture_output=True)
+    subprocess.run(
+        [nssm, "set", SERVICE_NAME, "AppStdout", str(LOG_DIR / "service-stdout.log")],
+        capture_output=True)
+    print(f"Service '{SERVICE_NAME}' installed via NSSM. "
+          f"Use 'sc start {SERVICE_NAME}' to start.")
     return True
 
 
