@@ -77,6 +77,7 @@ public class PreventionLayers
     PropertyNameCaseInsensitive = true,
     ReadCommentHandling = JsonCommentHandling.Skip)]
 [JsonSerializable(typeof(GuardConfig))]
+[JsonSerializable(typeof(Dictionary<string, string>))]
 internal partial class GuardJsonContext : JsonSerializerContext
 {
 }
@@ -137,6 +138,43 @@ public static class GuardLogger
             }
         }
         catch { /* ignore file log errors */ }
+    }
+}
+
+// ─── Removal ledger (restore support) ────────────────────────────────────────
+
+public static class RemovalLedger
+{
+    public static string GetPath(GuardConfig config)
+    {
+        var dir = config.BackupDirectory;
+        if (string.IsNullOrEmpty(dir))
+            dir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+                "BloatwareGuard", "Backups");
+        return Path.Combine(dir, "removed-packages.jsonl");
+    }
+
+    public static void Record(GuardConfig config, string kind, string name,
+        string family = "", string fullName = "")
+    {
+        try
+        {
+            var ledger = GetPath(config);
+            Directory.CreateDirectory(Path.GetDirectoryName(ledger)!);
+            var entry = new Dictionary<string, string>
+            {
+                ["ts"] = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss"),
+                ["kind"] = kind,
+                ["name"] = name,
+                ["family"] = family,
+                ["full_name"] = fullName,
+            };
+            File.AppendAllText(ledger,
+                JsonSerializer.Serialize(entry, GuardJsonContext.Default.DictionaryStringString)
+                + Environment.NewLine);
+        }
+        catch { /* ledger is best-effort */ }
     }
 }
 
@@ -784,6 +822,7 @@ public class GuardService : BackgroundService
                 else if (AppxManager.RemoveAppxPackage(fullName))
                 {
                     GuardLogger.Info($"Removed AppxPackage: {familyName} ({displayName})");
+                    RemovalLedger.Record(_config, "appx", displayName, familyName, fullName);
                     removed++;
                 }
                 else if (dryRun)
@@ -797,6 +836,7 @@ public class GuardService : BackgroundService
                     if (success)
                     {
                         GuardLogger.Info($"Removed AppxPackage (user-level): {familyName} ({displayName})");
+                        RemovalLedger.Record(_config, "appx", displayName, familyName, fullName);
                         removed++;
                     }
                     else if (isSystemApp)
@@ -834,6 +874,7 @@ public class GuardService : BackgroundService
                 else if (AppxManager.RemoveProvisionedPackage(pkgName))
                 {
                     GuardLogger.Info($"Removed ProvisionedPackage: {pkgName}");
+                    RemovalLedger.Record(_config, "provisioned", pkgName);
                     removed++;
                 }
                 else
@@ -894,6 +935,9 @@ public class Program
                     return;
                 case "status":
                     ShowStatus();
+                    return;
+                case "restore":
+                    RestorePackages(config);
                     return;
                 case "help":
                 case "--help":
@@ -987,6 +1031,7 @@ Commands:
   dry-run       Show what WOULD be removed (no changes made)
   --service-dry-run  Run as service in dry-run mode (no removal actions)
   list-installed  List installed packages matching blacklist
+  restore       Restore staged packages recorded in the removal ledger
   install       Install as Windows Service (requires admin)
   uninstall     Remove Windows Service (requires admin)
   status        Show Windows Service status
@@ -1037,6 +1082,73 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         };
         using var proc = Process.Start(psi);
         Console.WriteLine(proc?.StandardOutput.ReadToEnd());
+    }
+
+    /// <summary>Re-register staged AppxPackages recorded in the removal ledger.
+    /// Provisioned packages cannot be restored from the image — reported as manual.</summary>
+    private static void RestorePackages(GuardConfig config)
+    {
+        var ledger = RemovalLedger.GetPath(config);
+        if (!File.Exists(ledger))
+        {
+            GuardLogger.Info("No removal ledger found — nothing to restore.");
+            return;
+        }
+
+        int restored = 0, manual = 0;
+        foreach (var line in File.ReadAllLines(ledger))
+        {
+            Dictionary<string, string>? entry;
+            try
+            {
+                entry = JsonSerializer.Deserialize(line,
+                    GuardJsonContext.Default.DictionaryStringString);
+            }
+            catch { continue; }
+            if (entry == null) continue;
+
+            entry.TryGetValue("kind", out var kind);
+            entry.TryGetValue("name", out var name);
+
+            if (kind == "appx" && !string.IsNullOrEmpty(name))
+            {
+                if (RestoreStagedPackage(name))
+                {
+                    GuardLogger.Info($"Restored (re-registered): {name}");
+                    restored++;
+                }
+                else
+                {
+                    GuardLogger.Warn($"Restore failed: {name} — reinstall via Microsoft Store");
+                    manual++;
+                }
+            }
+            else
+            {
+                GuardLogger.Info(
+                    $"Manual restore needed: {name} (provisioned — reinstall via Microsoft Store or Settings)");
+                manual++;
+            }
+        }
+        GuardLogger.Info($"Restore complete: {restored} restored, {manual} need manual reinstall.");
+    }
+
+    private static bool RestoreStagedPackage(string name)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = "powershell.exe",
+            Arguments = "-NoProfile -ExecutionPolicy Bypass -Command \"Get-AppxPackage -AllUsers -Name '" +
+                name + "' | ForEach-Object { Add-AppxPackage -DisableDevelopmentMode -Register " +
+                "\\\"$($_.InstallLocation)\\AppxManifest.xml\\\" -ErrorAction SilentlyContinue }\"",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        using var proc = Process.Start(psi);
+        proc?.WaitForExit(60000);
+        return proc?.ExitCode == 0;
     }
 
     /// <summary>
