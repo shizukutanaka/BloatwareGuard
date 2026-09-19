@@ -1093,6 +1093,8 @@ Commands:
   install       Install as Windows Service (requires admin)
   uninstall     Remove Windows Service (requires admin)
   status        Show Windows Service status
+  --version     Show version
+  --self-test   Run internal wiring self-test (no admin required)
   help          Show this help
 
 Without arguments: runs in console mode (interactive) or as Windows Service.
