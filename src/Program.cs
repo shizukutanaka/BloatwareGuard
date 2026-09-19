@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Diagnostics;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -69,6 +70,18 @@ public class PreventionLayers
     public bool ReinstallMonitor { get; set; } = true;
 }
 
+// ─── JSON source-gen context (trim-safe: avoids IL2026 with PublishTrimmed) ──
+
+[JsonSourceGenerationOptions(
+    WriteIndented = true,
+    PropertyNameCaseInsensitive = true,
+    ReadCommentHandling = JsonCommentHandling.Skip)]
+[JsonSerializable(typeof(GuardConfig))]
+[JsonSerializable(typeof(Dictionary<string, string>))]
+internal partial class GuardJsonContext : JsonSerializerContext
+{
+}
+
 // ─── Logger helper ───────────────────────────────────────────────────────────
 
 public static class GuardLogger
@@ -117,7 +130,7 @@ public static class GuardLogger
             if (File.Exists(configPath))
             {
                 var json = File.ReadAllText(configPath);
-                var config = JsonSerializer.Deserialize<GuardConfig>(json);
+                var config = JsonSerializer.Deserialize(json, GuardJsonContext.Default.GuardConfig);
                 if (!string.IsNullOrEmpty(config?.LogFilePath))
                 {
                     File.AppendAllText(config.LogFilePath, line + Environment.NewLine);
@@ -125,6 +138,43 @@ public static class GuardLogger
             }
         }
         catch { /* ignore file log errors */ }
+    }
+}
+
+// ─── Removal ledger (restore support) ────────────────────────────────────────
+
+public static class RemovalLedger
+{
+    public static string GetPath(GuardConfig config)
+    {
+        var dir = config.BackupDirectory;
+        if (string.IsNullOrEmpty(dir))
+            dir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+                "BloatwareGuard", "Backups");
+        return Path.Combine(dir, "removed-packages.jsonl");
+    }
+
+    public static void Record(GuardConfig config, string kind, string name,
+        string family = "", string fullName = "")
+    {
+        try
+        {
+            var ledger = GetPath(config);
+            Directory.CreateDirectory(Path.GetDirectoryName(ledger)!);
+            var entry = new Dictionary<string, string>
+            {
+                ["ts"] = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss"),
+                ["kind"] = kind,
+                ["name"] = name,
+                ["family"] = family,
+                ["full_name"] = fullName,
+            };
+            File.AppendAllText(ledger,
+                JsonSerializer.Serialize(entry, GuardJsonContext.Default.DictionaryStringString)
+                + Environment.NewLine);
+        }
+        catch { /* ledger is best-effort */ }
     }
 }
 
@@ -143,18 +193,14 @@ public static class ConfigLoader
         }
 
         var json = File.ReadAllText(path);
-        var config = JsonSerializer.Deserialize<GuardConfig>(json, new JsonSerializerOptions
-        {
-            PropertyNameCaseInsensitive = true,
-            ReadCommentHandling = JsonCommentHandling.Skip
-        });
+        var config = JsonSerializer.Deserialize(json, GuardJsonContext.Default.GuardConfig);
 
         return config ?? CreateDefault();
     }
 
     public static void Save(string path, GuardConfig config)
     {
-        var json = JsonSerializer.Serialize(config, new JsonSerializerOptions { WriteIndented = true });
+        var json = JsonSerializer.Serialize(config, GuardJsonContext.Default.GuardConfig);
         File.WriteAllText(path, json);
     }
 
@@ -652,12 +698,24 @@ public class GuardService : BackgroundService
             ScheduledTaskGuard.DisableOemTasks();
         }
 
+        // Layer 7: baseline-diff detection — a package that appears after being
+        // absent in the previous scan counts as a (re-)install
+        var seenProvisioned = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var seenInstalled = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var firstScan = true;
+
         // Main scan loop
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
                 RunScan(_config.DryRun);
+
+                if (_config.Prevention.ReinstallMonitor)
+                {
+                    CheckReinstalls(seenProvisioned, seenInstalled, firstScan);
+                    firstScan = false;
+                }
             }
             catch (Exception ex)
             {
@@ -666,6 +724,53 @@ public class GuardService : BackgroundService
 
             await Task.Delay(TimeSpan.FromSeconds(_config.ScanIntervalSeconds), stoppingToken);
         }
+    }
+
+    /// <summary>Detect packages that re-appeared since the last scan and remove them.</summary>
+    private void CheckReinstalls(
+        HashSet<string> seenProvisioned, HashSet<string> seenInstalled, bool firstScan)
+    {
+        var currentProvisioned = new HashSet<string>(
+            AppxManager.GetBlacklistedProvisionedPackages(_config.Blacklist, _config.Whitelist),
+            StringComparer.OrdinalIgnoreCase);
+        var installed = AppxManager.GetBlacklistedPackages(_config.Blacklist, _config.Whitelist);
+        var currentInstalled = new HashSet<string>(
+            installed.Select(p => p.PackageFamilyName), StringComparer.OrdinalIgnoreCase);
+
+        if (!firstScan)
+        {
+            foreach (var pkg in currentProvisioned.Except(seenProvisioned))
+            {
+                GuardLogger.Warn($"[MONITOR] RE-INSTALLED detected: {pkg} — removing immediately!");
+                if (AppxManager.RemoveProvisionedPackage(pkg))
+                    GuardLogger.Info($"[MONITOR] Re-removal complete: {pkg}");
+                else
+                    GuardLogger.Warn($"[MONITOR] Re-removal failed: {pkg} [admin required]");
+            }
+
+            var fullNameByFamily = installed
+                .GroupBy(p => p.PackageFamilyName)
+                .ToDictionary(g => g.Key, g => g.First().PackageFullName, StringComparer.OrdinalIgnoreCase);
+            foreach (var family in currentInstalled.Except(seenInstalled))
+            {
+                GuardLogger.Warn($"[MONITOR] RE-INSTALLED AppxPackage: {family} — removing!");
+                if (fullNameByFamily.TryGetValue(family, out var fullName) &&
+                    !string.IsNullOrEmpty(fullName) &&
+                    AppxManager.RemoveAppxPackage(fullName))
+                {
+                    GuardLogger.Info($"[MONITOR] Re-removal complete: {family}");
+                }
+                else
+                {
+                    GuardLogger.Warn($"[MONITOR] Re-removal failed: {family}");
+                }
+            }
+        }
+
+        seenProvisioned.Clear();
+        seenProvisioned.UnionWith(currentProvisioned);
+        seenInstalled.Clear();
+        seenInstalled.UnionWith(currentInstalled);
     }
 
     public void RunScanPublic(bool dryRun = false) => RunScan(dryRun);
@@ -717,6 +822,7 @@ public class GuardService : BackgroundService
                 else if (AppxManager.RemoveAppxPackage(fullName))
                 {
                     GuardLogger.Info($"Removed AppxPackage: {familyName} ({displayName})");
+                    RemovalLedger.Record(_config, "appx", displayName, familyName, fullName);
                     removed++;
                 }
                 else if (dryRun)
@@ -730,6 +836,7 @@ public class GuardService : BackgroundService
                     if (success)
                     {
                         GuardLogger.Info($"Removed AppxPackage (user-level): {familyName} ({displayName})");
+                        RemovalLedger.Record(_config, "appx", displayName, familyName, fullName);
                         removed++;
                     }
                     else if (isSystemApp)
@@ -744,8 +851,11 @@ public class GuardService : BackgroundService
                     }
                 }
             }
+        }
 
-            // 2. Remove provisioned packages (prevents re-deploy on new users)
+        // 2. Remove provisioned packages (independent toggle — prevents re-deploy on new users)
+        if (_config.Prevention.RemoveProvisionedPackages)
+        {
             var provisioned = AppxManager.GetBlacklistedProvisionedPackages(_config.Blacklist, _config.Whitelist);
             foreach (var pkgName in provisioned)
             {
@@ -764,6 +874,7 @@ public class GuardService : BackgroundService
                 else if (AppxManager.RemoveProvisionedPackage(pkgName))
                 {
                     GuardLogger.Info($"Removed ProvisionedPackage: {pkgName}");
+                    RemovalLedger.Record(_config, "provisioned", pkgName);
                     removed++;
                 }
                 else
@@ -786,32 +897,10 @@ public class GuardService : BackgroundService
     private bool IsWhitelisted(string packageFamilyName)
     {
         var match = _config.Whitelist.FirstOrDefault(w =>
-            packageFamilyName.StartsWith(w, StringComparison.OrdinalIgnoreCase));
+            packageFamilyName.Contains(w, StringComparison.OrdinalIgnoreCase));
         if (match != null)
-            GuardLogger.Info($"  WHITELIST MATCH: '{packageFamilyName}' starts with '{match}'");
+            GuardLogger.Info($"  WHITELIST MATCH: '{packageFamilyName}' contains '{match}'");
         return match != null;
-    }
-
-    private string GetPackageFullName(string packageFamilyName)
-    {
-        var psi = new ProcessStartInfo
-        {
-            FileName = "powershell.exe",
-            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"(Get-AppxPackage -PackageFamilyName '{packageFamilyName}').PackageFullName\"",
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
-
-        using var proc = Process.Start(psi);
-        var output = proc?.StandardOutput.ReadToEnd().Trim() ?? "";
-        proc?.WaitForExit();
-
-        // Validate: a real PackageFullName contains the family name
-        if (!string.IsNullOrEmpty(output) && output.Contains(packageFamilyName) && !output.Contains("error"))
-            return output.Split('\n').Last().Trim();
-        return "";
     }
 }
 
@@ -846,6 +935,9 @@ public class Program
                     return;
                 case "status":
                     ShowStatus();
+                    return;
+                case "restore":
+                    RestorePackages(config);
                     return;
                 case "help":
                 case "--help":
@@ -939,6 +1031,7 @@ Commands:
   dry-run       Show what WOULD be removed (no changes made)
   --service-dry-run  Run as service in dry-run mode (no removal actions)
   list-installed  List installed packages matching blacklist
+  restore       Restore staged packages recorded in the removal ledger
   install       Install as Windows Service (requires admin)
   uninstall     Remove Windows Service (requires admin)
   status        Show Windows Service status
@@ -989,6 +1082,73 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         };
         using var proc = Process.Start(psi);
         Console.WriteLine(proc?.StandardOutput.ReadToEnd());
+    }
+
+    /// <summary>Re-register staged AppxPackages recorded in the removal ledger.
+    /// Provisioned packages cannot be restored from the image — reported as manual.</summary>
+    private static void RestorePackages(GuardConfig config)
+    {
+        var ledger = RemovalLedger.GetPath(config);
+        if (!File.Exists(ledger))
+        {
+            GuardLogger.Info("No removal ledger found — nothing to restore.");
+            return;
+        }
+
+        int restored = 0, manual = 0;
+        foreach (var line in File.ReadAllLines(ledger))
+        {
+            Dictionary<string, string>? entry;
+            try
+            {
+                entry = JsonSerializer.Deserialize(line,
+                    GuardJsonContext.Default.DictionaryStringString);
+            }
+            catch { continue; }
+            if (entry == null) continue;
+
+            entry.TryGetValue("kind", out var kind);
+            entry.TryGetValue("name", out var name);
+
+            if (kind == "appx" && !string.IsNullOrEmpty(name))
+            {
+                if (RestoreStagedPackage(name))
+                {
+                    GuardLogger.Info($"Restored (re-registered): {name}");
+                    restored++;
+                }
+                else
+                {
+                    GuardLogger.Warn($"Restore failed: {name} — reinstall via Microsoft Store");
+                    manual++;
+                }
+            }
+            else
+            {
+                GuardLogger.Info(
+                    $"Manual restore needed: {name} (provisioned — reinstall via Microsoft Store or Settings)");
+                manual++;
+            }
+        }
+        GuardLogger.Info($"Restore complete: {restored} restored, {manual} need manual reinstall.");
+    }
+
+    private static bool RestoreStagedPackage(string name)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = "powershell.exe",
+            Arguments = "-NoProfile -ExecutionPolicy Bypass -Command \"Get-AppxPackage -AllUsers -Name '" +
+                name + "' | ForEach-Object { Add-AppxPackage -DisableDevelopmentMode -Register " +
+                "\\\"$($_.InstallLocation)\\AppxManifest.xml\\\" -ErrorAction SilentlyContinue }\"",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        using var proc = Process.Start(psi);
+        proc?.WaitForExit(60000);
+        return proc?.ExitCode == 0;
     }
 
     /// <summary>

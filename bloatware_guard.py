@@ -10,6 +10,7 @@ Windowsサービス化可能な常駐型bloatware自動削除ツール
   python bloatware_guard.py --install  # Windowsサービスに登録（要管理者）
   python bloatware_guard.py --uninstall # サービス削除（要管理者）
   python bloatware_guard.py --status   # 状態確認
+  python bloatware_guard.py --restore  # 削除したパッケージを復元
   python bloatware_guard.py --version  # バージョン表示
 
 ※ 管理者権限が必要です。
@@ -243,6 +244,60 @@ def remove_appx_package(package_full_name: str) -> bool:
     return rc == 0
 
 
+# ─── Removal Ledger (restore support) ────────────────────────────────────────
+
+def record_removal(config: dict, entry: dict):
+    """Append a removal record to the ledger for later `--restore`."""
+    backup_dir = Path(config.get("BackupDirectory") or (LOG_DIR / "Backups"))
+    try:
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        entry = {"ts": time.strftime("%Y-%m-%dT%H:%M:%S"), **entry}
+        with open(backup_dir / "removed-packages.jsonl", "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+
+
+def run_restore(config: dict, logger: logging.Logger) -> int:
+    """Re-register staged AppxPackages recorded in the removal ledger.
+    Provisioned packages cannot be restored from the image — reported as manual."""
+    ledger = Path(config.get("BackupDirectory") or (LOG_DIR / "Backups")) / "removed-packages.jsonl"
+    if not ledger.exists():
+        logger.info("No removal ledger found — nothing to restore.")
+        return 0
+
+    restored = 0
+    manual = 0
+    for line in ledger.read_text(encoding="utf-8").splitlines():
+        try:
+            entry = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        name = entry.get("name", "")
+        if entry.get("kind") == "appx" and name:
+            ps_cmd = (
+                f"Get-AppxPackage -AllUsers -Name '{name}' | "
+                f"ForEach-Object {{ Add-AppxPackage -DisableDevelopmentMode "
+                f"-Register \"$($_.InstallLocation)\\AppxManifest.xml\" "
+                f"-ErrorAction SilentlyContinue }}"
+            )
+            _, _, rc = run_powershell(ps_cmd, timeout=60)
+            if rc == 0:
+                logger.info(f"Restored (re-registered): {name}")
+                restored += 1
+            else:
+                logger.warning(f"Restore failed: {name} — reinstall via Microsoft Store")
+                manual += 1
+        else:
+            logger.info(
+                f"Manual restore needed: {name or entry.get('family', '?')} "
+                f"(provisioned — reinstall via Microsoft Store or Settings)")
+            manual += 1
+
+    logger.info(f"Restore complete: {restored} restored, {manual} need manual reinstall.")
+    return 0
+
+
 def remove_provisioned_package(display_name: str) -> bool:
     # Need the exact package name for removal
     ps_cmd = (
@@ -367,24 +422,29 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
             else:
                 if is_system_app:
                     logger.info(f"SystemApp skipped (requires admin): {family_name}")
-                elif remove_appx_package(full_name):
+                elif full_name and remove_appx_package(full_name):
                     logger.info(f"Removed AppxPackage: {family_name} ({display_name})")
+                    record_removal(config, {
+                        "kind": "appx", "name": display_name,
+                        "family": family_name, "full_name": full_name,
+                    })
                     removed += 1
                 else:
                     logger.warning(f"Failed to remove AppxPackage: {family_name}")
 
-        # 2. Remove provisioned packages
-        if prev.get("RemoveProvisionedPackages", True):
-            provisioned = get_blacklisted_provisioned(blacklist, whitelist)
-            for display_name in provisioned:
-                if dry_run:
-                    logger.info(f"[DRY-RUN] Would remove ProvisionedPackage: {display_name} [requires admin]")
+    # 2. Remove provisioned packages (independent toggle — prevents re-deploy on new users)
+    if prev.get("RemoveProvisionedPackages", True):
+        provisioned = get_blacklisted_provisioned(blacklist, whitelist)
+        for display_name in provisioned:
+            if dry_run:
+                logger.info(f"[DRY-RUN] Would remove ProvisionedPackage: {display_name} [requires admin]")
+            else:
+                if remove_provisioned_package(display_name):
+                    logger.info(f"Removed ProvisionedPackage: {display_name}")
+                    record_removal(config, {"kind": "provisioned", "name": display_name})
+                    removed += 1
                 else:
-                    if remove_provisioned_package(display_name):
-                        logger.info(f"Removed ProvisionedPackage: {display_name}")
-                        removed += 1
-                    else:
-                        logger.warning(f"Failed to remove ProvisionedPackage: {display_name} [admin required]")
+                    logger.warning(f"Failed to remove ProvisionedPackage: {display_name} [admin required]")
 
     # 3. Re-apply registry (idempotent, Windows Update may reset)
     if dry_run:
@@ -417,8 +477,11 @@ def run_service(config: dict, logger: logging.Logger):
     logger.info(f"Blacklist entries: {len(blacklist)}")
     logger.info(f"Whitelist entries: {len(whitelist)}")
 
-    # Layer 7: Track previously removed provisioned packages to detect re-installation
-    known_removed = set()
+    # Layer 7: baseline-diff detection — a package that appears after being
+    # absent in the previous scan counts as a (re-)install
+    seen_provisioned: set = set()
+    seen_installed: set = set()
+    first_scan = True
 
     # Apply prevention once at startup
     if not is_admin():
@@ -433,23 +496,32 @@ def run_service(config: dict, logger: logging.Logger):
 
             # Layer 7: Re-install Monitor
             if prev.get("ReinstallMonitor", True):
-                current_provisioned = get_blacklisted_provisioned(blacklist, whitelist)
-                for display_name in current_provisioned:
-                    if display_name in known_removed:
-                        logger.warning(f"[MONITOR] RE-INSTALLED detected: {display_name} — removing immediately!")
-                        remove_provisioned_package(display_name)
-                        logger.info(f"[MONITOR] Re-removal complete: {display_name}")
-                    else:
-                        known_removed.add(display_name)
+                current_provisioned = set(get_blacklisted_provisioned(blacklist, whitelist))
+                current_installed = {
+                    family for family, _, _ in get_blacklisted_packages(blacklist, whitelist)
+                }
 
-            # Also check installed packages for re-appearance
-            current_installed = get_blacklisted_packages(blacklist, whitelist)
-            for family_name, display_name, install_path in current_installed:
-                if family_name in known_removed:
-                    logger.warning(f"[MONITOR] RE-INSTALLED AppxPackage: {family_name} — removing!")
-                    full_name = get_package_full_name(family_name)
-                    if full_name:
-                        remove_appx_package(full_name)
+                if not first_scan:
+                    for display_name in current_provisioned - seen_provisioned:
+                        logger.warning(
+                            f"[MONITOR] RE-INSTALLED detected: {display_name} — removing immediately!")
+                        if remove_provisioned_package(display_name):
+                            logger.info(f"[MONITOR] Re-removal complete: {display_name}")
+                        else:
+                            logger.warning(f"[MONITOR] Re-removal failed: {display_name}")
+
+                    for family_name in current_installed - seen_installed:
+                        logger.warning(
+                            f"[MONITOR] RE-INSTALLED AppxPackage: {family_name} — removing!")
+                        full_name = get_package_full_name(family_name)
+                        if full_name and remove_appx_package(full_name):
+                            logger.info(f"[MONITOR] Re-removal complete: {family_name}")
+                        else:
+                            logger.warning(f"[MONITOR] Re-removal failed: {family_name}")
+
+                seen_provisioned = current_provisioned
+                seen_installed = current_installed
+                first_scan = False
 
         except Exception as e:
             logger.error(f"Scan error: {e}")
@@ -552,6 +624,10 @@ def run_self_test() -> int:
             for h in lg.handlers:
                 h.flush()
             assert "self-test marker" in log.read_text(encoding="utf-8")
+            # Windows: FileHandler must be closed before TemporaryDirectory cleanup (WinError 32)
+            for h in list(lg.handlers):
+                h.close()
+                lg.removeHandler(h)
 
     def t_is_admin():
         result = is_admin()
@@ -566,12 +642,26 @@ def run_self_test() -> int:
         missing = [k for k in required if k not in prev]
         assert not missing, f"missing prevention keys: {missing}"
 
+    def t_removal_ledger():
+        with tempfile.TemporaryDirectory() as td:
+            cfg = {"BackupDirectory": td}
+            record_removal(cfg, {"kind": "appx", "name": "Microsoft.XboxGamingOverlay",
+                                 "family": "fam", "full_name": "full"})
+            ledger = Path(td) / "removed-packages.jsonl"
+            entries = [
+                json.loads(line)
+                for line in ledger.read_text(encoding="utf-8").splitlines()
+            ]
+            assert len(entries) == 1 and entries[0]["name"] == "Microsoft.XboxGamingOverlay"
+            assert "ts" in entries[0]
+
     check("T1: Config default-create + reload", t_config_roundtrip)
     check("T2: Blacklist/whitelist matching", t_matching)
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
     check("T4: Logger file + console wiring", t_logging)
     check("T5: is_admin() callable", t_is_admin)
     check("T6: Prevention layers — 8 registered", t_prevention_layers)
+    check("T7: Removal ledger write/read", t_removal_ledger)
 
     print()
     passed = 0
@@ -597,6 +687,8 @@ def main():
     parser.add_argument("--install", action="store_true", help="Install as Windows service")
     parser.add_argument("--uninstall", action="store_true", help="Remove Windows service")
     parser.add_argument("--status", action="store_true", help="Show service status")
+    parser.add_argument("--restore", action="store_true",
+                        help="Restore staged packages recorded in the removal ledger")
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG_PATH, help="Config file path")
     parser.add_argument("--version", action="store_true", help="Show version and exit")
     parser.add_argument("--self-test", action="store_true", help="Run internal wiring self-test (no admin required)")
@@ -637,6 +729,10 @@ def main():
 
     if not is_admin():
         logger.warning("Running without admin rights — registry changes and package removal may fail.")
+
+    if args.restore:
+        run_restore(config, logger)
+        return
 
     if args.scan:
         run_scan(config, logger, dry_run=False)
