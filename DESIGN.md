@@ -54,6 +54,7 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 ## コマンド
 - `BloatwareGuard.exe` — サービスとして起動 (SCMから呼ばれる)
 - `BloatwareGuard.exe scan` — 1回だけスキャンして終了
+- `BloatwareGuard.exe restore` — 削除台帳（removed-packages.jsonl）からstagedパッケージを再登録
 - `BloatwareGuard.exe install` — Windowsサービスに登録
 - `BloatwareGuard.exe uninstall` — サービスから削除
 - `BloatwareGuard.exe status` — サービス状態確認
