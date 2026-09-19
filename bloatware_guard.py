@@ -145,7 +145,8 @@ def load_config(path: Path) -> dict:
         path.write_text(json.dumps(config, indent=2, ensure_ascii=False), encoding="utf-8")
         return config
 
-    return json.loads(path.read_text(encoding="utf-8"))
+    # utf-8-sig tolerates a BOM (Notepad saves UTF-8 with BOM by default)
+    return json.loads(path.read_text(encoding="utf-8-sig"))
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────

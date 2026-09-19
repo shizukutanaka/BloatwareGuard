@@ -959,7 +959,7 @@ public class Program
                     Console.WriteLine("BloatwareGuard v1.8.0-mvp");
                     return;
                 case "--self-test":
-                    RunSelfTest(config);
+                    Environment.ExitCode = RunSelfTest(config);
                     return;
                 case "--service-dry-run":
                     config.DryRun = true;
@@ -1165,7 +1165,7 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
     /// Self-test mode: validates internal wiring without requiring admin elevation.
     /// Bypasses UAC by testing structure, not actual removal logic.
     /// </summary>
-    private static void RunSelfTest(GuardConfig config)
+    private static int RunSelfTest(GuardConfig config)
     {
         var passed = 0;
         var total = 6;
@@ -1293,5 +1293,6 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
             Console.WriteLine("⚠️  Self-test had failures — check logs.");
             GuardLogger.Warn($"⚠️  Self-test: {total - passed} failure(s)");
         }
+        return passed == total ? 0 : 1;
     }
 }
