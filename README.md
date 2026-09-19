@@ -51,12 +51,13 @@ BloatwareGuard.exe restore
 ## Service Mode (background monitoring)
 
 ```bash
-# Run in foreground with monitor loop enabled
+# Run in foreground with monitor loop enabled (console mode = live scan loop)
 python bloatware_guard.py --service
-BloatwareGuard.exe service
+BloatwareGuard.exe                    # no args = console monitor mode (performs real scans)
 
 # Same, but forced dry-run (monitor-only, changes nothing)
 python bloatware_guard.py --service-dry-run
+BloatwareGuard.exe --service-dry-run
 
 # Install as a Windows service
 BloatwareGuard.exe install        # C# — direct SCM registration
