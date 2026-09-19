@@ -53,7 +53,11 @@
     "Microsoft.WindowsStore",
     "Microsoft.WindowsCalculator",
     "Microsoft.WindowsNotepad",
-    "Microsoft.WindowsTerminal"
+    "Microsoft.WindowsTerminal",
+    "Microsoft.Windows.ShellExperienceHost",
+    "Microsoft.Windows.Cortana",
+    "Microsoft.Windows.SecHealthUI",
+    "Microsoft.Windows.Apprep.ChxApp"
   ],
   "Prevention": {
     "RemoveAppxPackages": true,

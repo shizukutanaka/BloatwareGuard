@@ -34,7 +34,9 @@ dotnet publish src/BloatwareGuard.csproj -c Release -r win-x64 --self-contained 
 src\bin\Release\net8.0-windows\win-x64\BloatwareGuard.exe dry-run
 ```
 
-### Python (Primary - works without admin)
+### Python (reference implementation — works without admin)
+
+The C# single-file EXE is the canonical implementation (self-contained runtime, SCM-native service). The Python script is kept as a readable reference and for non-admin dry-run diagnosis; both share the same `config.json` schema.
 
 ```bash
 # Dry-run (no admin needed — SystemApp detection + skip)
