@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   pull_request:
-    branches: [main]
+    branches: [master]
 
 jobs:
   lint:
@@ -37,17 +37,48 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Version check
+        run: python bloatware_guard.py --version
+
+      - name: Self-test (no admin required)
+        run: python bloatware_guard.py --self-test
+
       - name: Test config load
-        run: |
-          python -c "from bloatware_guard import load_config; c = load_config(); print(f'Blacklist: {len(c[\"Blacklist\"])} entries')"
+        run: python -c 'from pathlib import Path; from bloatware_guard import load_config; c = load_config(Path("config.json")); print("Blacklist:", len(c["Blacklist"]), "entries")'
 
       - name: Test scan (non-admin, read-only)
         run: |
-          python -c "
+          python -c '
+          from pathlib import Path
           from bloatware_guard import get_blacklisted_packages, load_config
-          config = load_config()
-          pkgs = get_blacklisted_packages(config['Blacklist'])
-          print(f'Found {len(pkgs)} blacklisted packages installed')
-          for f, n in pkgs[:5]:
-            print(f'  - {f}')
-          "
+          config = load_config(Path("config.json"))
+          pkgs = get_blacklisted_packages(config["Blacklist"], config.get("Whitelist", []))
+          print(f"Found {len(pkgs)} blacklisted packages installed")
+          for family, name, install_path in pkgs[:5]:
+              print(f"  - {family}")
+          '
+
+  build-csharp:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Publish self-contained single-file EXE
+        run: |
+          dotnet publish src/BloatwareGuard.csproj -c Release -r win-x64 `
+            --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=false `
+            -p:PublishTrimmed=true `
+            -o src/bin/Release/net8.0-windows/win-x64
+
+      - name: Verify EXE was produced
+        run: |
+          $exe = "src\bin\Release\net8.0-windows\win-x64\BloatwareGuard.exe"
+          if (-not (Test-Path $exe)) { throw "BloatwareGuard.exe not produced" }
+          echo "EXE size: $((Get-Item $exe).Length / 1MB) MB"
