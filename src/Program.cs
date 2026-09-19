@@ -238,6 +238,11 @@ public static class ConfigLoader
                 "Microsoft.WindowsAlarms",
                 "Microsoft.ScreenSketch",
                 "Microsoft.Clipchamp",
+                "MicrosoftTeams",
+                "Microsoft.MicrosoftEdge.Stable",
+                "Microsoft.DevHome",
+                "Microsoft.Copilot",
+                "Clipchamp.Clipchamp",
 
                 // Third-party bloatware commonly pre-installed
                 "McAfee",
@@ -247,6 +252,15 @@ public static class ConfigLoader
                 "Dolby",
                 "RealtekSemiconductor",
                 "SynapticsIncorporated",
+                "BytedancePte.Ltd.TikTok",
+                "KING.COM.CandyCrush",
+                "A278AB0D.DisneyMagicKingdoms",
+                "A278AB0D.MarchofEmpires",
+                "D5EA27B7.Duolingo-LearnLanguagesforFree",
+                "PandoraMediaInc.29680B314EFC2",
+                "Facebook.InstagramBeta",
+                "Facebook.Facebook",
+                "WhatsApp",
 
                 // OEM utilities (uncomment as needed)
                 // "DellInc.Dell",

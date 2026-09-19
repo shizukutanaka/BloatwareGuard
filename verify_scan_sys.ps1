@@ -5,8 +5,7 @@
 
 $ErrorActionPreference = "SilentlyContinue"
 
-$exe = "C:\Users\HP\bloatware-guard\src\bin\Release\net8.0-windows\win-x64\BloatwareGuard.exe"
-$config = "C:\Users\HP\bloatware-guard\src\config.json"
+$exe = Join-Path $PSScriptRoot "src\bin\Release\net8.0-windows\win-x64\BloatwareGuard.exe"
 $log = "C:\temp\verify_scan.log"
 
 "=== BloatwareGuard Verification ===" | Out-File -Append $log
