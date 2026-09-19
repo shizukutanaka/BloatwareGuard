@@ -296,7 +296,10 @@ public static class AppxManager
         List<string> blacklist, List<string> whitelist)
     {
         var results = new List<(string, string, string, bool, string?)>();
-        var pattern = string.Join("|", blacklist.Select(Regex.Escape));
+        var pattern = string.Join("|",
+            blacklist.Where(b => !string.IsNullOrWhiteSpace(b)).Select(Regex.Escape));
+        if (pattern.Length == 0)
+            return results;  // empty pattern would -match every package
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
@@ -345,14 +348,18 @@ public static class AppxManager
     /// <summary>Check if a package family name matches any whitelist entry</summary>
     public static bool IsWhitelisted(string packageFamilyName, List<string> whitelist)
     {
-        return whitelist.Any(w => packageFamilyName.Contains(w, StringComparison.OrdinalIgnoreCase));
+        return whitelist.Any(w => !string.IsNullOrWhiteSpace(w) &&
+            packageFamilyName.Contains(w, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>Get all provisioned packages (these re-deploy on new user creation)</summary>
     public static List<string> GetBlacklistedProvisionedPackages(List<string> blacklist, List<string> whitelist)
     {
         var results = new List<string>();
-        var pattern = string.Join("|", blacklist.Select(Regex.Escape));
+        var pattern = string.Join("|",
+            blacklist.Where(b => !string.IsNullOrWhiteSpace(b)).Select(Regex.Escape));
+        if (pattern.Length == 0)
+            return results;  // empty pattern would -match every package
 
         var psi = new ProcessStartInfo
         {

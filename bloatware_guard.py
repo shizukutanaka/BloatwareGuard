@@ -182,9 +182,10 @@ def run_cmd(args: List[str], timeout: int = 30) -> Tuple[str, int]:
 def is_target_package(pkg_name: str, blacklist: List[str], whitelist: List[str]) -> bool:
     """True if pkg_name matches any blacklist entry and no whitelist entry."""
     name = pkg_name.lower()
-    if any(w.lower() in name for w in whitelist):
+    if any(w and w.lower() in name for w in whitelist):
         return False
-    return any(entry.lower() in name for entry in blacklist)
+    # empty entries would substring-match every package
+    return any(entry and entry.strip() and entry.lower() in name for entry in blacklist)
 
 
 def get_blacklisted_packages(blacklist: List[str], whitelist: List[str]) -> List[Tuple[str, str, str]]:
