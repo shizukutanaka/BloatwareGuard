@@ -657,14 +657,17 @@ def run_self_test() -> int:
         with tempfile.TemporaryDirectory() as td:
             log = Path(td) / "test.log"
             lg = setup_logging(log)
-            lg.info("self-test marker")
-            for h in lg.handlers:
-                h.flush()
-            assert "self-test marker" in log.read_text(encoding="utf-8")
-            # Windows: FileHandler must be closed before TemporaryDirectory cleanup (WinError 32)
-            for h in list(lg.handlers):
-                h.close()
-                lg.removeHandler(h)
+            try:
+                lg.info("self-test marker")
+                for h in lg.handlers:
+                    h.flush()
+                assert "self-test marker" in log.read_text(encoding="utf-8")
+            finally:
+                # Windows: FileHandler must be closed before TemporaryDirectory
+                # cleanup (WinError 32)
+                for h in list(lg.handlers):
+                    h.close()
+                    lg.removeHandler(h)
 
     def t_is_admin():
         result = is_admin()
