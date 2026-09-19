@@ -296,7 +296,10 @@ public static class AppxManager
         List<string> blacklist, List<string> whitelist)
     {
         var results = new List<(string, string, string, bool, string?)>();
-        var pattern = string.Join("|", blacklist.Select(Regex.Escape));
+        var pattern = string.Join("|",
+            blacklist.Where(b => !string.IsNullOrWhiteSpace(b)).Select(Regex.Escape));
+        if (pattern.Length == 0)
+            return results;  // empty pattern would -match every package
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
@@ -345,14 +348,18 @@ public static class AppxManager
     /// <summary>Check if a package family name matches any whitelist entry</summary>
     public static bool IsWhitelisted(string packageFamilyName, List<string> whitelist)
     {
-        return whitelist.Any(w => packageFamilyName.Contains(w, StringComparison.OrdinalIgnoreCase));
+        return whitelist.Any(w => !string.IsNullOrWhiteSpace(w) &&
+            packageFamilyName.Contains(w, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>Get all provisioned packages (these re-deploy on new user creation)</summary>
     public static List<string> GetBlacklistedProvisionedPackages(List<string> blacklist, List<string> whitelist)
     {
         var results = new List<string>();
-        var pattern = string.Join("|", blacklist.Select(Regex.Escape));
+        var pattern = string.Join("|",
+            blacklist.Where(b => !string.IsNullOrWhiteSpace(b)).Select(Regex.Escape));
+        if (pattern.Length == 0)
+            return results;  // empty pattern would -match every package
 
         var psi = new ProcessStartInfo
         {
@@ -564,45 +571,45 @@ public static class ScheduledTaskGuard
     private static readonly string[] OemTaskPatterns = {
         "OEM", "Dell", "HPInc", "HPA", "Lenovo", "ASUS", "Acer", "McAfee", "Norton",
         "SupportAssist", "Vantage", "Armoury", "Crate", "CustomerExperienceImprovement",
-        "Customer Experience Improvement", "Reinstall", "Bloatware"
+        "Customer Experience Improvement", "Reinstall", "Restore", "Bloatware"
     };
 
-    // Microsoft system tasks that MUST NEVER be disabled
+    // Microsoft system tasks that MUST NEVER be disabled (TaskPath prefixes)
     private static readonly string[] MicrosoftSystemPrefixes = {
-        @"\\Microsoft\\Windows\\CloudRestore",
-        @"\\Microsoft\\Windows\\InstallService",
-        @"\\Microsoft\\Windows\\WindowsUpdate",
-        @"\\Microsoft\\Windows\\UpdateOrchestrator",
-        @"\\Microsoft\\Windows\\Defrag",
-        @"\\Microsoft\\Windows\\Diagnosis",
-        @"\\Microsoft\\Windows\\Maintenance",
-        @"\\Microsoft\\Windows\\CloudExperienceHost",
-        @"\\Microsoft\\Windows\\Feedback",
-        @"\\Microsoft\\Windows\\Input",
-        @"\\Microsoft\\Windows\\International",
-        @"\\Microsoft\\Windows\\LanguageComponentsInstaller",
-        @"\\Microsoft\\Windows\\MUI",
-        @"\\Microsoft\\Windows\\PI",
-        @"\\Microsoft\\Windows\\RecoveryEnvironment",
-        @"\\Microsoft\\Windows\\Servicing",
-        @"\\Microsoft\\Windows\\SettingSync",
-        @"\\Microsoft\\Windows\\Shell",
-        @"\\Microsoft\\Windows\\Sysmain",
-        @"\\Microsoft\\Windows\\WDI",
-        @"\\Microsoft\\Windows\\Wlan",
-        @"\\Microsoft\\Windows\\Bluetooth",
-        @"\\Microsoft\\Windows\\NetTrace",
-        @"\\Microsoft\\Windows\\Security Center",
-        @"\\Microsoft\\Windows\\SpaceAgent",
-        @"\\Microsoft\\Windows\\Storage",
-        @"\\Microsoft\\Windows\\SystemRestore",
-        @"\\Microsoft\\Windows\\Task Manager",
-        @"\\Microsoft\\Windows\\VerifiableFileIntegrity",
-        @"\\Microsoft\\Windows\\WebAuth",
-        @"\\Microsoft\\Windows\\WiFi",
-        @"\\Microsoft\\Windows\\Windows Error Reporting",
-        @"\\Microsoft\\Windows\\License Manager",
-        @"\\Microsoft\\Windows\\Clip",
+        @"\Microsoft\Windows\CloudRestore",
+        @"\Microsoft\Windows\InstallService",
+        @"\Microsoft\Windows\WindowsUpdate",
+        @"\Microsoft\Windows\UpdateOrchestrator",
+        @"\Microsoft\Windows\Defrag",
+        @"\Microsoft\Windows\Diagnosis",
+        @"\Microsoft\Windows\Maintenance",
+        @"\Microsoft\Windows\CloudExperienceHost",
+        @"\Microsoft\Windows\Feedback",
+        @"\Microsoft\Windows\Input",
+        @"\Microsoft\Windows\International",
+        @"\Microsoft\Windows\LanguageComponentsInstaller",
+        @"\Microsoft\Windows\MUI",
+        @"\Microsoft\Windows\PI",
+        @"\Microsoft\Windows\RecoveryEnvironment",
+        @"\Microsoft\Windows\Servicing",
+        @"\Microsoft\Windows\SettingSync",
+        @"\Microsoft\Windows\Shell",
+        @"\Microsoft\Windows\Sysmain",
+        @"\Microsoft\Windows\WDI",
+        @"\Microsoft\Windows\Wlan",
+        @"\Microsoft\Windows\Bluetooth",
+        @"\Microsoft\Windows\NetTrace",
+        @"\Microsoft\Windows\Security Center",
+        @"\Microsoft\Windows\SpaceAgent",
+        @"\Microsoft\Windows\Storage",
+        @"\Microsoft\Windows\SystemRestore",
+        @"\Microsoft\Windows\Task Manager",
+        @"\Microsoft\Windows\VerifiableFileIntegrity",
+        @"\Microsoft\Windows\WebAuth",
+        @"\Microsoft\Windows\WiFi",
+        @"\Microsoft\Windows\Windows Error Reporting",
+        @"\Microsoft\Windows\License Manager",
+        @"\Microsoft\Windows\Clip",
     };
 
 
@@ -611,7 +618,7 @@ public static class ScheduledTaskGuard
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = "-NoProfile -ExecutionPolicy Bypass -Command \"Get-ScheduledTask | Where-Object {$_.TaskPath -like '*OEM*' -or $_.TaskName -match 'SupportAssist|Vantage|Armoury|Crate|Dell|HPInc|Lenovo|ASUS|Acer|McAfee|Norton|CustomerExperience|Reinstall|Restore'} | Select-Object TaskName,TaskPath,State | ConvertTo-Json\"",
+            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Get-ScheduledTask | Where-Object {{$_.TaskPath -like '*OEM*' -or $_.TaskName -match '{string.Join("|", OemTaskPatterns.Select(Regex.Escape))}'}} | Select-Object TaskName,TaskPath,State | ConvertTo-Json\"",
             RedirectStandardOutput = true,
             UseShellExecute = false,
             CreateNoWindow = true
@@ -642,12 +649,21 @@ public static class ScheduledTaskGuard
                 tasks.Add((name, path));
             }
 
+            var skipped = 0;
             foreach (var (name, path) in tasks)
             {
+                var fullPath = path.EndsWith("\\") ? path + name : path + "\\" + name;
+                if (MicrosoftSystemPrefixes.Any(p =>
+                    fullPath.StartsWith(p + "\\", StringComparison.OrdinalIgnoreCase)))
+                {
+                    GuardLogger.Warn($"Skipping protected system task: {fullPath}");
+                    skipped++;
+                    continue;
+                }
                 DisableTask(name, path);
             }
 
-            GuardLogger.Info($"Disabled {tasks.Count} OEM scheduled tasks");
+            GuardLogger.Info($"Disabled {tasks.Count - skipped} OEM scheduled tasks ({skipped} protected skipped)");
         }
         catch (Exception ex)
         {
@@ -702,14 +718,21 @@ public class GuardService : BackgroundService
         GuardLogger.Info($"Scan interval: {_config.ScanIntervalSeconds}s");
         GuardLogger.Info($"Blacklist entries: {_config.Blacklist.Count}");
 
-        // Apply registry-based prevention once at startup
-        GuardLogger.Info("Applying registry-based prevention layers...");
-        RegistryGuard.ApplyAll(_config.Prevention);
-
-        if (_config.Prevention.DisableOemScheduledTasks)
+        // Apply registry-based prevention once at startup — skipped in dry-run
+        if (_config.DryRun)
         {
-            GuardLogger.Info("Disabling OEM scheduled tasks...");
-            ScheduledTaskGuard.DisableOemTasks();
+            GuardLogger.Info("[DRY-RUN] Startup prevention changes skipped");
+        }
+        else
+        {
+            GuardLogger.Info("Applying registry-based prevention layers...");
+            RegistryGuard.ApplyAll(_config.Prevention);
+
+            if (_config.Prevention.DisableOemScheduledTasks)
+            {
+                GuardLogger.Info("Disabling OEM scheduled tasks...");
+                ScheduledTaskGuard.DisableOemTasks();
+            }
         }
 
         // Layer 7: baseline-diff detection — a package that appears after being

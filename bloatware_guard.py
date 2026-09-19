@@ -26,6 +26,7 @@ import ctypes
 import argparse
 import logging
 import tempfile
+import shutil
 from pathlib import Path
 from typing import List, Tuple, Optional
 
@@ -181,9 +182,10 @@ def run_cmd(args: List[str], timeout: int = 30) -> Tuple[str, int]:
 def is_target_package(pkg_name: str, blacklist: List[str], whitelist: List[str]) -> bool:
     """True if pkg_name matches any blacklist entry and no whitelist entry."""
     name = pkg_name.lower()
-    if any(w.lower() in name for w in whitelist):
+    if any(w and w.lower() in name for w in whitelist):
         return False
-    return any(entry.lower() in name for entry in blacklist)
+    # empty entries would substring-match every package
+    return any(entry and entry.strip() and entry.lower() in name for entry in blacklist)
 
 
 def get_blacklisted_packages(blacklist: List[str], whitelist: List[str]) -> List[Tuple[str, str, str]]:
@@ -387,11 +389,35 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
 
 # ─── Scheduled Task Prevention ───────────────────────────────────────────────
 
+# Microsoft system tasks that MUST NEVER be disabled (TaskPath prefixes) —
+# kept in parity with C# ScheduledTaskGuard.MicrosoftSystemPrefixes
+MICROSOFT_SYSTEM_TASK_PREFIXES = (
+    "\\Microsoft\\Windows\\CloudRestore", "\\Microsoft\\Windows\\InstallService",
+    "\\Microsoft\\Windows\\WindowsUpdate", "\\Microsoft\\Windows\\UpdateOrchestrator",
+    "\\Microsoft\\Windows\\Defrag", "\\Microsoft\\Windows\\Diagnosis",
+    "\\Microsoft\\Windows\\Maintenance", "\\Microsoft\\Windows\\CloudExperienceHost",
+    "\\Microsoft\\Windows\\Feedback", "\\Microsoft\\Windows\\Input",
+    "\\Microsoft\\Windows\\International", "\\Microsoft\\Windows\\LanguageComponentsInstaller",
+    "\\Microsoft\\Windows\\MUI", "\\Microsoft\\Windows\\PI",
+    "\\Microsoft\\Windows\\RecoveryEnvironment", "\\Microsoft\\Windows\\Servicing",
+    "\\Microsoft\\Windows\\SettingSync", "\\Microsoft\\Windows\\Shell",
+    "\\Microsoft\\Windows\\Sysmain", "\\Microsoft\\Windows\\WDI",
+    "\\Microsoft\\Windows\\Wlan", "\\Microsoft\\Windows\\Bluetooth",
+    "\\Microsoft\\Windows\\NetTrace", "\\Microsoft\\Windows\\Security Center",
+    "\\Microsoft\\Windows\\SpaceAgent", "\\Microsoft\\Windows\\Storage",
+    "\\Microsoft\\Windows\\SystemRestore", "\\Microsoft\\Windows\\Task Manager",
+    "\\Microsoft\\Windows\\VerifiableFileIntegrity", "\\Microsoft\\Windows\\WebAuth",
+    "\\Microsoft\\Windows\\WiFi", "\\Microsoft\\Windows\\Windows Error Reporting",
+    "\\Microsoft\\Windows\\License Manager", "\\Microsoft\\Windows\\Clip",
+)
+
+
 def disable_oem_scheduled_tasks(logger: logging.Logger):
     """Disable known OEM scheduled tasks that reinstall bloatware."""
     patterns = (
-        "SupportAssist|Vantage|Armoury|Crate|Dell|HPInc|Lenovo|ASUS|Acer|"
-        "McAfee|Norton|CustomerExperience|Reinstall|Restore|OEM"
+        "OEM|Dell|HPInc|HPA|Lenovo|ASUS|Acer|McAfee|Norton|"
+        "SupportAssist|Vantage|Armoury|Crate|CustomerExperienceImprovement|"
+        "Customer Experience Improvement|Reinstall|Restore|Bloatware"
     )
     ps_cmd = (
         f"Get-ScheduledTask | "
@@ -408,19 +434,26 @@ def disable_oem_scheduled_tasks(logger: logging.Logger):
         if isinstance(data, dict):
             data = [data]
 
+        skipped = 0
         for task in data:
             name = task.get("TaskName", "")
             path = task.get("TaskPath", "\\")
             if not name:
                 continue
             full_path = path.rstrip("\\") + "\\" + name
+            if any(full_path.lower().startswith(p.lower() + "\\")
+                   for p in MICROSOFT_SYSTEM_TASK_PREFIXES):
+                logger.warning(f"Skipping protected system task: {full_path}")
+                skipped += 1
+                continue
             out, ret = run_cmd(["schtasks", "/Change", "/TN", full_path, "/DISABLE"])
             if ret == 0:
                 logger.info(f"Disabled scheduled task: {full_path}")
             else:
                 logger.warning(f"Failed to disable task: {full_path} ({out})")
 
-        logger.info(f"Processed {len(data)} OEM scheduled tasks")
+        logger.info(f"Processed {len(data) - skipped} OEM scheduled tasks "
+                    f"({skipped} protected skipped)")
     except (json.JSONDecodeError, TypeError) as e:
         logger.warning(f"Scheduled task scan error: {e}")
 
@@ -435,10 +468,12 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
     whitelist = config.get("Whitelist", [])
     prev = config.get("Prevention", {})
     removed = 0
+    matched = 0
 
     # 1. Remove installed packages
     if prev.get("RemoveAppxPackages", True):
         packages = get_blacklisted_packages(blacklist, whitelist)
+        matched += len(packages)
         full_names = get_package_full_names() if packages else {}
         for family_name, display_name, install_path in packages:
             full_name = full_names.get(family_name)
@@ -468,6 +503,7 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
     # 2. Remove provisioned packages (independent toggle — prevents re-deploy on new users)
     if prev.get("RemoveProvisionedPackages", True):
         provisioned = get_blacklisted_provisioned(blacklist, whitelist)
+        matched += len(provisioned)
         for display_name in provisioned:
             if dry_run:
                 logger.info(f"[DRY-RUN] Would remove ProvisionedPackage: {display_name} [requires admin]")
@@ -492,7 +528,7 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
         else:
             disable_oem_scheduled_tasks(logger)
 
-    logger.info(f"Scan complete. Removed {removed} packages.")
+    logger.info(f"Scan complete. {matched} packages matched blacklist; removed {removed}.")
     return removed
 
 
@@ -516,11 +552,15 @@ def run_service(config: dict, logger: logging.Logger):
     seen_installed: set = set()
     first_scan = True
 
-    # Apply prevention once at startup
-    if not is_admin():
-        logger.warning("Running without admin rights — some prevention may fail.")
-    apply_registry_prevention(config, logger)
-    disable_oem_scheduled_tasks(logger)
+    # Apply prevention once at startup — skipped entirely in dry-run mode
+    if config.get("DryRun", False):
+        logger.info("[DRY-RUN] Startup prevention changes skipped")
+    else:
+        if not is_admin():
+            logger.warning("Running without admin rights — some prevention may fail.")
+        apply_registry_prevention(config, logger)
+        if prev.get("DisableOemScheduledTasks", True):
+            disable_oem_scheduled_tasks(logger)
 
     while True:
         try:
@@ -564,7 +604,12 @@ def run_service(config: dict, logger: logging.Logger):
 # ─── Windows Service Registration ────────────────────────────────────────────
 
 def install_service():
-    """Register as a Windows service using NSSM or sc.exe."""
+    """Register as a Windows service via NSSM.
+
+    A pythonw.exe process is not SCM-aware, so plain `sc create` produces a
+    service that always fails to start (error 1053). NSSM wraps the script
+    and answers the service control dispatcher correctly. Prefer the C#
+    implementation (`BloatwareGuard.exe install`) which is SCM-native."""
     script_path = Path(__file__).resolve()
     python_path = Path(sys.executable).resolve()
 
@@ -573,17 +618,24 @@ def install_service():
     if not pythonw.exists():
         pythonw = python_path
 
-    bin_path = f'"{pythonw}" "{script_path}" --service'
+    nssm = shutil.which("nssm") or shutil.which("nssm", path=str(script_path.parent))
+    if not nssm:
+        print("ERROR: NSSM not found — a Python process cannot be a Windows service")
+        print("       without a service wrapper. Options:")
+        print("  1. Install NSSM (https://nssm.cc) and retry")
+        print("  2. Use the C# build instead: BloatwareGuard.exe install")
+        print("  3. Register a scheduled task:")
+        print(f'     schtasks /Create /TN "{SERVICE_NAME}" /SC ONSTART /RU SYSTEM '
+              f'/RL HIGHEST /TR "\\"{pythonw}\\" \\"{script_path}\\" --service"')
+        return False
 
-    # Stop and delete existing
     subprocess.run(["sc", "stop", SERVICE_NAME], capture_output=True)
     subprocess.run(["sc", "delete", SERVICE_NAME], capture_output=True)
+    subprocess.run([nssm, "remove", SERVICE_NAME, "confirm"], capture_output=True)
     time.sleep(2)
 
-    # Create
     result = subprocess.run(
-        ["sc", "create", SERVICE_NAME, f"binPath= {bin_path}",
-         "start= " "auto", f"DisplayName= " f'"{APP_NAME}"'],
+        [nssm, "install", SERVICE_NAME, str(pythonw), str(script_path), "--service"],
         capture_output=True, text=True
     )
     print(result.stdout)
@@ -591,7 +643,13 @@ def install_service():
         print(f"Error: {result.stderr}")
         return False
 
-    print(f"Service '{SERVICE_NAME}' installed. Use 'sc start {SERVICE_NAME}' to start.")
+    subprocess.run([nssm, "set", SERVICE_NAME, "Start", "SERVICE_AUTO_START"],
+                   capture_output=True)
+    subprocess.run(
+        [nssm, "set", SERVICE_NAME, "AppStdout", str(LOG_DIR / "service-stdout.log")],
+        capture_output=True)
+    print(f"Service '{SERVICE_NAME}' installed via NSSM. "
+          f"Use 'sc start {SERVICE_NAME}' to start.")
     return True
 
 
