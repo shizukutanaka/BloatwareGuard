@@ -48,6 +48,24 @@ python bloatware_guard.py --restore
 BloatwareGuard.exe restore
 ```
 
+## Service Mode (background monitoring)
+
+```bash
+# Run in foreground with monitor loop enabled
+python bloatware_guard.py --service
+BloatwareGuard.exe service
+
+# Same, but forced dry-run (monitor-only, changes nothing)
+python bloatware_guard.py --service-dry-run
+
+# Install as a Windows service
+BloatwareGuard.exe install        # C# — direct SCM registration
+python bloatware_guard.py --install   # requires NSSM (nssm.exe on PATH or beside the script);
+                                      # plain pythonw.exe is NOT SCM-aware and fails with error 1053.
+                                      # Fallback: prints a ready-to-run schtasks command.
+BloatwareGuard.exe uninstall
+```
+
 ## Removal Ledger & Restore
 
 Every successful removal is appended to `removed-packages.jsonl` under
