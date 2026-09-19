@@ -124,20 +124,38 @@ public static class GuardLogger
         catch { /* Event log may not be available in all contexts */ }
 
         // File log
+        var logPath = ResolveLogFilePath();
+        if (!string.IsNullOrEmpty(logPath))
+        {
+            try
+            {
+                File.AppendAllText(logPath, line + Environment.NewLine);
+            }
+            catch { /* ignore file log errors */ }
+        }
+    }
+
+    private static string? _logFilePath;
+    private static bool _logPathResolved;
+
+    /// <summary>Cache LogFilePath from config.json on first successful read —
+    /// avoids a full file read + JSON parse for every log line.</summary>
+    private static string? ResolveLogFilePath()
+    {
+        if (_logPathResolved)
+            return _logFilePath;
         try
         {
             var configPath = Path.Combine(AppContext.BaseDirectory, "config.json");
-            if (File.Exists(configPath))
-            {
-                var json = File.ReadAllText(configPath);
-                var config = JsonSerializer.Deserialize(json, GuardJsonContext.Default.GuardConfig);
-                if (!string.IsNullOrEmpty(config?.LogFilePath))
-                {
-                    File.AppendAllText(config.LogFilePath, line + Environment.NewLine);
-                }
-            }
+            if (!File.Exists(configPath))
+                return null;  // not resolved yet — retry on next write
+            var config = JsonSerializer.Deserialize(
+                File.ReadAllText(configPath), GuardJsonContext.Default.GuardConfig);
+            _logFilePath = config?.LogFilePath;
+            _logPathResolved = true;
         }
-        catch { /* ignore file log errors */ }
+        catch { /* unreadable config — keep retrying */ }
+        return _logFilePath;
     }
 }
 
