@@ -238,6 +238,11 @@ public static class ConfigLoader
                 "Microsoft.WindowsAlarms",
                 "Microsoft.ScreenSketch",
                 "Microsoft.Clipchamp",
+                "MicrosoftTeams",
+                "Microsoft.MicrosoftEdge.Stable",
+                "Microsoft.DevHome",
+                "Microsoft.Copilot",
+                "Clipchamp.Clipchamp",
 
                 // Third-party bloatware commonly pre-installed
                 "McAfee",
@@ -247,6 +252,15 @@ public static class ConfigLoader
                 "Dolby",
                 "RealtekSemiconductor",
                 "SynapticsIncorporated",
+                "BytedancePte.Ltd.TikTok",
+                "KING.COM.CandyCrush",
+                "A278AB0D.DisneyMagicKingdoms",
+                "A278AB0D.MarchofEmpires",
+                "D5EA27B7.Duolingo-LearnLanguagesforFree",
+                "PandoraMediaInc.29680B314EFC2",
+                "Facebook.InstagramBeta",
+                "Facebook.Facebook",
+                "WhatsApp",
 
                 // OEM utilities (uncomment as needed)
                 // "DellInc.Dell",
@@ -945,7 +959,7 @@ public class Program
                     Console.WriteLine("BloatwareGuard v1.8.0-mvp");
                     return;
                 case "--self-test":
-                    RunSelfTest(config);
+                    Environment.ExitCode = RunSelfTest(config);
                     return;
                 case "--service-dry-run":
                     config.DryRun = true;
@@ -1151,7 +1165,7 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
     /// Self-test mode: validates internal wiring without requiring admin elevation.
     /// Bypasses UAC by testing structure, not actual removal logic.
     /// </summary>
-    private static void RunSelfTest(GuardConfig config)
+    private static int RunSelfTest(GuardConfig config)
     {
         var passed = 0;
         var total = 6;
@@ -1279,5 +1293,6 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
             Console.WriteLine("⚠️  Self-test had failures — check logs.");
             GuardLogger.Warn($"⚠️  Self-test: {total - passed} failure(s)");
         }
+        return passed == total ? 0 : 1;
     }
 }
