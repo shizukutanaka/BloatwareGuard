@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Diagnostics;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -69,6 +70,17 @@ public class PreventionLayers
     public bool ReinstallMonitor { get; set; } = true;
 }
 
+// ─── JSON source-gen context (trim-safe: avoids IL2026 with PublishTrimmed) ──
+
+[JsonSourceGenerationOptions(
+    WriteIndented = true,
+    PropertyNameCaseInsensitive = true,
+    ReadCommentHandling = JsonCommentHandling.Skip)]
+[JsonSerializable(typeof(GuardConfig))]
+internal partial class GuardJsonContext : JsonSerializerContext
+{
+}
+
 // ─── Logger helper ───────────────────────────────────────────────────────────
 
 public static class GuardLogger
@@ -117,7 +129,7 @@ public static class GuardLogger
             if (File.Exists(configPath))
             {
                 var json = File.ReadAllText(configPath);
-                var config = JsonSerializer.Deserialize<GuardConfig>(json);
+                var config = JsonSerializer.Deserialize(json, GuardJsonContext.Default.GuardConfig);
                 if (!string.IsNullOrEmpty(config?.LogFilePath))
                 {
                     File.AppendAllText(config.LogFilePath, line + Environment.NewLine);
@@ -143,18 +155,14 @@ public static class ConfigLoader
         }
 
         var json = File.ReadAllText(path);
-        var config = JsonSerializer.Deserialize<GuardConfig>(json, new JsonSerializerOptions
-        {
-            PropertyNameCaseInsensitive = true,
-            ReadCommentHandling = JsonCommentHandling.Skip
-        });
+        var config = JsonSerializer.Deserialize(json, GuardJsonContext.Default.GuardConfig);
 
         return config ?? CreateDefault();
     }
 
     public static void Save(string path, GuardConfig config)
     {
-        var json = JsonSerializer.Serialize(config, new JsonSerializerOptions { WriteIndented = true });
+        var json = JsonSerializer.Serialize(config, GuardJsonContext.Default.GuardConfig);
         File.WriteAllText(path, json);
     }
 
@@ -848,32 +856,10 @@ public class GuardService : BackgroundService
     private bool IsWhitelisted(string packageFamilyName)
     {
         var match = _config.Whitelist.FirstOrDefault(w =>
-            packageFamilyName.StartsWith(w, StringComparison.OrdinalIgnoreCase));
+            packageFamilyName.Contains(w, StringComparison.OrdinalIgnoreCase));
         if (match != null)
-            GuardLogger.Info($"  WHITELIST MATCH: '{packageFamilyName}' starts with '{match}'");
+            GuardLogger.Info($"  WHITELIST MATCH: '{packageFamilyName}' contains '{match}'");
         return match != null;
-    }
-
-    private string GetPackageFullName(string packageFamilyName)
-    {
-        var psi = new ProcessStartInfo
-        {
-            FileName = "powershell.exe",
-            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"(Get-AppxPackage -PackageFamilyName '{packageFamilyName}').PackageFullName\"",
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
-
-        using var proc = Process.Start(psi);
-        var output = proc?.StandardOutput.ReadToEnd().Trim() ?? "";
-        proc?.WaitForExit();
-
-        // Validate: a real PackageFullName contains the family name
-        if (!string.IsNullOrEmpty(output) && output.Contains(packageFamilyName) && !output.Contains("error"))
-            return output.Split('\n').Last().Trim();
-        return "";
     }
 }
 
