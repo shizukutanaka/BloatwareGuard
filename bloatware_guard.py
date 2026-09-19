@@ -7,6 +7,7 @@ Windowsサービス化可能な常駐型bloatware自動削除ツール
   python bloatware_guard.py            # 常駐モード（定期スキャン）
   python bloatware_guard.py --scan     # 1回だけスキャン
   python bloatware_guard.py --dry-run  # 削除対象を表示のみ（変更なし）
+  python bloatware_guard.py --service-dry-run  # 常駐モード＋強制dry-run（監視のみ）
   python bloatware_guard.py --install  # Windowsサービスに登録（要管理者）
   python bloatware_guard.py --uninstall # サービス削除（要管理者）
   python bloatware_guard.py --status   # 状態確認
@@ -93,6 +94,7 @@ DEFAULT_BLACKLIST = [
     "Microsoft.ScreenSketch",
     "Microsoft.Clipchamp",
     "MicrosoftTeams",
+    "Microsoft.MicrosoftEdge.Stable",
     "Microsoft.DevHome",
     "Microsoft.Copilot",
     "Clipchamp.Clipchamp",
@@ -122,6 +124,12 @@ def load_config(path: Path) -> dict:
             "ScanIntervalSeconds": 300,
             "LogFilePath": str(LOG_FILE),
             "Blacklist": DEFAULT_BLACKLIST,
+            "Whitelist": [
+                "Microsoft.WindowsStore",
+                "Microsoft.WindowsCalculator",
+                "Microsoft.WindowsNotepad",
+                "Microsoft.WindowsTerminal",
+            ],
             "Prevention": {
                 "RemoveAppxPackages": True,
                 "RemoveProvisionedPackages": True,
@@ -131,7 +139,8 @@ def load_config(path: Path) -> dict:
                 "DisableOemScheduledTasks": True,
                 "BlockProvisioning": True,
                 "ReinstallMonitor": True,
-            }
+            },
+            "DryRun": False,
         }
         path.write_text(json.dumps(config, indent=2, ensure_ascii=False), encoding="utf-8")
         return config
@@ -725,6 +734,8 @@ def main():
     parser.add_argument("--scan", action="store_true", help="Run one scan and exit")
     parser.add_argument("--dry-run", action="store_true", help="Scan and log planned actions WITHOUT executing removal")
     parser.add_argument("--service", action="store_true", help="Run in service mode (background loop)")
+    parser.add_argument("--service-dry-run", action="store_true",
+                        help="Service mode with forced dry-run (monitoring only, mirrors C# --service-dry-run)")
     parser.add_argument("--install", action="store_true", help="Install as Windows service")
     parser.add_argument("--uninstall", action="store_true", help="Remove Windows service")
     parser.add_argument("--status", action="store_true", help="Show service status")
@@ -783,8 +794,9 @@ def main():
         run_scan(config, logger, dry_run=True)
         return
 
-    # Default: service mode
-    if args.service:
+    # Default: service mode — honors config "DryRun" (set true for a
+    # monitoring-only service); --service-dry-run forces it (C# parity).
+    if args.service_dry_run:
         config["DryRun"] = True
         logger.info("SERVICE MODE IN DRY-RUN — no removal actions will execute")
     run_service(config, logger)

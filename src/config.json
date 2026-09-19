@@ -64,5 +64,6 @@
     "DisableOemScheduledTasks": true,
     "BlockProvisioning": true,
     "ReinstallMonitor": true
-  }
+  },
+  "DryRun": false
 }
