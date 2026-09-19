@@ -718,14 +718,21 @@ public class GuardService : BackgroundService
         GuardLogger.Info($"Scan interval: {_config.ScanIntervalSeconds}s");
         GuardLogger.Info($"Blacklist entries: {_config.Blacklist.Count}");
 
-        // Apply registry-based prevention once at startup
-        GuardLogger.Info("Applying registry-based prevention layers...");
-        RegistryGuard.ApplyAll(_config.Prevention);
-
-        if (_config.Prevention.DisableOemScheduledTasks)
+        // Apply registry-based prevention once at startup — skipped in dry-run
+        if (_config.DryRun)
         {
-            GuardLogger.Info("Disabling OEM scheduled tasks...");
-            ScheduledTaskGuard.DisableOemTasks();
+            GuardLogger.Info("[DRY-RUN] Startup prevention changes skipped");
+        }
+        else
+        {
+            GuardLogger.Info("Applying registry-based prevention layers...");
+            RegistryGuard.ApplyAll(_config.Prevention);
+
+            if (_config.Prevention.DisableOemScheduledTasks)
+            {
+                GuardLogger.Info("Disabling OEM scheduled tasks...");
+                ScheduledTaskGuard.DisableOemTasks();
+            }
         }
 
         // Layer 7: baseline-diff detection — a package that appears after being

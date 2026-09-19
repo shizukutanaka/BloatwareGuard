@@ -552,11 +552,15 @@ def run_service(config: dict, logger: logging.Logger):
     seen_installed: set = set()
     first_scan = True
 
-    # Apply prevention once at startup
-    if not is_admin():
-        logger.warning("Running without admin rights — some prevention may fail.")
-    apply_registry_prevention(config, logger)
-    disable_oem_scheduled_tasks(logger)
+    # Apply prevention once at startup — skipped entirely in dry-run mode
+    if config.get("DryRun", False):
+        logger.info("[DRY-RUN] Startup prevention changes skipped")
+    else:
+        if not is_admin():
+            logger.warning("Running without admin rights — some prevention may fail.")
+        apply_registry_prevention(config, logger)
+        if prev.get("DisableOemScheduledTasks", True):
+            disable_oem_scheduled_tasks(logger)
 
     while True:
         try:
