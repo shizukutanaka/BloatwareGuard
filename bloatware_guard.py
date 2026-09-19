@@ -373,18 +373,18 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
                 else:
                     logger.warning(f"Failed to remove AppxPackage: {family_name}")
 
-        # 2. Remove provisioned packages
-        if prev.get("RemoveProvisionedPackages", True):
-            provisioned = get_blacklisted_provisioned(blacklist, whitelist)
-            for display_name in provisioned:
-                if dry_run:
-                    logger.info(f"[DRY-RUN] Would remove ProvisionedPackage: {display_name} [requires admin]")
+    # 2. Remove provisioned packages (independent toggle — prevents re-deploy on new users)
+    if prev.get("RemoveProvisionedPackages", True):
+        provisioned = get_blacklisted_provisioned(blacklist, whitelist)
+        for display_name in provisioned:
+            if dry_run:
+                logger.info(f"[DRY-RUN] Would remove ProvisionedPackage: {display_name} [requires admin]")
+            else:
+                if remove_provisioned_package(display_name):
+                    logger.info(f"Removed ProvisionedPackage: {display_name}")
+                    removed += 1
                 else:
-                    if remove_provisioned_package(display_name):
-                        logger.info(f"Removed ProvisionedPackage: {display_name}")
-                        removed += 1
-                    else:
-                        logger.warning(f"Failed to remove ProvisionedPackage: {display_name} [admin required]")
+                    logger.warning(f"Failed to remove ProvisionedPackage: {display_name} [admin required]")
 
     # 3. Re-apply registry (idempotent, Windows Update may reset)
     if dry_run:
@@ -417,8 +417,11 @@ def run_service(config: dict, logger: logging.Logger):
     logger.info(f"Blacklist entries: {len(blacklist)}")
     logger.info(f"Whitelist entries: {len(whitelist)}")
 
-    # Layer 7: Track previously removed provisioned packages to detect re-installation
-    known_removed = set()
+    # Layer 7: baseline-diff detection — a package that appears after being
+    # absent in the previous scan counts as a (re-)install
+    seen_provisioned: set = set()
+    seen_installed: set = set()
+    first_scan = True
 
     # Apply prevention once at startup
     if not is_admin():
@@ -433,23 +436,32 @@ def run_service(config: dict, logger: logging.Logger):
 
             # Layer 7: Re-install Monitor
             if prev.get("ReinstallMonitor", True):
-                current_provisioned = get_blacklisted_provisioned(blacklist, whitelist)
-                for display_name in current_provisioned:
-                    if display_name in known_removed:
-                        logger.warning(f"[MONITOR] RE-INSTALLED detected: {display_name} — removing immediately!")
-                        remove_provisioned_package(display_name)
-                        logger.info(f"[MONITOR] Re-removal complete: {display_name}")
-                    else:
-                        known_removed.add(display_name)
+                current_provisioned = set(get_blacklisted_provisioned(blacklist, whitelist))
+                current_installed = {
+                    family for family, _, _ in get_blacklisted_packages(blacklist, whitelist)
+                }
 
-            # Also check installed packages for re-appearance
-            current_installed = get_blacklisted_packages(blacklist, whitelist)
-            for family_name, display_name, install_path in current_installed:
-                if family_name in known_removed:
-                    logger.warning(f"[MONITOR] RE-INSTALLED AppxPackage: {family_name} — removing!")
-                    full_name = get_package_full_name(family_name)
-                    if full_name:
-                        remove_appx_package(full_name)
+                if not first_scan:
+                    for display_name in current_provisioned - seen_provisioned:
+                        logger.warning(
+                            f"[MONITOR] RE-INSTALLED detected: {display_name} — removing immediately!")
+                        if remove_provisioned_package(display_name):
+                            logger.info(f"[MONITOR] Re-removal complete: {display_name}")
+                        else:
+                            logger.warning(f"[MONITOR] Re-removal failed: {display_name}")
+
+                    for family_name in current_installed - seen_installed:
+                        logger.warning(
+                            f"[MONITOR] RE-INSTALLED AppxPackage: {family_name} — removing!")
+                        full_name = get_package_full_name(family_name)
+                        if full_name and remove_appx_package(full_name):
+                            logger.info(f"[MONITOR] Re-removal complete: {family_name}")
+                        else:
+                            logger.warning(f"[MONITOR] Re-removal failed: {family_name}")
+
+                seen_provisioned = current_provisioned
+                seen_installed = current_installed
+                first_scan = False
 
         except Exception as e:
             logger.error(f"Scan error: {e}")

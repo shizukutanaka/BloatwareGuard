@@ -652,12 +652,24 @@ public class GuardService : BackgroundService
             ScheduledTaskGuard.DisableOemTasks();
         }
 
+        // Layer 7: baseline-diff detection — a package that appears after being
+        // absent in the previous scan counts as a (re-)install
+        var seenProvisioned = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var seenInstalled = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var firstScan = true;
+
         // Main scan loop
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
                 RunScan(_config.DryRun);
+
+                if (_config.Prevention.ReinstallMonitor)
+                {
+                    CheckReinstalls(seenProvisioned, seenInstalled, firstScan);
+                    firstScan = false;
+                }
             }
             catch (Exception ex)
             {
@@ -666,6 +678,53 @@ public class GuardService : BackgroundService
 
             await Task.Delay(TimeSpan.FromSeconds(_config.ScanIntervalSeconds), stoppingToken);
         }
+    }
+
+    /// <summary>Detect packages that re-appeared since the last scan and remove them.</summary>
+    private void CheckReinstalls(
+        HashSet<string> seenProvisioned, HashSet<string> seenInstalled, bool firstScan)
+    {
+        var currentProvisioned = new HashSet<string>(
+            AppxManager.GetBlacklistedProvisionedPackages(_config.Blacklist, _config.Whitelist),
+            StringComparer.OrdinalIgnoreCase);
+        var installed = AppxManager.GetBlacklistedPackages(_config.Blacklist, _config.Whitelist);
+        var currentInstalled = new HashSet<string>(
+            installed.Select(p => p.PackageFamilyName), StringComparer.OrdinalIgnoreCase);
+
+        if (!firstScan)
+        {
+            foreach (var pkg in currentProvisioned.Except(seenProvisioned))
+            {
+                GuardLogger.Warn($"[MONITOR] RE-INSTALLED detected: {pkg} — removing immediately!");
+                if (AppxManager.RemoveProvisionedPackage(pkg))
+                    GuardLogger.Info($"[MONITOR] Re-removal complete: {pkg}");
+                else
+                    GuardLogger.Warn($"[MONITOR] Re-removal failed: {pkg} [admin required]");
+            }
+
+            var fullNameByFamily = installed
+                .GroupBy(p => p.PackageFamilyName)
+                .ToDictionary(g => g.Key, g => g.First().PackageFullName, StringComparer.OrdinalIgnoreCase);
+            foreach (var family in currentInstalled.Except(seenInstalled))
+            {
+                GuardLogger.Warn($"[MONITOR] RE-INSTALLED AppxPackage: {family} — removing!");
+                if (fullNameByFamily.TryGetValue(family, out var fullName) &&
+                    !string.IsNullOrEmpty(fullName) &&
+                    AppxManager.RemoveAppxPackage(fullName))
+                {
+                    GuardLogger.Info($"[MONITOR] Re-removal complete: {family}");
+                }
+                else
+                {
+                    GuardLogger.Warn($"[MONITOR] Re-removal failed: {family}");
+                }
+            }
+        }
+
+        seenProvisioned.Clear();
+        seenProvisioned.UnionWith(currentProvisioned);
+        seenInstalled.Clear();
+        seenInstalled.UnionWith(currentInstalled);
     }
 
     public void RunScanPublic(bool dryRun = false) => RunScan(dryRun);
@@ -744,8 +803,11 @@ public class GuardService : BackgroundService
                     }
                 }
             }
+        }
 
-            // 2. Remove provisioned packages (prevents re-deploy on new users)
+        // 2. Remove provisioned packages (independent toggle — prevents re-deploy on new users)
+        if (_config.Prevention.RemoveProvisionedPackages)
+        {
             var provisioned = AppxManager.GetBlacklistedProvisionedPackages(_config.Blacklist, _config.Whitelist);
             foreach (var pkgName in provisioned)
             {
