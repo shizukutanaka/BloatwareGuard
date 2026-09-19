@@ -238,6 +238,28 @@ def get_package_full_name(package_family_name: str) -> Optional[str]:
     return None
 
 
+def get_package_full_names() -> dict:
+    """Map PackageFamilyName -> PackageFullName in one PowerShell call.
+    Avoids spawning a process per package inside scan loops."""
+    ps_cmd = "Get-AppxPackage | Select-Object PackageFamilyName,PackageFullName | ConvertTo-Json"
+    stdout, _, rc = run_powershell(ps_cmd, timeout=120)
+    mapping = {}
+    if rc != 0 or not stdout:
+        return mapping
+    try:
+        data = json.loads(stdout)
+        if isinstance(data, dict):
+            data = [data]
+        for pkg in data:
+            family = pkg.get("PackageFamilyName", "")
+            full = pkg.get("PackageFullName", "")
+            if family:
+                mapping[family] = full
+    except (json.JSONDecodeError, TypeError):
+        pass
+    return mapping
+
+
 def remove_appx_package(package_full_name: str) -> bool:
     ps_cmd = f"Remove-AppxPackage -Package '{package_full_name}' -ErrorAction SilentlyContinue"
     _, _, rc = run_powershell(ps_cmd, timeout=60)
@@ -407,8 +429,9 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
     # 1. Remove installed packages
     if prev.get("RemoveAppxPackages", True):
         packages = get_blacklisted_packages(blacklist, whitelist)
+        full_names = get_package_full_names() if packages else {}
         for family_name, display_name, install_path in packages:
-            full_name = get_package_full_name(family_name)
+            full_name = full_names.get(family_name)
             is_system_app = not install_path or install_path.strip() == ""
             if dry_run:
                 note = "[SystemApp: requires admin]" if is_system_app else ""
@@ -616,6 +639,20 @@ def run_self_test() -> int:
         finally:
             globals()["run_powershell"] = orig
 
+    def t_full_name_map():
+        fake_json = json.dumps([
+            {"PackageFamilyName": "Microsoft.XboxGamingOverlay_8wekyb3d8bbwe",
+             "PackageFullName": "Microsoft.XboxGamingOverlay_1.0_x64__8wekyb3d8bbwe"},
+        ])
+        orig = run_powershell
+        globals()["run_powershell"] = lambda cmd, timeout=60: (fake_json, "", 0)
+        try:
+            m = get_package_full_names()
+            assert m.get("Microsoft.XboxGamingOverlay_8wekyb3d8bbwe") == \
+                "Microsoft.XboxGamingOverlay_1.0_x64__8wekyb3d8bbwe"
+        finally:
+            globals()["run_powershell"] = orig
+
     def t_logging():
         with tempfile.TemporaryDirectory() as td:
             log = Path(td) / "test.log"
@@ -662,6 +699,7 @@ def run_self_test() -> int:
     check("T5: is_admin() callable", t_is_admin)
     check("T6: Prevention layers — 8 registered", t_prevention_layers)
     check("T7: Removal ledger write/read", t_removal_ledger)
+    check("T8: Full-name batch map", t_full_name_map)
 
     print()
     passed = 0
