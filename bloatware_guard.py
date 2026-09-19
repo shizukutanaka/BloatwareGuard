@@ -436,10 +436,12 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
     whitelist = config.get("Whitelist", [])
     prev = config.get("Prevention", {})
     removed = 0
+    matched = 0
 
     # 1. Remove installed packages
     if prev.get("RemoveAppxPackages", True):
         packages = get_blacklisted_packages(blacklist, whitelist)
+        matched += len(packages)
         full_names = get_package_full_names() if packages else {}
         for family_name, display_name, install_path in packages:
             full_name = full_names.get(family_name)
@@ -469,6 +471,7 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
     # 2. Remove provisioned packages (independent toggle — prevents re-deploy on new users)
     if prev.get("RemoveProvisionedPackages", True):
         provisioned = get_blacklisted_provisioned(blacklist, whitelist)
+        matched += len(provisioned)
         for display_name in provisioned:
             if dry_run:
                 logger.info(f"[DRY-RUN] Would remove ProvisionedPackage: {display_name} [requires admin]")
@@ -493,7 +496,7 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
         else:
             disable_oem_scheduled_tasks(logger)
 
-    logger.info(f"Scan complete. Removed {removed} packages.")
+    logger.info(f"Scan complete. {matched} packages matched blacklist; removed {removed}.")
     return removed
 
 
