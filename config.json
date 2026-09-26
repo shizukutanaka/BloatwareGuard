@@ -99,7 +99,9 @@
     "CreateRestorePoint": true,
     "DisableTelemetryTasks": true,
     "DisableStartupBloat": true,
-    "DisableErrorReporting": true
+    "DisableErrorReporting": true,
+    "DisableEdgeUpdateBloat": true,
+    "BlockOemDriverUpdates": true
   },
   "DryRun": false
 }

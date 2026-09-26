@@ -123,6 +123,14 @@ public class PreventionLayers
 
     /// <summary>Layer 23: Disable Windows Error Reporting uploads</summary>
     public bool DisableErrorReporting { get; set; } = true;
+
+    /// <summary>Layer 24: Demote Edge update services to demand-start and
+    /// disable their scheduled tasks (Edge still updates on demand)</summary>
+    public bool DisableEdgeUpdateBloat { get; set; } = true;
+
+    /// <summary>Layer 25: Exclude OEM driver payloads from Windows Update
+    /// (WU is a channel for OEM bloatware re-delivery)</summary>
+    public bool BlockOemDriverUpdates { get; set; } = true;
 }
 
 // ─── JSON source-gen context (trim-safe: avoids IL2026 with PublishTrimmed) ──
@@ -795,8 +803,12 @@ public static class RegistryGuard
     private const string UserWerPath = @"Software\Microsoft\Windows\Windows Error Reporting";
     private const string MachineRunPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
     private const string MachineRunPath32 = @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Run";
+    private const string MachineRunOncePath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce";
     private const string UserRunPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
+    private const string UserRunOncePath = @"Software\Microsoft\Windows\CurrentVersion\RunOnce";
     private const string StartupApprovedRun = @"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run";
+    private const string StartupApprovedRunOnce = @"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\RunOnce";
+    private const string WindowsUpdatePolicyPath = @"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate";
 
     // Startup value names worth disabling even outside the package blacklist
     // (OEM updaters, adware helpers). OneDrive stays out — DisableOneDrive is opt-in.
@@ -868,6 +880,12 @@ public static class RegistryGuard
 
         if (layers.DisableErrorReporting)
             DisableErrorReporting();
+
+        if (layers.DisableEdgeUpdateBloat)
+            DisableEdgeUpdateBloat();
+
+        if (layers.BlockOemDriverUpdates)
+            BlockOemDriverUpdates();
     }
 
     /// <summary>
@@ -1205,6 +1223,7 @@ public static class RegistryGuard
             using var sys = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(SystemPolicyPath);
             sys?.SetValue("PublishUserActivities", 0, Microsoft.Win32.RegistryValueKind.DWord);
             sys?.SetValue("UploadUserActivities", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            sys?.SetValue("EnableActivityFeed", 0, Microsoft.Win32.RegistryValueKind.DWord);
             using var edge = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(EdgePolicyPath);
             edge?.SetValue("PersonalizationReportingEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
             edge?.SetValue("DiagnosticData", 0, Microsoft.Win32.RegistryValueKind.DWord);
@@ -1387,11 +1406,16 @@ public static class RegistryGuard
 
         try
         {
-            // Machine-wide autostart (64-bit + 32-bit views)
+            // Machine-wide autostart (64-bit + 32-bit views, Run + RunOnce)
             ScanAndMark(Registry.LocalMachine, MachineRunPath, StartupApprovedRun);
             ScanAndMark(Registry.LocalMachine, MachineRunPath32, StartupApprovedRun);
-            // Every user hive + HKCU
-            ForEachUserHive(hive => ScanAndMark(hive, UserRunPath, StartupApprovedRun));
+            ScanAndMark(Registry.LocalMachine, MachineRunOncePath, StartupApprovedRunOnce);
+            // Every user hive + HKCU (Run + RunOnce)
+            ForEachUserHive(hive =>
+            {
+                ScanAndMark(hive, UserRunPath, StartupApprovedRun);
+                ScanAndMark(hive, UserRunOncePath, StartupApprovedRunOnce);
+            });
             GuardLogger.Info($"Applied: DisableStartupBloat ({applied} entries)");
         }
         catch (Exception ex)
@@ -1425,6 +1449,55 @@ public static class RegistryGuard
         catch (Exception ex)
         {
             GuardLogger.Error($"Failed to disable error reporting: {ex.Message}");
+        }
+    }
+
+    /// <summary>Layer 24: demote Edge update services to demand-start and
+    /// disable their scheduled tasks. Demand-start keeps manual Edge updates
+    /// working while killing the always-on updater/elevation surface.</summary>
+    public static void DisableEdgeUpdateBloat()
+    {
+        try
+        {
+            foreach (var svc in new[] { "edgeupdate", "edgeupdatem", "MicrosoftEdgeElevationService" })
+            {
+                try
+                {
+                    using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                        $@"SYSTEM\CurrentControlSet\Services\{svc}");
+                    key?.SetValue("Start", 3, Microsoft.Win32.RegistryValueKind.DWord);
+                }
+                catch { }
+            }
+            // Scheduled tasks re-arm the services — disable them too
+            foreach (var task in new[] {
+                "MicrosoftEdgeUpdateTaskMachineCore",
+                "MicrosoftEdgeUpdateTaskMachineUA",
+                "MicrosoftEdgeUpdateBrowserReplacementTask" })
+            {
+                RunToolSilent("schtasks.exe", $"/Change /TN \"{task}\" /DISABLE");
+            }
+            GuardLogger.Info("Applied: DisableEdgeUpdateBloat (edgeupdate/edgeupdatem/elevation → demand, update tasks off)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to disable Edge update bloat: {ex.Message}");
+        }
+    }
+
+    /// <summary>Layer 25: block OEM driver payloads delivered via Windows Update —
+    /// a known channel for OEM bloatware re-delivery.</summary>
+    public static void BlockOemDriverUpdates()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(WindowsUpdatePolicyPath);
+            key?.SetValue("ExcludeWUDriversInQualityUpdate", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            GuardLogger.Info("Applied: BlockOemDriverUpdates (ExcludeWUDriversInQualityUpdate=1)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to block OEM driver updates: {ex.Message}");
         }
     }
 
@@ -1942,7 +2015,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.13.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.14.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -2027,7 +2100,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.13.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.14.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -2179,8 +2252,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 6;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.13.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.13.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.14.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.14.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try

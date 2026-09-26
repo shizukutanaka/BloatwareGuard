@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.13.0-mvp - Python prototype
+BloatwareGuard v1.14.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -34,7 +34,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.13.0-mvp"
+APP_VERSION = "1.14.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -177,6 +177,8 @@ def load_config(path: Path) -> dict:
                 "DisableTelemetryTasks": True,
                 "DisableStartupBloat": True,
                 "DisableErrorReporting": True,
+                "DisableEdgeUpdateBloat": True,
+                "BlockOemDriverUpdates": True,
             },
             "DryRun": False,
         }
@@ -767,6 +769,8 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\System",
                            "PublishUserActivities", 0)
         set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\System",
+                           "EnableActivityFeed", 0)
+        set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\System",
                            "UploadUserActivities", 0)
         set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Edge",
                            "PersonalizationReportingEnabled", 0)
@@ -856,6 +860,32 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_user_dword_all_hives(_USER_WER, "LoggingDisabled", 1, logger)
         logger.info("Applied: DisableErrorReporting (WER uploads + UI + logging off)")
 
+    if prev.get("DisableEdgeUpdateBloat", True):
+        import winreg as _wr  # local import keeps module importable off-Windows
+        for svc in ("edgeupdate", "edgeupdatem", "MicrosoftEdgeElevationService"):
+            try:
+                k = _wr.CreateKeyEx(
+                    _wr.HKEY_LOCAL_MACHINE,
+                    rf"SYSTEM\CurrentControlSet\Services\{svc}", 0, _wr.KEY_WRITE)
+                _wr.SetValueEx(k, "Start", 0, _wr.REG_DWORD, 3)  # demand-start
+                _wr.CloseKey(k)
+            except OSError:
+                pass
+        # Scheduled tasks re-arm the services — disable them too
+        for task in ("MicrosoftEdgeUpdateTaskMachineCore",
+                     "MicrosoftEdgeUpdateTaskMachineUA",
+                     "MicrosoftEdgeUpdateBrowserReplacementTask"):
+            run_cmd(["schtasks.exe", "/Change", "/TN", task, "/DISABLE"])
+        logger.info("Applied: DisableEdgeUpdateBloat "
+                    "(edgeupdate/edgeupdatem/elevation → demand, update tasks off)")
+
+    if prev.get("BlockOemDriverUpdates", True):
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate",
+                           "ExcludeWUDriversInQualityUpdate", 1)
+        logger.info("Applied: BlockOemDriverUpdates "
+                    "(ExcludeWUDriversInQualityUpdate=1)")
+
 
 def disable_startup_bloat(config: dict, logger: logging.Logger):
     """Disable bloatware autostart entries via the StartupApproved\\Run marker
@@ -865,8 +895,11 @@ def disable_startup_bloat(config: dict, logger: logging.Logger):
 
     machine_run = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
     machine_run32 = r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Run"
+    machine_runonce = r"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce"
     user_run = r"Software\Microsoft\Windows\CurrentVersion\Run"
+    user_runonce = r"Software\Microsoft\Windows\CurrentVersion\RunOnce"
     approved = r"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run"
+    approved_once = r"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\RunOnce"
 
     needles = [s for s in list(config.get("Blacklist", [])) + list(_STARTUP_BLOAT_NAMES)
                if s and s.strip()]
@@ -879,7 +912,7 @@ def disable_startup_bloat(config: dict, logger: logging.Logger):
             return False
         return any(n.lower() in haystack for n in needles)
 
-    def _scan(root, run_path):
+    def _scan(root, run_path, approved_path):
         nonlocal applied
         try:
             run_key = winreg.OpenKey(root, run_path)
@@ -898,7 +931,7 @@ def disable_startup_bloat(config: dict, logger: logging.Logger):
                     break
             if not targets:
                 return
-            ap_key = winreg.CreateKeyEx(root, approved, 0, winreg.KEY_WRITE)
+            ap_key = winreg.CreateKeyEx(root, approved_path, 0, winreg.KEY_WRITE)
             for name in targets:
                 winreg.SetValueEx(ap_key, name, 0, winreg.REG_BINARY,
                                   _STARTUP_DISABLED_MARKER)
@@ -908,12 +941,16 @@ def disable_startup_bloat(config: dict, logger: logging.Logger):
         finally:
             run_key.Close()
 
-    _scan(winreg.HKEY_LOCAL_MACHINE, machine_run)
-    _scan(winreg.HKEY_LOCAL_MACHINE, machine_run32)
-    for_each_user_hive(
-        lambda root, prefix: _scan(
-            root, prefix + "\\" + user_run if prefix else user_run),
-        logger)
+    _scan(winreg.HKEY_LOCAL_MACHINE, machine_run, approved)
+    _scan(winreg.HKEY_LOCAL_MACHINE, machine_run32, approved)
+    _scan(winreg.HKEY_LOCAL_MACHINE, machine_runonce, approved_once)
+
+    def _scan_user(root, prefix):
+        p = (prefix + "\\") if prefix else ""
+        _scan(root, p + user_run, p + approved)
+        _scan(root, p + user_runonce, p + approved_once)
+
+    for_each_user_hive(_scan_user, logger)
     logger.info(f"Applied: DisableStartupBloat ({applied} entries)")
 
 
@@ -1359,7 +1396,8 @@ def run_self_test() -> int:
                     "DisableChatTaskbar", "DisableEdgeBloat",
                     "RemoveOptionalCapabilities", "RemoveWin32Programs",
                     "CreateRestorePoint", "DisableTelemetryTasks",
-                    "DisableStartupBloat", "DisableErrorReporting"]
+                    "DisableStartupBloat", "DisableErrorReporting",
+                    "DisableEdgeUpdateBloat", "BlockOemDriverUpdates"]
         missing = [k for k in required if k not in prev]
         assert not missing, f"missing prevention keys: {missing}"
 
@@ -1381,7 +1419,7 @@ def run_self_test() -> int:
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
     check("T4: Logger file + console wiring", t_logging)
     check("T5: is_admin() callable", t_is_admin)
-    check("T6: Prevention layers — 24 registered", t_prevention_layers)
+    check("T6: Prevention layers — 26 registered", t_prevention_layers)
     check("T7: Removal ledger write/read", t_removal_ledger)
     check("T8: Full-name batch map", t_full_name_map)
 

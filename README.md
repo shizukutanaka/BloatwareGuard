@@ -1,8 +1,8 @@
-# BloatwareGuard v1.13.0-mvp
+# BloatwareGuard v1.14.0-mvp
 
 ## What It Does
 
-Removes Windows bloatware across **23 prevention layers** in both **Python** and **C#** implementations.
+Removes Windows bloatware across **25 prevention layers** in both **Python** and **C#** implementations.
 Per-user settings are written to **every loaded user hive + the Default profile template**, so they
 also apply correctly when the tool runs as a SYSTEM service and for users created later.
 
@@ -33,6 +33,8 @@ also apply correctly when the tool runs as a SYSTEM service and for users create
 || 21. Microsoft telemetry tasks off (CompatTelRunner, CEIP, Siuf, Maps) | ✅ | ✅ | Requires admin |
 || 22. Bloatware autostart entries disabled (StartupApproved marker — restorable) | ✅ | ✅ | Per-hive, some HKLM |
 || 23. Windows Error Reporting uploads off | ✅ | ✅ | HKLM needs admin |
+|| 24. Edge update services → demand-start + update tasks off | ✅ | ✅ | Requires admin |
+|| 25. OEM driver payloads excluded from Windows Update | ✅ | ✅ | HKLM needs admin |
 
 ---
 
@@ -151,8 +153,8 @@ dotnet publish src/BloatwareGuard.csproj -c Release -r win-x64 --self-contained 
 ## Version
 
 ```bash
-python bloatware_guard.py --version   # BloatwareGuard v1.13.0-mvp
-BloatwareGuard.exe --version          # BloatwareGuard v1.13.0-mvp
+python bloatware_guard.py --version   # BloatwareGuard v1.14.0-mvp
+BloatwareGuard.exe --version          # BloatwareGuard v1.14.0-mvp
 ```
 
 ---

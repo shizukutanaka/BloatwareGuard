@@ -36,8 +36,10 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 │    ├─ Win32 除去 (Uninstall キー走査+MSI サイレント)│
 │    ├─ 復元ポイント作成 (スキャン前、24h スロットル)  │
 │    ├─ テレメトリタスク停止 (CompatTel/CEIP 等13件)  │
-│    ├─ StartupApproved 無効化マーカー (Run 保持)     │
-│    └─ Windows Error Reporting 停止                 │
+│    ├─ StartupApproved 無効化マーカー (Run/RunOnce)  │
+│    ├─ Windows Error Reporting 停止                 │
+│    ├─ Edge Update サービス/タスク → demand 化       │
+│    └─ WU OEM ドライバ配布遮断                     │
 ├─────────────────────────────────────────────────────┤
 │  Config: config.json (blacklist + intervals)        │
 │  Log: Windows Event Log + file                      │
@@ -73,6 +75,8 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 | MS テレメトリタスク | 固定リストの schtasks /DISABLE: CompatTelRunner, CEIP Consolidator/UsbCeip/KernelCeip, Autochk Proxy, DiskDiagnostic, Siuf DmClient, MapsUpdate/Toast 他 | DisableTelemetryTasks |
 | スタートアップブロート | Run キー走査 (HKLM 64/32 + 全ハイブ) → StartupApproved\Run に 0x03 無効化マーカー (削除せず復元可能) | DisableStartupBloat |
 | Windows Error Reporting | Disabled=1, DontSendAdditionalData=1 (HKLM+policy), DontShowUI=1, LoggingDisabled=1 (全ハイブ) | DisableErrorReporting |
+| Edge Update 常駐 | edgeupdate/edgeupdatem/MicrosoftEdgeElevationService → Start=3 + EdgeUpdateTask* 3件 /DISABLE | DisableEdgeUpdateBloat |
+| WU 経由 OEM ドライバ | ExcludeWUDriversInQualityUpdate=1 (WindowsUpdate policy) | BlockOemDriverUpdates |
 
 ## ブラックリスト方式
 - config.json の `Blacklist` にパッケージ名の**部分一致**パターンを列挙

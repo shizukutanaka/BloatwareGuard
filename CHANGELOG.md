@@ -2,6 +2,23 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.14.0-mvp: Edge update / WU-OEM channel / RunOnce
+
+### Added
+- **2 new prevention layers**:
+  - `DisableEdgeUpdateBloat` — `edgeupdate`, `edgeupdatem`,
+    `MicrosoftEdgeElevationService` demoted to demand-start (`Start=3`) and the
+    three Edge update scheduled tasks disabled. Demand-start keeps manual Edge
+    updates working while removing the always-on updater/elevation surface.
+  - `BlockOemDriverUpdates` — `ExcludeWUDriversInQualityUpdate=1`: Windows Update
+    is a documented OEM bloatware re-delivery channel; drivers now come from the
+    vendor only.
+
+### Changed
+- `DisableStartupBloat` now also scans `RunOnce` keys (HKLM + every hive) and
+  writes the marker under `StartupApproved\RunOnce`.
+- `DisableTelemetry` also sets `EnableActivityFeed=0` (HKLM System policy).
+
 ## [Unreleased] — v1.13.0-mvp: telemetry tasks / startup bloat / WER
 
 ### Added
