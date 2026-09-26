@@ -34,7 +34,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.43.0-mvp"
+APP_VERSION = "1.52.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -2363,6 +2363,13 @@ def run_self_test() -> int:
         assert not missing and not extra, f"defaults/config drift: -{missing} +{extra}"
         missing_bl = set(cfg["Blacklist"]) - set(DEFAULT_BLACKLIST)
         assert not missing_bl, f"defaults missing blacklist entries: {missing_bl}"
+        # version parity with the C# implementation (repo checkouts only —
+        # src/Program.cs is absent on end-user machines)
+        cs = Path(__file__).parent / "src" / "Program.cs"
+        if cs.exists():
+            cs_src = cs.read_text(encoding="utf-8", errors="ignore")
+            assert f"v{APP_VERSION}" in cs_src, \
+                f"APP_VERSION {APP_VERSION} not found in src/Program.cs"
 
     check("T9: defaults ↔ config.json parity", t_defaults_config_parity)
 
