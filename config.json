@@ -96,7 +96,10 @@
     "DisableEdgeBloat": true,
     "RemoveOptionalCapabilities": true,
     "RemoveWin32Programs": true,
-    "CreateRestorePoint": true
+    "CreateRestorePoint": true,
+    "DisableTelemetryTasks": true,
+    "DisableStartupBloat": true,
+    "DisableErrorReporting": true
   },
   "DryRun": false
 }

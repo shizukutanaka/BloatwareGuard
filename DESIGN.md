@@ -34,7 +34,10 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 │    ├─ Edge: Sidebar/StartupBoost/Prelaunch off      │
 │    ├─ Capability 除去 (IE/StepsRecorder/WordPad)    │
 │    ├─ Win32 除去 (Uninstall キー走査+MSI サイレント)│
-│    └─ 復元ポイント作成 (スキャン前、24h スロットル)  │
+│    ├─ 復元ポイント作成 (スキャン前、24h スロットル)  │
+│    ├─ テレメトリタスク停止 (CompatTel/CEIP 等13件)  │
+│    ├─ StartupApproved 無効化マーカー (Run 保持)     │
+│    └─ Windows Error Reporting 停止                 │
 ├─────────────────────────────────────────────────────┤
 │  Config: config.json (blacklist + intervals)        │
 │  Log: Windows Event Log + file                      │
@@ -67,6 +70,9 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 | オプション機能 (IE/StepsRecorder/WordPad) | Remove-WindowsCapability -Online | RemoveOptionalCapabilities |
 | Win32 ブロートウェア (OEM プレインストール) | HKLM/HKLM(WOW6432)/全ユーザーハイブの Uninstall キー走査 → QuietUninstallString or `msiexec /x {guid} /qn` | RemoveWin32Programs |
 | 復元ポイント | Enable-ComputerRestore + Checkpoint-Computer (MODIFY_SETTINGS、スキャン前、24h スロットル) | CreateRestorePoint |
+| MS テレメトリタスク | 固定リストの schtasks /DISABLE: CompatTelRunner, CEIP Consolidator/UsbCeip/KernelCeip, Autochk Proxy, DiskDiagnostic, Siuf DmClient, MapsUpdate/Toast 他 | DisableTelemetryTasks |
+| スタートアップブロート | Run キー走査 (HKLM 64/32 + 全ハイブ) → StartupApproved\Run に 0x03 無効化マーカー (削除せず復元可能) | DisableStartupBloat |
+| Windows Error Reporting | Disabled=1, DontSendAdditionalData=1 (HKLM+policy), DontShowUI=1, LoggingDisabled=1 (全ハイブ) | DisableErrorReporting |
 
 ## ブラックリスト方式
 - config.json の `Blacklist` にパッケージ名の**部分一致**パターンを列挙

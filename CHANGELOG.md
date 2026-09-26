@@ -2,6 +2,26 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.13.0-mvp: telemetry tasks / startup bloat / WER
+
+### Added
+- **3 new prevention layers**:
+  - `DisableTelemetryTasks` — `schtasks /DISABLE` on a fixed list of 13 Microsoft
+    data-collection tasks: Compatibility Appraiser (CompatTelRunner — notorious
+    CPU/IO hog), CEIP Consolidator/UsbCeip/KernelCeipTask, Autochk Proxy,
+    ProgramDataUpdater, PcaPatchDbTask, StartupAppTask, DiskDiagnostic
+    DataCollector, Siuf DmClient ×2, Maps Update/Toast. Exact names, not patterns —
+    nothing else is touched.
+  - `DisableStartupBloat` — enumerates `Run` keys (HKLM 64-bit + WOW6432Node +
+    every user hive + Default template) for entries whose name/command matches
+    the blacklist or a built-in OEM list (Skype, McAfee, Norton, SupportAssist…),
+    then writes the `StartupApproved\Run` **0x03 disabled marker** — the same
+    mechanism Task Manager's Startup tab uses, so entries stay listed and can be
+    re-enabled (nothing is deleted). OneDrive is deliberately absent from the
+    built-in list — its layer stays opt-in.
+  - `DisableErrorReporting` — WER `Disabled=1` + `DontSendAdditionalData=1`
+    (HKLM + policy key) and per-hive `Disabled`/`DontShowUI`/`LoggingDisabled`.
+
 ## [Unreleased] — v1.12.0-mvp: Win32 bloatware + restore point
 
 ### Added

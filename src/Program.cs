@@ -112,6 +112,17 @@ public class PreventionLayers
 
     /// <summary>Create a system restore point before the first destructive scan</summary>
     public bool CreateRestorePoint { get; set; } = true;
+
+    /// <summary>Layer 21: Disable Microsoft telemetry/CEIP scheduled tasks
+    /// (CompatTelRunner, CEIP Consolidator, DiskDiagnostic, Siuf DmClient, Maps)</summary>
+    public bool DisableTelemetryTasks { get; set; } = true;
+
+    /// <summary>Layer 22: Disable bloatware autostart entries via the
+    /// StartupApproved\\Run disabled marker (restorable, not deleted)</summary>
+    public bool DisableStartupBloat { get; set; } = true;
+
+    /// <summary>Layer 23: Disable Windows Error Reporting uploads</summary>
+    public bool DisableErrorReporting { get; set; } = true;
 }
 
 // ─── JSON source-gen context (trim-safe: avoids IL2026 with PublishTrimmed) ──
@@ -779,6 +790,25 @@ public static class RegistryGuard
     private const string UserAccountNotificationsPath = @"Software\Microsoft\Windows\CurrentVersion\SystemSettings\AccountNotifications";
     private const string UserSuggestedToastPath = @"Software\Microsoft\Windows\CurrentVersion\Notifications\Settings\Windows.SystemToast.Suggested";
     private const string UserMobilityPath = @"Software\Microsoft\Windows\CurrentVersion\Mobility";
+    private const string WerPath = @"SOFTWARE\Microsoft\Windows\Windows Error Reporting";
+    private const string WerPolicyPath = @"SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting";
+    private const string UserWerPath = @"Software\Microsoft\Windows\Windows Error Reporting";
+    private const string MachineRunPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
+    private const string MachineRunPath32 = @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Run";
+    private const string UserRunPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
+    private const string StartupApprovedRun = @"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run";
+
+    // Startup value names worth disabling even outside the package blacklist
+    // (OEM updaters, adware helpers). OneDrive stays out — DisableOneDrive is opt-in.
+    private static readonly string[] StartupBloatNames = {
+        "Skype", "Cortana", "MicrosoftEdgeAutoLaunch", "GameAssist",
+        "McAfee", "Norton", "WebAdvisor", "CCleaner", "Dell", "Lenovo",
+        "SupportAssist", "Acer", "ASUS", "HP"
+    };
+
+    // 0x03 = disabled in StartupApproved (value kept — user can re-enable via Task Manager)
+    private static readonly byte[] StartupDisabledMarker =
+        { 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
     // HKLM subkey where the Default-profile template hive is temporarily mounted
     private const string DefaultHiveMount = @"BloatwareGuard_DefaultProfile";
@@ -788,7 +818,8 @@ public static class RegistryGuard
     private static readonly Regex UserSidPattern =
         new(@"^S-1-5-21-\d+-\d+-\d+-\d+$", RegexOptions.Compiled);
 
-    public static void ApplyAll(PreventionLayers layers)
+    public static void ApplyAll(PreventionLayers layers,
+                                List<string> blacklist, List<string> whitelist)
     {
         if (layers.DisableConsumerExperiences)
             DisableConsumerExperiences();
@@ -831,6 +862,12 @@ public static class RegistryGuard
 
         if (layers.DisableEdgeBloat)
             DisableEdgeBloat();
+
+        if (layers.DisableStartupBloat)
+            DisableStartupBloat(blacklist, whitelist);
+
+        if (layers.DisableErrorReporting)
+            DisableErrorReporting();
     }
 
     /// <summary>
@@ -1301,6 +1338,96 @@ public static class RegistryGuard
         }
     }
 
+    /// <summary>Layer 22: disable bloatware autostart entries. Writes the
+    /// StartupApproved\Run disabled marker (0x03...) instead of deleting the
+    /// Run value, so the entry stays listed in Task Manager's Startup tab and
+    /// can be re-enabled — same mechanism the UI uses.</summary>
+    public static void DisableStartupBloat(List<string> blacklist, List<string> whitelist)
+    {
+        var needles = blacklist
+            .Concat(StartupBloatNames)
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .ToList();
+        var applied = 0;
+
+        bool IsBloat(string name, string? data)
+        {
+            var haystack = name + " " + data;
+            if (whitelist.Any(w => !string.IsNullOrWhiteSpace(w) &&
+                    haystack.Contains(w, StringComparison.OrdinalIgnoreCase)))
+                return false;
+            return needles.Any(n =>
+                haystack.Contains(n, StringComparison.OrdinalIgnoreCase));
+        }
+
+        void ScanAndMark(RegistryKey root, string runPath, string approvedPath)
+        {
+            try
+            {
+                using var runKey = root.OpenSubKey(runPath);
+                if (runKey == null)
+                    return;
+                var targets = runKey.GetValueNames()
+                    .Where(n => IsBloat(n, runKey.GetValue(n) as string))
+                    .ToList();
+                if (targets.Count == 0)
+                    return;
+                using var approved = root.CreateSubKey(approvedPath);
+                if (approved == null)
+                    return;
+                foreach (var name in targets)
+                {
+                    approved.SetValue(name, StartupDisabledMarker, RegistryValueKind.Binary);
+                    applied++;
+                    GuardLogger.Info($"Disabled startup entry: {name}");
+                }
+            }
+            catch { }
+        }
+
+        try
+        {
+            // Machine-wide autostart (64-bit + 32-bit views)
+            ScanAndMark(Registry.LocalMachine, MachineRunPath, StartupApprovedRun);
+            ScanAndMark(Registry.LocalMachine, MachineRunPath32, StartupApprovedRun);
+            // Every user hive + HKCU
+            ForEachUserHive(hive => ScanAndMark(hive, UserRunPath, StartupApprovedRun));
+            GuardLogger.Info($"Applied: DisableStartupBloat ({applied} entries)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to disable startup bloat: {ex.Message}");
+        }
+    }
+
+    /// <summary>Layer 23: Windows Error Reporting off — HKLM values + policy +
+    /// per-hive UI/logging suppression. WerSvc already runs on demand.</summary>
+    public static void DisableErrorReporting()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(WerPath);
+            key?.SetValue("Disabled", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("DontSendAdditionalData", 1, Microsoft.Win32.RegistryValueKind.DWord);
+
+            using var policy = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(WerPolicyPath);
+            policy?.SetValue("Disabled", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            policy?.SetValue("AutoApproveOSDumps", 0, Microsoft.Win32.RegistryValueKind.DWord);
+
+            ForEachUserHive(hive =>
+            {
+                SetHiveDword(hive, UserWerPath, "Disabled", 1);
+                SetHiveDword(hive, UserWerPath, "DontShowUI", 1);
+                SetHiveDword(hive, UserWerPath, "LoggingDisabled", 1);
+            });
+            GuardLogger.Info("Applied: DisableErrorReporting (WER uploads + UI + logging off)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to disable error reporting: {ex.Message}");
+        }
+    }
+
     private static void RunToolSilent(string fileName, string arguments)
     {
         var psi = new ProcessStartInfo
@@ -1425,6 +1552,39 @@ public static class ScheduledTaskGuard
         }
     }
 
+    // Microsoft's own data-collection tasks — exact task names, not patterns, so
+    // nothing else is touched. CompatTelRunner is a notorious CPU/IO hog.
+    private static readonly string[] TelemetryTaskPaths = {
+        @"\Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser",
+        @"\Microsoft\Windows\Application Experience\ProgramDataUpdater",
+        @"\Microsoft\Windows\Application Experience\PcaPatchDbTask",
+        @"\Microsoft\Windows\Application Experience\StartupAppTask",
+        @"\Microsoft\Windows\Autochk\Proxy",
+        @"\Microsoft\Windows\Customer Experience Improvement Program\Consolidator",
+        @"\Microsoft\Windows\Customer Experience Improvement Program\UsbCeip",
+        @"\Microsoft\Windows\Customer Experience Improvement Program\KernelCeipTask",
+        @"\Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticDataCollector",
+        @"\Microsoft\Windows\Feedback\Siuf\DmClient",
+        @"\Microsoft\Windows\Feedback\Siuf\DmClientOnScenarioDownload",
+        @"\Microsoft\Windows\Maps\MapsUpdateTask",
+        @"\Microsoft\Windows\Maps\MapsToastTask",
+    };
+
+    /// <summary>Disable the known Microsoft telemetry/CEIP scheduled tasks.</summary>
+    public static void DisableTelemetryTasks()
+    {
+        var disabled = 0;
+        foreach (var fullPath in TelemetryTaskPaths)
+        {
+            var sep = fullPath.LastIndexOf('\\');
+            var path = fullPath[..(sep + 1)];
+            var name = fullPath[(sep + 1)..];
+            DisableTask(name, path);
+            disabled++;
+        }
+        GuardLogger.Info($"Applied: DisableTelemetryTasks ({disabled} tasks)");
+    }
+
     private static void DisableTask(string name, string path)
     {
         var fullPath = path.EndsWith("\\") ? path + name : path + "\\" + name;
@@ -1480,12 +1640,17 @@ public class GuardService : BackgroundService
         else
         {
             GuardLogger.Info("Applying registry-based prevention layers...");
-            RegistryGuard.ApplyAll(_config.Prevention);
+            RegistryGuard.ApplyAll(_config.Prevention, _config.Blacklist, _config.Whitelist);
 
             if (_config.Prevention.DisableOemScheduledTasks)
             {
                 GuardLogger.Info("Disabling OEM scheduled tasks...");
                 ScheduledTaskGuard.DisableOemTasks();
+            }
+            if (_config.Prevention.DisableTelemetryTasks)
+            {
+                GuardLogger.Info("Disabling Microsoft telemetry tasks...");
+                ScheduledTaskGuard.DisableTelemetryTasks();
             }
         }
 
@@ -1714,7 +1879,11 @@ public class GuardService : BackgroundService
 
         // 3. Re-apply registry settings (they can be reset by Windows Update)
         if (!dryRun)
-            RegistryGuard.ApplyAll(_config.Prevention);
+        {
+            RegistryGuard.ApplyAll(_config.Prevention, _config.Blacklist, _config.Whitelist);
+            if (_config.Prevention.DisableTelemetryTasks)
+                ScheduledTaskGuard.DisableTelemetryTasks();
+        }
         else
             GuardLogger.Info("[DRY-RUN] Would re-apply registry prevention settings");
 
@@ -1773,7 +1942,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.12.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.13.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -1826,8 +1995,10 @@ public class Program
 
         if (!dryRun)
         {
-            RegistryGuard.ApplyAll(config.Prevention);
+            RegistryGuard.ApplyAll(config.Prevention, config.Blacklist, config.Whitelist);
             ScheduledTaskGuard.DisableOemTasks();
+            if (config.Prevention.DisableTelemetryTasks)
+                ScheduledTaskGuard.DisableTelemetryTasks();
         }
         else
         {
@@ -1856,7 +2027,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.12.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.13.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -2008,8 +2179,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 6;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.12.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.12.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.13.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.13.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try

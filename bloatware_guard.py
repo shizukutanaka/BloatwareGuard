@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.12.0-mvp - Python prototype
+BloatwareGuard v1.13.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -34,7 +34,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.12.0-mvp"
+APP_VERSION = "1.13.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -174,6 +174,9 @@ def load_config(path: Path) -> dict:
                 "RemoveOptionalCapabilities": True,
                 "RemoveWin32Programs": True,
                 "CreateRestorePoint": True,
+                "DisableTelemetryTasks": True,
+                "DisableStartupBloat": True,
+                "DisableErrorReporting": True,
             },
             "DryRun": False,
         }
@@ -565,6 +568,17 @@ _USER_DELIVERY_OPT = (r"Software\Microsoft\Windows\CurrentVersion"
                       r"\DeliveryOptimization\Settings")
 _USER_POLICIES_EXPLORER = r"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer"
 _USER_ONEDRIVE_CLSID = r"Software\Classes\CLSID\{018D5C66-4533-4307-9B53-224DE2ED1FE6}"
+_USER_WER = r"Software\Microsoft\Windows\Windows Error Reporting"
+
+# Startup value names worth disabling even outside the package blacklist
+# (OEM updaters, adware helpers). OneDrive stays out — DisableOneDrive is opt-in.
+_STARTUP_BLOAT_NAMES = (
+    "Skype", "Cortana", "MicrosoftEdgeAutoLaunch", "GameAssist",
+    "McAfee", "Norton", "WebAdvisor", "CCleaner", "Dell", "Lenovo",
+    "SupportAssist", "Acer", "ASUS", "HP",
+)
+# 0x03 = disabled in StartupApproved (value kept — re-enableable via Task Manager)
+_STARTUP_DISABLED_MARKER = b"\x03" + b"\x00" * 11
 
 # HKLM subkey used to temporarily mount the Default-profile template hive
 _DEFAULT_HIVE_MOUNT = "BloatwareGuard_DefaultProfile"
@@ -827,6 +841,81 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_registry_dword("HKLM", edge_pol, "HideFirstRunExperience", 1)
         logger.info("Applied: DisableEdgeBloat (sidebar/startup-boost/prelaunch/first-run off)")
 
+    if prev.get("DisableStartupBloat", True):
+        disable_startup_bloat(config, logger)
+
+    if prev.get("DisableErrorReporting", True):
+        wer = r"SOFTWARE\Microsoft\Windows\Windows Error Reporting"
+        wer_policy = r"SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting"
+        set_registry_dword("HKLM", wer, "Disabled", 1)
+        set_registry_dword("HKLM", wer, "DontSendAdditionalData", 1)
+        set_registry_dword("HKLM", wer_policy, "Disabled", 1)
+        set_registry_dword("HKLM", wer_policy, "AutoApproveOSDumps", 0)
+        set_user_dword_all_hives(_USER_WER, "Disabled", 1, logger)
+        set_user_dword_all_hives(_USER_WER, "DontShowUI", 1, logger)
+        set_user_dword_all_hives(_USER_WER, "LoggingDisabled", 1, logger)
+        logger.info("Applied: DisableErrorReporting (WER uploads + UI + logging off)")
+
+
+def disable_startup_bloat(config: dict, logger: logging.Logger):
+    """Disable bloatware autostart entries via the StartupApproved\\Run marker
+    (0x03...) — the entry stays listed in Task Manager and is re-enableable,
+    the same mechanism the UI uses. HKLM 64/32-bit + every user hive."""
+    import winreg
+
+    machine_run = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
+    machine_run32 = r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Run"
+    user_run = r"Software\Microsoft\Windows\CurrentVersion\Run"
+    approved = r"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run"
+
+    needles = [s for s in list(config.get("Blacklist", [])) + list(_STARTUP_BLOAT_NAMES)
+               if s and s.strip()]
+    whitelist = config.get("Whitelist", [])
+    applied = 0
+
+    def _is_bloat(name, data):
+        haystack = f"{name} {data or ''}".lower()
+        if any(w and w.strip().lower() in haystack for w in whitelist):
+            return False
+        return any(n.lower() in haystack for n in needles)
+
+    def _scan(root, run_path):
+        nonlocal applied
+        try:
+            run_key = winreg.OpenKey(root, run_path)
+        except OSError:
+            return
+        try:
+            targets = []
+            i = 0
+            while True:
+                try:
+                    name, data, _ = winreg.EnumValue(run_key, i)
+                    i += 1
+                    if _is_bloat(name, data):
+                        targets.append(name)
+                except OSError:
+                    break
+            if not targets:
+                return
+            ap_key = winreg.CreateKeyEx(root, approved, 0, winreg.KEY_WRITE)
+            for name in targets:
+                winreg.SetValueEx(ap_key, name, 0, winreg.REG_BINARY,
+                                  _STARTUP_DISABLED_MARKER)
+                applied += 1
+                logger.info(f"Disabled startup entry: {name}")
+            ap_key.Close()
+        finally:
+            run_key.Close()
+
+    _scan(winreg.HKEY_LOCAL_MACHINE, machine_run)
+    _scan(winreg.HKEY_LOCAL_MACHINE, machine_run32)
+    for_each_user_hive(
+        lambda root, prefix: _scan(
+            root, prefix + "\\" + user_run if prefix else user_run),
+        logger)
+    logger.info(f"Applied: DisableStartupBloat ({applied} entries)")
+
 
 # ─── Scheduled Task Prevention ───────────────────────────────────────────────
 
@@ -897,6 +986,36 @@ def disable_oem_scheduled_tasks(logger: logging.Logger):
                     f"({skipped} protected skipped)")
     except (json.JSONDecodeError, TypeError) as e:
         logger.warning(f"Scheduled task scan error: {e}")
+
+
+# Microsoft's own data-collection tasks — exact names, not patterns, so nothing
+# else is touched. CompatTelRunner is a notorious CPU/IO hog.
+TELEMETRY_TASK_PATHS = (
+    "\\Microsoft\\Windows\\Application Experience\\Microsoft Compatibility Appraiser",
+    "\\Microsoft\\Windows\\Application Experience\\ProgramDataUpdater",
+    "\\Microsoft\\Windows\\Application Experience\\PcaPatchDbTask",
+    "\\Microsoft\\Windows\\Application Experience\\StartupAppTask",
+    "\\Microsoft\\Windows\\Autochk\\Proxy",
+    "\\Microsoft\\Windows\\Customer Experience Improvement Program\\Consolidator",
+    "\\Microsoft\\Windows\\Customer Experience Improvement Program\\UsbCeip",
+    "\\Microsoft\\Windows\\Customer Experience Improvement Program\\KernelCeipTask",
+    "\\Microsoft\\Windows\\DiskDiagnostic\\Microsoft-Windows-DiskDiagnosticDataCollector",
+    "\\Microsoft\\Windows\\Feedback\\Siuf\\DmClient",
+    "\\Microsoft\\Windows\\Feedback\\Siuf\\DmClientOnScenarioDownload",
+    "\\Microsoft\\Windows\\Maps\\MapsUpdateTask",
+    "\\Microsoft\\Windows\\Maps\\MapsToastTask",
+)
+
+
+def disable_telemetry_tasks(logger: logging.Logger):
+    """Disable the known Microsoft telemetry/CEIP scheduled tasks."""
+    for full_path in TELEMETRY_TASK_PATHS:
+        out, ret = run_cmd(["schtasks", "/Change", "/TN", full_path, "/DISABLE"])
+        if ret == 0:
+            logger.info(f"Disabled scheduled task: {full_path}")
+        else:
+            logger.warning(f"Failed to disable task: {full_path} ({out[:120]})")
+    logger.info(f"Applied: DisableTelemetryTasks ({len(TELEMETRY_TASK_PATHS)} tasks)")
 
 
 # ─── Main Scan Logic ─────────────────────────────────────────────────────────
@@ -998,6 +1117,13 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
         else:
             disable_oem_scheduled_tasks(logger)
 
+    # 4.5 Disable Microsoft telemetry/CEIP tasks (CompatTelRunner etc.)
+    if prev.get("DisableTelemetryTasks", True):
+        if dry_run:
+            logger.info("[DRY-RUN] Would disable Microsoft telemetry tasks")
+        else:
+            disable_telemetry_tasks(logger)
+
     logger.info(f"Scan complete. {matched} packages matched blacklist; removed {removed}.")
     return removed
 
@@ -1031,6 +1157,8 @@ def run_service(config: dict, logger: logging.Logger):
         apply_registry_prevention(config, logger)
         if prev.get("DisableOemScheduledTasks", True):
             disable_oem_scheduled_tasks(logger)
+        if prev.get("DisableTelemetryTasks", True):
+            disable_telemetry_tasks(logger)
 
     while True:
         try:
@@ -1230,7 +1358,8 @@ def run_self_test() -> int:
                     "DisableDeliveryOptimization", "DisableOneDrive",
                     "DisableChatTaskbar", "DisableEdgeBloat",
                     "RemoveOptionalCapabilities", "RemoveWin32Programs",
-                    "CreateRestorePoint"]
+                    "CreateRestorePoint", "DisableTelemetryTasks",
+                    "DisableStartupBloat", "DisableErrorReporting"]
         missing = [k for k in required if k not in prev]
         assert not missing, f"missing prevention keys: {missing}"
 
@@ -1252,7 +1381,7 @@ def run_self_test() -> int:
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
     check("T4: Logger file + console wiring", t_logging)
     check("T5: is_admin() callable", t_is_admin)
-    check("T6: Prevention layers — 21 registered", t_prevention_layers)
+    check("T6: Prevention layers — 24 registered", t_prevention_layers)
     check("T7: Removal ledger write/read", t_removal_ledger)
     check("T8: Full-name batch map", t_full_name_map)
 
