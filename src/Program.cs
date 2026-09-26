@@ -1569,6 +1569,9 @@ public static class RegistryGuard
             key?.SetValue("CortanaConsent", 0, Microsoft.Win32.RegistryValueKind.DWord);
             // Location-aware search results leak the device location to Bing
             key?.SetValue("AllowSearchToUseLocation", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // Explorer-search web lookups off too (separate nag surface)
+            using var expNoNet = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(ExplorerPoliciesHklmPath);
+            expNoNet?.SetValue("NoSearchInternet", 1, Microsoft.Win32.RegistryValueKind.DWord);
 
             ForEachUserHive(hive =>
             {
@@ -1769,6 +1772,8 @@ public static class RegistryGuard
                 using var fdb = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Windows\DataCollection");
                 fdb?.SetValue("DoNotShowFeedbackNotifications", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // Suppress the "your telemetry setting changed" nag
+                fdb?.SetValue("DisableTelemetryOptInChangeNotification", 1, Microsoft.Win32.RegistryValueKind.DWord);
 
                 // OneSettings periodic config download (recommendations channel)
                 using var ones = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
@@ -3292,7 +3297,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.51.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.52.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -3377,7 +3382,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.51.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.52.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -3529,8 +3534,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 6;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.51.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.51.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.52.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.52.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try

@@ -2,6 +2,14 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.52.0-mvp: telemetry-change nag + explorer-search web off
+
+### Changed
+- `DisableTelemetry`: `DataCollection\DisableTelemetryOptInChangeNotification`=1 —
+  suppresses the "your telemetry setting changed" nag.
+- `DisableSearchSuggestions`: HKLM `Explorer\NoSearchInternet`=1 — kills the
+  Explorer search pane's web lookup, separate from the Start-search switch.
+
 ## [Unreleased] — v1.51.0-mvp: parity audit — Python defaults complete
 
 ### Fixed

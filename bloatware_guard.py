@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.51.0-mvp - Python prototype
+BloatwareGuard v1.52.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -934,6 +934,8 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_registry_dword("HKLM", search_pol, "CortanaConsent", 0)
         # Location-aware search results leak the device location to Bing
         set_registry_dword("HKLM", search_pol, "AllowSearchToUseLocation", 0)
+        # Explorer-search web lookups off too (separate nag surface)
+        set_registry_dword("HKLM", _EXPLORER_POLICIES_HKLM, "NoSearchInternet", 1)
         set_user_dword_all_hives(_USER_EXPLORER_POLICIES, "DisableSearchBoxSuggestions", 1, logger)
         # HKLM policy too — covers hive-creation edge cases
         set_registry_dword("HKLM", _EXPLORER_POLICIES_HKLM, "DisableSearchBoxSuggestions", 1)
@@ -1060,6 +1062,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                            "CEIPEnable", 0)
         set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\DataCollection",
                            "DoNotShowFeedbackNotifications", 1)
+        # Suppress the "your telemetry setting changed" nag
+        set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\DataCollection",
+                           "DisableTelemetryOptInChangeNotification", 1)
         # OneSettings periodic config download (recommendations channel)
         set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\OneSettings",
                            "DisableOneSettingsFileDownloads", 1)
