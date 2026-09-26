@@ -13,6 +13,9 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   `PricerunnerAB` (82→86 total entries).
 - Self-test T9 extended: asserts every Python shared data-list entry
   (telemetry tasks, autologgers, hosts, startup names) exists in Program.cs.
+- Telemetry hosts block 26→34 domains: `*.events.data.microsoft.com`
+  ingest (v10/v20/Edge/WER), ARIA pipe, survey.watson, diagnostics.support —
+  all pure-telemetry endpoints, no functional surface touched.
 
 ### Fixed
 - C# default blacklist was missing `MicrosoftWindows.Client.WebExperience`

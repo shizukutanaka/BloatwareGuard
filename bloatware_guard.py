@@ -1574,6 +1574,13 @@ _TELEMETRY_HOSTS = (
     "choice.microsoft.com", "choice.microsoft.com.nsatc.net",
     "telemetry.appex.bing.net", "telemetry.urs.microsoft.com",
     "feedback.microsoft-hohm.com", "vortex-bn2.metron.live.com.nsatc.net",
+    # *.events.data.microsoft.com — Vortex/ARIA event ingest (Win10+
+    # universal telemetry pipeline; v10/v20 suffixes + WER/Edge variants)
+    "v10.events.data.microsoft.com", "v20.events.data.microsoft.com",
+    "browser.events.data.microsoft.com", "umwatsonc.events.data.microsoft.com",
+    "watson.events.data.microsoft.com", "survey.watson.microsoft.com",
+    # Office/ARIA telemetry pipe + diagnostics report upload endpoint
+    "mobile.pipe.aria.microsoft.com", "diagnostics.support.microsoft.com",
 )
 _HOSTS_BLOCK_BEGIN = "# >>> BloatwareGuard telemetry block"
 _HOSTS_BLOCK_END = "# <<< BloatwareGuard telemetry block"
