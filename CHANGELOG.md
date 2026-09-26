@@ -4,6 +4,15 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 
 ## [Unreleased] — v1.8.0-mvp hardening
 
+### Added — debloat round 4 (telemetry kill-chain + winget + deprecated features)
+- **4 more prevention toggles** (all default-on):
+  - `BlockTelemetryEndpoints` — null-routes **26 pure-telemetry domains** through a marked hosts-file block (the Spybot Anti-Beacon technique). Conservative list — no Windows Update / Store / activation endpoints — and **fully reversible**: toggling the flag off removes the marked block.
+  - `DisableGameDvr` — Game Bar background capture off via `AllowGameDVR=0` (HKLM policy) plus per-hive `AppCaptureEnabled`/`GameDVR_Enabled`.
+  - `WingetSweep` — `winget list` + `winget uninstall --id <id> --silent --disable-interactivity --accept-source-agreements` for bloat/vendor matches the Uninstall-hive sweep can't reach silently; skips cleanly when App Installer is absent.
+  - `RemoveDeprecatedCapabilities` — `Remove-WindowsCapability -Online` for capabilities Microsoft itself deprecated: WordPad, Steps Recorder.
+- **Existing policy sets extended**: `DisableTelemetryPolicies` gains `DODownloadMode=0` (Delivery Optimization P2P upload off), `DontSendAdditionalData=1` (WER), `DisablePrivacyExperience=1` (OOBE), `HideRecommendedSection=1` (Start menu) + per-hive `ShowSyncProviderNotifications=0` (Explorer promo ads) and `InsightsEnabled=0` (typing insights); `HardenEdgePolicies` gains `NewTabPageContentEnabled=0`.
+- Self-tests: Python 16 checks (telemetry-hosts list validation, deprecated-capability sanity), C# 12.
+
 ### Added — debloat round 3 (Win32 coverage + privacy policies)
 - **5 more prevention toggles** (all default-on):
   - `RemoveWin32Bloatware` — sweeps the `Uninstall` registry hives (HKLM 64-/32-bit + every loaded user hive) for `DisplayName` matching Blacklist ∪ a built-in OEM/vendor list, and uninstalls them. **Silent-paths only**: `QuietUninstallString`, MSI codes rewritten to `msiexec /x {GUID} /qn /norestart`, or UninstallStrings already carrying a silent flag — interactive uninstallers are logged and skipped so a UI prompt can never hang the scan.

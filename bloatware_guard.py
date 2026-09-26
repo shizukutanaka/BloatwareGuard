@@ -162,6 +162,10 @@ def load_config(path: Path) -> dict:
                 "CleanStartupEntries": True,
                 "DisableOemServices": True,
                 "RemoveWin32Bloatware": True,
+                "DisableGameDvr": True,
+                "BlockTelemetryEndpoints": True,
+                "WingetSweep": True,
+                "RemoveDeprecatedCapabilities": True,
             },
             "DryRun": False,
         }
@@ -476,6 +480,9 @@ def _apply_user_policies(root, prefix: str, prev: dict) -> int:
     if prev.get("DisableTelemetryPolicies", True):
         for path, name, value in TELEMETRY_USER_WRITES:
             written += set_hive_dword(root, prefix, path, name, value)
+    if prev.get("DisableGameDvr", True):
+        for path, name, value in GAMEDVR_USER_WRITES:
+            written += set_hive_dword(root, prefix, path, name, value)
     return written
 
 
@@ -561,6 +568,14 @@ TELEMETRY_POLICY_WRITES = (
     (r"SOFTWARE\Policies\Microsoft\Windows\System", "AllowCrossDeviceClipboard", 0),
     (r"SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo", "DisabledByGroupPolicy", 1),
     (r"SOFTWARE\Policies\Microsoft\Windows\LocationAndSensors", "DisableLocationScripting", 1),
+    # Delivery Optimization P2P upload off (HTTP-only download mode)
+    (r"SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization", "DODownloadMode", 0),
+    # WER: never send extra crash data to Microsoft
+    (r"SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting", "DontSendAdditionalData", 1),
+    # Skip the OOBE privacy questions for new users
+    (r"SOFTWARE\Policies\Microsoft\Windows\OOBE", "DisablePrivacyExperience", 1),
+    # Hide the Start-menu "Recommended" section (ads + suggested apps slot)
+    (EXPLORER_POLICY_PATH, "HideRecommendedSection", 1),
 )
 
 # Per-user telemetry/privacy values — written to every loaded user hive.
@@ -574,6 +589,9 @@ TELEMETRY_USER_WRITES = (
     (r"SOFTWARE\Microsoft\InputPersonalization\TrainedDataStore", "HarvestContacts", 0),
     (r"SOFTWARE\Microsoft\Siuf\Rules", "NumberOfSIUFInPeriod", 0),
     (r"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced", "Start_TrackProgs", 0),
+    # Explorer "sync provider" ads (OneDrive/MS promos in File Explorer)
+    (r"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced", "ShowSyncProviderNotifications", 0),
+    (r"SOFTWARE\Microsoft\Input\Settings", "InsightsEnabled", 0),
     (r"SOFTWARE\Policies\Microsoft\Windows\CloudContent",
      "DisableTailoredExperiencesWithDiagnosticData", 1),
 )
@@ -585,7 +603,7 @@ EDGE_POLICIES = (
     ("HubsSidebarEnabled", 0), ("StandaloneHubsSidebarEnabled", 0),
     ("StartupBoostEnabled", 0), ("SpotlightExperiencesAndRecommendationsEnabled", 0),
     ("PersonalizationReportingEnabled", 0), ("ShowRecommendationsEnabled", 0),
-    ("EdgeShoppingAssistantEnabled", 0),
+    ("EdgeShoppingAssistantEnabled", 0), ("NewTabPageContentEnabled", 0),
 )
 
 # OEM/vendor name substrings — used for Win32 uninstallers, auto-start services,
@@ -615,6 +633,52 @@ WIN32_UNINSTALL_PATHS = (
 SILENT_UNINSTALL_FLAGS = {
     "/s", "/silent", "/verysilent", "/quiet", "/qn", "-s", "-silent"
 }
+
+# Pure-telemetry endpoints blocked via the hosts file — the Spybot Anti-Beacon
+# technique. Conservative: no Windows Update / Store / activation endpoints.
+TELEMETRY_HOSTS = (
+    "vortex.data.microsoft.com",
+    "vortex-win.data.microsoft.com",
+    "telecommand.telemetry.microsoft.com",
+    "telecommand.telemetry.microsoft.com.nsatc.net",
+    "oca.telemetry.microsoft.com",
+    "oca.telemetry.microsoft.com.nsatc.net",
+    "sqm.telemetry.microsoft.com",
+    "sqm.telemetry.microsoft.com.nsatc.net",
+    "watson.telemetry.microsoft.com",
+    "watson.telemetry.microsoft.com.nsatc.net",
+    "watson.ppe.telemetry.microsoft.com",
+    "watson.microsoft.com",
+    "reports.wes.df.telemetry.microsoft.com",
+    "wes.df.telemetry.microsoft.com",
+    "services.wes.df.telemetry.microsoft.com",
+    "sqm.df.telemetry.microsoft.com",
+    "settings-win.data.microsoft.com",
+    "settings.data.microsoft.com",
+    "statsfe2.ws.microsoft.com",
+    "redir.metaservices.microsoft.com",
+    "choice.microsoft.com",
+    "choice.microsoft.com.nsatc.net",
+    "telemetry.appex.bing.net",
+    "telemetry.urs.microsoft.com",
+    "feedback.microsoft-hohm.com",
+    "vortex-bn2.metron.live.com.nsatc.net",
+)
+HOSTS_BLOCK_BEGIN = "# >>> BloatwareGuard telemetry block"
+HOSTS_BLOCK_END = "# <<< BloatwareGuard telemetry block"
+
+# Deprecated-in-Windows capabilities safe to remove (both deprecated by Microsoft)
+DEPRECATED_CAPABILITIES = (
+    "Microsoft.Windows.WordPad",       # deprecated — removed from builds > 26020
+    "App.StepsRecorder",               # deprecated, slated for removal
+)
+
+# GameDVR policy + per-user capture keys
+GAMEDVR_POLICY_PATH = r"SOFTWARE\Policies\Microsoft\Windows\GameDVR"
+GAMEDVR_USER_WRITES = (
+    (r"SOFTWARE\Microsoft\Windows\CurrentVersion\GameDVR", "AppCaptureEnabled", 0),
+    (r"SOFTWARE\System\GameConfigStore", "GameDVR_Enabled", 0),
+)
 
 
 # Microsoft telemetry/CEIP scheduled tasks — explicit full paths, disabled outright.
@@ -829,6 +893,116 @@ def disable_oem_services(logger: logging.Logger):
     logger.info(f"Disabled {disabled} OEM/vendor services")
 
 
+def _hosts_file_path() -> Path:
+    windir = os.environ.get("SystemRoot", r"C:\Windows")
+    return Path(windir) / "System32" / "drivers" / "etc" / "hosts"
+
+
+def set_telemetry_hosts_block(enabled: bool, logger: logging.Logger):
+    """Add/remove a marked hosts-file block that null-routes pure-telemetry
+    endpoints (the Spybot Anti-Beacon technique). Toggle-off removes the block —
+    fully reversible. Conservative list: no Windows Update/Store/activation."""
+    hosts = _hosts_file_path()
+    try:
+        text = hosts.read_text(encoding="utf-8", errors="replace") if hosts.exists() else ""
+    except OSError as e:
+        logger.warning(f"Cannot read hosts file: {e}")
+        return
+
+    begin_idx = text.find(HOSTS_BLOCK_BEGIN)
+    end_idx = text.find(HOSTS_BLOCK_END)
+    if begin_idx != -1 and end_idx != -1:
+        text = text[:begin_idx].rstrip("\n") + "\n" + text[end_idx + len(HOSTS_BLOCK_END):].lstrip("\n")
+    if enabled:
+        block = "\n".join(f"0.0.0.0 {d}" for d in TELEMETRY_HOSTS)
+        text = text.rstrip("\n") + f"\n\n{HOSTS_BLOCK_BEGIN}\n{block}\n{HOSTS_BLOCK_END}\n"
+    if begin_idx == -1 and not enabled:
+        return  # nothing to do — don't touch the file
+    try:
+        hosts.write_text(text, encoding="utf-8")
+        logger.info(f"Telemetry hosts block {'applied' if enabled else 'removed'} "
+                    f"({len(TELEMETRY_HOSTS)} domains)")
+    except OSError as e:
+        logger.warning(f"Cannot write hosts file [admin required]: {e}")
+
+
+def disable_game_dvr(logger: logging.Logger):
+    """Policy-disable Game Bar background capture (GameDVR) — removes the
+    background recording overhead once Xbox apps are gone."""
+    if set_registry_dword("HKLM", GAMEDVR_POLICY_PATH, "AllowGameDVR", 0):
+        logger.info("Applied: AllowGameDVR = 0")
+
+
+def winget_sweep(config: dict, dry_run: bool, logger: logging.Logger) -> int:
+    """`winget uninstall --silent` sweep for bloat/vendor matches. Catches the
+    leftovers that neither Appx nor the Uninstall-hive sweep can reach silently.
+    Skips cleanly when winget (App Installer) is absent."""
+    _, rc = run_cmd(["winget", "--version"], timeout=15)
+    if rc != 0:
+        logger.info("winget not available — skipping winget sweep")
+        return 0
+    stdout, rc = run_cmd(
+        ["winget", "list", "--accept-source-agreements", "--disable-interactivity"],
+        timeout=180)
+    if rc != 0 or not stdout:
+        return 0
+    blacklist = config.get("Blacklist", [])
+    whitelist = config.get("Whitelist", [])
+    patterns = [p for p in list(blacklist) + list(VENDOR_PATTERNS) if p.strip()]
+
+    removed = 0
+    for line in stdout.splitlines():
+        cols = re.split(r"\s{2,}", line.strip())
+        if len(cols) < 2 or not cols[0] or cols[1].startswith("-"):
+            continue  # header/separator line
+        name, pkg_id = cols[0], cols[1]
+        if not is_target_package(f"{name} {pkg_id}", patterns, whitelist):
+            continue
+        if dry_run:
+            logger.info(f"[DRY-RUN] Would winget-uninstall: {name} ({pkg_id})")
+            removed += 1
+            continue
+        _, rc = run_cmd(["winget", "uninstall", "--id", pkg_id, "--silent",
+                         "--disable-interactivity", "--accept-source-agreements"],
+                        timeout=300)
+        if rc == 0:
+            logger.info(f"winget-uninstalled: {name} ({pkg_id})")
+            record_removal(config, {"kind": "winget", "name": name})
+            removed += 1
+        else:
+            logger.info(f"winget uninstall skipped/failed: {name}")
+    return removed
+
+
+def remove_deprecated_capabilities(logger: logging.Logger) -> int:
+    """Remove Windows capabilities Microsoft has deprecated (WordPad, Steps
+    Recorder) — they persist in the image even though nothing uses them."""
+    removed = 0
+    for pattern in DEPRECATED_CAPABILITIES:
+        ps_cmd = (f"Get-WindowsCapability -Online -Name '{pattern}*' | "
+                  "Where-Object {$_.State -eq 'Installed'} | "
+                  "Select-Object Name | ConvertTo-Json")
+        stdout, _, rc = run_powershell(ps_cmd, timeout=60)
+        if rc != 0 or not stdout:
+            continue
+        try:
+            data = json.loads(stdout)
+            if isinstance(data, dict):
+                data = [data]
+        except (json.JSONDecodeError, TypeError):
+            continue
+        for cap in data:
+            name = cap.get("Name", "")
+            if not name:
+                continue
+            _, rc2 = run_powershell(
+                f"Remove-WindowsCapability -Online -Name '{name}'", timeout=180)
+            if rc2 == 0:
+                logger.info(f"Removed deprecated capability: {name}")
+                removed += 1
+    return removed
+
+
 def apply_registry_prevention(config: dict, logger: logging.Logger):
     prev = config.get("Prevention", {})
 
@@ -883,9 +1057,17 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                       for name, value in EDGE_POLICIES)
         logger.info(f"Applied: Edge hardening policies ({applied} values)")
 
+    if prev.get("DisableGameDvr", True):
+        disable_game_dvr(logger)
+
+    # Hosts-file telemetry blocking — toggle-off removes the marked block.
+    # Unconditional call: the helper no-ops when disabled and no block exists.
+    set_telemetry_hosts_block(prev.get("BlockTelemetryEndpoints", True), logger)
+
     # Per-user policies — must hit every loaded hive, not just HKCU
     if (prev.get("HardenContentDelivery", True) or prev.get("DisableSearchSuggestions", True)
-            or prev.get("DisableAiFeatures", True) or prev.get("DisableTelemetryPolicies", True)):
+            or prev.get("DisableAiFeatures", True) or prev.get("DisableTelemetryPolicies", True)
+            or prev.get("DisableGameDvr", True)):
         apply_per_user_policies(prev, logger)
 
 
@@ -1056,9 +1238,17 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
         else:
             disable_telemetry_tasks(logger)
 
-    # 6. Win32 (MSI/EXE) bloat — Appx removal can't see these
+    # 6. Win32 (MSI/EXE) bloat + winget sweep + deprecated capabilities —
+    #    everything Appx removal can't see
     if prev.get("RemoveWin32Bloatware", True):
         removed += remove_win32_bloatware(config, dry_run, logger)
+    if prev.get("WingetSweep", True):
+        removed += winget_sweep(config, dry_run, logger)
+    if prev.get("RemoveDeprecatedCapabilities", True):
+        if dry_run:
+            logger.info("[DRY-RUN] Would remove deprecated Windows capabilities")
+        else:
+            remove_deprecated_capabilities(logger)
 
     # 7. OEM auto-start services + Run-key startup entries
     if prev.get("DisableOemServices", True):
@@ -1333,7 +1523,9 @@ def run_self_test() -> int:
                     "DisableWidgets", "DisableSearchSuggestions",
                     "DisableTelemetryTasks", "DisableTelemetryPolicies",
                     "HardenEdgePolicies", "CleanStartupEntries",
-                    "DisableOemServices", "RemoveWin32Bloatware"]
+                    "DisableOemServices", "RemoveWin32Bloatware",
+                    "DisableGameDvr", "BlockTelemetryEndpoints",
+                    "WingetSweep", "RemoveDeprecatedCapabilities"]
         missing = [k for k in required if k not in prev]
         assert not missing, f"missing prevention keys: {missing}"
 
@@ -1366,14 +1558,26 @@ def run_self_test() -> int:
         assert "HP" not in VENDOR_PATTERNS
 
     def t_policy_tables():
-        assert len(TELEMETRY_POLICY_WRITES) >= 6
-        assert len(TELEMETRY_USER_WRITES) >= 6
+        assert len(TELEMETRY_POLICY_WRITES) >= 10
+        assert len(TELEMETRY_USER_WRITES) >= 8
         assert len(EDGE_POLICIES) >= 5
         for path, name, value in TELEMETRY_POLICY_WRITES:
             assert path.startswith("SOFTWARE\\Policies\\Microsoft\\"), path
             assert name and isinstance(value, int)
         for name, value in EDGE_POLICIES:
             assert name and isinstance(value, int)
+
+    def t_telemetry_hosts():
+        assert len(TELEMETRY_HOSTS) >= 20
+        for d in TELEMETRY_HOSTS:
+            assert re.fullmatch(r"[a-z0-9][a-z0-9.-]*\.[a-z]{2,}", d), d
+        # never block update/activation endpoints
+        assert not any("windowsupdate" in d or "activation" in d
+                       or "store" in d for d in TELEMETRY_HOSTS)
+
+    def t_deprecated_capabilities():
+        assert len(DEPRECATED_CAPABILITIES) >= 2
+        assert all("*" not in c and c.strip() for c in DEPRECATED_CAPABILITIES)
 
     def t_removal_ledger():
         with tempfile.TemporaryDirectory() as td:
@@ -1393,7 +1597,7 @@ def run_self_test() -> int:
     check("T3: Get-AppxPackage JSON parsing (+framework/dedupe)", t_get_packages_parse)
     check("T4: Logger file + console wiring", t_logging)
     check("T5: is_admin() callable", t_is_admin)
-    check("T6: Prevention layers — 20 registered", t_prevention_layers)
+    check("T6: Prevention layers — 24 registered", t_prevention_layers)
     check("T7: Removal ledger write/read", t_removal_ledger)
     check("T8: Full-name batch map", t_full_name_map)
     check("T9: ProvisionedPackage parse (name + family)", t_get_provisioned_parse)
@@ -1402,6 +1606,8 @@ def run_self_test() -> int:
     check("T12: Win32 silent-uninstall classifier", t_win32_silent_uninstall)
     check("T13: Vendor patterns sane", t_vendor_patterns)
     check("T14: Telemetry/Edge policy tables well-formed", t_policy_tables)
+    check("T15: Telemetry hosts list well-formed", t_telemetry_hosts)
+    check("T16: Deprecated capabilities list", t_deprecated_capabilities)
 
     print()
     passed = 0

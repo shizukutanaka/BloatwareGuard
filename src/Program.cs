@@ -111,6 +111,20 @@ public class PreventionLayers
     /// <summary>Uninstall Win32/MSI/EXE bloat via Uninstall hives — only entries
     /// with a silent uninstall path (QuietUninstallString / msiexec / silent flags)</summary>
     public bool RemoveWin32Bloatware { get; set; } = true;
+
+    /// <summary>Policy-disable GameDVR background capture (HKLM + per-hive)</summary>
+    public bool DisableGameDvr { get; set; } = true;
+
+    /// <summary>Null-route pure-telemetry endpoints via a marked hosts-file block
+    /// (Spybot Anti-Beacon technique; toggling off removes the block)</summary>
+    public bool BlockTelemetryEndpoints { get; set; } = true;
+
+    /// <summary>winget uninstall --silent sweep for bloat/vendor matches
+    /// (skips cleanly when App Installer is absent)</summary>
+    public bool WingetSweep { get; set; } = true;
+
+    /// <summary>Remove deprecated Windows capabilities (WordPad, Steps Recorder)</summary>
+    public bool RemoveDeprecatedCapabilities { get; set; } = true;
 }
 
 // ─── JSON source-gen context (trim-safe: avoids IL2026 with PublishTrimmed) ──
@@ -601,6 +615,14 @@ public static class RegistryGuard
         (@"SOFTWARE\Policies\Microsoft\Windows\System", "AllowCrossDeviceClipboard", 0),
         (@"SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo", "DisabledByGroupPolicy", 1),
         (@"SOFTWARE\Policies\Microsoft\Windows\LocationAndSensors", "DisableLocationScripting", 1),
+        // Delivery Optimization P2P upload off (HTTP-only download mode)
+        (@"SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization", "DODownloadMode", 0),
+        // WER: never send extra crash data to Microsoft
+        (@"SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting", "DontSendAdditionalData", 1),
+        // Skip the OOBE privacy questions for new users
+        (@"SOFTWARE\Policies\Microsoft\Windows\OOBE", "DisablePrivacyExperience", 1),
+        // Hide the Start-menu "Recommended" section (ads + suggested apps slot)
+        (ExplorerPolicyPath, "HideRecommendedSection", 1),
     };
 
     // Per-user telemetry/privacy values — written to every loaded user hive.
@@ -613,7 +635,17 @@ public static class RegistryGuard
         (@"SOFTWARE\Microsoft\InputPersonalization\TrainedDataStore", "HarvestContacts", 0),
         (@"SOFTWARE\Microsoft\Siuf\Rules", "NumberOfSIUFInPeriod", 0),
         (ExplorerAdvancedPath, "Start_TrackProgs", 0),
+        // Explorer "sync provider" ads (OneDrive/MS promos in File Explorer)
+        (ExplorerAdvancedPath, "ShowSyncProviderNotifications", 0),
+        (@"SOFTWARE\Microsoft\Input\Settings", "InsightsEnabled", 0),
         (@"SOFTWARE\Policies\Microsoft\Windows\CloudContent", "DisableTailoredExperiencesWithDiagnosticData", 1),
+    };
+
+    // GameDVR capture: HKLM policy + per-user capture keys
+    private const string GameDvrPolicyPath = @"SOFTWARE\Policies\Microsoft\Windows\GameDVR";
+    private static readonly (string Path, string Name, int Value)[] GameDvrUserWrites = {
+        (@"SOFTWARE\Microsoft\Windows\CurrentVersion\GameDVR", "AppCaptureEnabled", 0),
+        (@"SOFTWARE\System\GameConfigStore", "GameDVR_Enabled", 0),
     };
 
     // Edge annoyance policies — documented MSEdge.admx policy names, all DWORD
@@ -621,7 +653,7 @@ public static class RegistryGuard
         ("HubsSidebarEnabled", 0), ("StandaloneHubsSidebarEnabled", 0),
         ("StartupBoostEnabled", 0), ("SpotlightExperiencesAndRecommendationsEnabled", 0),
         ("PersonalizationReportingEnabled", 0), ("ShowRecommendationsEnabled", 0),
-        ("EdgeShoppingAssistantEnabled", 0),
+        ("EdgeShoppingAssistantEnabled", 0), ("NewTabPageContentEnabled", 0),
     };
 
     // Suggestion/ads delivery killswitches — the full set used by Win11Debloat's
@@ -668,9 +700,28 @@ public static class RegistryGuard
         if (layers.HardenEdgePolicies)
             HardenEdgePolicies();
 
+        if (layers.DisableGameDvr)
+        {
+            try
+            {
+                using var gdvr = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(GameDvrPolicyPath);
+                gdvr?.SetValue("AllowGameDVR", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                GuardLogger.Info("Applied: AllowGameDVR = 0");
+            }
+            catch (Exception ex)
+            {
+                GuardLogger.Warn($"GameDVR policy: {ex.Message}");
+            }
+        }
+
+        // Hosts-file telemetry block — called unconditionally: the helper no-ops
+        // when disabled and no block exists; toggling off removes the block.
+        Win32BloatGuard.SetTelemetryHostsBlock(layers.BlockTelemetryEndpoints);
+
         // Per-user policies — must hit every loaded hive, not just HKCU
         if (layers.HardenContentDelivery || layers.DisableSearchSuggestions
-            || layers.DisableAiFeatures || layers.DisableTelemetryPolicies)
+            || layers.DisableAiFeatures || layers.DisableTelemetryPolicies
+            || layers.DisableGameDvr)
             ApplyPerUserPolicies(layers);
     }
 
@@ -929,6 +980,14 @@ public static class RegistryGuard
         if (layers.DisableTelemetryPolicies)
         {
             foreach (var (path, name, value) in TelemetryUserWrites)
+            {
+                using var key = hiveRoot.CreateSubKey($"{subKeyPrefix}\\{path}");
+                key?.SetValue(name, value, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+        }
+        if (layers.DisableGameDvr)
+        {
+            foreach (var (path, name, value) in GameDvrUserWrites)
             {
                 using var key = hiveRoot.CreateSubKey($"{subKeyPrefix}\\{path}");
                 key?.SetValue(name, value, Microsoft.Win32.RegistryValueKind.DWord);
@@ -1233,6 +1292,32 @@ public static class Win32BloatGuard
         "/s", "/silent", "/verysilent", "/quiet", "/qn", "-s", "-silent"
     };
 
+    // Pure-telemetry endpoints blocked via the hosts file — the Spybot
+    // Anti-Beacon technique. Conservative: no Windows Update/Store/activation.
+    private static readonly string[] TelemetryHosts = {
+        "vortex.data.microsoft.com", "vortex-win.data.microsoft.com",
+        "telecommand.telemetry.microsoft.com", "telecommand.telemetry.microsoft.com.nsatc.net",
+        "oca.telemetry.microsoft.com", "oca.telemetry.microsoft.com.nsatc.net",
+        "sqm.telemetry.microsoft.com", "sqm.telemetry.microsoft.com.nsatc.net",
+        "watson.telemetry.microsoft.com", "watson.telemetry.microsoft.com.nsatc.net",
+        "watson.ppe.telemetry.microsoft.com", "watson.microsoft.com",
+        "reports.wes.df.telemetry.microsoft.com", "wes.df.telemetry.microsoft.com",
+        "services.wes.df.telemetry.microsoft.com", "sqm.df.telemetry.microsoft.com",
+        "settings-win.data.microsoft.com", "settings.data.microsoft.com",
+        "statsfe2.ws.microsoft.com", "redir.metaservices.microsoft.com",
+        "choice.microsoft.com", "choice.microsoft.com.nsatc.net",
+        "telemetry.appex.bing.net", "telemetry.urs.microsoft.com",
+        "feedback.microsoft-hohm.com", "vortex-bn2.metron.live.com.nsatc.net",
+    };
+    private const string HostsBlockBegin = "# >>> BloatwareGuard telemetry block";
+    private const string HostsBlockEnd = "# <<< BloatwareGuard telemetry block";
+
+    // Deprecated-in-Windows capabilities safe to remove (deprecated by Microsoft)
+    private static readonly string[] DeprecatedCapabilities = {
+        "Microsoft.Windows.WordPad",  // deprecated — removed from builds > 26020
+        "App.StepsRecorder",          // deprecated, slated for removal
+    };
+
     private static bool IsBloat(string text, GuardConfig config)
     {
         if (config.Whitelist.Any(w =>
@@ -1450,6 +1535,213 @@ public static class Win32BloatGuard
             }
         }
         GuardLogger.Info($"Disabled {disabled} OEM/vendor services");
+    }
+
+    /// <summary>Add/remove a marked hosts-file block that null-routes
+    /// pure-telemetry endpoints. Toggle-off removes the block — fully
+    /// reversible. No-ops when disabled and no block exists.</summary>
+    public static void SetTelemetryHostsBlock(bool enabled)
+    {
+        var hostsPath = Path.Combine(
+            Environment.GetEnvironmentVariable("SystemRoot") ?? @"C:\Windows",
+            @"System32\drivers\etc\hosts");
+        string text;
+        try
+        {
+            text = File.Exists(hostsPath) ? File.ReadAllText(hostsPath) : "";
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Warn($"Cannot read hosts file: {ex.Message}");
+            return;
+        }
+
+        var beginIdx = text.IndexOf(HostsBlockBegin, StringComparison.Ordinal);
+        var endIdx = text.IndexOf(HostsBlockEnd, StringComparison.Ordinal);
+        if (beginIdx >= 0 && endIdx >= 0)
+            text = text[..beginIdx].TrimEnd('\n') + "\n" +
+                text[(endIdx + HostsBlockEnd.Length)..].TrimStart('\n');
+        if (enabled)
+        {
+            var block = string.Join("\n", TelemetryHosts.Select(d => $"0.0.0.0 {d}"));
+            text = text.TrimEnd('\n') + $"\n\n{HostsBlockBegin}\n{block}\n{HostsBlockEnd}\n";
+        }
+        if (beginIdx < 0 && !enabled)
+            return; // nothing to do — don't touch the file
+        try
+        {
+            File.WriteAllText(hostsPath, text);
+            GuardLogger.Info($"Telemetry hosts block {(enabled ? "applied" : "removed")} ({TelemetryHosts.Length} domains)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Warn($"Cannot write hosts file [admin required]: {ex.Message}");
+        }
+    }
+
+    /// <summary>`winget uninstall --silent` sweep for bloat/vendor matches.
+    /// Catches leftovers that neither Appx nor the Uninstall-hive sweep can
+    /// reach silently. Skips cleanly when winget (App Installer) is absent.</summary>
+    public static int WingetSweep(GuardConfig config, bool dryRun)
+    {
+        if (RunCmdExitCode("winget --version", 15) != 0)
+        {
+            GuardLogger.Info("winget not available — skipping winget sweep");
+            return 0;
+        }
+        var (stdout, rc) = RunCmdCapture(
+            "winget list --accept-source-agreements --disable-interactivity", 180);
+        if (rc != 0 || string.IsNullOrWhiteSpace(stdout))
+            return 0;
+
+        var removed = 0;
+        foreach (var rawLine in stdout.Split('\n'))
+        {
+            var cols = Regex.Split(rawLine.Trim(), @"\s{2,}");
+            if (cols.Length < 2 || cols[0].Length == 0 || cols[1].StartsWith("-"))
+                continue; // header/separator line
+            var name = cols[0];
+            var pkgId = cols[1];
+            if (!IsBloat($"{name} {pkgId}", config))
+                continue;
+            if (dryRun)
+            {
+                GuardLogger.Info($"[DRY-RUN] Would winget-uninstall: {name} ({pkgId})");
+                removed++;
+                continue;
+            }
+            var rc2 = RunCmdExitCode(
+                $"winget uninstall --id \"{pkgId}\" --silent --disable-interactivity --accept-source-agreements", 300);
+            if (rc2 == 0)
+            {
+                GuardLogger.Info($"winget-uninstalled: {name} ({pkgId})");
+                RemovalLedger.Record(config, "winget", name);
+                removed++;
+            }
+            else
+            {
+                GuardLogger.Info($"winget uninstall skipped/failed: {name}");
+            }
+        }
+        return removed;
+    }
+
+    /// <summary>Remove Windows capabilities Microsoft has deprecated (WordPad,
+    /// Steps Recorder) — they persist in the image though nothing uses them.</summary>
+    public static int RemoveDeprecatedCapabilities()
+    {
+        var removed = 0;
+        foreach (var pattern in DeprecatedCapabilities)
+        {
+            var (stdout, rc) = RunPowerShellCapture(
+                $"Get-WindowsCapability -Online -Name '{pattern}*' | " +
+                "Where-Object {$_.State -eq 'Installed'} | Select-Object Name | ConvertTo-Json", 60);
+            if (rc != 0 || string.IsNullOrWhiteSpace(stdout))
+                continue;
+            List<JsonElement> elements;
+            try
+            {
+                var doc = JsonDocument.Parse(stdout.Trim());
+                elements = doc.RootElement.ValueKind == JsonValueKind.Array
+                    ? doc.RootElement.EnumerateArray().ToList()
+                    : new List<JsonElement> { doc.RootElement };
+            }
+            catch { continue; }
+            foreach (var cap in elements)
+            {
+                var name = cap.GetProperty("Name").GetString() ?? "";
+                if (string.IsNullOrEmpty(name))
+                    continue;
+                var rc2 = RunPowerShellCapture(
+                    $"Remove-WindowsCapability -Online -Name '{name}'", 180).Item2;
+                if (rc2 == 0)
+                {
+                    GuardLogger.Info($"Removed deprecated capability: {name}");
+                    removed++;
+                }
+            }
+        }
+        return removed;
+    }
+
+    private static int RunCmdExitCode(string command, int timeoutSec)
+    {
+        try
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = "cmd.exe",
+                Arguments = $"/c \"{command}\"",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            using var proc = Process.Start(psi);
+            if (proc == null)
+                return -1;
+            if (!proc.WaitForExit(timeoutSec * 1000))
+            {
+                try { proc.Kill(); } catch { /* ignored */ }
+                return -1;
+            }
+            return proc.ExitCode;
+        }
+        catch { return -1; }
+    }
+
+    private static (string Stdout, int Rc) RunCmdCapture(string command, int timeoutSec)
+    {
+        try
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = "cmd.exe",
+                Arguments = $"/c \"{command}\"",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            using var proc = Process.Start(psi);
+            if (proc == null)
+                return ("", -1);
+            var outp = proc.StandardOutput.ReadToEnd();
+            if (!proc.WaitForExit(timeoutSec * 1000))
+            {
+                try { proc.Kill(); } catch { /* ignored */ }
+                return (outp, -1);
+            }
+            return (outp.Trim(), proc.ExitCode);
+        }
+        catch { return ("", -1); }
+    }
+
+    private static (string Stdout, int Rc) RunPowerShellCapture(string command, int timeoutSec)
+    {
+        try
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = "powershell.exe",
+                Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"{command}\"",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            using var proc = Process.Start(psi);
+            if (proc == null)
+                return ("", -1);
+            var outp = proc.StandardOutput.ReadToEnd();
+            if (!proc.WaitForExit(timeoutSec * 1000))
+            {
+                try { proc.Kill(); } catch { /* ignored */ }
+                return (outp, -1);
+            }
+            return (outp.Trim(), proc.ExitCode);
+        }
+        catch { return ("", -1); }
     }
 
     private static bool RunSc(string arguments)
@@ -1769,9 +2061,19 @@ public class GuardService : BackgroundService
             GuardLogger.Info($"[DRY-RUN] Would mark {matchedFamilies.Count} package families deprovisioned + write removal policy");
         }
 
-        // 5. Win32 (MSI/EXE) bloat — Appx removal can't see these
+        // 5. Win32 (MSI/EXE) bloat + winget sweep + deprecated capabilities —
+        //    everything Appx removal can't see
         if (_config.Prevention.RemoveWin32Bloatware)
             removed += Win32BloatGuard.RemoveWin32Bloatware(_config, dryRun);
+        if (_config.Prevention.WingetSweep)
+            removed += Win32BloatGuard.WingetSweep(_config, dryRun);
+        if (_config.Prevention.RemoveDeprecatedCapabilities)
+        {
+            if (dryRun)
+                GuardLogger.Info("[DRY-RUN] Would remove deprecated Windows capabilities");
+            else
+                Win32BloatGuard.RemoveDeprecatedCapabilities();
+        }
 
         // 6. OEM auto-start services + Run-key startup entries
         if (_config.Prevention.DisableOemServices)
@@ -2065,7 +2367,7 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
     private static int RunSelfTest(GuardConfig config)
     {
         var passed = 0;
-        var total = 10;
+        var total = 12;
         var results = new List<string>();
 
         GuardLogger.Info("=== BloatwareGuard v1.8.0-mvp — Self-Test Mode === [no admin required]");
@@ -2181,7 +2483,9 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
                 "HardenContentDelivery", "DisableAiFeatures", "DisableWidgets",
                 "DisableSearchSuggestions", "DisableTelemetryTasks",
                 "DisableTelemetryPolicies", "HardenEdgePolicies",
-                "CleanStartupEntries", "DisableOemServices", "RemoveWin32Bloatware" };
+                "CleanStartupEntries", "DisableOemServices", "RemoveWin32Bloatware",
+                "DisableGameDvr", "BlockTelemetryEndpoints",
+                "WingetSweep", "RemoveDeprecatedCapabilities" };
             var missing = flags.Where(f =>
                 typeof(PreventionLayers).GetProperty(f) == null).ToList();
             var defaultsOn = flags.All(f =>
@@ -2189,7 +2493,7 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
                 prop.GetValue(new PreventionLayers()) is bool b && b);
             if (missing.Count == 0 && defaultsOn)
             {
-                results.Add("[PASS] T7: Prevention layers — 12 new flags registered & default-on");
+                results.Add("[PASS] T7: Prevention layers — 16 new flags registered & default-on");
                 GuardLogger.Info("[PASS] T7: New prevention flags present");
                 passed++;
             }
@@ -2217,7 +2521,10 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
                 typeof(ScheduledTaskGuard).GetMethod("DisableTelemetryTasks") != null &&
                 typeof(Win32BloatGuard).GetMethod("RemoveWin32Bloatware") != null &&
                 typeof(Win32BloatGuard).GetMethod("CleanStartupEntries") != null &&
-                typeof(Win32BloatGuard).GetMethod("DisableOemServices") != null;
+                typeof(Win32BloatGuard).GetMethod("DisableOemServices") != null &&
+                typeof(Win32BloatGuard).GetMethod("SetTelemetryHostsBlock") != null &&
+                typeof(Win32BloatGuard).GetMethod("WingetSweep") != null &&
+                typeof(Win32BloatGuard).GetMethod("RemoveDeprecatedCapabilities") != null;
             if (wired)
             {
                 results.Add("[PASS] T8: New prevention methods — all wired");
@@ -2281,6 +2588,62 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         catch (Exception ex)
         {
             results.Add($"[FAIL] T10: table sanity — {ex.Message}");
+        }
+
+        // Test 11: telemetry hosts list well-formed (domains only, no WU/Store)
+        try
+        {
+            var hosts = typeof(Win32BloatGuard)
+                .GetField("TelemetryHosts", System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Static)?.GetValue(null) as string[];
+            var valid = hosts != null && hosts.Length >= 20 && hosts.All(h =>
+                Regex.IsMatch(h, @"^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$") &&
+                !h.Contains("windowsupdate") && !h.Contains("activation") &&
+                !h.Contains("store"));
+            if (valid)
+            {
+                results.Add($"[PASS] T11: Telemetry hosts list — {hosts!.Length} domains, no update endpoints");
+                passed++;
+            }
+            else
+            {
+                results.Add("[FAIL] T11: Telemetry hosts list invalid or too small");
+            }
+        }
+        catch (Exception ex)
+        {
+            results.Add($"[FAIL] T11: hosts list — {ex.Message}");
+        }
+
+        // Test 12: policy table sanity (telemetry writes ≥12, Edge ≥6, game dvr ≥2)
+        try
+        {
+            var tele = typeof(RegistryGuard)
+                .GetField("TelemetryPolicyWrites", System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Static)?.GetValue(null)
+                as (string, string, int)[];
+            var edge = typeof(RegistryGuard)
+                .GetField("EdgePolicies", System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Static)?.GetValue(null)
+                as (string, int)[];
+            var gdvr = typeof(RegistryGuard)
+                .GetField("GameDvrUserWrites", System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Static)?.GetValue(null)
+                as (string, string, int)[];
+            if (tele != null && tele.Length >= 12 && edge != null && edge.Length >= 6 &&
+                gdvr != null && gdvr.Length >= 2)
+            {
+                results.Add($"[PASS] T12: Policy tables — {tele.Length} telemetry writes, {edge.Length} Edge, {gdvr.Length} GameDVR");
+                passed++;
+            }
+            else
+            {
+                results.Add($"[FAIL] T12: policy tables too small (tele={tele?.Length}, edge={edge?.Length}, gdvr={gdvr?.Length})");
+            }
+        }
+        catch (Exception ex)
+        {
+            results.Add($"[FAIL] T12: policy tables — {ex.Message}");
         }
 
         // Summary

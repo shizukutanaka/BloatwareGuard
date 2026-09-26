@@ -84,7 +84,11 @@
     "HardenEdgePolicies": true,
     "CleanStartupEntries": true,
     "DisableOemServices": true,
-    "RemoveWin32Bloatware": true
+    "RemoveWin32Bloatware": true,
+    "DisableGameDvr": true,
+    "BlockTelemetryEndpoints": true,
+    "WingetSweep": true,
+    "RemoveDeprecatedCapabilities": true
   },
   "DryRun": false
 }

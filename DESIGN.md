@@ -29,6 +29,8 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 │    │   / AllowRecallEnablement / DisableClickToDo   │
 │    ├─ AllowNewsAndInterests = 0 (Widgets)           │
 │    ├─ DisableSearchBoxSuggestions = 1 (Bing検索)    │
+│    ├─ Telemetry/Edge/GameDVR/OOBE policies ×20+     │
+│    ├─ hosts telemetry block (26 domains, 可逆)      │
 │    ├─ Deprovisioned markers (feature update耐性)    │
 │    └─ RemoveDefaultStorePackages (25H2 policy)      │
 ├─────────────────────────────────────────────────────┤
@@ -59,6 +61,10 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 | Win32 (MSI/EXE) ブロートウェア | Uninstall ハイブ走査 + サイレントアンインストールのみ | RemoveWin32Bloatware |
 | OEM サービス (自動起動) | sc.exe stop + start= disabled | DisableOemServices |
 | スタートアップ登録 (Run/RunOnce) | 全ハイブで該当値を削除 | CleanStartupEntries |
+| テレメトリ送信先ドメイン | hosts で 0.0.0.0 に固定(26件・マーカー付き可逆) | BlockTelemetryEndpoints |
+| Game Bar 常駐キャプチャ | AllowGameDVR=0 + per-hive capture 値 | DisableGameDvr |
+| winget 管理下の残滓 | winget uninstall --silent --disable-interactivity | WingetSweep |
+| MS 非推奨 capability (WordPad等) | Remove-WindowsCapability -Online | RemoveDeprecatedCapabilities |
 
 ## ブラックリスト方式
 - config.json の `Blacklist` にパッケージ名の**部分一致**パターンを列挙

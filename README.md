@@ -2,7 +2,7 @@
 
 ## What It Does
 
-Removes Windows bloatware across **19 prevention layers** in both **Python** and **C#** implementations.
+Removes Windows bloatware across **23 prevention layers** in both **Python** and **C#** implementations.
 
 ### Layers
 
@@ -28,6 +28,23 @@ Removes Windows bloatware across **19 prevention layers** in both **Python** and
 | 18. OEM/vendor service stop+disable | ✅ | ✅ | Admin |
 | 19. Startup (Run/RunOnce) bloat cleanup across all hives | ✅ | ✅ | Current user |
 
+|| 20. Game Bar GameDVR capture off (policy + per-hive) | ✅ | ✅ | HKLM (admin) |
+|| 21. Telemetry-domain hosts block (26 domains, reversible) | ✅ | ✅ | Admin |
+|| 22. winget silent-uninstall sweep | ✅ | ✅ | Admin (skips w/o winget) |
+|| 23. Deprecated capability removal (WordPad, Steps Recorder) | ✅ | ✅ | Admin |
+
+Layers 20–23 close the loop. `DisableGameDvr` stops Game Bar background
+capture via `AllowGameDVR=0` (HKLM policy) plus per-hive `AppCaptureEnabled`/
+`GameDVR_Enabled`. `BlockTelemetryEndpoints` null-routes **26 pure-telemetry
+domains** through a marked hosts-file block — the Spybot Anti-Beacon technique;
+the list is conservative (no Windows Update / Store / activation endpoints) and
+**toggling the flag off removes the block**, so it's fully reversible.
+`WingetSweep` runs `winget list` + `winget uninstall --silent
+--disable-interactivity` for matches the Uninstall-hive sweep can't reach
+silently, skipping cleanly when App Installer is absent.
+`RemoveDeprecatedCapabilities` removes Windows capabilities Microsoft itself
+deprecated (WordPad, Steps Recorder).
+
 Layer 17 sweeps the `Uninstall` registry hives (HKLM 64- and 32-bit views plus
 every loaded user hive) for `DisplayName` values matching the blacklist plus a
 built-in OEM/vendor list. It only executes **silent** uninstall paths —
@@ -40,6 +57,17 @@ Layer 18 stops and disables Windows **services** matching the same OEM/vendor
 list (trial nagware, updaters). Layer 19 deletes `Run`/`RunOnce` values matching
 blacklist/vendor patterns under HKLM (both bitness views) and every loaded user
 hive — the autostart side of OEM bloat that Appx removal never touches.
+
+Layer 15 is the broad privacy policy set — `AllowTelemetry=0`, activity-feed /
+Timeline upload off, cross-device clipboard off, advertising ID off, location
+scripting off, Delivery Optimization P2P upload off (`DODownloadMode=0`), the
+OOBE privacy screen skipped, WER extra data off, and the Start-menu
+"Recommended" section hidden — plus per-hive values that can't be policy-managed
+(tailored experiences, ink/typing personalization, `Start_TrackProgs`, SIUF
+cadence, Explorer sync-provider ads, typing insights). Layer 16 hardens Edge via
+official `HKLM\SOFTWARE\Policies\Microsoft\Edge` policies — sidebar, Startup
+Boost, Spotlight recommendations, personalization reporting, shopping
+assistant, New-Tab feed (the browser stays whitelisted; only the noise is cut).
 
 Layer 9 uses the official Windows 11 25H2 Group Policy *"Remove Default Microsoft
 Store packages from the system"* — for each blacklisted package family found on
