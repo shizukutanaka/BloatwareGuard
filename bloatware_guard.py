@@ -2351,6 +2351,21 @@ def run_self_test() -> int:
     check("T7: Removal ledger write/read", t_removal_ledger)
     check("T8: Full-name batch map", t_full_name_map)
 
+    def t_defaults_config_parity():
+        """config.json Prevention keys must exist in load_config defaults —
+        a missing default silently skips the layer on fresh installs."""
+        cfg = json.loads(DEFAULT_CONFIG_PATH.read_text(encoding="utf-8-sig"))
+        # load_config writes the file when absent — point it at a temp dir
+        with tempfile.TemporaryDirectory() as td:
+            defaults = load_config(Path(td) / "config.json")
+        missing = set(cfg["Prevention"].keys()) - set(defaults["Prevention"].keys())
+        extra = set(defaults["Prevention"].keys()) - set(cfg["Prevention"].keys())
+        assert not missing and not extra, f"defaults/config drift: -{missing} +{extra}"
+        missing_bl = set(cfg["Blacklist"]) - set(DEFAULT_BLACKLIST)
+        assert not missing_bl, f"defaults missing blacklist entries: {missing_bl}"
+
+    check("T9: defaults ↔ config.json parity", t_defaults_config_parity)
+
     print()
     passed = 0
     for name, ok, err in results:
