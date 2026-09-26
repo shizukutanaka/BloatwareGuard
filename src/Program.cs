@@ -1448,6 +1448,7 @@ public static class RegistryGuard
             // (key set mirrors Win11Debloat Disable_Windows_Suggestions.reg)
             var cdmZeros = new[]
             {
+                "ContentDeliveryAllowed",           // master CDM switch
                 "SilentInstalledAppsEnabled",       // silent app installs
                 "SystemPaneSuggestionsEnabled",     // system pane suggestions
                 "SoftLandingEnabled",               // soft landing tips
@@ -1459,6 +1460,8 @@ public static class RegistryGuard
                 "SubscribedContent-353694Enabled",  // Settings suggestions (2)
                 "SubscribedContent-353696Enabled",  // Settings suggestions (3)
                 "SubscribedContent-353698Enabled",  // Settings suggestions (4)
+                "SubscribedContent-338380Enabled",  // Settings app content ads
+                "SubscribedContent-314563Enabled",  // My People suggestions
                 "RotatingLockScreenEnabled",        // lock-screen spotlight
                 "RotatingLockScreenOverlayEnabled", // lock-screen overlay ads
                 "PreInstalledAppsEnabled",          // OEM app seeding
@@ -1783,6 +1786,10 @@ public static class RegistryGuard
             SetUserDwordAllHives(
                 @"Software\Microsoft\Windows\CurrentVersion\CDP\SettingsPage",
                 "RomeSdkChannelUserAuthzPolicy", 0);
+            // Nearby Share consent — same CDP auth-policy family
+            SetUserDwordAllHives(
+                @"Software\Microsoft\Windows\CurrentVersion\CDP\SettingsPage",
+                "NearShareChannelUserAuthzPolicy", 0);
 
             GuardLogger.Info("Applied: DisableTelemetry (AllowTelemetry=0, DiagTrack off, privacy surfaces set)");
         }
@@ -3279,7 +3286,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.48.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.49.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -3364,7 +3371,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.48.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.49.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -3516,8 +3523,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 6;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.48.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.48.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.49.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.49.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try

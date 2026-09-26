@@ -2,6 +2,17 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.49.0-mvp: CDM master switch, extra content surfaces, Near Share
+
+### Changed
+- `BlockProvisioning`: `ContentDeliveryAllowed`=0 — the master
+  ContentDeliveryManager kill switch the per-surface list was missing.
+- `BlockProvisioning`: `SubscribedContent-338380Enabled` (Settings-app
+  content ads) + `SubscribedContent-314563Enabled` (My People
+  suggestions) added to the per-hive zeroed set.
+- `DisableTelemetry`: `CDP\SettingsPage\NearShareChannelUserAuthzPolicy`=0 —
+  Nearby Share consent off, same CDP auth-policy family.
+
 ## [Unreleased] — v1.48.0-mvp: AppCompat policies, OOBE skip, broker/WDI tasks
 
 ### Changed

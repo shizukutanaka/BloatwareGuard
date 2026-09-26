@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.48.0-mvp - Python prototype
+BloatwareGuard v1.49.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -855,6 +855,7 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         # ContentDeliveryManager — silent installs + every SubscribedContent surface
         # (key set mirrors Win11Debloat Disable_Windows_Suggestions.reg)
         cdm_zeros = (
+            "ContentDeliveryAllowed",            # master CDM switch
             "SilentInstalledAppsEnabled",        # silent app installs
             "SystemPaneSuggestionsEnabled",      # system pane suggestions
             "SoftLandingEnabled",                # soft landing tips
@@ -866,6 +867,8 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             "SubscribedContent-353694Enabled",   # Settings suggestions (2)
             "SubscribedContent-353696Enabled",   # Settings suggestions (3)
             "SubscribedContent-353698Enabled",   # Settings suggestions (4)
+            "SubscribedContent-338380Enabled",   # Settings app content ads
+            "SubscribedContent-314563Enabled",   # My People suggestions
             "RotatingLockScreenEnabled",         # lock-screen spotlight
             "RotatingLockScreenOverlayEnabled",  # lock-screen overlay ads
             "PreInstalledAppsEnabled",           # OEM app seeding
@@ -1059,6 +1062,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_user_dword_all_hives(cdp, "RomeSdkChannelUserAuthzPolicy", 0, logger)
         set_user_dword_all_hives(cdp + r"\SettingsPage",
                                  "RomeSdkChannelUserAuthzPolicy", 0, logger)
+        # Nearby Share consent — same CDP auth-policy family
+        set_user_dword_all_hives(cdp + r"\SettingsPage",
+                                 "NearShareChannelUserAuthzPolicy", 0, logger)
         logger.info("Applied: DisableTelemetry (AllowTelemetry=0, DiagTrack off, "
                     "privacy surfaces set)")
 
