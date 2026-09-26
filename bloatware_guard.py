@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.33.0-mvp - Python prototype
+BloatwareGuard v1.34.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -34,7 +34,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.33.0-mvp"
+APP_VERSION = "1.34.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -1248,6 +1248,30 @@ def disable_startup_bloat(config: dict, logger: logging.Logger):
         _scan(root, p + user_runonce, p + approved_once)
 
     for_each_user_hive(_scan_user, logger)
+
+    # Startup folders aren't governed by StartupApproved — match the same
+    # needles against filenames and rename to .bgdisabled (restorable;
+    # deleting would lose the restore path)
+    startup_dirs = []
+    for env_var in ("APPDATA", "ProgramData"):
+        base = os.environ.get(env_var)
+        if base:
+            startup_dirs.append(
+                os.path.join(base,
+                             r"Microsoft\Windows\Start Menu\Programs\Startup"))
+    for folder in startup_dirs:
+        try:
+            for fname in os.listdir(folder):
+                fpath = os.path.join(folder, fname)
+                if (fname.lower().endswith(".bgdisabled") or
+                        not os.path.isfile(fpath) or
+                        not _is_bloat(fname, None)):
+                    continue
+                os.rename(fpath, fpath + ".bgdisabled")
+                applied += 1
+                logger.info(f"Disabled startup folder item: {fname}")
+        except OSError:
+            continue
     logger.info(f"Applied: DisableStartupBloat ({applied} entries)")
 
 

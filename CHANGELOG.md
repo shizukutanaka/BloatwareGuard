@@ -2,6 +2,14 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.34.0-mvp: Startup-folder bloat disabled
+
+### Changed
+- `DisableStartupBloat` now also scans the per-user and common Startup
+  folders (`shell:startup`) — they aren't governed by `StartupApproved`.
+  Matching shortcuts/files are renamed to `*.bgdisabled` rather than
+  deleted, keeping a trivial restore path.
+
 ## [Unreleased] — v1.33.0-mvp: Start recent-doc tracking off
 
 ### Changed

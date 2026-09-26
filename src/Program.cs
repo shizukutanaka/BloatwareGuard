@@ -1637,6 +1637,30 @@ public static class RegistryGuard
                 ScanAndMark(hive, UserRunPath, StartupApprovedRun);
                 ScanAndMark(hive, UserRunOncePath, StartupApprovedRunOnce);
             });
+            // Startup folders aren't governed by StartupApproved — match the
+            // same needles against filenames and rename to .bgdisabled
+            // (restorable; deleting would lose the restore path)
+            foreach (var dir in new[] {
+                Environment.GetFolderPath(Environment.SpecialFolder.Startup),
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonStartup) })
+            {
+                try
+                {
+                    if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir))
+                        continue;
+                    foreach (var file in Directory.EnumerateFiles(dir))
+                    {
+                        var fname = Path.GetFileName(file);
+                        if (fname.EndsWith(".bgdisabled", StringComparison.OrdinalIgnoreCase) ||
+                            !IsBloat(fname, null))
+                            continue;
+                        File.Move(file, file + ".bgdisabled");
+                        applied++;
+                        GuardLogger.Info($"Disabled startup folder item: {fname}");
+                    }
+                }
+                catch { }
+            }
             GuardLogger.Info($"Applied: DisableStartupBloat ({applied} entries)");
         }
         catch (Exception ex)
@@ -2652,7 +2676,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.33.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.34.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -2737,7 +2761,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.33.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.34.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -2889,8 +2913,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 6;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.33.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.33.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.34.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.34.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try
