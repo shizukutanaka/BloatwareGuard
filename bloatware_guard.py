@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.50.0-mvp - Python prototype
+BloatwareGuard v1.51.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -201,6 +201,13 @@ def load_config(path: Path) -> dict:
                 "DisableAutoplay": True,
                 "NoForcedReboot": True,
                 "HideStartRecommendations": True,
+                # Layers added post-merge — keep defaults in parity with
+                # config.json so a fresh install (no file) runs them too
+                "MarkDeprovisioned": True,
+                "RemoveDefaultStorePackages": True,
+                "BlockTelemetryEndpoints": True,
+                "WingetSweep": True,
+                "DisableTelemetryAutologgers": True,
             },
             "DryRun": False,
         }

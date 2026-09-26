@@ -2,6 +2,17 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.51.0-mvp: parity audit — Python defaults complete
+
+### Fixed
+- `load_config` built-in defaults were missing the five post-merge
+  `Prevention.*` keys (`MarkDeprovisioned`, `RemoveDefaultStorePackages`,
+  `BlockTelemetryEndpoints`, `WingetSweep`,
+  `DisableTelemetryAutologgers`) — a fresh Python install with no
+  config.json silently skipped those layers. Defaults now match
+  config.json (45 toggles). Cross-impl parity audited: task lists,
+  autologger lists, and blacklists are identical.
+
 ## [Unreleased] — v1.50.0-mvp: location/sensor stack, SNMP, WWAN demote
 
 ### Changed
