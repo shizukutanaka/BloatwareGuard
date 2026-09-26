@@ -2,6 +2,24 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.41.0-mvp: promo surfaces + dev telemetry + URL leaks
+
+### Changed
+- `DisableTelemetry`: added per-hive `HttpAcceptLanguageOptOut=1` (language
+  list no longer leaks to websites) and machine-wide env vars
+  `POWERSHELL_TELEMETRY_OPTOUT=1` / `DOTNET_CLI_TELEMETRY_OPTOUT=1`.
+- `DisableCloudContent`: Settings app "Home" page hidden via
+  `SettingsPageVisibility=hide:home` (the Microsoft 365 promo card).
+- `DisableCopilot`: taskbar Copilot button off (`ShowCopilotButton=0`, all hives).
+- `DisableChatTaskbar`: "My People" button off (`PeopleBand=0`, all hives).
+- `DisableEdgeBloat`: URL-leak surfaces off — `SearchSuggestEnabled`,
+  `AddressBarMicrosoftSearchInBingProviderEnabled`, `SiteSafetyServicesEnabled`,
+  `NetworkPredictionOptions=2`, plus `EdgeCollectionsEnabled`/`EdgeFollowEnabled`.
+- `DisableTelemetryTasks`: +4 — `Subscription\EnableLicenseAcquisition` /
+  `LicenseAcquisition` (Microsoft 365 upsell channel),
+  `Diagnosis\RecommendedTroubleshootingScanner`, `Diagnosis\Scheduled`.
+- Blacklist gains `Microsoft.MicrosoftJournal` (Journal app).
+
 ## [Unreleased] — v1.40.0-mvp: merge — reprovision persistence + telemetry kill-chain
 
 ### Added

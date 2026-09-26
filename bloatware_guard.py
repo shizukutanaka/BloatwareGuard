@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.40.0-mvp - Python prototype
+BloatwareGuard v1.41.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -34,7 +34,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.40.0-mvp"
+APP_VERSION = "1.41.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -82,6 +82,7 @@ DEFAULT_BLACKLIST = [
     "Microsoft.SkypeApp",
     "Microsoft.GetHelp",
     "Microsoft.Getstarted",
+    "Microsoft.MicrosoftJournal",
     "Microsoft.Microsoft3DViewer",
     "Microsoft.MixedReality.Portal",
     "Microsoft.BingNews",
@@ -583,6 +584,19 @@ def set_registry_dword(hive, path: str, name: str, value: int) -> bool:
         return False
 
 
+def set_registry_string(hive, path: str, name: str, value: str) -> bool:
+    """Set a REG_SZ value in the registry. hive = 'HKLM' or 'HKCU'."""
+    try:
+        import winreg
+        root = winreg.HKEY_LOCAL_MACHINE if hive == "HKLM" else winreg.HKEY_CURRENT_USER
+        key = winreg.CreateKeyEx(root, path, 0, winreg.KEY_WRITE)
+        winreg.SetValueEx(key, name, 0, winreg.REG_SZ, value)
+        winreg.CloseKey(key)
+        return True
+    except Exception:
+        return False
+
+
 def demote_service(name: str) -> bool:
     """Set a service to demand-start. Opens — never creates — the service
     key, so vendor services absent from the machine don't get phantom
@@ -603,6 +617,10 @@ def demote_service(name: str) -> bool:
 _USER_CDM = r"Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
 _USER_EXPLORER_ADV = r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
 _USER_EXPLORER_POLICIES = r"Software\Policies\Microsoft\Windows\Explorer"
+# Machine-wide Explorer policies hive (HKLM side of _USER_EXPLORER_POLICIES)
+_EXPLORER_POLICIES_HKLM = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer"
+# Language-list leak to websites (documented in Sophia Script)
+_USER_INTL_PROFILE = r"Control Panel\International\User Profile"
 _USER_COPILOT = r"Software\Policies\Microsoft\Windows\WindowsCopilot"
 _USER_WINDOWS_AI = r"Software\Policies\Microsoft\Windows\WindowsAI"
 _USER_SEARCH = r"Software\Microsoft\Windows\CurrentVersion\Search"
@@ -807,7 +825,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
     if prev.get("DisableCloudContent", True):
         set_registry_dword("HKLM", cloud_content, "DisableSoftLanding", 1)
         set_registry_dword("HKLM", cloud_content, "DisableCloudOptimizedContent", 1)
-        logger.info("Applied: DisableSoftLanding + DisableCloudOptimizedContent = 1")
+        # Settings "Home" page — the Microsoft 365 / account promo card
+        set_registry_string("HKLM", _EXPLORER_POLICIES_HKLM,
+                            "SettingsPageVisibility", "hide:home")
+        logger.info("Applied: DisableSoftLanding + DisableCloudOptimizedContent = 1 "
+                    "+ Settings Home promo page hidden")
 
     if prev.get("PreventDeviceMetadata", True):
         if set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\Device Metadata",
@@ -861,6 +883,8 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         copilot_pol = r"SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot"
         set_registry_dword("HKLM", copilot_pol, "TurnOffWindowsCopilot", 1)
         set_user_dword_all_hives(_USER_COPILOT, "TurnOffWindowsCopilot", 1, logger)
+        # Copilot taskbar button
+        set_user_dword_all_hives(_USER_EXPLORER_ADV, "ShowCopilotButton", 0, logger)
         logger.info("Applied: DisableCopilot (TurnOffWindowsCopilot = 1, HKLM + user hives)")
 
     if prev.get("DisableRecall", True):
@@ -933,6 +957,7 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             w(_USER_PERSONALIZATION, "AcceptedPrivacyPolicy", 0)
             w(_USER_EXPLORER_ADV, "Start_TrackProgs", 0)
             w(_USER_SIUF, "NumberOfSIUFInPeriod", 0)
+            w(_USER_INTL_PROFILE, "HttpAcceptLanguageOptOut", 1)
 
         for_each_user_hive(_apply_telemetry, logger)
 
@@ -978,6 +1003,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_registry_dword("HKLM",
                            r"SOFTWARE\Policies\Microsoft\Windows\SettingSync",
                            "DisableSettingSync", 2)
+        # Dev-tool telemetry opt-outs — machine-wide env vars
+        # (PowerShell + .NET CLI send diagnostics unless these are set)
+        env_key = r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment"
+        set_registry_string("HKLM", env_key, "POWERSHELL_TELEMETRY_OPTOUT", "1")
+        set_registry_string("HKLM", env_key, "DOTNET_CLI_TELEMETRY_OPTOUT", "1")
         # "Share across devices" (Connected Devices Platform) consent off
         cdp = r"Software\Microsoft\Windows\CurrentVersion\CDP"
         set_user_dword_all_hives(cdp, "CdpSessionUserAuthzPolicy", 0, logger)
@@ -1019,7 +1049,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
     if prev.get("DisableChatTaskbar", True):
         set_user_dword_all_hives(_USER_EXPLORER_ADV, "TaskbarMn", 0, logger)
         set_user_dword_all_hives(_USER_POLICIES_EXPLORER, "HideSCAMeetNow", 1, logger)
-        logger.info("Applied: DisableChatTaskbar (TaskbarMn=0, HideSCAMeetNow=1)")
+        # "My People" taskbar button (contact-promo surface)
+        set_user_dword_all_hives(_USER_EXPLORER_ADV, "PeopleBand", 0, logger)
+        logger.info("Applied: DisableChatTaskbar (TaskbarMn=0, HideSCAMeetNow=1, PeopleBand=0)")
 
     if prev.get("DisableEdgeBloat", True):
         edge_pol = r"SOFTWARE\Policies\Microsoft\Edge"
@@ -1033,8 +1065,18 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                      "ShowRecommendationsEnabled",
                      "ResolveNavigationErrorsUseWebService",
                      "AlternateErrorPagesEnabled",
-                     "UserFeedbackAllowed"):
+                     "UserFeedbackAllowed",
+                     # URL-leak surfaces: omnibox suggestions + nav-error web
+                     # services + site-safety look-ups all send URLs to MS
+                     "SearchSuggestEnabled",
+                     "AddressBarMicrosoftSearchInBingProviderEnabled",
+                     "SiteSafetyServicesEnabled",
+                     # Cross-device collection/Follow feeds
+                     "EdgeCollectionsEnabled",
+                     "EdgeFollowEnabled"):
             set_registry_dword("HKLM", edge_pol, name, 0)
+        # 2 = never predict/pre-resolve via Microsoft web service
+        set_registry_dword("HKLM", edge_pol, "NetworkPredictionOptions", 2)
         logger.info("Applied: DisableEdgeBloat (sidebar/startup-boost/"
                     "prelaunch/first-run/shopping/recommendations off)")
 
@@ -1677,6 +1719,14 @@ TELEMETRY_TASK_PATHS = (
     "\\Microsoft\\Windows\\Application Experience\\AitEnableAgent",
     "\\Microsoft\\Windows\\Speech\\SpeechModelDownloadTask",
     "\\Microsoft\\Windows\\DiskFootprint\\Diagnostics",
+    # Windows Error Reporting queue upload
+    "\\Microsoft\\Windows\\Windows Error Reporting\\QueueReporting",
+    # Consumer subscription/license offers (Microsoft 365 upsell channel)
+    "\\Microsoft\\Windows\\Subscription\\EnableLicenseAcquisition",
+    "\\Microsoft\\Windows\\Subscription\\LicenseAcquisition",
+    # Recommended-troubleshooting scanner uploads diagnostic packages
+    "\\Microsoft\\Windows\\Diagnosis\\RecommendedTroubleshootingScanner",
+    "\\Microsoft\\Windows\\Diagnosis\\Scheduled",
 )
 
 

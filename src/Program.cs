@@ -991,6 +991,10 @@ public static class RegistryGuard
     private const string UserAccountNotificationsPath = @"Software\Microsoft\Windows\CurrentVersion\SystemSettings\AccountNotifications";
     private const string UserSuggestedToastPath = @"Software\Microsoft\Windows\CurrentVersion\Notifications\Settings\Windows.SystemToast.Suggested";
     private const string UserMobilityPath = @"Software\Microsoft\Windows\CurrentVersion\Mobility";
+    // Language-list leak to websites (documented in Sophia Script)
+    private const string UserIntlProfilePath = @"Control Panel\International\User Profile";
+    // HKLM counterpart of UserExplorerPoliciesBasePath
+    private const string ExplorerPoliciesHklmPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer";
     private const string WerPath = @"SOFTWARE\Microsoft\Windows\Windows Error Reporting";
     private const string WerPolicyPath = @"SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting";
     private const string UserWerPath = @"Software\Microsoft\Windows\Windows Error Reporting";
@@ -1378,7 +1382,10 @@ public static class RegistryGuard
             using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(CloudContentPath);
             key?.SetValue("DisableSoftLanding", 1, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("DisableCloudOptimizedContent", 1, Microsoft.Win32.RegistryValueKind.DWord);
-            GuardLogger.Info("Applied: DisableSoftLanding + DisableCloudOptimizedContent = 1");
+            // Settings "Home" page — the Microsoft 365 / account promo card
+            using var exp = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(ExplorerPoliciesHklmPath);
+            exp?.SetValue("SettingsPageVisibility", "hide:home");
+            GuardLogger.Info("Applied: DisableSoftLanding + DisableCloudOptimizedContent = 1 + Settings Home promo hidden");
         }
         catch (Exception ex)
         {
@@ -1464,6 +1471,8 @@ public static class RegistryGuard
             using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(WindowsCopilotPath);
             key?.SetValue("TurnOffWindowsCopilot", 1, Microsoft.Win32.RegistryValueKind.DWord);
             SetUserDwordAllHives(UserCopilotPath, "TurnOffWindowsCopilot", 1);
+            // Copilot taskbar button
+            SetUserDwordAllHives(UserExplorerAdvancedPath, "ShowCopilotButton", 0);
             GuardLogger.Info("Applied: DisableCopilot (TurnOffWindowsCopilot = 1, HKLM + user hives)");
         }
         catch (Exception ex)
@@ -1600,6 +1609,7 @@ public static class RegistryGuard
                 SetHiveDword(hive, UserPersonalizationPath, "AcceptedPrivacyPolicy", 0);
                 SetHiveDword(hive, UserExplorerAdvancedPath, "Start_TrackProgs", 0);
                 SetHiveDword(hive, UserSiufPath, "NumberOfSIUFInPeriod", 0);
+                SetHiveDword(hive, UserIntlProfilePath, "HttpAcceptLanguageOptOut", 1);
             });
 
             // "Connected User Experiences and Telemetry" (DiagTrack) — the actual
@@ -1679,6 +1689,13 @@ public static class RegistryGuard
                 using var sync = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Windows\SettingSync");
                 sync?.SetValue("DisableSettingSync", 2, Microsoft.Win32.RegistryValueKind.DWord);
+
+                // Dev-tool telemetry opt-outs — machine-wide env vars
+                // (PowerShell + .NET CLI send diagnostics unless set)
+                using var envKey = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SYSTEM\CurrentControlSet\Control\Session Manager\Environment");
+                envKey?.SetValue("POWERSHELL_TELEMETRY_OPTOUT", "1");
+                envKey?.SetValue("DOTNET_CLI_TELEMETRY_OPTOUT", "1");
             }
             catch { }
             // "Share across devices" (Connected Devices Platform) user consent off
@@ -1775,7 +1792,9 @@ public static class RegistryGuard
         {
             SetUserDwordAllHives(UserExplorerAdvancedPath, "TaskbarMn", 0);
             SetUserDwordAllHives(UserExplorerPoliciesBasePath, "HideSCAMeetNow", 1);
-            GuardLogger.Info("Applied: DisableChatTaskbar (TaskbarMn=0, HideSCAMeetNow=1)");
+            // "My People" taskbar button (contact-promo surface)
+            SetUserDwordAllHives(UserExplorerAdvancedPath, "PeopleBand", 0);
+            GuardLogger.Info("Applied: DisableChatTaskbar (TaskbarMn=0, HideSCAMeetNow=1, PeopleBand=0)");
         }
         catch (Exception ex)
         {
@@ -1801,7 +1820,17 @@ public static class RegistryGuard
             key?.SetValue("ResolveNavigationErrorsUseWebService", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("AlternateErrorPagesEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("UserFeedbackAllowed", 0, Microsoft.Win32.RegistryValueKind.DWord);
-            GuardLogger.Info("Applied: DisableEdgeBloat (sidebar/startup-boost/prelaunch/first-run/shopping/recommendations off)");
+            // URL-leak surfaces: omnibox suggestions + nav-error services +
+            // site-safety look-ups all send URLs to Microsoft
+            key?.SetValue("SearchSuggestEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("AddressBarMicrosoftSearchInBingProviderEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("SiteSafetyServicesEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // 2 = never predict/pre-resolve via Microsoft web service
+            key?.SetValue("NetworkPredictionOptions", 2, Microsoft.Win32.RegistryValueKind.DWord);
+            // Cross-device Collections + Follow feeds
+            key?.SetValue("EdgeCollectionsEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("EdgeFollowEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            GuardLogger.Info("Applied: DisableEdgeBloat (sidebar/startup-boost/prelaunch/first-run/shopping/recommendations/URL-leak surfaces off)");
         }
         catch (Exception ex)
         {
@@ -2582,6 +2611,12 @@ public static class ScheduledTaskGuard
         @"\Microsoft\Windows\DiskFootprint\Diagnostics",
         // Windows Error Reporting queue upload
         @"\Microsoft\Windows\Windows Error Reporting\QueueReporting",
+        // Consumer subscription/license offers (Microsoft 365 upsell channel)
+        @"\Microsoft\Windows\Subscription\EnableLicenseAcquisition",
+        @"\Microsoft\Windows\Subscription\LicenseAcquisition",
+        // Recommended-troubleshooting scanner uploads diagnostic packages
+        @"\Microsoft\Windows\Diagnosis\RecommendedTroubleshootingScanner",
+        @"\Microsoft\Windows\Diagnosis\Scheduled",
     };
 
     /// <summary>Disable the known Microsoft telemetry/CEIP scheduled tasks.</summary>
@@ -3079,7 +3114,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.40.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.41.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -3164,7 +3199,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.40.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.41.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -3316,8 +3351,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 6;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.40.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.40.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.41.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.41.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try
