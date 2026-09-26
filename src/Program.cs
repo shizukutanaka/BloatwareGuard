@@ -1779,13 +1779,8 @@ public static class RegistryGuard
                 @"SOFTWARE\Policies\Microsoft\Windows\System");
             sys?.SetValue("AllowCrossDeviceClipboard", 0,
                           Microsoft.Win32.RegistryValueKind.DWord);
-            ForEachUserHive((hive, prefix) =>
-            {
-                using var clip = hive.CreateSubKey(prefix +
-                    @"Software\Microsoft\Clipboard");
-                clip?.SetValue("EnableClipboardHistory", 0,
-                               Microsoft.Win32.RegistryValueKind.DWord);
-            });
+            SetUserDwordAllHives(@"Software\Microsoft\Clipboard",
+                                 "EnableClipboardHistory", 0);
             GuardLogger.Info("Applied: DisableCloudClipboard");
         }
         catch (Exception ex)
