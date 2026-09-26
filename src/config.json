@@ -63,7 +63,13 @@
     "Flipboard",
     "Asphalt8Airborne",
     "CyberLinkMediaSuite",
-    "EclipseManager"
+    "EclipseManager",
+    "Booking",
+    "PicsArt",
+    "Twitter",
+    "Evernote",
+    "ExpressVPN",
+    "Nordcurrent"
   ],
   "Whitelist": [
     "Microsoft.WindowsStore",
@@ -111,7 +117,8 @@
     "DisableCloudClipboard": true,
     "DisableRemoteAssistance": true,
     "BlockInsiderPreview": true,
-    "DisableMiscBloatServices": true
+    "DisableMiscBloatServices": true,
+    "DisableSpotlight": true
   },
   "DryRun": false
 }

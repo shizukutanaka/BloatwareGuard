@@ -2,6 +2,16 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.21.0-mvp: Desktop Spotlight / blacklist additions
+
+### Added
+- **`DisableSpotlight`** — Desktop Spotlight off (`DesktopSpotlight\Settings
+  Enabled=0` + `Wallpapers\BackgroundType=0`, all user hives). The wallpaper
+  surface is also a content-delivery channel for promos.
+- **Blacklist +6**: `Booking`, `PicsArt`, `Twitter`, `Evernote`,
+  `ExpressVPN`, `Nordcurrent` — recurring OEM/bundled preinstall names
+  (config.json ×2 + code defaults). Blacklist now 68 patterns.
+
 ## [Unreleased] — v1.20.0-mvp: misc services / SpyNet / Edge surfaces
 
 ### Added

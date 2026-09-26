@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.20.0-mvp - Python prototype
+BloatwareGuard v1.21.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -34,7 +34,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.20.0-mvp"
+APP_VERSION = "1.21.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -133,6 +133,12 @@ DEFAULT_BLACKLIST = [
     "Asphalt8Airborne",
     "CyberLinkMediaSuite",
     "EclipseManager",
+    "Booking",
+    "PicsArt",
+    "Twitter",
+    "Evernote",
+    "ExpressVPN",
+    "Nordcurrent",
 ]
 
 
@@ -189,6 +195,7 @@ def load_config(path: Path) -> dict:
                 "DisableRemoteAssistance": True,
                 "BlockInsiderPreview": True,
                 "DisableMiscBloatServices": True,
+                "DisableSpotlight": True,
             },
             "DryRun": False,
         }
@@ -1094,6 +1101,16 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         logger.info("Applied: DisableMiscBloatServices "
                     "(4 services → demand-start)")
 
+    if prev.get("DisableSpotlight", True):
+        # Desktop Spotlight = content-delivery channel (wallpaper promos)
+        set_user_dword_all_hives(
+            r"Software\Microsoft\Windows\CurrentVersion\DesktopSpotlight\Settings",
+            "Enabled", 0, logger)
+        set_user_dword_all_hives(
+            r"Software\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers",
+            "BackgroundType", 0, logger)
+        logger.info("Applied: DisableSpotlight")
+
 
 def disable_startup_bloat(config: dict, logger: logging.Logger):
     """Disable bloatware autostart entries via the StartupApproved\\Run marker
@@ -1619,7 +1636,8 @@ def run_self_test() -> int:
                     "BackupRegistry", "DisablePrintSpooler",
                     "BlockOemWpbtExecution", "DisableReservedStorage",
                     "DisableCloudClipboard", "DisableRemoteAssistance",
-                    "BlockInsiderPreview", "DisableMiscBloatServices"]
+                    "BlockInsiderPreview", "DisableMiscBloatServices",
+                    "DisableSpotlight"]
         missing = [k for k in required if k not in prev]
         assert not missing, f"missing prevention keys: {missing}"
 
@@ -1641,7 +1659,7 @@ def run_self_test() -> int:
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
     check("T4: Logger file + console wiring", t_logging)
     check("T5: is_admin() callable", t_is_admin)
-    check("T6: Prevention layers — 36 registered", t_prevention_layers)
+    check("T6: Prevention layers — 37 registered", t_prevention_layers)
     check("T7: Removal ledger write/read", t_removal_ledger)
     check("T8: Full-name batch map", t_full_name_map)
 

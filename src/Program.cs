@@ -174,6 +174,10 @@ public class PreventionLayers
     /// interactively — dmwappushservice (WAP push/MDM), MapsBroker,
     /// WMPNetworkSvc, DiagnosticsHub — to demand-start</summary>
     public bool DisableMiscBloatServices { get; set; } = true;
+
+    /// <summary>Layer 36: Desktop Spotlight off — the wallpaper surface is
+    /// also a content-delivery channel (promos baked into wallpapers)</summary>
+    public bool DisableSpotlight { get; set; } = true;
 }
 
 // ─── JSON source-gen context (trim-safe: avoids IL2026 with PublishTrimmed) ──
@@ -408,6 +412,12 @@ public static class ConfigLoader
                 "Asphalt8Airborne",
                 "CyberLinkMediaSuite",
                 "EclipseManager",
+                "Booking",
+                "PicsArt",
+                "Twitter",
+                "Evernote",
+                "ExpressVPN",
+                "Nordcurrent",
 
                 // OEM utilities (uncomment as needed)
                 // "DellInc.Dell",
@@ -961,6 +971,9 @@ public static class RegistryGuard
 
         if (layers.DisableMiscBloatServices)
             DisableMiscBloatServices();
+
+        if (layers.DisableSpotlight)
+            DisableSpotlight();
     }
 
     /// <summary>
@@ -1898,6 +1911,26 @@ public static class RegistryGuard
         }
     }
 
+    /// <summary>Layer 36: Desktop Spotlight is a content-delivery surface
+    /// (wallpaper-embedded promos). Per-hive since wallpapers are per-user.</summary>
+    public static void DisableSpotlight()
+    {
+        try
+        {
+            SetUserDwordAllHives(
+                @"Software\Microsoft\Windows\CurrentVersion\DesktopSpotlight\Settings",
+                "Enabled", 0);
+            SetUserDwordAllHives(
+                @"Software\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers",
+                "BackgroundType", 0);
+            GuardLogger.Info("Applied: DisableSpotlight (DesktopSpotlight + wallpaper type)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to disable Spotlight: {ex.Message}");
+        }
+    }
+
     private static void RunToolSilent(string fileName, string arguments)
     {
         var psi = new ProcessStartInfo
@@ -2421,7 +2454,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.20.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.21.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -2506,7 +2539,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.20.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.21.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -2658,8 +2691,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 6;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.20.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.20.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.21.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.21.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try
