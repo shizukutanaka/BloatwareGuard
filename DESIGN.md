@@ -35,7 +35,7 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 │    ├─ Capability 除去 (IE/StepsRecorder/WordPad)    │
 │    ├─ Win32 除去 (Uninstall キー走査+MSI サイレント)│
 │    ├─ 復元ポイント作成 (スキャン前、24h スロットル)  │
-│    ├─ テレメトリタスク停止 (CompatTel/CEIP 等13件)  │
+│    ├─ テレメトリタスク停止 (CompatTel/CEIP 等58件)  │
 │    ├─ StartupApproved 無効化マーカー (Run/RunOnce)  │
 │    ├─ Windows Error Reporting 停止                 │
 │    ├─ Edge Update サービス/タスク → demand 化       │
@@ -67,7 +67,7 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 | 経路 | 対策 | レイヤー |
 |------|------|----------|
 | AppxPackage (インストール済み) | Remove-AppxPackage | RemoveAppxPackages |
-| ProvisionedPackage (プロビジョニング) | Remove-AppxProvisionedPackage | RemoveAppxPackages |
+| ProvisionedPackage (プロビジョニング) | Remove-AppxProvisionedPackage + Deprovisioned マーカー | RemoveProvisionedPackages / MarkDeprovisioned |
 | Consumer Experiences (おすすめアプリ) | DisableWindowsConsumerFeatures=1 | DisableConsumerExperiences |
 | Cloud Content (ストア提案) | DisableSoftLanding=1 | DisableCloudContent |
 | Device Metadata (companion app自動DL) | PreventDeviceMetadataFromNetwork=1 | PreventDeviceMetadata |
@@ -107,6 +107,12 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 | AutoPlay/AutoRun | Policies\Explorer NoDriveTypeAutoRun=255, NoAutorun=1 (HKLM+全ハイブ) | DisableAutoplay |
 | WU 強制再起動 | WindowsUpdate\AU NoAutoRebootWithLoggedOnUsers=1, AlwaysAutoRebootAtScheduledTime=0 | NoForcedReboot |
 | Start「おすすめ」 | Policies\...\Explorer HideRecommendedSection=1 | HideStartRecommendations |
+| Deprovisioned マーカー | AppxAllUserStore\Deprovisioned\<family> にキー作成 (feature update 時の再プロビジョニングを OS がスキップ) | MarkDeprovisioned |
+| 25H2 RemoveDefaultMicrosoftStorePackages | PolicyManager\...\EnterpriseDesktopAppManagement Enabled=1 + PackageList REG_MULTI_SZ | RemoveDefaultStorePackages |
+| テレメトリドメイン遮断 | hosts にマーカー付きブロック (34 ドメイン、トグルOFFで除去・可逆) | BlockTelemetryEndpoints |
+| winget 掃除 | `winget uninstall -e --id <id> --silent --disable-interactivity` (winget 不在時スキップ) | WingetSweep |
+| テレメトリ ETW AutoLogger | Control\WMI\AutoLogger\<session> Start=0 (13 セッション; OpenKey で不存在なら作らない) | DisableTelemetryAutologgers |
+| 再インストール監視 | 削除済みパッケージが再出現したら再削除 (スキャン毎; 常駐の本質機能) | ReinstallMonitor |
 
 ## ブラックリスト方式
 - config.json の `Blacklist` にパッケージ名の**部分一致**パターンを列挙
@@ -127,6 +133,9 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 - `BloatwareGuard.exe install` — Windowsサービスに登録
 - `BloatwareGuard.exe uninstall` — サービスから削除
 - `BloatwareGuard.exe status` — サービス状態確認
+- `BloatwareGuard.exe list-installed` — ブラックリスト一致のインストール済みパッケージを一覧表示 (Python 側は `--list-installed`)
+- `BloatwareGuard.exe --version` — バージョン表示
+- `BloatwareGuard.exe --self-test` — 内部構造テスト (管理者不要; py T1–T9 / C# T1–T7)
 
 ## 注意
 - 管理者権限必須 (app.manifest で requireAdministrator)

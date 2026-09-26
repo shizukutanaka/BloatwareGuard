@@ -2,6 +2,247 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.53.0-mvp: stock-app blacklist audit + parity fixes
+
+### Added
+- Blacklist +13 dead/deprecated stock apps and promo stubs that the 24H2
+  image still ships: 3D Viewer (both ids), Print3D, Whiteboard, Wallet,
+  Messaging, OneConnect, CommsPhone, Appconnector, NetworkSpeedTest, Sway,
+  Office Hub launcher (`Microsoft.Office.Desktop`), MSTranslatorBeta —
+  plus `MicrosoftWindows.CrossDevice`, `Microsoft.ECApp`, `SystweakSoftware`,
+  `PricerunnerAB` (82→86 total entries).
+- Self-test T9 extended: asserts every Python shared data-list entry
+  (telemetry tasks, autologgers, hosts, startup names) exists in Program.cs.
+- Telemetry hosts block 26→34 domains: `*.events.data.microsoft.com`
+  ingest (v10/v20/Edge/WER), ARIA pipe, survey.watson, diagnostics.support —
+  all pure-telemetry endpoints, no functional surface touched.
+
+### Fixed
+- C# default blacklist was missing `MicrosoftWindows.Client.WebExperience`
+  and `Microsoft.MicrosoftJournal` (Python/config already had them — real
+  parity gap: Widgets host package was never removed by the EXE).
+- `APP_VERSION` in bloatware_guard.py lagged at 1.43 (drift since v1.44);
+  T9 now guards it.
+- README/DESIGN counts refreshed (58 telemetry tasks, 13 autologgers,
+  42 demoted services); DESIGN table gained the `RemoveProvisionedPackages`
+  and `ReinstallMonitor` rows.
+
+## [Unreleased] — v1.52.0-mvp: telemetry-change nag + explorer-search web off
+
+### Changed
+- `DisableTelemetry`: `DataCollection\DisableTelemetryOptInChangeNotification`=1 —
+  suppresses the "your telemetry setting changed" nag.
+- `DisableSearchSuggestions`: HKLM `Explorer\NoSearchInternet`=1 — kills the
+  Explorer search pane's web lookup, separate from the Start-search switch.
+
+## [Unreleased] — v1.51.0-mvp: parity audit — Python defaults complete
+
+### Fixed
+- `load_config` built-in defaults were missing the five post-merge
+  `Prevention.*` keys (`MarkDeprovisioned`, `RemoveDefaultStorePackages`,
+  `BlockTelemetryEndpoints`, `WingetSweep`,
+  `DisableTelemetryAutologgers`) — a fresh Python install with no
+  config.json silently skipped those layers. Defaults now match
+  config.json (45 toggles). Cross-impl parity audited: task lists,
+  autologger lists, and blacklists are identical.
+
+## [Unreleased] — v1.50.0-mvp: location/sensor stack, SNMP, WWAN demote
+
+### Changed
+- `DisableMiscBloatServices`: 33 → 42 demand-start — `lfsvc` (geolocation),
+  `SensorService`/`SensrSvc`/`sensrsvc` (sensor monitoring), `SNMPTRAP`
+  (dead SNMP traps), `TroubleshootingSvc` (recommended-troubleshooting
+  runner — its policy is already off), `WwanSvc`/`WwanAuthSvc` (cellular;
+  demand-start keeps LTE functional).
+
+## [Unreleased] — v1.49.0-mvp: CDM master switch, extra content surfaces, Near Share
+
+### Changed
+- `BlockProvisioning`: `ContentDeliveryAllowed`=0 — the master
+  ContentDeliveryManager kill switch the per-surface list was missing.
+- `BlockProvisioning`: `SubscribedContent-338380Enabled` (Settings-app
+  content ads) + `SubscribedContent-314563Enabled` (My People
+  suggestions) added to the per-hive zeroed set.
+- `DisableTelemetry`: `CDP\SettingsPage\NearShareChannelUserAuthzPolicy`=0 —
+  Nearby Share consent off, same CDP auth-policy family.
+
+## [Unreleased] — v1.48.0-mvp: AppCompat policies, OOBE skip, broker/WDI tasks
+
+### Changed
+- `DisableTelemetry`: `AppCompat\AITEnable`=0 (Application Inventory
+  Telemetry — pairs with the already-disabled AitEnableAgent task) and
+  `DisablePCA`=1 (Program Compatibility Assistant — pairs with the PcaSvc
+  demotion); `OOBE\DisablePrivacyExperience`=1 skips OOBE privacy pages
+  whose settings are all denied by policy anyway.
+- `DisableTelemetryTasks`: +2 — `BrokerInfrastructure\
+  BgTaskRegistrationMaintenanceTask` (Store broker maintenance),
+  `WDI\ResolutionHost` (WDI services are already demoted).
+
+## [Unreleased] — v1.47.0-mvp: open-with lookups, online tips, input/IME/perf tasks
+
+### Changed
+- `BlockProvisioning`: `NoInternetOpenWith`=1 + `AllowOnlineTips`=0 (HKLM
+  Explorer) — Open-With web lookup nag and Settings online tips stopped.
+- `DisableTelemetry`: `Maps\AutoDownloadAndUpdateMapData`=0 — offline-map
+  data channel off (the MapsBroker service is already demoted).
+- `DisableTelemetryTasks`: +6 — `PerfTrack\BackgroundConfigSurveyor` (CEIP
+  perf tracking), `IME\SQM data sender`, `Input\LocalUserSyncDataAvailable`,
+  `Input\TouchpadSyncDataAvailable`, `Windows Media Sharing\UpdateLibrary`,
+  `InstallService\SmartRetry` (Store install-retry hook).
+
+## [Unreleased] — v1.46.0-mvp: service demote sweep 2 + telemetry task additions
+
+### Changed
+- `DisableMiscBloatServices`: 24 → 33 demand-start — `WalletService` (dead
+  Microsoft Pay), `wisvc` (Windows Insider), `SharedRealitySvc` /
+  `perceptionsimulation` / `Spectrum` (Mixed Reality), `AJRouter`
+  (deprecated AllJoyn), `SCardSvr` / `ScDeviceEnum` / `CertPropSvc`
+  (smart-card triad — Sophia/privacy.sexy demote all three).
+- `DisableTelemetryTasks`: +6 — `Application Experience\PcaPatchDbUpdate`,
+  `Location\Notifications`, `Location\WindowsActionNotification`,
+  `Feedback\Siuf\DmClient`, `Feedback\Siuf\DmClientOnScenarioDownload`,
+  `RetailDemo\CleanupContent`.
+- `DisableOneDrive` (opt-in): also disables the two `OneDrive Standalone
+  Update Task` schedulers alongside the sync policy.
+
+## [Unreleased] — v1.45.0-mvp: Open-With store nags, search location, sync/push tasks
+
+### Changed
+- `BlockProvisioning`: HKLM `Explorer\NoUseStoreOpenWith` + `NoNewAppAlert` —
+  kills "Look for an app in the Store" and the "new apps can open this file
+  type" toast (both are store-promotion surfaces).
+- `HideStartRecommendations`: `HideRecentlyAddedApps` policy — the Start
+  "Recently added" list is also a promoted-app surface.
+- `DisableSearchSuggestions`: `AllowSearchToUseLocation`=0 — location-aware
+  search results no longer leak device location to Bing.
+- `DisableTelemetryTasks`: +`PushToInstall\LoginCheck` (Store push-install
+  login hook — its service is already demoted), `SettingSync\
+  BackgroundUploadTask` + `BackupTask` (setting-sync uploads; the policy
+  block is already in place).
+
+## [Unreleased] — v1.44.0-mvp: GameBar nags, PcaSvc, review hardening
+
+### Changed
+- `DisableGameDvr`: per-hive `GameBar\UseNexusForGameBarEnabled` and
+  `ShowStartupPanel` = 0 — kills the Game Bar overlay hook and its
+  "press Win+G" startup nag left after DVR is off.
+- `DisableSearchSuggestions`: HKLM `Policies\Explorer\DisableSearchBoxSuggestions`
+  alongside the per-hive writes — covers hive-creation edge cases.
+- `DisableWidgets`: `Feeds\ShellFeedsTaskbarViewMode` = 2 per-hive —
+  hides the entire news/interests flyout.
+- `DisableTelemetryAutologgers`: 11 → 13 sessions (+`RadioManager`,
+  +`SetupPlatformTel` — setup/OS-component telemetry).
+- `DisableMiscBloatServices`: 23 → 24 (+`PcaSvc` Program Compatibility
+  Assistant telemetry).
+- `DisableTelemetryTasks`: +`FamilySafetyRefreshTask` — schedule-side
+  complement to the existing FamilySafetyMonitor entry.
+
+### Fixed (review)
+- `ProvisionedFamilyName`/`_provisioned_family`: package names containing
+  underscores lost their suffix — family now splits the four well-formed
+  `version_arch_resourceid_publisher` fields off the RIGHT end.
+- `WingetGuard.Sweep`/`winget_sweep`: a blacklisted id that also matched
+  the whitelist still reached `winget uninstall` — whitelist now wins.
+- Win32 sweep: `HKCU` uninstall entries were executed with our elevated
+  token under interactive admin runs (the caller's hive is user-writable).
+  HKCU is now report-only like `HKU\<sid>`.
+- `BlockTelemetryEndpoints` toggle-off never cleared a previously written
+  hosts block — the block manager is now called unconditionally so the
+  false path removes entries.
+- `Proc.Capture` threw `InvalidOperationException` for callers that only
+  redirected stdout — it now forces both stream redirects itself.
+- `DEFAULT_BLACKLIST` (Python fallback config) gained
+  `MicrosoftWindows.Client.WebExperience` to match config.json.
+
+## [Unreleased] — v1.43.0-mvp: OneSettings, driver search, diagnostics hosts
+
+### Changed
+- `DisableTelemetry`: `DisableOneSettingsFileDownloads=1` — blocks the
+  periodic OneSettings config download Microsoft uses for recommendations.
+- `BlockOemDriverUpdates`: `DriverSearching\SearchOrderConfig=0` — Windows
+  Update is never searched for drivers when new hardware is plugged in.
+- `DisableCloudContent`: `DisableThirdPartySuggestions=1` (sponsored tiles).
+- `DisableEdgeBloat`: `PromotionalTabsEnabled`, `WebWidgetAllowed` off.
+- `DisableMiscBloatServices`: 21 → 23 — `WdiSystemHost`/`WdiServiceHost`
+  (Diagnostic Service Host pair running WDI diagnostics sessions).
+
+## [Unreleased] — v1.42.0-mvp: service demotion sweep + CEIP/feedback policies
+
+### Changed
+- `DisableMiscBloatServices`: 15 → 21 demand-start — `DusmSvc` (data-usage
+  metering) and the per-user service templates powering removed apps:
+  `CDPUserSvc`, `OneSyncSvc`, `UnistoreSvc`, `UserDataSvc`,
+  `PimIndexMaintenanceSvc` (Mail/contacts/My People sync backends).
+- `DisableDeliveryOptimization`: `DoSvc` demoted — the service still
+  auto-started for CDN fetches even with `DODownloadMode=0`.
+- `DisableErrorReporting`: `wercplsupport` (WER control-panel support)
+  demoted to demand-start.
+- `DisableTelemetry`: `CEIPEnable=0` (SQMClient policy),
+  `DoNotShowFeedbackNotifications=1` (feedback nag prompts off), and the
+  policy-level `Policies\...\Privacy\TailoredExperiencesWithDiagnosticDataEnabled=0`
+  per hive (not just the value key).
+- `DisableSearchSuggestions`: `IsDeviceSearchHistoryEnabled=0` per hive.
+- `DisableEdgeBloat`: `DropEnabled`, `CryptoWalletEnabled`,
+  `EdgeAssetDeliveryServiceEnabled` off (Drop syncs files to OneDrive).
+- `DisableTelemetryTasks`: +3 — `PI\Sqm-Tasks`,
+  `DiskDiagnostic\Microsoft-Windows-DiskDiagnosticResolver`,
+  `Maintenance\WinSAT`.
+
+## [Unreleased] — v1.41.0-mvp: promo surfaces + dev telemetry + URL leaks
+
+### Changed
+- `DisableTelemetry`: added per-hive `HttpAcceptLanguageOptOut=1` (language
+  list no longer leaks to websites) and machine-wide env vars
+  `POWERSHELL_TELEMETRY_OPTOUT=1` / `DOTNET_CLI_TELEMETRY_OPTOUT=1`.
+- `DisableCloudContent`: Settings app "Home" page hidden via
+  `SettingsPageVisibility=hide:home` (the Microsoft 365 promo card).
+- `DisableCopilot`: taskbar Copilot button off (`ShowCopilotButton=0`, all hives).
+- `DisableChatTaskbar`: "My People" button off (`PeopleBand=0`, all hives).
+- `DisableEdgeBloat`: URL-leak surfaces off — `SearchSuggestEnabled`,
+  `AddressBarMicrosoftSearchInBingProviderEnabled`, `SiteSafetyServicesEnabled`,
+  `NetworkPredictionOptions=2`, plus `EdgeCollectionsEnabled`/`EdgeFollowEnabled`.
+- `DisableTelemetryTasks`: +4 — `Subscription\EnableLicenseAcquisition` /
+  `LicenseAcquisition` (Microsoft 365 upsell channel),
+  `Diagnosis\RecommendedTroubleshootingScanner`, `Diagnosis\Scheduled`.
+- Blacklist gains `Microsoft.MicrosoftJournal` (Journal app).
+
+## [Unreleased] — v1.40.0-mvp: merge — reprovision persistence + telemetry kill-chain
+
+### Added
+- `MarkDeprovisioned` (Layer 40): writes `Deprovisioned\<family>` markers under
+  `HKLM\...\Appx\AppxAllUserStore` so feature updates skip re-provisioning
+  blacklisted families — runs even when a removal toggle is off.
+- `RemoveDefaultStorePackages` (Layer 41): the official Windows 11 25H2
+  `RemoveDefaultMicrosoftStorePackages` policy (Enabled=1 + PackageList
+  REG_MULTI_SZ) — the OS itself removes listed apps at each new user's
+  first sign-in. Unknown ids are ignored on older builds.
+- `BlockTelemetryEndpoints` (Layer 42): ~27 pure-telemetry domains null-routed
+  via a marked hosts block — fully reversible when toggled off.
+- `WingetSweep` (Layer 43): `winget uninstall -e --id <id> --silent
+  --disable-interactivity` for blacklist entries that are valid winget ids —
+  catches Store apps Appx removal can't see. Skips when winget is absent.
+- `DisableTelemetryAutologgers` (Layer 44): Start=0 on 11 boot-time ETW
+  trace sessions (Diagtrack-Listener, SQMLogger, WiFiSession, …) — the fifth
+  telemetry shutoff (policies / tasks / hosts / services / ETW).
+- Active Setup sweep inside `DisableStartupBloat`: deletes
+  `Installed Components` stub-installer entries matching the blacklist
+  (the per-logon OEM bloatware channel).
+- `Windows Error Reporting\QueueReporting` added to the telemetry-task list.
+
+### Fixed
+- All process launches now go through `Proc.Wait`/`Proc.Capture`: async
+  `ReadToEndAsync` on both streams + `WaitForExit(timeout)` + `Kill(tree)`
+  — kills the deadlock a full stderr pipe or a detached grandchild holding
+  the pipe EOF used to cause (also fixes `ExitCode` read on live schtasks).
+- Provisioned-package family names derive from the `PackageName` tail
+  (`_publisherid_` split) — `PublisherId` doesn't exist on provisioned objects.
+- `HKU\<user-sid>` uninstall entries are report-only — user-writable strings
+  must never be executed as SYSTEM.
+- Package names and winget ids are regex-guarded before being interpolated
+  into PowerShell/sc/winget command lines.
+- Reinstall monitor honors `DryRun` for all three re-removal channels.
+- Blacklist gains `MicrosoftWindows.Client.WebExperience` (Widgets host).
+
 ## [Unreleased] — v1.39.0-mvp: WSearch/AssignedAccess demoted
 
 ### Changed
