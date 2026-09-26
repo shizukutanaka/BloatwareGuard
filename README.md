@@ -2,7 +2,7 @@
 
 ## What It Does
 
-Removes Windows bloatware across **14 prevention toggles** in both **Python** and **C#** implementations.
+Removes Windows bloatware across **19 prevention layers** in both **Python** and **C#** implementations.
 
 ### Layers
 
@@ -22,6 +22,24 @@ Removes Windows bloatware across **14 prevention toggles** in both **Python** an
 || 12. Widgets / News-and-Interests board | ✅ | ✅ | HKLM (admin) |
 || 13. Start-search web suggestions (Bing) | ✅ | ✅ | HKLM+HKCU |
 || 14. Telemetry/CEIP scheduled tasks (exact paths) | ✅ | ✅ | Admin |
+| 15. Telemetry/privacy policies (telemetry level, activity feed, ad ID, tailored experiences, per-hive tracking) | ✅ | ✅ | HKLM+hives (admin) |
+| 16. Edge annoyance policies (sidebar, startup boost, Spotlight, shopping) | ✅ | ✅ | HKLM (admin) |
+| 17. Win32/MSI/EXE bloatware uninstall (silent uninstallers only) | ✅ | ✅ | Admin |
+| 18. OEM/vendor service stop+disable | ✅ | ✅ | Admin |
+| 19. Startup (Run/RunOnce) bloat cleanup across all hives | ✅ | ✅ | Current user |
+
+Layer 17 sweeps the `Uninstall` registry hives (HKLM 64- and 32-bit views plus
+every loaded user hive) for `DisplayName` values matching the blacklist plus a
+built-in OEM/vendor list. It only executes **silent** uninstall paths —
+`QuietUninstallString`, MSI product codes rewritten to `msiexec /x {GUID} /qn
+/norestart`, or an `UninstallString` already carrying `/S`, `/silent`, `/qn`,
+etc. Entries with only an interactive uninstaller are logged as "manual" so the
+scan can never hang on a UI prompt.
+
+Layer 18 stops and disables Windows **services** matching the same OEM/vendor
+list (trial nagware, updaters). Layer 19 deletes `Run`/`RunOnce` values matching
+blacklist/vendor patterns under HKLM (both bitness views) and every loaded user
+hive — the autostart side of OEM bloat that Appx removal never touches.
 
 Layer 9 uses the official Windows 11 25H2 Group Policy *"Remove Default Microsoft
 Store packages from the system"* — for each blacklisted package family found on

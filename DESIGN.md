@@ -54,6 +54,11 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 | Widgets (ニュース/天気ボード) | AllowNewsAndInterests=0 | DisableWidgets |
 | Start検索の Bing ウェブ提案 | DisableSearchBoxSuggestions=1 | DisableSearchSuggestions |
 | Microsoft テレメトリ/CEIP タスク | schtasks /DISABLE (exact path list) | DisableTelemetryTasks |
+| テレメトリ/プライバシーポリシー | DataCollection/ActivityFeed/AdID 等の ADMX ポリシー | DisableTelemetryPolicies |
+| Edge の余計な機能 (sidebar/startup boost/Spotlight) | HKLM\Policies\Microsoft\Edge DWORDs | HardenEdgePolicies |
+| Win32 (MSI/EXE) ブロートウェア | Uninstall ハイブ走査 + サイレントアンインストールのみ | RemoveWin32Bloatware |
+| OEM サービス (自動起動) | sc.exe stop + start= disabled | DisableOemServices |
+| スタートアップ登録 (Run/RunOnce) | 全ハイブで該当値を削除 | CleanStartupEntries |
 
 ## ブラックリスト方式
 - config.json の `Blacklist` にパッケージ名の**部分一致**パターンを列挙

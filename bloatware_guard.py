@@ -27,8 +27,9 @@ import argparse
 import logging
 import tempfile
 import shutil
+import re
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 # ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -156,6 +157,11 @@ def load_config(path: Path) -> dict:
                 "DisableWidgets": True,
                 "DisableSearchSuggestions": True,
                 "DisableTelemetryTasks": True,
+                "DisableTelemetryPolicies": True,
+                "HardenEdgePolicies": True,
+                "CleanStartupEntries": True,
+                "DisableOemServices": True,
+                "RemoveWin32Bloatware": True,
             },
             "DryRun": False,
         }
@@ -467,6 +473,9 @@ def _apply_user_policies(root, prefix: str, prev: dict) -> int:
         written += set_hive_dword(root, prefix, EXPLORER_POLICY_PATH, "DisableSearchBoxSuggestions", 1)
     if prev.get("DisableAiFeatures", True):
         written += set_hive_dword(root, prefix, COPILOT_POLICY_PATH, "TurnOffWindowsCopilot", 1)
+    if prev.get("DisableTelemetryPolicies", True):
+        for path, name, value in TELEMETRY_USER_WRITES:
+            written += set_hive_dword(root, prefix, path, name, value)
     return written
 
 
@@ -542,6 +551,72 @@ def write_default_store_packages_policy(families, logger: logging.Logger):
         logger.info(f"RemoveDefaultStorePackages policy set for {count} package families")
 
 
+# Telemetry/privacy group policies — documented HKLM policy paths
+TELEMETRY_POLICY_WRITES = (
+    (r"SOFTWARE\Policies\Microsoft\Windows\DataCollection", "AllowTelemetry", 0),
+    (r"SOFTWARE\Policies\Microsoft\Windows\DataCollection", "DoNotShowFeedbackNotifications", 1),
+    (r"SOFTWARE\Policies\Microsoft\Windows\System", "EnableActivityFeed", 0),
+    (r"SOFTWARE\Policies\Microsoft\Windows\System", "PublishUserActivities", 0),
+    (r"SOFTWARE\Policies\Microsoft\Windows\System", "UploadUserActivities", 0),
+    (r"SOFTWARE\Policies\Microsoft\Windows\System", "AllowCrossDeviceClipboard", 0),
+    (r"SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo", "DisabledByGroupPolicy", 1),
+    (r"SOFTWARE\Policies\Microsoft\Windows\LocationAndSensors", "DisableLocationScripting", 1),
+)
+
+# Per-user telemetry/privacy values — written to every loaded user hive.
+# DisableTailoredExperiencesWithDiagnosticData is a documented User-class policy.
+TELEMETRY_USER_WRITES = (
+    (r"SOFTWARE\Microsoft\Windows\CurrentVersion\Privacy",
+     "TailoredExperiencesWithDiagnosticDataEnabled", 0),
+    (r"SOFTWARE\Microsoft\Windows\CurrentVersion\AdvertisingInfo", "Enabled", 0),
+    (r"SOFTWARE\Microsoft\InputPersonalization", "RestrictImplicitTextCollection", 0),
+    (r"SOFTWARE\Microsoft\InputPersonalization", "RestrictImplicitInkCollection", 0),
+    (r"SOFTWARE\Microsoft\InputPersonalization\TrainedDataStore", "HarvestContacts", 0),
+    (r"SOFTWARE\Microsoft\Siuf\Rules", "NumberOfSIUFInPeriod", 0),
+    (r"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced", "Start_TrackProgs", 0),
+    (r"SOFTWARE\Policies\Microsoft\Windows\CloudContent",
+     "DisableTailoredExperiencesWithDiagnosticData", 1),
+)
+
+EDGE_POLICY_PATH = r"SOFTWARE\Policies\Microsoft\Edge"
+
+# Edge annoyance policies — documented MSEdge.admx policy names, all DWORD
+EDGE_POLICIES = (
+    ("HubsSidebarEnabled", 0), ("StandaloneHubsSidebarEnabled", 0),
+    ("StartupBoostEnabled", 0), ("SpotlightExperiencesAndRecommendationsEnabled", 0),
+    ("PersonalizationReportingEnabled", 0), ("ShowRecommendationsEnabled", 0),
+    ("EdgeShoppingAssistantEnabled", 0),
+)
+
+# OEM/vendor name substrings — used for Win32 uninstallers, auto-start services,
+# and Run/RunOnce startup entries (matched case-insensitively)
+VENDOR_PATTERNS = (
+    "McAfee", "Norton", "NortonLifeLock", "Avast", "AVG Software",
+    "WildTangent", "CyberLink", "Lenovo", "Dell", "Hewlett", "HP Inc",
+    "HPInc", "ASUS", "ASUSTeK", "Acer", "Razer", "ExpressVPN", "NordVPN",
+    "Dropbox", "Spotify", "Adobe Creative Cloud", "CCleaner", "Booking.com",
+)
+
+# Run/RunOnce keys swept for startup bloat
+RUN_KEY_PATHS = (
+    r"SOFTWARE\Microsoft\Windows\CurrentVersion\Run",
+    r"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce",
+)
+HKLM_RUN_KEY_PATHS = RUN_KEY_PATHS + tuple(
+    "SOFTWARE\\WOW6432Node\\" + p[len("SOFTWARE\\"):] for p in RUN_KEY_PATHS)
+
+# Win32 uninstall hives — 64- and 32-bit views
+WIN32_UNINSTALL_PATHS = (
+    r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
+    r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall",
+)
+
+# UninstallString tokens that already make an uninstaller non-interactive
+SILENT_UNINSTALL_FLAGS = {
+    "/s", "/silent", "/verysilent", "/quiet", "/qn", "-s", "-silent"
+}
+
+
 # Microsoft telemetry/CEIP scheduled tasks — explicit full paths, disabled outright.
 # Mirrors the telemetry task lists used by Win11Debloat / Sophia Script.
 TELEMETRY_TASK_PATHS = (
@@ -576,6 +651,182 @@ def disable_telemetry_tasks(logger: logging.Logger):
         else:
             logger.info(f"Telemetry task not present (skip): {task_path}")
     logger.info(f"Disabled {disabled}/{len(TELEMETRY_TASK_PATHS)} telemetry scheduled tasks")
+
+
+# ─── Win32 / Vendor Bloat ────────────────────────────────────────────────────
+
+def _read_uninstall_entry(root, path: str):
+    """Return (DisplayName, UninstallString, QuietUninstallString) or ("","","")."""
+    try:
+        import winreg
+        key = winreg.OpenKey(root, path, 0, winreg.KEY_READ)
+
+        def _val(name):
+            try:
+                v, _ = winreg.QueryValueEx(key, name)
+                return str(v)
+            except OSError:
+                return ""
+        result = _val("DisplayName"), _val("UninstallString"), _val("QuietUninstallString")
+        winreg.CloseKey(key)
+        return result
+    except Exception:
+        return "", "", ""
+
+
+def _win32_silent_uninstall_cmd(uninstall_str: str, quiet_str: str) -> Optional[str]:
+    """Return a non-interactive uninstall command, or None if the entry has none.
+
+    - QuietUninstallString is used verbatim
+    - msiexec strings are converted to `msiexec /x {GUID} /qn /norestart`
+    - UninstallStrings already carrying a known silent flag are used verbatim
+    Anything else is skipped — an interactive uninstaller would hang the scan."""
+    if quiet_str:
+        return quiet_str
+    if not uninstall_str:
+        return None
+    guid = re.search(r"\{[0-9A-Fa-f-]{36}\}", uninstall_str)
+    if "msiexec" in uninstall_str.lower() and guid:
+        return f"msiexec.exe /x {guid.group(0)} /qn /norestart"
+    if any(t.lower() in SILENT_UNINSTALL_FLAGS for t in uninstall_str.split()):
+        return uninstall_str
+    return None
+
+
+def remove_win32_bloatware(config: dict, dry_run: bool, logger: logging.Logger) -> int:
+    """Uninstall Win32/desktop bloat (MSI/EXE) — Appx removal can't see these.
+    Sweeps the Uninstall registry hives (HKLM 64/32-bit + loaded user hives) for
+    DisplayNames matching Blacklist ∪ VENDOR_PATTERNS, excluding Whitelist.
+    Only entries with a silent uninstall path are touched."""
+    try:
+        import winreg
+    except ImportError:
+        return 0
+    blacklist = config.get("Blacklist", [])
+    whitelist = config.get("Whitelist", [])
+    patterns = [p for p in list(blacklist) + list(VENDOR_PATTERNS) if p.strip()]
+
+    hives = [(winreg.HKEY_LOCAL_MACHINE, p) for p in WIN32_UNINSTALL_PATHS]
+    hives += [(winreg.HKEY_USERS, f"{sid}\\{WIN32_UNINSTALL_PATHS[0]}")
+              for sid in _loaded_user_sids()]
+    removed = 0
+    for root, path in hives:
+        try:
+            parent = winreg.OpenKey(root, path, 0, winreg.KEY_READ)
+        except OSError:
+            continue
+        sub_names = []
+        i = 0
+        while True:
+            try:
+                sub_names.append(winreg.EnumKey(parent, i))
+            except OSError:
+                break
+            i += 1
+        winreg.CloseKey(parent)
+        for sub in sub_names:
+            display, uninstall_str, quiet_str = _read_uninstall_entry(
+                root, f"{path}\\{sub}")
+            if not display or not is_target_package(display, patterns, whitelist):
+                continue
+            cmd = _win32_silent_uninstall_cmd(uninstall_str, quiet_str)
+            if cmd is None:
+                logger.info(f"Win32 bloat — no silent uninstaller (manual): {display}")
+                continue
+            if dry_run:
+                logger.info(f"[DRY-RUN] Would uninstall (win32): {display}")
+                removed += 1
+                continue
+            _, rc = run_cmd(["cmd.exe", "/c", cmd], timeout=300)
+            if rc == 0:
+                logger.info(f"Uninstalled Win32 package: {display}")
+                record_removal(config, {"kind": "win32", "name": display})
+                removed += 1
+            else:
+                logger.warning(f"Win32 uninstall failed (rc={rc}): {display}")
+    return removed
+
+
+def clean_startup_entries(config: dict, dry_run: bool, logger: logging.Logger):
+    """Delete Run/RunOnce values matching bloat/vendor patterns — HKLM (64- and
+    32-bit views) plus every loaded user hive. Whitelist still applies."""
+    try:
+        import winreg
+    except ImportError:
+        return
+    blacklist = config.get("Blacklist", [])
+    whitelist = config.get("Whitelist", [])
+    patterns = [p for p in list(blacklist) + list(VENDOR_PATTERNS) if p.strip()]
+
+    targets = [(winreg.HKEY_LOCAL_MACHINE, p) for p in HKLM_RUN_KEY_PATHS]
+    targets += [(winreg.HKEY_USERS, f"{sid}\\{p}")
+                for sid in _loaded_user_sids() for p in RUN_KEY_PATHS]
+    targets += [(winreg.HKEY_CURRENT_USER, p) for p in RUN_KEY_PATHS]
+
+    deleted = 0
+    for root, path in targets:
+        try:
+            key = winreg.OpenKey(root, path, 0,
+                                 winreg.KEY_READ | winreg.KEY_SET_VALUE)
+        except OSError:
+            continue
+        values = []  # collect first — deleting while enumerating skips entries
+        i = 0
+        while True:
+            try:
+                values.append(winreg.EnumValue(key, i))
+            except OSError:
+                break
+            i += 1
+        for name, data, _kind in values:
+            if not is_target_package(f"{name} {data}", patterns, whitelist):
+                continue
+            if dry_run:
+                logger.info(f"[DRY-RUN] Would delete startup entry: {path}\\{name}")
+                deleted += 1
+                continue
+            try:
+                winreg.DeleteValue(key, name)
+                deleted += 1
+                logger.info(f"Deleted startup entry: {name} ({path})")
+            except OSError as e:
+                logger.warning(f"Startup entry delete failed {name}: {e}")
+        winreg.CloseKey(key)
+    if deleted:
+        logger.info(f"Startup bloat entries {'flagged' if dry_run else 'deleted'}: {deleted}")
+
+
+def disable_oem_services(logger: logging.Logger):
+    """Stop + disable OEM/vendor auto-start services (updaters, trial nagware)."""
+    pattern = "|".join(re.escape(p) for p in VENDOR_PATTERNS)
+    ps_cmd = ("Get-Service | Where-Object {$_.Name -match '" + pattern +
+              "' -or $_.DisplayName -match '" + pattern + "'} | "
+              "Select-Object Name,DisplayName,Status,StartType | ConvertTo-Json")
+    stdout, _, rc = run_powershell(ps_cmd, timeout=60)
+    if rc != 0 or not stdout:
+        return
+    try:
+        data = json.loads(stdout)
+        if isinstance(data, dict):
+            data = [data]
+    except (json.JSONDecodeError, TypeError):
+        return
+    disabled = 0
+    for svc in data:
+        name = svc.get("Name", "")
+        # StartType serializes as a number in ConvertTo-Json (Disabled = 4)
+        start_type = svc.get("StartType")
+        if not name or start_type == "Disabled" or start_type == 4:
+            continue
+        run_cmd(["sc.exe", "stop", name], timeout=20)
+        _, rc2 = run_cmd(["sc.exe", "config", name, "start=", "disabled"],
+                         timeout=20)
+        if rc2 == 0:
+            disabled += 1
+            logger.info(f"Disabled OEM service: {name} ({svc.get('DisplayName', '')})")
+        else:
+            logger.warning(f"Service disable failed [admin required?]: {name}")
+    logger.info(f"Disabled {disabled} OEM/vendor services")
 
 
 def apply_registry_prevention(config: dict, logger: logging.Logger):
@@ -622,9 +873,19 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_registry_dword("HKLM", EXPLORER_POLICY_PATH, "DisableSearchBoxSuggestions", 1)
         logger.info("Applied: DisableSearchBoxSuggestions = 1")
 
+    if prev.get("DisableTelemetryPolicies", True):
+        applied = sum(set_registry_dword("HKLM", path, name, value)
+                      for path, name, value in TELEMETRY_POLICY_WRITES)
+        logger.info(f"Applied: telemetry/privacy policies ({applied} HKLM values)")
+
+    if prev.get("HardenEdgePolicies", True):
+        applied = sum(set_registry_dword("HKLM", EDGE_POLICY_PATH, name, value)
+                      for name, value in EDGE_POLICIES)
+        logger.info(f"Applied: Edge hardening policies ({applied} values)")
+
     # Per-user policies — must hit every loaded hive, not just HKCU
     if (prev.get("HardenContentDelivery", True) or prev.get("DisableSearchSuggestions", True)
-            or prev.get("DisableAiFeatures", True)):
+            or prev.get("DisableAiFeatures", True) or prev.get("DisableTelemetryPolicies", True)):
         apply_per_user_policies(prev, logger)
 
 
@@ -794,6 +1055,19 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
             logger.info("[DRY-RUN] Would disable telemetry scheduled tasks")
         else:
             disable_telemetry_tasks(logger)
+
+    # 6. Win32 (MSI/EXE) bloat — Appx removal can't see these
+    if prev.get("RemoveWin32Bloatware", True):
+        removed += remove_win32_bloatware(config, dry_run, logger)
+
+    # 7. OEM auto-start services + Run-key startup entries
+    if prev.get("DisableOemServices", True):
+        if dry_run:
+            logger.info("[DRY-RUN] Would disable OEM/vendor services")
+        else:
+            disable_oem_services(logger)
+    if prev.get("CleanStartupEntries", True):
+        clean_startup_entries(config, dry_run, logger)
 
     logger.info(f"Scan complete. {matched} packages matched blacklist; removed {removed}.")
     return removed
@@ -1057,7 +1331,9 @@ def run_self_test() -> int:
                     "MarkDeprovisioned", "RemoveDefaultStorePackages",
                     "HardenContentDelivery", "DisableAiFeatures",
                     "DisableWidgets", "DisableSearchSuggestions",
-                    "DisableTelemetryTasks"]
+                    "DisableTelemetryTasks", "DisableTelemetryPolicies",
+                    "HardenEdgePolicies", "CleanStartupEntries",
+                    "DisableOemServices", "RemoveWin32Bloatware"]
         missing = [k for k in required if k not in prev]
         assert not missing, f"missing prevention keys: {missing}"
 
@@ -1070,6 +1346,34 @@ def run_self_test() -> int:
     def t_content_delivery_values():
         assert len(CONTENT_DELIVERY_VALUES) >= 15, "CDM killswitch set too small"
         assert "SilentInstalledAppsEnabled" in CONTENT_DELIVERY_VALUES
+
+    def t_win32_silent_uninstall():
+        # msiexec strings get converted to silent /x
+        cmd = _win32_silent_uninstall_cmd("MsiExec.exe /I{12345678-1234-1234-1234-123456789012}", "")
+        assert cmd == "msiexec.exe /x {12345678-1234-1234-1234-123456789012} /qn /norestart"
+        # QuietUninstallString passes through verbatim
+        assert _win32_silent_uninstall_cmd("x", "uninst.exe /S") == "uninst.exe /S"
+        # already-silent flags pass through
+        assert _win32_silent_uninstall_cmd('"C:\\app\\uninstall.exe" /S', "") is not None
+        # interactive uninstallers are skipped — they'd hang the scan
+        assert _win32_silent_uninstall_cmd('"C:\\app\\uninstall.exe"', "") is None
+
+    def t_vendor_patterns():
+        assert len(VENDOR_PATTERNS) >= 15, "vendor pattern list too small"
+        for p in VENDOR_PATTERNS:
+            assert p.strip(), "empty vendor pattern would match everything"
+        # 'hp' alone would match 'Photoshop' — require word-ish patterns
+        assert "HP" not in VENDOR_PATTERNS
+
+    def t_policy_tables():
+        assert len(TELEMETRY_POLICY_WRITES) >= 6
+        assert len(TELEMETRY_USER_WRITES) >= 6
+        assert len(EDGE_POLICIES) >= 5
+        for path, name, value in TELEMETRY_POLICY_WRITES:
+            assert path.startswith("SOFTWARE\\Policies\\Microsoft\\"), path
+            assert name and isinstance(value, int)
+        for name, value in EDGE_POLICIES:
+            assert name and isinstance(value, int)
 
     def t_removal_ledger():
         with tempfile.TemporaryDirectory() as td:
@@ -1089,12 +1393,15 @@ def run_self_test() -> int:
     check("T3: Get-AppxPackage JSON parsing (+framework/dedupe)", t_get_packages_parse)
     check("T4: Logger file + console wiring", t_logging)
     check("T5: is_admin() callable", t_is_admin)
-    check("T6: Prevention layers — 15 registered", t_prevention_layers)
+    check("T6: Prevention layers — 20 registered", t_prevention_layers)
     check("T7: Removal ledger write/read", t_removal_ledger)
     check("T8: Full-name batch map", t_full_name_map)
     check("T9: ProvisionedPackage parse (name + family)", t_get_provisioned_parse)
     check("T10: Telemetry task paths well-formed", t_telemetry_task_paths)
     check("T11: ContentDelivery killswitch set", t_content_delivery_values)
+    check("T12: Win32 silent-uninstall classifier", t_win32_silent_uninstall)
+    check("T13: Vendor patterns sane", t_vendor_patterns)
+    check("T14: Telemetry/Edge policy tables well-formed", t_policy_tables)
 
     print()
     passed = 0

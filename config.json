@@ -79,7 +79,12 @@
     "DisableAiFeatures": true,
     "DisableWidgets": true,
     "DisableSearchSuggestions": true,
-    "DisableTelemetryTasks": true
+    "DisableTelemetryTasks": true,
+    "DisableTelemetryPolicies": true,
+    "HardenEdgePolicies": true,
+    "CleanStartupEntries": true,
+    "DisableOemServices": true,
+    "RemoveWin32Bloatware": true
   },
   "DryRun": false
 }

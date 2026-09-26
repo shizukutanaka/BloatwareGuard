@@ -4,6 +4,15 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 
 ## [Unreleased] — v1.8.0-mvp hardening
 
+### Added — debloat round 3 (Win32 coverage + privacy policies)
+- **5 more prevention toggles** (all default-on):
+  - `RemoveWin32Bloatware` — sweeps the `Uninstall` registry hives (HKLM 64-/32-bit + every loaded user hive) for `DisplayName` matching Blacklist ∪ a built-in OEM/vendor list, and uninstalls them. **Silent-paths only**: `QuietUninstallString`, MSI codes rewritten to `msiexec /x {GUID} /qn /norestart`, or UninstallStrings already carrying a silent flag — interactive uninstallers are logged and skipped so a UI prompt can never hang the scan.
+  - `DisableOemServices` — `Get-Service` sweep for vendor names (McAfee/Norton/Dell/HP/Lenovo/ASUS/Acer/Razer/ExpressVPN/CyberLink/…), `sc stop` + `start= disabled`.
+  - `CleanStartupEntries` — deletes `Run`/`RunOnce` values matching bloat/vendor patterns across HKLM (both bitness views) and all loaded user hives.
+  - `DisableTelemetryPolicies` — documented Group Policies: `AllowTelemetry=0`, feedback notifications off, activity-feed/Timeline upload off, advertising ID off, cross-device clipboard sync off, location scripting off; plus per-hive values (tailored experiences, ink/typing personalization, app-launch tracking `Start_TrackProgs`, SIUF feedback cadence).
+  - `HardenEdgePolicies` — `HKLM\SOFTWARE\Policies\Microsoft\Edge`: sidebar off, startup boost off, Spotlight experiences/recommendations off, personalization reporting off, shopping assistant off.
+- Self-tests: Python 14 checks (+Win32 silent-uninstall classifier, vendor-pattern sanity, policy-table validation), C# 10 checks.
+
 ### Added — debloat round 2 (researched vs. Win11Debloat / WindowsDecrapifier / MS Learn)
 - **7 new prevention toggles** (all default-on, config `Prevention.*`):
   - `MarkDeprovisioned` — writes `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\Deprovisioned\<PackageFamilyName>` for every blacklisted family; the documented marker Windows checks before re-provisioning removed apps during feature updates.
