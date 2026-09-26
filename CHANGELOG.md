@@ -2,6 +2,21 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.46.0-mvp: service demote sweep 2 + telemetry task additions
+
+### Changed
+- `DisableMiscBloatServices`: 24 → 33 demand-start — `WalletService` (dead
+  Microsoft Pay), `wisvc` (Windows Insider), `SharedRealitySvc` /
+  `perceptionsimulation` / `Spectrum` (Mixed Reality), `AJRouter`
+  (deprecated AllJoyn), `SCardSvr` / `ScDeviceEnum` / `CertPropSvc`
+  (smart-card triad — Sophia/privacy.sexy demote all three).
+- `DisableTelemetryTasks`: +6 — `Application Experience\PcaPatchDbUpdate`,
+  `Location\Notifications`, `Location\WindowsActionNotification`,
+  `Feedback\Siuf\DmClient`, `Feedback\Siuf\DmClientOnScenarioDownload`,
+  `RetailDemo\CleanupContent`.
+- `DisableOneDrive` (opt-in): also disables the two `OneDrive Standalone
+  Update Task` schedulers alongside the sync policy.
+
 ## [Unreleased] — v1.45.0-mvp: Open-With store nags, search location, sync/push tasks
 
 ### Changed

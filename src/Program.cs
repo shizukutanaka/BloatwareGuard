@@ -1831,7 +1831,20 @@ public static class RegistryGuard
             key?.SetValue("DisableFileSyncNGSC", 1, Microsoft.Win32.RegistryValueKind.DWord);
             // Hide the OneDrive pin in Explorer's navigation pane for every user
             SetUserDwordAllHives(UserOneDriveClsidPath, "System.IsPinnedToNameSpaceTree", 0);
-            GuardLogger.Info("Applied: DisableOneDrive (DisableFileSyncNGSC=1, nav pin hidden)");
+            // OneDrive's own standalone updaters — stop them alongside the sync
+            foreach (var t in new[] { "OneDrive Standalone Update Task",
+                                      "OneDrive Per-Machine Standalone Update Task" })
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "schtasks.exe",
+                    Arguments = $"/Change /TN \"{t}\" /DISABLE",
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                Proc.Wait(psi, 15000);
+            }
+            GuardLogger.Info("Applied: DisableOneDrive (DisableFileSyncNGSC=1, nav pin hidden, update tasks off)");
         }
         catch (Exception ex)
         {
@@ -2407,7 +2420,14 @@ public static class RegistryGuard
                                         // diagnostics sessions
                                         "WdiSystemHost", "WdiServiceHost",
                                         // Program Compatibility Assistant
-                                        "PcaSvc" })
+                                        "PcaSvc",
+                                        // Microsoft Pay (dead), Windows
+                                        // Insider, Mixed Reality, AllJoyn,
+                                        // smart card triad
+                                        "WalletService", "wisvc",
+                                        "SharedRealitySvc", "perceptionsimulation",
+                                        "Spectrum", "AJRouter", "SCardSvr",
+                                        "ScDeviceEnum", "CertPropSvc" })
             {
                 DemoteService(svc);
             }
@@ -2416,7 +2436,7 @@ public static class RegistryGuard
             // demand-start, which still leaves it reachable).
             RunToolSilent("sc.exe", "stop RemoteRegistry");
             RunToolSilent("sc.exe", "config RemoteRegistry start= disabled");
-            GuardLogger.Info("Applied: DisableMiscBloatServices (24 services → demand-start, RemoteRegistry disabled)");
+            GuardLogger.Info("Applied: DisableMiscBloatServices (33 services → demand-start, RemoteRegistry disabled)");
         }
         catch (Exception ex)
         {
@@ -2691,6 +2711,14 @@ public static class ScheduledTaskGuard
         @"\Microsoft\Windows\PushToInstall\LoginCheck",
         @"\Microsoft\Windows\SettingSync\BackgroundUploadTask",
         @"\Microsoft\Windows\SettingSync\BackupTask",
+        // PCA db update, location telemetry beacons, feedback nag tasks,
+        // retail-demo cleanup
+        @"\Microsoft\Windows\Application Experience\PcaPatchDbUpdate",
+        @"\Microsoft\Windows\Location\Notifications",
+        @"\Microsoft\Windows\Location\WindowsActionNotification",
+        @"\Microsoft\Windows\Feedback\Siuf\DmClient",
+        @"\Microsoft\Windows\Feedback\Siuf\DmClientOnScenarioDownload",
+        @"\Microsoft\Windows\RetailDemo\CleanupContent",
         @"\Microsoft\Windows\NetTrace\GatherNetworkInfo",
         // Application Impact Telemetry, speech-model downloads,
         // storage-footprint diagnostics
@@ -3213,7 +3241,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.45.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.46.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -3298,7 +3326,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.45.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.46.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -3450,8 +3478,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 6;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.45.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.45.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.46.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.46.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try

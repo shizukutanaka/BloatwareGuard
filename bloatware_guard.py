@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.45.0-mvp - Python prototype
+BloatwareGuard v1.46.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -1078,7 +1078,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                            "DisableFileSyncNGSC", 1)
         # Hide the OneDrive pin in Explorer's navigation pane for every user
         set_user_dword_all_hives(_USER_ONEDRIVE_CLSID, "System.IsPinnedToNameSpaceTree", 0, logger)
-        logger.info("Applied: DisableOneDrive (DisableFileSyncNGSC=1, nav pin hidden)")
+        # OneDrive's own standalone updaters — stop them alongside the sync
+        for t in ("OneDrive Standalone Update Task",
+                  "OneDrive Per-Machine Standalone Update Task"):
+            run_cmd(["schtasks", "/Change", "/TN", t, "/Disable"])
+        logger.info("Applied: DisableOneDrive (DisableFileSyncNGSC=1, nav pin hidden, update tasks off)")
 
     if prev.get("DisableChatTaskbar", True):
         set_user_dword_all_hives(_USER_EXPLORER_ADV, "TaskbarMn", 0, logger)
@@ -1270,14 +1274,19 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                     "UserDataSvc", "PimIndexMaintenanceSvc",
                     # Diagnostic Service Host pair — WDI diagnostics sessions
                     "WdiSystemHost", "WdiServiceHost",
-                    "PcaSvc"):                # Program Compatibility Assistant
+                    "PcaSvc",                # Program Compatibility Assistant
+                    # Microsoft Pay (dead), Windows Insider, Mixed Reality,
+                    # AllJoyn, smart card triad
+                    "WalletService", "wisvc",
+                    "SharedRealitySvc", "perceptionsimulation", "Spectrum",
+                    "AJRouter", "SCardSvr", "ScDeviceEnum", "CertPropSvc"):
             demote_service(svc)
         # Remote Registry: remote registry read/write over SMB — disabled
         # outright (demand-start would still leave the surface reachable)
         run_cmd(["sc.exe", "stop", "RemoteRegistry"])
         run_cmd(["sc.exe", "config", "RemoteRegistry", "start=", "disabled"])
         logger.info("Applied: DisableMiscBloatServices "
-                    "(24 services → demand-start, RemoteRegistry disabled)")
+                    "(33 services → demand-start, RemoteRegistry disabled)")
 
     if prev.get("DisableSpotlight", True):
         # Desktop Spotlight = content-delivery channel (wallpaper promos)
@@ -1792,6 +1801,14 @@ TELEMETRY_TASK_PATHS = (
     "\\Microsoft\\Windows\\PushToInstall\\LoginCheck",
     "\\Microsoft\\Windows\\SettingSync\\BackgroundUploadTask",
     "\\Microsoft\\Windows\\SettingSync\\BackupTask",
+    # PCA db update, location telemetry beacons, feedback nag tasks,
+    # retail-demo cleanup
+    "\\Microsoft\\Windows\\Application Experience\\PcaPatchDbUpdate",
+    "\\Microsoft\\Windows\\Location\\Notifications",
+    "\\Microsoft\\Windows\\Location\\WindowsActionNotification",
+    "\\Microsoft\\Windows\\Feedback\\Siuf\\DmClient",
+    "\\Microsoft\\Windows\\Feedback\\Siuf\\DmClientOnScenarioDownload",
+    "\\Microsoft\\Windows\\RetailDemo\\CleanupContent",
     "\\Microsoft\\Windows\\NetTrace\\GatherNetworkInfo",
     # Application Impact Telemetry, speech-model download, disk diagnostics
     "\\Microsoft\\Windows\\Application Experience\\AitEnableAgent",
