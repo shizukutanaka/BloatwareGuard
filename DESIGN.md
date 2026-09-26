@@ -107,6 +107,11 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 | AutoPlay/AutoRun | Policies\Explorer NoDriveTypeAutoRun=255, NoAutorun=1 (HKLM+全ハイブ) | DisableAutoplay |
 | WU 強制再起動 | WindowsUpdate\AU NoAutoRebootWithLoggedOnUsers=1, AlwaysAutoRebootAtScheduledTime=0 | NoForcedReboot |
 | Start「おすすめ」 | Policies\...\Explorer HideRecommendedSection=1 | HideStartRecommendations |
+| Deprovisioned マーカー | AppxAllUserStore\Deprovisioned\<family> にキー作成 (feature update 時の再プロビジョニングを OS がスキップ) | MarkDeprovisioned |
+| 25H2 RemoveDefaultMicrosoftStorePackages | PolicyManager\...\EnterpriseDesktopAppManagement Enabled=1 + PackageList REG_MULTI_SZ | RemoveDefaultStorePackages |
+| テレメトリドメイン遮断 | hosts にマーカー付きブロック (27 ドメイン、トグルOFFで除去・可逆) | BlockTelemetryEndpoints |
+| winget 掃除 | `winget uninstall -e --id <id> --silent --disable-interactivity` (winget 不在時スキップ) | WingetSweep |
+| テレメトリ ETW AutoLogger | Control\WMI\AutoLogger\<session> Start=0 (11 セッション; OpenKey で不存在なら作らない) | DisableTelemetryAutologgers |
 
 ## ブラックリスト方式
 - config.json の `Blacklist` にパッケージ名の**部分一致**パターンを列挙

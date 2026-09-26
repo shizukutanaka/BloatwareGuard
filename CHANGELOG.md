@@ -2,6 +2,43 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.40.0-mvp: merge — reprovision persistence + telemetry kill-chain
+
+### Added
+- `MarkDeprovisioned` (Layer 40): writes `Deprovisioned\<family>` markers under
+  `HKLM\...\Appx\AppxAllUserStore` so feature updates skip re-provisioning
+  blacklisted families — runs even when a removal toggle is off.
+- `RemoveDefaultStorePackages` (Layer 41): the official Windows 11 25H2
+  `RemoveDefaultMicrosoftStorePackages` policy (Enabled=1 + PackageList
+  REG_MULTI_SZ) — the OS itself removes listed apps at each new user's
+  first sign-in. Unknown ids are ignored on older builds.
+- `BlockTelemetryEndpoints` (Layer 42): ~27 pure-telemetry domains null-routed
+  via a marked hosts block — fully reversible when toggled off.
+- `WingetSweep` (Layer 43): `winget uninstall -e --id <id> --silent
+  --disable-interactivity` for blacklist entries that are valid winget ids —
+  catches Store apps Appx removal can't see. Skips when winget is absent.
+- `DisableTelemetryAutologgers` (Layer 44): Start=0 on 11 boot-time ETW
+  trace sessions (Diagtrack-Listener, SQMLogger, WiFiSession, …) — the fifth
+  telemetry shutoff (policies / tasks / hosts / services / ETW).
+- Active Setup sweep inside `DisableStartupBloat`: deletes
+  `Installed Components` stub-installer entries matching the blacklist
+  (the per-logon OEM bloatware channel).
+- `Windows Error Reporting\QueueReporting` added to the telemetry-task list.
+
+### Fixed
+- All process launches now go through `Proc.Wait`/`Proc.Capture`: async
+  `ReadToEndAsync` on both streams + `WaitForExit(timeout)` + `Kill(tree)`
+  — kills the deadlock a full stderr pipe or a detached grandchild holding
+  the pipe EOF used to cause (also fixes `ExitCode` read on live schtasks).
+- Provisioned-package family names derive from the `PackageName` tail
+  (`_publisherid_` split) — `PublisherId` doesn't exist on provisioned objects.
+- `HKU\<user-sid>` uninstall entries are report-only — user-writable strings
+  must never be executed as SYSTEM.
+- Package names and winget ids are regex-guarded before being interpolated
+  into PowerShell/sc/winget command lines.
+- Reinstall monitor honors `DryRun` for all three re-removal channels.
+- Blacklist gains `MicrosoftWindows.Client.WebExperience` (Widgets host).
+
 ## [Unreleased] — v1.39.0-mvp: WSearch/AssignedAccess demoted
 
 ### Changed

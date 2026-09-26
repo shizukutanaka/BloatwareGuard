@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.39.0-mvp - Python prototype
+BloatwareGuard v1.40.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -34,7 +34,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.39.0-mvp"
+APP_VERSION = "1.40.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -219,11 +219,15 @@ def is_admin() -> bool:
 
 
 def run_powershell(cmd: str, timeout: int = 60) -> Tuple[str, str, int]:
-    """Run a PowerShell command and return (stdout, stderr, exit_code)."""
-    proc = subprocess.run(
-        ["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", cmd],
-        capture_output=True, timeout=timeout
-    )
+    """Run a PowerShell command and return (stdout, stderr, exit_code).
+    Missing binaries/hangs return rc=-1 instead of propagating."""
+    try:
+        proc = subprocess.run(
+            ["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", cmd],
+            capture_output=True, timeout=timeout
+        )
+    except (OSError, subprocess.TimeoutExpired) as e:
+        return "", str(e), -1
     # Windows console output is often CP932/Shift-JIS — use errors="replace" to avoid crashes
     stdout = proc.stdout.decode("cp932", errors="replace") if proc.stdout else ""
     stderr = proc.stderr.decode("cp932", errors="replace") if proc.stderr else ""
@@ -231,7 +235,10 @@ def run_powershell(cmd: str, timeout: int = 60) -> Tuple[str, str, int]:
 
 
 def run_cmd(args: List[str], timeout: int = 30) -> Tuple[str, int]:
-    proc = subprocess.run(args, capture_output=True, timeout=timeout)
+    try:
+        proc = subprocess.run(args, capture_output=True, timeout=timeout)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        return str(e), -1
     out = proc.stdout.decode("cp932", errors="replace") if proc.stdout else ""
     return out.strip(), proc.returncode
 
@@ -337,6 +344,8 @@ def get_package_full_names() -> dict:
 
 
 def remove_appx_package(package_full_name: str) -> bool:
+    if not _safe_pkg_name(package_full_name):
+        return False
     # Admin: remove for all users first (mirrors C# admin→user fallback)
     if is_admin():
         _, _, rc = run_powershell(
@@ -405,6 +414,8 @@ def run_restore(config: dict, logger: logging.Logger) -> int:
 
 
 def remove_provisioned_package(package_name: str) -> bool:
+    if not _safe_pkg_name(package_name):
+        return False
     # Caller supplies the exact PackageName — no second PowerShell lookup needed
     ps_cmd = (
         f"Remove-AppxProvisionedPackage -Online "
@@ -443,12 +454,15 @@ _MSI_GUID_RE = re.compile(r"\{[0-9A-Fa-f\-]{36}\}")
 
 def get_blacklisted_win32(blacklist, whitelist):
     """Enumerate installed Win32 programs (HKLM 64/32, HKCU + loaded user hives)
-    whose DisplayName matches the blacklist. Returns (display, uninstall, quiet)."""
+    whose DisplayName matches the blacklist. Returns (display, uninstall,
+    quiet, user_hive). user_hive entries are report-only: HKU\\<sid> is
+    user-writable, so an elevated service must never execute strings a
+    non-admin user could plant there."""
     import winreg  # Windows-only
 
     results, seen = [], set()
 
-    def _scan(root, path):
+    def _scan(root, path, user_hive=False):
         try:
             key = winreg.OpenKey(root, path)
         except OSError:
@@ -480,7 +494,7 @@ def get_blacklisted_win32(blacklist, whitelist):
                         continue
                     if display.lower() not in seen:
                         seen.add(display.lower())
-                        results.append((display, uninstall, quiet))
+                        results.append((display, uninstall, quiet, user_hive))
                 except OSError:
                     continue
         finally:
@@ -488,6 +502,8 @@ def get_blacklisted_win32(blacklist, whitelist):
 
     _scan(winreg.HKEY_LOCAL_MACHINE, _UNINSTALL_PATH)
     _scan(winreg.HKEY_LOCAL_MACHINE, _UNINSTALL_PATH32)
+    # HKCU maps to the *caller's* hive (SYSTEM's own under the service) —
+    # strings there were written by the caller, so executing is fine.
     _scan(winreg.HKEY_CURRENT_USER, _USER_UNINSTALL_PATH)
     try:
         i = 0
@@ -498,7 +514,8 @@ def get_blacklisted_win32(blacklist, whitelist):
             except OSError:
                 break
             if re.match(r"^S-1-5-21-\d+-\d+-\d+-\d+$", sid):
-                _scan(winreg.HKEY_USERS, sid + "\\" + _USER_UNINSTALL_PATH)
+                _scan(winreg.HKEY_USERS, sid + "\\" + _USER_UNINSTALL_PATH,
+                      user_hive=True)
     except OSError:
         pass
     return results
@@ -627,6 +644,17 @@ _DEFAULT_HIVE_MOUNT = "BloatwareGuard_DefaultProfile"
 # Real user profile SIDs only — excludes .DEFAULT, service accounts
 # (S-1-5-18/19/20) and *_Classes virtual hives
 _USER_SID_RE = re.compile(r"^S-1-5-21-\d+-\d+-\d+-\d+$")
+
+# Package names are simple identifiers (Name_ver_arch_resid_pubid) — anything
+# else is rejected before it can reach a PowerShell string.
+_PKG_NAME_RE = re.compile(r"^[A-Za-z0-9_.\-~!]+$")
+
+# winget package ids: Publisher.Name only
+_WINGET_ID_RE = re.compile(r"^[A-Za-z0-9_.\-]+$")
+
+
+def _safe_pkg_name(name: str) -> bool:
+    return bool(name) and bool(_PKG_NAME_RE.fullmatch(name))
 
 
 def _default_profile_dat() -> str:
@@ -1287,7 +1315,254 @@ def disable_startup_bloat(config: dict, logger: logging.Logger):
                 logger.info(f"Disabled startup folder item: {fname}")
         except OSError:
             continue
+    # Active Setup stub installers — re-run at EVERY user sign-in
+    disable_active_setup_stubs(config, logger)
+
     logger.info(f"Applied: DisableStartupBloat ({applied} entries)")
+
+
+# ─── Reprovisioning Prevention ────────────────────────────────────────────────
+
+_DEPROVISIONED_PATH = (r"SOFTWARE\Microsoft\Windows\CurrentVersion\Appx"
+                       r"\AppxAllUserStore\Deprovisioned")
+_REMOVE_DEFAULT_PKGS_PATH = (r"SOFTWARE\Policies\Microsoft\Windows\Appx"
+                             r"\RemoveDefaultMicrosoftStorePackages")
+
+
+def _provisioned_family(package_name: str, display_name: str) -> str:
+    """Get-AppxProvisionedPackage returns no PublisherId — the publisher is the
+    last '_' segment of PackageName; the family name is name + '_' + publisher."""
+    if "_" in package_name:
+        return f"{package_name.split('_')[0]}_{package_name.rsplit('_', 1)[-1]}"
+    return display_name
+
+
+def mark_deprovisioned(family_names, logger: logging.Logger) -> int:
+    """Write HKLM Deprovisioned markers for blacklisted families so feature
+    updates don't re-provision them (documented Windows behavior)."""
+    import winreg
+    try:
+        base = winreg.CreateKeyEx(winreg.HKEY_LOCAL_MACHINE,
+                                  _DEPROVISIONED_PATH, 0, winreg.KEY_WRITE)
+    except OSError as e:
+        logger.warning(f"Deprovisioned markers: cannot open HKLM key ({e})")
+        return 0
+    marked = 0
+    try:
+        for family in family_names:
+            try:
+                winreg.CreateKey(base, family)
+                marked += 1
+            except OSError:
+                continue
+    finally:
+        base.Close()
+    return marked
+
+
+def apply_remove_default_store_packages(family_names, logger: logging.Logger) -> bool:
+    """Windows 11 25H2 policy: the OS itself removes the listed default Store
+    packages at first sign-in of NEW user profiles. Unknown entries are ignored
+    by older builds — harmless forward-compat."""
+    import winreg
+    try:
+        key = winreg.CreateKeyEx(winreg.HKEY_LOCAL_MACHINE,
+                                 _REMOVE_DEFAULT_PKGS_PATH, 0, winreg.KEY_WRITE)
+        winreg.SetValueEx(key, "Enabled", 0, winreg.REG_DWORD, 1)
+        winreg.SetValueEx(key, "PackageList", 0, winreg.REG_MULTI_SZ,
+                          list(family_names))
+        winreg.CloseKey(key)
+        logger.info(f"Applied: RemoveDefaultStorePackages "
+                    f"({len(family_names)} families listed)")
+        return True
+    except Exception as e:
+        logger.warning(f"RemoveDefaultStorePackages: {e}")
+        return False
+
+
+# ─── Telemetry Endpoint Block (hosts file) ───────────────────────────────────
+
+# Pure-telemetry endpoints null-routed via the hosts file — the Spybot
+# Anti-Beacon technique. Conservative: no Windows Update/Store/activation.
+_TELEMETRY_HOSTS = (
+    "vortex.data.microsoft.com", "vortex-win.data.microsoft.com",
+    "telecommand.telemetry.microsoft.com",
+    "telecommand.telemetry.microsoft.com.nsatc.net",
+    "oca.telemetry.microsoft.com", "oca.telemetry.microsoft.com.nsatc.net",
+    "sqm.telemetry.microsoft.com", "sqm.telemetry.microsoft.com.nsatc.net",
+    "watson.telemetry.microsoft.com", "watson.telemetry.microsoft.com.nsatc.net",
+    "watson.ppe.telemetry.microsoft.com", "watson.microsoft.com",
+    "reports.wes.df.telemetry.microsoft.com", "wes.df.telemetry.microsoft.com",
+    "services.wes.df.telemetry.microsoft.com", "sqm.df.telemetry.microsoft.com",
+    "settings-win.data.microsoft.com", "settings.data.microsoft.com",
+    "statsfe2.ws.microsoft.com", "redir.metaservices.microsoft.com",
+    "choice.microsoft.com", "choice.microsoft.com.nsatc.net",
+    "telemetry.appex.bing.net", "telemetry.urs.microsoft.com",
+    "feedback.microsoft-hohm.com", "vortex-bn2.metron.live.com.nsatc.net",
+)
+_HOSTS_BLOCK_BEGIN = "# >>> BloatwareGuard telemetry block"
+_HOSTS_BLOCK_END = "# <<< BloatwareGuard telemetry block"
+
+
+def _hosts_file_path() -> Path:
+    return (Path(os.environ.get("SystemRoot", r"C:\Windows"))
+            / "System32" / "drivers" / "etc" / "hosts")
+
+
+def set_telemetry_hosts_block(enabled: bool, logger: logging.Logger) -> None:
+    """Add/remove a marked hosts block that null-routes pure-telemetry
+    endpoints. Toggle-off removes it — fully reversible. No-ops when disabled
+    and no block exists."""
+    hosts = _hosts_file_path()
+    try:
+        # Strict decode — silently replacing undecodable bytes would corrupt
+        # unrelated hosts content on rewrite. Skip rather than write garbage.
+        text = hosts.read_text(encoding="utf-8") if hosts.exists() else ""
+    except (OSError, UnicodeDecodeError) as e:
+        logger.warning(f"Cannot read hosts file (skipped): {e}")
+        return
+    original = text  # single read — a second read could fail on absent file
+
+    begin = text.find(_HOSTS_BLOCK_BEGIN)
+    end = text.find(_HOSTS_BLOCK_END)
+    if begin >= 0 and end >= 0:
+        text = (text[:begin].rstrip("\n") + "\n"
+                + text[end + len(_HOSTS_BLOCK_END):].lstrip("\n"))
+    if enabled:
+        block = "\n".join(f"0.0.0.0 {d}" for d in _TELEMETRY_HOSTS)
+        text = (text.rstrip("\n")
+                + f"\n\n{_HOSTS_BLOCK_BEGIN}\n{block}\n{_HOSTS_BLOCK_END}\n")
+    if begin == -1 and not enabled:
+        return  # nothing to do — don't touch the file
+    if hosts.exists() and text == original:
+        return  # already in the desired state
+    try:
+        hosts.write_text(text, encoding="utf-8")
+        state = "applied" if enabled else "removed"
+        logger.info(f"Telemetry hosts block {state} ({len(_TELEMETRY_HOSTS)} domains)")
+    except OSError as e:
+        logger.warning(f"Cannot write hosts file (admin required?): {e}")
+
+
+# ─── winget sweep ────────────────────────────────────────────────────────────
+
+def winget_sweep(config: dict, logger: logging.Logger) -> int:
+    """Uninstall blacklist entries that look like winget package ids via
+    `winget uninstall --silent --disable-interactivity`. Catches Store apps
+    winget can see but Get-AppxPackage can't."""
+    if shutil.which("winget") is None:
+        logger.info("winget not found — skipping winget sweep")
+        return 0
+    removed = 0
+    for entry in config.get("Blacklist", []):
+        e = (entry or "").strip()
+        if "." not in e or not _WINGET_ID_RE.fullmatch(e):
+            continue
+        _, rc = run_cmd(["winget", "uninstall", "-e", "--id", e,
+                         "--silent", "--disable-interactivity",
+                         "--accept-source-agreements"], timeout=300)
+        if rc == 0:
+            logger.info(f"winget removed: {e}")
+            record_removal(config, {"kind": "winget", "name": e})
+            removed += 1
+    if removed:
+        logger.info(f"Applied: WingetSweep ({removed} packages)")
+    return removed
+
+
+# ─── Active Setup sweep ──────────────────────────────────────────────────────
+
+# OEM stub installers that re-run at EVERY user sign-in
+_ACTIVE_SETUP_PATHS = (
+    r"SOFTWARE\Microsoft\Active Setup\Installed Components",
+    r"SOFTWARE\WOW6432Node\Microsoft\Active Setup\Installed Components",
+)
+
+
+def disable_active_setup_stubs(config: dict, logger: logging.Logger) -> int:
+    """Delete Active Setup 'Installed Components' entries whose key name,
+    display value, LocalizedName or StubPath matches a bloat needle."""
+    import winreg
+    whitelist = config.get("Whitelist", [])
+    needles = [s for s in list(config.get("Blacklist", []))
+               + list(_STARTUP_BLOAT_NAMES) if s and s.strip()]
+
+    def _bloat(text):
+        t = text.lower()
+        if any(w and w.strip().lower() in t for w in whitelist):
+            return False
+        return any(n.lower() in t for n in needles)
+
+    deleted = 0
+    for path in _ACTIVE_SETUP_PATHS:
+        try:
+            root = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, path, 0,
+                                  winreg.KEY_READ | winreg.KEY_WRITE)
+        except OSError:
+            continue
+        try:
+            subs, i = [], 0
+            while True:
+                try:
+                    subs.append(winreg.EnumKey(root, i))
+                    i += 1
+                except OSError:
+                    break
+            for sub in subs:
+                try:
+                    sk = winreg.OpenKey(root, sub)
+                    parts = [sub]
+                    for val in ("", "StubPath", "LocalizedName"):
+                        try:
+                            parts.append(str(winreg.QueryValueEx(sk, val)[0]))
+                        except OSError:
+                            pass
+                    sk.Close()
+                    if not _bloat(" ".join(parts)):
+                        continue
+                    winreg.DeleteKey(root, sub)
+                    deleted += 1
+                    logger.info(f"Deleted Active Setup stub: {sub} ({path})")
+                except OSError:
+                    continue
+        finally:
+            root.Close()
+    if deleted:
+        logger.info(f"Applied: Active Setup sweep ({deleted} stubs deleted)")
+    return deleted
+
+
+# ─── Extended ETW AutoLogger kill ────────────────────────────────────────────
+
+# Boot-time ETW trace sessions that feed telemetry (privacy.sexy / Sophia
+# Script technique). Diagtrack-Listener is already covered by DisableTelemetry;
+# kept here too for idempotence when only this layer is on.
+_EXTRA_AUTOLOGGERS = (
+    "AutoLogger-Diagtrack-Listener", "SQMLogger", "WiFiSession",
+    "LwtNetLog", "NetCore", "NtfsLog", "UBPM", "MellonTelemetry",
+    "Circular Kernel Context Logger", "DiagLog", "WFP-IPsec Diagnostics",
+)
+
+
+def disable_telemetry_autologgers(logger: logging.Logger) -> int:
+    """Start=0 on telemetry ETW AutoLoggers. Opens — never creates — the
+    session key, so absent sessions don't get phantom AutoLogger entries."""
+    import winreg
+    killed = 0
+    for session in _EXTRA_AUTOLOGGERS:
+        try:
+            key = winreg.OpenKey(
+                winreg.HKEY_LOCAL_MACHINE,
+                rf"SYSTEM\CurrentControlSet\Control\WMI\AutoLogger\{session}",
+                0, winreg.KEY_WRITE)
+            winreg.SetValueEx(key, "Start", 0, winreg.REG_DWORD, 0)
+            winreg.CloseKey(key)
+            killed += 1
+        except OSError:
+            continue
+    logger.info(f"Applied: DisableTelemetryAutologgers "
+                f"({killed}/{len(_EXTRA_AUTOLOGGERS)} sessions)")
+    return killed
 
 
 # ─── Scheduled Task Prevention ───────────────────────────────────────────────
@@ -1435,12 +1710,15 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
         else:
             create_restore_point(logger)
 
+    matched_families = set()
+
     # 1. Remove installed packages
     if prev.get("RemoveAppxPackages", True):
         packages = get_blacklisted_packages(blacklist, whitelist)
         matched += len(packages)
         full_names = get_package_full_names() if packages else {}
         for family_name, display_name, install_path in packages:
+            matched_families.add(family_name)
             full_name = full_names.get(family_name)
             is_system_app = not install_path or install_path.strip() == ""
             if dry_run:
@@ -1470,6 +1748,7 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
         provisioned = get_blacklisted_provisioned(blacklist, whitelist)
         matched += len(provisioned)
         for display_name, package_name in provisioned:
+            matched_families.add(_provisioned_family(package_name, display_name))
             if dry_run:
                 logger.info(f"[DRY-RUN] Would remove ProvisionedPackage: {display_name} [requires admin]")
             else:
@@ -1490,8 +1769,13 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
     # 2.6 Remove Win32 programs matching blacklist — primary OEM preinstall
     # channel (McAfee/Norton are Win32, not Appx). MSI silent only.
     if prev.get("RemoveWin32Programs", True):
-        for display, uninstall, quiet in get_blacklisted_win32(blacklist, whitelist):
+        for display, uninstall, quiet, user_hive in get_blacklisted_win32(
+                blacklist, whitelist):
             matched += 1
+            if user_hive:
+                # HKU\<sid> is user-writable — never execute its strings as SYSTEM
+                logger.info(f"Win32 bloat in user hive (report only, not executed): {display}")
+                continue
             if dry_run:
                 logger.info(f"[DRY-RUN] Would uninstall Win32 program: {display} [requires admin]")
             else:
@@ -1501,6 +1785,28 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
                     removed += 1
                 else:
                     logger.warning(f"Failed/manual: {display} [admin required or no silent uninstaller]")
+
+    # 2.9 Reprovisioning persistence — the deprovision markers + the 25H2
+    # policy need the family list even when a removal toggle is off, so
+    # enumerate matches independently when persistence is on but removal off.
+    if prev.get("MarkDeprovisioned", True) or prev.get("RemoveDefaultStorePackages", True):
+        if not (prev.get("RemoveAppxPackages", True)
+                and prev.get("RemoveProvisionedPackages", True)):
+            for family_name, _, _ in get_blacklisted_packages(blacklist, whitelist):
+                matched_families.add(family_name)
+            for display_name, package_name in get_blacklisted_provisioned(
+                    blacklist, whitelist):
+                matched_families.add(_provisioned_family(package_name, display_name))
+        if matched_families:
+            if dry_run:
+                logger.info(f"[DRY-RUN] Would mark {len(matched_families)} families "
+                            f"deprovisioned and list them for RemoveDefaultStorePackages")
+            else:
+                if prev.get("MarkDeprovisioned", True):
+                    n = mark_deprovisioned(sorted(matched_families), logger)
+                    logger.info(f"Applied: MarkDeprovisioned ({n} markers)")
+                if prev.get("RemoveDefaultStorePackages", True):
+                    apply_remove_default_store_packages(sorted(matched_families), logger)
 
     # 3. Re-apply registry (idempotent, Windows Update may reset)
     if dry_run:
@@ -1521,6 +1827,27 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
             logger.info("[DRY-RUN] Would disable Microsoft telemetry tasks")
         else:
             disable_telemetry_tasks(logger)
+
+    # 4.6 Boot-time ETW autologgers (diagtrack listener etc.)
+    if prev.get("DisableTelemetryAutologgers", True):
+        if dry_run:
+            logger.info("[DRY-RUN] Would disable telemetry ETW autologgers")
+        else:
+            disable_telemetry_autologgers(logger)
+
+    # 4.7 hosts-file null-route for pure telemetry endpoints (reversible)
+    if prev.get("BlockTelemetryEndpoints", True):
+        if dry_run:
+            logger.info("[DRY-RUN] Would block telemetry endpoints via hosts file")
+        else:
+            set_telemetry_hosts_block(True, logger)
+
+    # 4.8 winget sweep for Store apps Appx removal can't see
+    if prev.get("WingetSweep", True):
+        if dry_run:
+            logger.info("[DRY-RUN] Would run winget uninstall sweep")
+        else:
+            winget_sweep(config, logger)
 
     logger.info(f"Scan complete. {matched} packages matched blacklist; removed {removed}.")
     return removed
@@ -1579,7 +1906,7 @@ def run_service(config: dict, logger: logging.Logger):
                 # so the monitor must watch the non-Appx channel too
                 try:
                     current_win32 = {
-                        (d, u, q) for d, u, q
+                        (d, u, q, uh) for d, u, q, uh
                         in get_blacklisted_win32(blacklist, whitelist)
                     }
                 except Exception:
@@ -1589,7 +1916,9 @@ def run_service(config: dict, logger: logging.Logger):
                     for display_name in current_provisioned - seen_provisioned:
                         logger.warning(
                             f"[MONITOR] RE-INSTALLED detected: {display_name} — removing immediately!")
-                        if remove_provisioned_package(prov_map[display_name]):
+                        if config.get("DryRun", False):
+                            logger.info(f"[DRY-RUN] Would re-remove provisioned: {display_name}")
+                        elif remove_provisioned_package(prov_map[display_name]):
                             logger.info(f"[MONITOR] Re-removal complete: {display_name}")
                         else:
                             logger.warning(f"[MONITOR] Re-removal failed: {display_name}")
@@ -1600,18 +1929,22 @@ def run_service(config: dict, logger: logging.Logger):
                         logger.warning(
                             f"[MONITOR] RE-INSTALLED AppxPackage: {family_name} — removing!")
                         full_name = full_names.get(family_name)
-                        if full_name and remove_appx_package(full_name):
+                        if config.get("DryRun", False):
+                            logger.info(f"[DRY-RUN] Would re-remove AppxPackage: {family_name}")
+                        elif full_name and remove_appx_package(full_name):
                             logger.info(f"[MONITOR] Re-removal complete: {family_name}")
                         else:
                             logger.warning(f"[MONITOR] Re-removal failed: {family_name}")
 
-                    seen_names = {d for d, _, _ in seen_win32}
-                    for display, uninstall, quiet in current_win32:
-                        if display in seen_names:
-                            continue
+                    seen_names = {d for d, _, _, _ in seen_win32}
+                    for display, uninstall, quiet, user_hive in current_win32:
+                        if display in seen_names or user_hive:
+                            continue  # user-hive entries are report-only
                         logger.warning(
                             f"[MONITOR] RE-INSTALLED Win32: {display} — removing!")
-                        if remove_win32_program(display, uninstall, quiet, logger):
+                        if config.get("DryRun", False):
+                            logger.info(f"[DRY-RUN] Would re-remove Win32: {display}")
+                        elif remove_win32_program(display, uninstall, quiet, logger):
                             logger.info(f"[MONITOR] Re-removal complete: {display}")
                         else:
                             logger.warning(
@@ -1788,7 +2121,10 @@ def run_self_test() -> int:
                     "DisableCloudClipboard", "DisableRemoteAssistance",
                     "BlockInsiderPreview", "DisableMiscBloatServices",
                     "DisableSpotlight", "DisableAutoplay",
-                    "NoForcedReboot", "HideStartRecommendations"]
+                    "NoForcedReboot", "HideStartRecommendations",
+                    "MarkDeprovisioned", "RemoveDefaultStorePackages",
+                    "BlockTelemetryEndpoints", "WingetSweep",
+                    "DisableTelemetryAutologgers"]
         missing = [k for k in required if k not in prev]
         assert not missing, f"missing prevention keys: {missing}"
 
@@ -1810,7 +2146,7 @@ def run_self_test() -> int:
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
     check("T4: Logger file + console wiring", t_logging)
     check("T5: is_admin() callable", t_is_admin)
-    check("T6: Prevention layers — 40 registered", t_prevention_layers)
+    check("T6: Prevention layers — 45 registered", t_prevention_layers)
     check("T7: Removal ledger write/read", t_removal_ledger)
     check("T8: Full-name batch map", t_full_name_map)
 
