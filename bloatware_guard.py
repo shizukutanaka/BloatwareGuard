@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.31.0-mvp - Python prototype
+BloatwareGuard v1.32.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -34,7 +34,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.31.0-mvp"
+APP_VERSION = "1.32.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -1497,6 +1497,7 @@ def run_service(config: dict, logger: logging.Logger):
     # absent in the previous scan counts as a (re-)install
     seen_provisioned: set = set()
     seen_installed: set = set()
+    seen_win32: set = set()
     first_scan = True
 
     # Apply prevention once at startup — skipped entirely in dry-run mode
@@ -1527,6 +1528,15 @@ def run_service(config: dict, logger: logging.Logger):
                 current_installed = {
                     family for family, _, _ in get_blacklisted_packages(blacklist, whitelist)
                 }
+                # Win32 display names — OEMs re-push these via their updaters,
+                # so the monitor must watch the non-Appx channel too
+                try:
+                    current_win32 = {
+                        (d, u, q) for d, u, q
+                        in get_blacklisted_win32(blacklist, whitelist)
+                    }
+                except Exception:
+                    current_win32 = set()
 
                 if not first_scan:
                     for display_name in current_provisioned - seen_provisioned:
@@ -1548,8 +1558,21 @@ def run_service(config: dict, logger: logging.Logger):
                         else:
                             logger.warning(f"[MONITOR] Re-removal failed: {family_name}")
 
+                    seen_names = {d for d, _, _ in seen_win32}
+                    for display, uninstall, quiet in current_win32:
+                        if display in seen_names:
+                            continue
+                        logger.warning(
+                            f"[MONITOR] RE-INSTALLED Win32: {display} — removing!")
+                        if remove_win32_program(display, uninstall, quiet, logger):
+                            logger.info(f"[MONITOR] Re-removal complete: {display}")
+                        else:
+                            logger.warning(
+                                f"[MONITOR] Re-removal failed or manual: {display}")
+
                 seen_provisioned = current_provisioned
                 seen_installed = current_installed
+                seen_win32 = current_win32
                 first_scan = False
 
         except Exception as e:

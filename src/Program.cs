@@ -2348,6 +2348,7 @@ public class GuardService : BackgroundService
         // absent in the previous scan counts as a (re-)install
         var seenProvisioned = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var seenInstalled = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var seenWin32 = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var firstScan = true;
 
         // Main scan loop
@@ -2359,7 +2360,7 @@ public class GuardService : BackgroundService
 
                 if (_config.Prevention.ReinstallMonitor)
                 {
-                    CheckReinstalls(seenProvisioned, seenInstalled, firstScan);
+                    CheckReinstalls(seenProvisioned, seenInstalled, seenWin32, firstScan);
                     firstScan = false;
                 }
             }
@@ -2374,7 +2375,8 @@ public class GuardService : BackgroundService
 
     /// <summary>Detect packages that re-appeared since the last scan and remove them.</summary>
     private void CheckReinstalls(
-        HashSet<string> seenProvisioned, HashSet<string> seenInstalled, bool firstScan)
+        HashSet<string> seenProvisioned, HashSet<string> seenInstalled,
+        HashSet<string> seenWin32, bool firstScan)
     {
         var currentProvisioned = new HashSet<string>(
             AppxManager.GetBlacklistedProvisionedPackages(_config.Blacklist, _config.Whitelist),
@@ -2382,6 +2384,9 @@ public class GuardService : BackgroundService
         var installed = AppxManager.GetBlacklistedPackages(_config.Blacklist, _config.Whitelist);
         var currentInstalled = new HashSet<string>(
             installed.Select(p => p.PackageFamilyName), StringComparer.OrdinalIgnoreCase);
+        // Win32 display names — OEMs re-push these via their updaters, so the
+        // monitor must watch the non-Appx channel too
+        var currentWin32 = Win32Guard.GetBlacklistedPrograms(_config.Blacklist, _config.Whitelist);
 
         if (!firstScan)
         {
@@ -2411,12 +2416,23 @@ public class GuardService : BackgroundService
                     GuardLogger.Warn($"[MONITOR] Re-removal failed: {family}");
                 }
             }
+
+            foreach (var prog in currentWin32.Where(p => !seenWin32.Contains(p.DisplayName)))
+            {
+                GuardLogger.Warn($"[MONITOR] RE-INSTALLED Win32: {prog.DisplayName} — removing!");
+                if (Win32Guard.RemoveProgram(prog.DisplayName, prog.UninstallString, prog.QuietUninstallString))
+                    GuardLogger.Info($"[MONITOR] Re-removal complete: {prog.DisplayName}");
+                else
+                    GuardLogger.Warn($"[MONITOR] Re-removal failed or needs manual removal: {prog.DisplayName}");
+            }
         }
 
         seenProvisioned.Clear();
         seenProvisioned.UnionWith(currentProvisioned);
         seenInstalled.Clear();
         seenInstalled.UnionWith(currentInstalled);
+        seenWin32.Clear();
+        seenWin32.UnionWith(currentWin32.Select(p => p.DisplayName));
     }
 
     public void RunScanPublic(bool dryRun = false) => RunScan(dryRun);
@@ -2632,7 +2648,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.31.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.32.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -2717,7 +2733,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.31.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.32.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -2869,8 +2885,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 6;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.31.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.31.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.32.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.32.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try

@@ -2,6 +2,15 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.32.0-mvp: reinstall monitor covers Win32
+
+### Changed
+- `ReinstallMonitor` now watches the Win32 channel too: each scan diffs
+  `GetBlacklistedPrograms`/`get_blacklisted_win32` display names and
+  re-runs `RemoveProgram`/`remove_win32_program` on new entries. Before
+  this, only Appx/provisioned re-installs were caught — but OEM
+  updaters re-push the Win32 preinstalls (the primary bloat channel).
+
 ## [Unreleased] — v1.31.0-mvp: telemetry tasks — census/family-safety/net-trace
 
 ### Changed
