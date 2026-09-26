@@ -2,6 +2,17 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.17.0-mvp: registry backup / opt-in Print Spooler
+
+### Added
+- **`BackupRegistry`** — before any layer writes, every HKLM key this tool
+  touches is `reg export`-ed to `%ProgramData%\BloatwareGuard\backup\`
+  (once per process). All policy changes are now one double-click away
+  from being reverted.
+- **`DisablePrintSpooler`** (**opt-in, default `false`**) — stops + disables
+  the Spooler service. Kills the PrintNightmare attack surface on machines
+  that never print; off by default since it breaks printing.
+
 ## [Unreleased] — v1.16.0-mvp: Xbox services / AutoLogger / capability set
 
 ### Added

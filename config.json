@@ -103,7 +103,9 @@
     "DisableEdgeUpdateBloat": true,
     "BlockOemDriverUpdates": true,
     "DisableAppPermissions": true,
-    "DisableXboxServices": true
+    "DisableXboxServices": true,
+    "BackupRegistry": true,
+    "DisablePrintSpooler": false
   },
   "DryRun": false
 }

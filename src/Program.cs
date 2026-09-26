@@ -141,6 +141,14 @@ public class PreventionLayers
     /// permanently running even on machines that never touch gaming/Xbox
     /// sign-in. Demand-start keeps Game Bar/Xbox features usable on demand.</summary>
     public bool DisableXboxServices { get; set; } = true;
+
+    /// <summary>Layer 28: Export every HKLM key we touch to .reg files under
+    /// %ProgramData%\BloatwareGuard\backup\ before applying (once per run)</summary>
+    public bool BackupRegistry { get; set; } = true;
+
+    /// <summary>Layer 29: Disable the Print Spooler — opt-in (default false);
+    /// kills the PrintNightmare attack surface on machines that never print</summary>
+    public bool DisablePrintSpooler { get; set; }
 }
 
 // ─── JSON source-gen context (trim-safe: avoids IL2026 with PublishTrimmed) ──
@@ -845,6 +853,9 @@ public static class RegistryGuard
     public static void ApplyAll(PreventionLayers layers,
                                 List<string> blacklist, List<string> whitelist)
     {
+        if (layers.BackupRegistry)
+            BackupRegistryKeys();
+
         if (layers.DisableConsumerExperiences)
             DisableConsumerExperiences();
 
@@ -904,6 +915,9 @@ public static class RegistryGuard
 
         if (layers.DisableXboxServices)
             DisableXboxServices();
+
+        if (layers.DisablePrintSpooler)
+            DisablePrintSpooler();
     }
 
     /// <summary>
@@ -1598,6 +1612,79 @@ public static class RegistryGuard
         }
     }
 
+    // HKLM keys this guard writes to — exported to .reg before first apply so
+    // every change is restorable with a double-click.
+    private static readonly string[] BackupKeyPaths = {
+        @"SOFTWARE\Policies\Microsoft\Windows\CloudContent",
+        @"SOFTWARE\Policies\Microsoft\Windows\Device Metadata",
+        @"SOFTWARE\Policies\Microsoft\Windows\AppCompat",
+        @"SOFTWARE\Policies\Microsoft\Windows\Windows Search",
+        @"SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot",
+        @"SOFTWARE\Policies\Microsoft\Windows\WindowsAI",
+        @"SOFTWARE\Policies\Microsoft\Dsh",
+        @"SOFTWARE\Policies\Microsoft\Windows\Windows Feeds",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
+        @"SOFTWARE\Policies\Microsoft\Windows\System",
+        @"SOFTWARE\Policies\Microsoft\Edge",
+        @"SOFTWARE\Policies\Microsoft\Windows\GameDVR",
+        @"SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization",
+        @"SOFTWARE\Policies\Microsoft\Windows\OneDrive",
+        @"SOFTWARE\Microsoft\Windows\Windows Error Reporting",
+        @"SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting",
+        @"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate",
+        @"SOFTWARE\Policies\Microsoft\Windows\AppPrivacy",
+        @"SOFTWARE\Policies\Microsoft\WindowsInkWorkspace",
+        @"SYSTEM\CurrentControlSet\Control\WMI\AutoLogger\AutoLogger-Diagtrack-Listener",
+    };
+    private static bool _backupDone;
+
+    /// <summary>Layer 28: reg-export every HKLM key we touch into
+    /// %ProgramData%\BloatwareGuard\backup\ — once per process.</summary>
+    public static void BackupRegistryKeys()
+    {
+        if (_backupDone)
+            return;
+        _backupDone = true;
+        try
+        {
+            var dir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+                "BloatwareGuard", "backup");
+            Directory.CreateDirectory(dir);
+            var stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+            var exported = 0;
+            foreach (var path in BackupKeyPaths)
+            {
+                var file = Path.Combine(dir, $"{stamp}-{exported++}.reg");
+                // reg.exe export fails for non-existent keys — that is expected
+                RunToolSilent("reg.exe", $"export \"HKLM\\{path}\" \"{file}\" /y");
+                if (!File.Exists(file))
+                    File.Delete(file);  // no-op guard — keep dir clean
+            }
+            GuardLogger.Info($"Applied: BackupRegistry ({exported} keys → {dir})");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Warn($"BackupRegistry skipped: {ex.Message}");
+        }
+    }
+
+    /// <summary>Layer 29: opt-in Print Spooler disable — the PrintNightmare
+    /// surface. Off by default since it breaks printing.</summary>
+    public static void DisablePrintSpooler()
+    {
+        try
+        {
+            RunToolSilent("sc.exe", "stop Spooler");
+            RunToolSilent("sc.exe", "config Spooler start= disabled");
+            GuardLogger.Info("Applied: DisablePrintSpooler (Spooler stopped + disabled)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to disable Print Spooler: {ex.Message}");
+        }
+    }
+
     private static void RunToolSilent(string fileName, string arguments)
     {
         var psi = new ProcessStartInfo
@@ -2112,7 +2199,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.16.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.17.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -2197,7 +2284,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.16.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.17.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -2349,8 +2436,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 6;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.16.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.16.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.17.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.17.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try

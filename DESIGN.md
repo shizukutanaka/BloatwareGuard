@@ -43,7 +43,9 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 │    ├─ AppPrivacy 強制拒否 (camera/mic/location 除く)│
 │    ├─ RetailDemo / 動的検索ボックス停止            │
 │    ├─ Xbox サービス ×4 → demand 化                 │
-│    └─ AutoLogger-Diagtrack / Ink Workspace 停止    │
+│    ├─ AutoLogger-Diagtrack / Ink Workspace 停止    │
+│    ├─ 変更前 .reg エクスポート (backup/)           │
+│    └─ Print Spooler 停止 (opt-in, PrintNightmare)  │
 ├─────────────────────────────────────────────────────┤
 │  Config: config.json (blacklist + intervals)        │
 │  Log: Windows Event Log + file                      │
@@ -83,6 +85,8 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 | WU 経由 OEM ドライバ | ExcludeWUDriversInQualityUpdate=1 (WindowsUpdate policy) | BlockOemDriverUpdates |
 | アプリ権限 (保守的セット) | AppPrivacy LetApps* =2 (16 件、camera/mic/location 除外) | DisableAppPermissions |
 | Xbox サービス | XblAuthManager/XblGameSave/XboxNetApiSvc/XboxGipSvc → Start=3 | DisableXboxServices |
+| レジストリバックアップ | reg export → %ProgramData%\BloatwareGuard\backup\*.reg (適用前、1回/プロセス) | BackupRegistry |
+| Print Spooler (opt-in, 既定OFF) | sc stop + config start= disabled | DisablePrintSpooler |
 
 ## ブラックリスト方式
 - config.json の `Blacklist` にパッケージ名の**部分一致**パターンを列挙

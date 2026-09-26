@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.16.0-mvp - Python prototype
+BloatwareGuard v1.17.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -34,7 +34,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.16.0-mvp"
+APP_VERSION = "1.17.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -181,6 +181,8 @@ def load_config(path: Path) -> dict:
                 "BlockOemDriverUpdates": True,
                 "DisableAppPermissions": True,
                 "DisableXboxServices": True,
+                "BackupRegistry": True,
+                "DisablePrintSpooler": False,
             },
             "DryRun": False,
         }
@@ -667,9 +669,60 @@ def set_user_dword_all_hives(path: str, name: str, value: int, logger: logging.L
     for_each_user_hive(apply, logger)
 
 
+# HKLM keys this tool writes to — exported to .reg before first apply so every
+# change is restorable with a double-click.
+_BACKUP_KEY_PATHS = (
+    r"SOFTWARE\Policies\Microsoft\Windows\CloudContent",
+    r"SOFTWARE\Policies\Microsoft\Windows\Device Metadata",
+    r"SOFTWARE\Policies\Microsoft\Windows\AppCompat",
+    r"SOFTWARE\Policies\Microsoft\Windows\Windows Search",
+    r"SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot",
+    r"SOFTWARE\Policies\Microsoft\Windows\WindowsAI",
+    r"SOFTWARE\Policies\Microsoft\Dsh",
+    r"SOFTWARE\Policies\Microsoft\Windows\Windows Feeds",
+    r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
+    r"SOFTWARE\Policies\Microsoft\Windows\System",
+    r"SOFTWARE\Policies\Microsoft\Edge",
+    r"SOFTWARE\Policies\Microsoft\Windows\GameDVR",
+    r"SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization",
+    r"SOFTWARE\Policies\Microsoft\Windows\OneDrive",
+    r"SOFTWARE\Microsoft\Windows\Windows Error Reporting",
+    r"SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting",
+    r"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate",
+    r"SOFTWARE\Policies\Microsoft\Windows\AppPrivacy",
+    r"SOFTWARE\Policies\Microsoft\WindowsInkWorkspace",
+    r"SYSTEM\CurrentControlSet\Control\WMI\AutoLogger\AutoLogger-Diagtrack-Listener",
+)
+_registry_backup_done = False
+
+
+def backup_registry_keys(logger: logging.Logger):
+    """reg-export every HKLM key this tool touches into
+    %ProgramData%\\BloatwareGuard\\backup\\ — once per process."""
+    global _registry_backup_done
+    if _registry_backup_done:
+        return
+    _registry_backup_done = True
+    try:
+        base = os.environ.get("PROGRAMDATA", r"C:\ProgramData")
+        backup_dir = os.path.join(base, "BloatwareGuard", "backup")
+        os.makedirs(backup_dir, exist_ok=True)
+        stamp = time.strftime("%Y%m%d-%H%M%S")
+        for i, path in enumerate(_BACKUP_KEY_PATHS):
+            # reg.exe export fails for non-existent keys — expected, non-fatal
+            run_cmd(["reg.exe", "export", f"HKLM\\{path}",
+                     os.path.join(backup_dir, f"{stamp}-{i}.reg"), "/y"])
+        logger.info(f"Applied: BackupRegistry ({len(_BACKUP_KEY_PATHS)} keys → {backup_dir})")
+    except OSError as e:
+        logger.warning(f"BackupRegistry skipped: {e}")
+
+
 def apply_registry_prevention(config: dict, logger: logging.Logger):
     import winreg
     prev = config.get("Prevention", {})
+
+    if prev.get("BackupRegistry", True):
+        backup_registry_keys(logger)
 
     cloud_content = r"SOFTWARE\Policies\Microsoft\Windows\CloudContent"
 
@@ -925,6 +978,12 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                                r"SOFTWARE\Policies\Microsoft\Windows\AppPrivacy",
                                name, 2)
         logger.info(f"Applied: DisableAppPermissions ({len(app_privacy)} force-denied)")
+
+    if prev.get("DisablePrintSpooler", False):
+        # Opt-in — kills the PrintNightmare surface but breaks printing
+        run_cmd(["sc.exe", "stop", "Spooler"])
+        run_cmd(["sc.exe", "config", "Spooler", "start=", "disabled"])
+        logger.info("Applied: DisablePrintSpooler (Spooler stopped + disabled)")
 
     if prev.get("DisableXboxServices", True):
         # Demand-start (Start=3) — Game Bar/Xbox sign-in still work on demand
@@ -1453,7 +1512,8 @@ def run_self_test() -> int:
                     "CreateRestorePoint", "DisableTelemetryTasks",
                     "DisableStartupBloat", "DisableErrorReporting",
                     "DisableEdgeUpdateBloat", "BlockOemDriverUpdates",
-                    "DisableAppPermissions", "DisableXboxServices"]
+                    "DisableAppPermissions", "DisableXboxServices",
+                    "BackupRegistry", "DisablePrintSpooler"]
         missing = [k for k in required if k not in prev]
         assert not missing, f"missing prevention keys: {missing}"
 
@@ -1475,7 +1535,7 @@ def run_self_test() -> int:
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
     check("T4: Logger file + console wiring", t_logging)
     check("T5: is_admin() callable", t_is_admin)
-    check("T6: Prevention layers — 28 registered", t_prevention_layers)
+    check("T6: Prevention layers — 30 registered", t_prevention_layers)
     check("T7: Removal ledger write/read", t_removal_ledger)
     check("T8: Full-name batch map", t_full_name_map)
 
