@@ -1427,6 +1427,14 @@ public static class RegistryGuard
                 speech?.SetValue("ModelDownloadAllowed", 0, Microsoft.Win32.RegistryValueKind.DWord);
             }
             catch { }
+            // "Sync your settings" off — stops settings roaming to MS accounts
+            try
+            {
+                using var sync = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\SettingSync");
+                sync?.SetValue("DisableSettingSync", 2, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            catch { }
 
             GuardLogger.Info("Applied: DisableTelemetry (AllowTelemetry=0, DiagTrack off, privacy surfaces set)");
         }
@@ -1787,6 +1795,7 @@ public static class RegistryGuard
         @"SOFTWARE\Microsoft\Speech_OneCore\Preferences",
         @"SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo",
         @"SOFTWARE\Policies\Microsoft\FindMyDevice",
+        @"SOFTWARE\Policies\Microsoft\Windows\SettingSync",
     };
     private static bool _backupDone;
 
@@ -1955,12 +1964,15 @@ public static class RegistryGuard
         try
         {
             // CDPSvc = Nearby Sharing; NvTelemetryContainer / ESRV_* = GPU/Intel
-            // driver telemetry (absent without those vendors — write is a no-op)
+            // driver telemetry; PushToInstall = Store push-install channel;
+            // SEMgrSvc = NFC/SE payments manager; PhoneSvc = Phone Link
+            // (absent where not applicable — write is a no-op)
             foreach (var svc in new[] { "dmwappushservice", "MapsBroker",
                                         "WMPNetworkSvc",
                                         "diagnosticshub.standardcollector.service",
                                         "CDPSvc", "NvTelemetryContainer",
-                                        "esrv_svc", "ESRV_SVC_QUEENCREEK" })
+                                        "esrv_svc", "ESRV_SVC_QUEENCREEK",
+                                        "PushToInstall", "SEMgrSvc", "PhoneSvc" })
             {
                 try
                 {
@@ -1970,7 +1982,7 @@ public static class RegistryGuard
                 }
                 catch { }
             }
-            GuardLogger.Info("Applied: DisableMiscBloatServices (8 services → demand-start)");
+            GuardLogger.Info("Applied: DisableMiscBloatServices (11 services → demand-start)");
         }
         catch (Exception ex)
         {
@@ -2589,7 +2601,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.25.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.26.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -2674,7 +2686,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.25.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.26.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -2826,8 +2838,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 6;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.25.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.25.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.26.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.26.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try

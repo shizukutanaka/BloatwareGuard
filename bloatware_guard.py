@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.25.0-mvp - Python prototype
+BloatwareGuard v1.26.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -34,7 +34,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.25.0-mvp"
+APP_VERSION = "1.26.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -720,6 +720,7 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Microsoft\Speech_OneCore\Preferences",
     r"SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo",
     r"SOFTWARE\Policies\Microsoft\FindMyDevice",
+    r"SOFTWARE\Policies\Microsoft\Windows\SettingSync",
 )
 _registry_backup_done = False
 
@@ -924,6 +925,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_registry_dword("HKLM",
                            r"SOFTWARE\Microsoft\Speech_OneCore\Preferences",
                            "ModelDownloadAllowed", 0)
+        # "Sync your settings" off — stops settings roaming to MS accounts
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Policies\Microsoft\Windows\SettingSync",
+                           "DisableSettingSync", 2)
         logger.info("Applied: DisableTelemetry (AllowTelemetry=0, DiagTrack off, "
                     "privacy surfaces set)")
 
@@ -1122,7 +1127,8 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         for svc in ("dmwappushservice", "MapsBroker", "WMPNetworkSvc",
                     "diagnosticshub.standardcollector.service",
                     "CDPSvc", "NvTelemetryContainer",
-                    "esrv_svc", "ESRV_SVC_QUEENCREEK"):
+                    "esrv_svc", "ESRV_SVC_QUEENCREEK",
+                    "PushToInstall", "SEMgrSvc", "PhoneSvc"):
             try:
                 k = _wr3.CreateKeyEx(
                     _wr3.HKEY_LOCAL_MACHINE,
@@ -1133,7 +1139,7 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             except OSError:
                 pass
         logger.info("Applied: DisableMiscBloatServices "
-                    "(8 services → demand-start)")
+                    "(11 services → demand-start)")
 
     if prev.get("DisableSpotlight", True):
         # Desktop Spotlight = content-delivery channel (wallpaper promos)

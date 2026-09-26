@@ -102,7 +102,7 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 | クラウドクリップボード | System policy AllowCrossDeviceClipboard=0 + 全ハイブ EnableClipboardHistory=0 | DisableCloudClipboard |
 | Remote Assistance | Remote Assistance\fAllowToGetHelp=0, fAllowFullControl=0 | DisableRemoteAssistance |
 | Insider Preview | PreviewBuilds\AllowBuildPreview=0 + WindowsSelfHost HideInsiderPage=1 | BlockInsiderPreview |
-| 雑ブロートサービス | dmwappushservice/MapsBroker/WMPNetworkSvc/DiagnosticsHub/CDPSvc/NvTelemetryContainer/ESRV_* → Start=3 | DisableMiscBloatServices |
+| 雑ブロートサービス | dmwappush/MapsBroker/WMPNetworkSvc/DiagnosticsHub/CDPSvc/NvTelemetry/ESRV_*/PushToInstall/SEMgrSvc/PhoneSvc → Start=3 | DisableMiscBloatServices |
 | Desktop Spotlight | DesktopSpotlight\Settings Enabled=0 + Wallpapers BackgroundType=0 (全ハイブ) | DisableSpotlight |
 | AutoPlay/AutoRun | Policies\Explorer NoDriveTypeAutoRun=255, NoAutorun=1 (HKLM+全ハイブ) | DisableAutoplay |
 | WU 強制再起動 | WindowsUpdate\AU NoAutoRebootWithLoggedOnUsers=1, AlwaysAutoRebootAtScheduledTime=0 | NoForcedReboot |

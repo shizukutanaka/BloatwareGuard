@@ -2,6 +2,17 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.26.0-mvp: push-install / settings-sync surfaces
+
+### Changed
+- `DisableMiscBloatServices` extended: `PushToInstall` (Store push-install
+  channel — a known silent-app-delivery vector), `SEMgrSvc` (NFC/SE
+  payments manager), `PhoneSvc` (Phone Link). Total: 11 services →
+  demand-start.
+- `DisableTelemetry` also sets `SettingSync\DisableSettingSync=2`
+  (settings roaming to Microsoft accounts off).
+- `BackupRegistry` export set extended (33 keys).
+
 ## [Unreleased] — v1.25.0-mvp: ad-ID / Find My Device policies
 
 ### Changed
