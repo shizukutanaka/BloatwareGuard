@@ -16,7 +16,7 @@ also apply correctly when the tool runs as a SYSTEM service and for users create
 || 4. Cloud Content | ✅ | ✅ | HKLM (admin) |
 || 5. Device Metadata | ✅ | ✅ | HKLM (admin) |
 || 6. OEM Scheduled Tasks | ✅ | ✅ | ✅ Disable works |
-|| 7. Re-install Monitor | ✅ | ✅ | ✅ Service mode |
+|| 7. Re-install Monitor (Appx + provisioned + Win32 channels) | ✅ | ✅ | ✅ Service mode |
 || 8. Copilot off (policy, all hives) | ✅ | ✅ | Own hive only |
 || 9. Recall / Windows AI off (policy + feature removal) | ✅ | ✅ | Own hive only |
 || 10. Search suggestions / Bing off (all hives) | ✅ | ✅ | Own hive only |
