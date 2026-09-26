@@ -190,6 +190,28 @@ public class PreventionLayers
     /// <summary>Layer 39: hide the Start menu "Recommended" section —
     /// it surfaces promoted apps, not just your files</summary>
     public bool HideStartRecommendations { get; set; } = true;
+
+    /// <summary>Layer 40: write AppxAllUserStore\Deprovisioned markers for
+    /// blacklisted families so feature updates don't re-provision them
+    /// (documented Windows behavior)</summary>
+    public bool MarkDeprovisioned { get; set; } = true;
+
+    /// <summary>Layer 41: 25H2 policy — the OS removes the listed default
+    /// Store packages at first sign-in of NEW user profiles
+    /// (HKLM\SOFTWARE\Policies\Microsoft\Windows\Appx\RemoveDefaultMicrosoftStorePackages)</summary>
+    public bool RemoveDefaultStorePackages { get; set; } = true;
+
+    /// <summary>Layer 42: null-route pure-telemetry endpoints via a marked,
+    /// reversible hosts-file block (Spybot Anti-Beacon technique)</summary>
+    public bool BlockTelemetryEndpoints { get; set; } = true;
+
+    /// <summary>Layer 43: winget uninstall sweep — catches Store apps winget
+    /// can see but Get-AppxPackage can't</summary>
+    public bool WingetSweep { get; set; } = true;
+
+    /// <summary>Layer 44: Start=0 on boot-time telemetry ETW AutoLogger
+    /// sessions (privacy.sexy / Sophia Script technique)</summary>
+    public bool DisableTelemetryAutologgers { get; set; } = true;
 }
 
 // ─── JSON source-gen context (trim-safe: avoids IL2026 with PublishTrimmed) ──
@@ -205,6 +227,42 @@ internal partial class GuardJsonContext : JsonSerializerContext
 }
 
 // ─── Logger helper ───────────────────────────────────────────────────────────
+
+/// <summary>Bounded process runner: drains stdout/stderr asynchronously so a
+/// chatty child can't fill a pipe and deadlock, enforces a hard deadline with
+/// a process-tree kill, and never exposes ExitCode for a live process. After
+/// the parent exits, reader tasks are bounded too — a detached grandchild
+/// inheriting the pipe can't hold EOF open and hang .Result forever.</summary>
+internal static class Proc
+{
+    public static (string Stdout, string Stderr, int? ExitCode) Capture(
+        ProcessStartInfo psi, int timeoutMs)
+    {
+        using var proc = Process.Start(psi);
+        if (proc == null)
+            return ("", "failed to start", null);
+        var stdout = proc.StandardOutput.ReadToEndAsync();
+        var stderr = proc.StandardError.ReadToEndAsync();
+        if (!proc.WaitForExit(timeoutMs))
+        {
+            try { proc.Kill(entireProcessTree: true); } catch { }
+            return ("", "timeout", null);
+        }
+        Task.WaitAll(new Task[] { stdout, stderr }, 10000);
+        return (stdout.Status == TaskStatus.RanToCompletion ? stdout.Result : "",
+                stderr.Status == TaskStatus.RanToCompletion ? stderr.Result : "",
+                proc.ExitCode);
+    }
+
+    /// <summary>Start-and-wait with a hard timeout and tree-kill. Returns the
+    /// exit code, or null when the process was killed on timeout.</summary>
+    public static int? Wait(ProcessStartInfo psi, int timeoutMs)
+    {
+        psi.RedirectStandardOutput = true;
+        psi.RedirectStandardError = true;
+        return Capture(psi, timeoutMs).ExitCode;
+    }
+}
 
 public static class GuardLogger
 {
@@ -514,10 +572,8 @@ public static class AppxManager
             CreateNoWindow = true
         };
 
-        using var proc = Process.Start(psi);
-        var output = proc?.StandardOutput.ReadToEnd() ?? "";
-        proc?.WaitForExit();
-        return proc?.ExitCode == 0 ? output : "";
+        var (output, _, exitCode) = Proc.Capture(psi, 120000);
+        return exitCode == 0 ? output : "";
     }
 
     /// <summary>Remove deprecated/legacy optional Windows capabilities.
@@ -536,9 +592,7 @@ public static class AppxManager
             UseShellExecute = false,
             CreateNoWindow = true
         };
-        using var proc = Process.Start(psi);
-        proc?.WaitForExit(180000);  // DISM ops can be slow
-        if (proc?.ExitCode == 0)
+        if (Proc.Wait(psi, 180000) == 0)  // DISM ops can be slow
             GuardLogger.Info("Applied: RemoveOptionalCapabilities (IE/StepsRecorder/WordPad)");
         else
             GuardLogger.Warn("RemoveOptionalCapabilities: no capabilities removed (absent or admin required)");
@@ -569,9 +623,7 @@ public static class AppxManager
             CreateNoWindow = true
         };
 
-        using var proc = Process.Start(psi);
-        var output = proc?.StandardOutput.ReadToEnd() ?? "";
-        proc?.WaitForExit();
+        var output = Proc.Capture(psi, 120000).Stdout;
 
         try
         {
@@ -599,6 +651,8 @@ public static class AppxManager
 
     public static bool RemoveAppxPackage(string packageFullName)
     {
+        if (!IsPackageNameSafe(packageFullName))
+            return false;
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
@@ -609,12 +663,10 @@ public static class AppxManager
             CreateNoWindow = true
         };
 
-        using var proc = Process.Start(psi);
-        proc?.WaitForExit(60000);
-        string stderr = proc?.StandardError.ReadToEnd() ?? "";
+        var (_, stderr, exitCode) = Proc.Capture(psi, 60000);
         if (!string.IsNullOrEmpty(stderr))
             GuardLogger.Warn($"Remove-AppxPackage stderr: {stderr.Trim()}");
-        return proc?.ExitCode == 0;
+        return exitCode == 0;
     }
 
     /// <summary>Remove AppxPackage for CURRENT USER only (no admin required).
@@ -628,6 +680,8 @@ public static class AppxManager
             return (false, true);
         }
 
+        if (!IsPackageNameSafe(packageFullName))
+            return (false, false);
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
@@ -638,16 +692,16 @@ public static class AppxManager
             CreateNoWindow = true
         };
 
-        using var proc = Process.Start(psi);
-        proc?.WaitForExit(60000);
-        string stderr = proc?.StandardError.ReadToEnd() ?? "";
+        var (_, stderr, exitCode) = Proc.Capture(psi, 60000);
         if (!string.IsNullOrEmpty(stderr))
             GuardLogger.Warn($"Remove-AppxPackage (user) stderr: {stderr.Trim()}");
-        return (proc?.ExitCode == 0, false);
+        return (exitCode == 0, false);
     }
 
     public static bool RemoveProvisionedPackage(string packageName)
     {
+        if (!IsPackageNameSafe(packageName))
+            return false;
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
@@ -658,12 +712,85 @@ public static class AppxManager
             CreateNoWindow = true
         };
 
-        using var proc = Process.Start(psi);
-        proc?.WaitForExit(120000);
-        string stderr = proc?.StandardError.ReadToEnd() ?? "";
+        var (_, stderr, exitCode) = Proc.Capture(psi, 120000);
         if (!string.IsNullOrEmpty(stderr))
             GuardLogger.Warn($"RemoveProvisionedPackage stderr: {stderr.Trim()}");
-        return proc?.ExitCode == 0;
+        return exitCode == 0;
+    }
+
+    // Package names are simple identifiers (Name_ver_arch_resid_pubid) —
+    // anything else is rejected before it can reach a PowerShell string.
+    private static readonly Regex PackageNamePattern =
+        new(@"^[A-Za-z0-9_.\-~!]+$", RegexOptions.Compiled);
+
+    private static bool IsPackageNameSafe(string name) =>
+        !string.IsNullOrEmpty(name) && PackageNamePattern.IsMatch(name);
+
+    /// <summary>Get-AppxProvisionedPackage returns no PublisherId — the
+    /// publisher is the last '_' segment of PackageName, so the family is
+    /// name + '_' + publisher.</summary>
+    public static string ProvisionedFamilyName(string packageName)
+    {
+        var first = packageName.IndexOf('_');
+        var last = packageName.LastIndexOf('_');
+        return (first > 0 && last > first)
+            ? packageName[..first] + "_" + packageName[(last + 1)..]
+            : packageName;
+    }
+
+    private const string DeprovisionedPath =
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\Deprovisioned";
+    private const string RemoveDefaultPkgsPath =
+        @"SOFTWARE\Policies\Microsoft\Windows\Appx\RemoveDefaultMicrosoftStorePackages";
+
+    /// <summary>Write HKLM Deprovisioned markers for blacklisted families so
+    /// feature updates don't re-provision them (documented behavior).</summary>
+    public static int MarkDeprovisioned(IEnumerable<string> familyNames)
+    {
+        var marked = 0;
+        try
+        {
+            using var baseKey = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                DeprovisionedPath, writable: true);
+            if (baseKey == null)
+                return 0;
+            foreach (var family in familyNames)
+            {
+                try
+                {
+                    baseKey.CreateSubKey(family);
+                    marked++;
+                }
+                catch { }
+            }
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Warn($"Deprovisioned markers: {ex.Message}");
+        }
+        return marked;
+    }
+
+    /// <summary>Windows 11 25H2 policy: the OS removes the listed default Store
+    /// packages at first sign-in of NEW user profiles. Unknown entries are
+    /// ignored by older builds — harmless forward-compat.</summary>
+    public static void ApplyRemoveDefaultStorePackages(IEnumerable<string> familyNames)
+    {
+        var families = familyNames.ToArray();
+        try
+        {
+            using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                RemoveDefaultPkgsPath, writable: true);
+            if (key == null)
+                return;
+            key.SetValue("Enabled", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            key.SetValue("PackageList", families, Microsoft.Win32.RegistryValueKind.MultiString);
+            GuardLogger.Info($"Applied: RemoveDefaultStorePackages ({families.Length} families listed)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Warn($"RemoveDefaultStorePackages: {ex.Message}");
+        }
     }
 }
 
@@ -681,14 +808,17 @@ public static class Win32Guard
         new(@"\{[0-9A-Fa-f\-]{36}\}", RegexOptions.Compiled);
 
     /// <summary>Enumerate installed Win32 programs matching the blacklist.
-    /// Returns (DisplayName, UninstallString, QuietUninstallString).</summary>
-    public static List<(string DisplayName, string UninstallString, string QuietUninstallString)>
+    /// Returns (DisplayName, UninstallString, QuietUninstallString, UserHive).
+    /// UserHive entries are report-only: HKU\<sid> is user-writable, so an
+    /// elevated service must never execute strings a non-admin user could
+    /// plant there.</summary>
+    public static List<(string DisplayName, string UninstallString, string QuietUninstallString, bool UserHive)>
         GetBlacklistedPrograms(List<string> blacklist, List<string> whitelist)
     {
-        var results = new List<(string, string, string)>();
+        var results = new List<(string, string, string, bool)>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        void ScanKey(RegistryKey root, string path)
+        void ScanKey(RegistryKey root, string path, bool userHive = false)
         {
             try
             {
@@ -713,7 +843,7 @@ public static class Win32Guard
                                 display.Contains(b, StringComparison.OrdinalIgnoreCase)) &&
                             seen.Add(display))
                         {
-                            results.Add((display, uninstall, quiet));
+                            results.Add((display, uninstall, quiet, userHive));
                         }
                     }
                     catch { }
@@ -724,13 +854,15 @@ public static class Win32Guard
 
         ScanKey(Registry.LocalMachine, UninstallPath);
         ScanKey(Registry.LocalMachine, UninstallPath32);
+        // CurrentUser maps to the *caller's* hive (SYSTEM's own under the
+        // service) — strings there were written by the caller, safe to run.
         ScanKey(Registry.CurrentUser, UserUninstallPath);
         foreach (var sid in Registry.Users.GetSubKeyNames())
         {
             // Loaded user hives only (interactive profiles)
             if (!Regex.IsMatch(sid, @"^S-1-5-21-\d+-\d+-\d+-\d+$"))
                 continue;
-            ScanKey(Registry.Users, $"{sid}\\{UserUninstallPath}");
+            ScanKey(Registry.Users, $"{sid}\\{UserUninstallPath}", userHive: true);
         }
 
         return results;
@@ -771,14 +903,10 @@ public static class Win32Guard
         {
             FileName = cmd,
             Arguments = args,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true
         };
-        using var proc = Process.Start(psi);
-        proc?.WaitForExit(300000);  // uninstallers can take minutes
-        return proc?.ExitCode == 0;
+        return Proc.Wait(psi, 300000) == 0;  // uninstallers can take minutes
     }
 
     private static (string cmd, string args) SplitCommandLine(string commandLine)
@@ -810,9 +938,7 @@ public static class Win32Guard
             UseShellExecute = false,
             CreateNoWindow = true
         };
-        using var proc = Process.Start(psi);
-        proc?.WaitForExit(120000);
-        if (proc?.ExitCode == 0)
+        if (Proc.Wait(psi, 120000) == 0)
             GuardLogger.Info("Applied: CreateRestorePoint (restore point created or throttled)");
         else
             GuardLogger.Warn("CreateRestorePoint: skipped (admin required or System Restore disabled)");
@@ -1009,6 +1135,111 @@ public static class RegistryGuard
 
         if (layers.HideStartRecommendations)
             HideStartRecommendations();
+
+        if (layers.DisableTelemetryAutologgers)
+            DisableTelemetryAutologgers();
+
+        if (layers.BlockTelemetryEndpoints)
+            SetTelemetryHostsBlock(true);
+    }
+
+    // Boot-time ETW trace sessions that feed telemetry (privacy.sexy / Sophia
+    // Script technique). Diagtrack-Listener is already covered by
+    // DisableTelemetry; kept here too for idempotence when only this is on.
+    private static readonly string[] TelemetryAutologgers = {
+        "AutoLogger-Diagtrack-Listener", "SQMLogger", "WiFiSession",
+        "LwtNetLog", "NetCore", "NtfsLog", "UBPM", "MellonTelemetry",
+        "Circular Kernel Context Logger", "DiagLog", "WFP-IPsec Diagnostics",
+    };
+
+    /// <summary>Start=0 on telemetry ETW AutoLoggers. Opens — never creates —
+    /// the session key, so absent sessions don't get phantom entries.</summary>
+    public static void DisableTelemetryAutologgers()
+    {
+        var killed = 0;
+        foreach (var session in TelemetryAutologgers)
+        {
+            try
+            {
+                using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(
+                    $@"SYSTEM\CurrentControlSet\Control\WMI\AutoLogger\{session}", writable: true);
+                if (key == null)
+                    continue;
+                key.SetValue("Start", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                killed++;
+            }
+            catch { }
+        }
+        GuardLogger.Info($"Applied: DisableTelemetryAutologgers ({killed}/{TelemetryAutologgers.Length} sessions)");
+    }
+
+    // Pure-telemetry endpoints null-routed via the hosts file — the Spybot
+    // Anti-Beacon technique. Conservative: no Windows Update/Store/activation.
+    private static readonly string[] TelemetryHosts = {
+        "vortex.data.microsoft.com", "vortex-win.data.microsoft.com",
+        "telecommand.telemetry.microsoft.com", "telecommand.telemetry.microsoft.com.nsatc.net",
+        "oca.telemetry.microsoft.com", "oca.telemetry.microsoft.com.nsatc.net",
+        "sqm.telemetry.microsoft.com", "sqm.telemetry.microsoft.com.nsatc.net",
+        "watson.telemetry.microsoft.com", "watson.telemetry.microsoft.com.nsatc.net",
+        "watson.ppe.telemetry.microsoft.com", "watson.microsoft.com",
+        "reports.wes.df.telemetry.microsoft.com", "wes.df.telemetry.microsoft.com",
+        "services.wes.df.telemetry.microsoft.com", "sqm.df.telemetry.microsoft.com",
+        "settings-win.data.microsoft.com", "settings.data.microsoft.com",
+        "statsfe2.ws.microsoft.com", "redir.metaservices.microsoft.com",
+        "choice.microsoft.com", "choice.microsoft.com.nsatc.net",
+        "telemetry.appex.bing.net", "telemetry.urs.microsoft.com",
+        "feedback.microsoft-hohm.com", "vortex-bn2.metron.live.com.nsatc.net",
+    };
+    private const string HostsBlockBegin = "# >>> BloatwareGuard telemetry block";
+    private const string HostsBlockEnd = "# <<< BloatwareGuard telemetry block";
+
+    /// <summary>Add/remove a marked hosts-file block that null-routes
+    /// pure-telemetry endpoints. Toggle-off removes the block — fully
+    /// reversible. No-ops when disabled and no block exists.</summary>
+    public static void SetTelemetryHostsBlock(bool enabled)
+    {
+        var hostsPath = Path.Combine(
+            Environment.GetEnvironmentVariable("SystemRoot") ?? @"C:\Windows",
+            @"System32\drivers\etc\hosts");
+        string text;
+        try
+        {
+            // Strict decode — a silently-replaced byte would corrupt unrelated
+            // hosts content on rewrite. Better to skip than to write garbage.
+            text = File.Exists(hostsPath)
+                ? File.ReadAllText(hostsPath, new System.Text.UTF8Encoding(false, true))
+                : "";
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Warn($"Cannot read hosts file (skipped): {ex.Message}");
+            return;
+        }
+        var original = text;  // single read — a second read could fail on absent file
+
+        var beginIdx = text.IndexOf(HostsBlockBegin, StringComparison.Ordinal);
+        var endIdx = text.IndexOf(HostsBlockEnd, StringComparison.Ordinal);
+        if (beginIdx >= 0 && endIdx >= 0)
+            text = text[..beginIdx].TrimEnd('\n') + "\n" +
+                text[(endIdx + HostsBlockEnd.Length)..].TrimStart('\n');
+        if (enabled)
+        {
+            var block = string.Join("\n", TelemetryHosts.Select(d => $"0.0.0.0 {d}"));
+            text = text.TrimEnd('\n') + $"\n\n{HostsBlockBegin}\n{block}\n{HostsBlockEnd}\n";
+        }
+        if (beginIdx < 0 && !enabled)
+            return; // nothing to do — don't touch the file
+        if (File.Exists(hostsPath) && text == original)
+            return; // already in the desired state
+        try
+        {
+            File.WriteAllText(hostsPath, text);
+            GuardLogger.Info($"Telemetry hosts block {(enabled ? "applied" : "removed")} ({TelemetryHosts.Length} domains)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Warn($"Cannot write hosts file (admin required?): {ex.Message}");
+        }
     }
 
     /// <summary>
@@ -1118,13 +1349,10 @@ public static class RegistryGuard
         {
             FileName = "reg.exe",
             Arguments = arguments,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true
         };
-        using var proc = Process.Start(psi);
-        proc?.WaitForExit(15000);
+        Proc.Wait(psi, 15000);
     }
 
     /// <summary>Turn off Microsoft consumer experiences (suggested apps)</summary>
@@ -1282,8 +1510,7 @@ public static class RegistryGuard
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
-            using var proc = Process.Start(psi);
-            proc?.WaitForExit(120000);
+            Proc.Wait(psi, 120000);
 
             GuardLogger.Info("Applied: DisableRecall (WindowsAI policies + Click to Do off, Recall feature removal attempted, WSAIFabricSvc=demand)");
         }
@@ -1665,12 +1892,59 @@ public static class RegistryGuard
                 }
                 catch { }
             }
+
+            // Active Setup stub installers — re-run at EVERY user sign-in
+            applied += DisableActiveSetupStubs(IsBloat);
+
             GuardLogger.Info($"Applied: DisableStartupBloat ({applied} entries)");
         }
         catch (Exception ex)
         {
             GuardLogger.Error($"Failed to disable startup bloat: {ex.Message}");
         }
+    }
+
+    // Active Setup — OEM stub installers that re-run at every user sign-in
+    private static readonly string[] ActiveSetupPaths = {
+        @"SOFTWARE\Microsoft\Active Setup\Installed Components",
+        @"SOFTWARE\WOW6432Node\Microsoft\Active Setup\Installed Components",
+    };
+
+    private static int DisableActiveSetupStubs(Func<string, string?, bool> isBloat)
+    {
+        var deleted = 0;
+        foreach (var path in ActiveSetupPaths)
+        {
+            RegistryKey? root;
+            try
+            {
+                root = Registry.LocalMachine.OpenSubKey(path, writable: true);
+            }
+            catch { continue; }
+            if (root == null)
+                continue;
+            using (root)
+            {
+                foreach (var sub in root.GetSubKeyNames())
+                {
+                    try
+                    {
+                        using var sk = root.OpenSubKey(sub);
+                        var blob = sub + " "
+                            + (sk?.GetValue(null)?.ToString() ?? "") + " "
+                            + (sk?.GetValue("LocalizedName")?.ToString() ?? "") + " "
+                            + (sk?.GetValue("StubPath")?.ToString() ?? "");
+                        if (!isBloat(blob, null))
+                            continue;
+                        root.DeleteSubKey(sub);
+                        deleted++;
+                        GuardLogger.Info($"Deleted Active Setup stub: {sub} ({path})");
+                    }
+                    catch { }
+                }
+            }
+        }
+        return deleted;
     }
 
     /// <summary>Layer 23: Windows Error Reporting off — HKLM values + policy +
@@ -2150,13 +2424,10 @@ public static class RegistryGuard
         {
             FileName = fileName,
             Arguments = arguments,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true
         };
-        using var proc = Process.Start(psi);
-        proc?.WaitForExit(15000);
+        Proc.Wait(psi, 15000);
     }
 }
 
@@ -2221,9 +2492,7 @@ public static class ScheduledTaskGuard
             CreateNoWindow = true
         };
 
-        using var proc = Process.Start(psi);
-        var output = proc?.StandardOutput.ReadToEnd() ?? "";
-        proc?.WaitForExit();
+        var output = Proc.Capture(psi, 120000).Stdout;
 
         try
         {
@@ -2311,6 +2580,8 @@ public static class ScheduledTaskGuard
         @"\Microsoft\Windows\Application Experience\AitEnableAgent",
         @"\Microsoft\Windows\Speech\SpeechModelDownloadTask",
         @"\Microsoft\Windows\DiskFootprint\Diagnostics",
+        // Windows Error Reporting queue upload
+        @"\Microsoft\Windows\Windows Error Reporting\QueueReporting",
     };
 
     /// <summary>Disable the known Microsoft telemetry/CEIP scheduled tasks.</summary>
@@ -2335,19 +2606,67 @@ public static class ScheduledTaskGuard
         {
             FileName = "schtasks.exe",
             Arguments = $"/Change /TN \"{fullPath}\" /DISABLE",
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true
         };
 
-        using var proc = Process.Start(psi);
-        proc?.WaitForExit();
-
-        if (proc?.ExitCode == 0)
+        if (Proc.Wait(psi, 15000) == 0)
             GuardLogger.Info($"Disabled scheduled task: {fullPath}");
         else
             GuardLogger.Warn($"Failed to disable task: {fullPath}");
+    }
+}
+
+// ─── winget sweep ────────────────────────────────────────────────────────────
+
+public static class WingetGuard
+{
+    // winget package ids are Publisher.Name only
+    private static readonly Regex WingetIdPattern =
+        new(@"^[A-Za-z0-9_.\-]+$", RegexOptions.Compiled);
+
+    /// <summary>Uninstall blacklist entries that look like winget package ids
+    /// via `winget uninstall --silent --disable-interactivity`. Catches Store
+    /// apps winget can see but Get-AppxPackage can't. No-op when winget is absent.</summary>
+    public static int Sweep(GuardConfig config)
+    {
+        var checkPsi = new ProcessStartInfo
+        {
+            FileName = "winget.exe", Arguments = "--version",
+            UseShellExecute = false, CreateNoWindow = true
+        };
+        int? rc;
+        try { rc = Proc.Wait(checkPsi, 15000); }
+        catch { rc = null; }
+        if (rc == null)
+        {
+            GuardLogger.Info("winget not found — skipping winget sweep");
+            return 0;
+        }
+
+        var removed = 0;
+        foreach (var raw in config.Blacklist)
+        {
+            var entry = raw?.Trim() ?? "";
+            if (!entry.Contains('.') || !WingetIdPattern.IsMatch(entry))
+                continue;
+            var psi = new ProcessStartInfo
+            {
+                FileName = "winget.exe",
+                Arguments = $"uninstall -e --id {entry} --silent --disable-interactivity --accept-source-agreements",
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            if (Proc.Wait(psi, 300000) == 0)
+            {
+                GuardLogger.Info($"winget removed: {entry}");
+                RemovalLedger.Record(config, "winget", entry);
+                removed++;
+            }
+        }
+        if (removed > 0)
+            GuardLogger.Info($"Applied: WingetSweep ({removed} packages)");
+        return removed;
     }
 }
 
@@ -2446,7 +2765,9 @@ public class GuardService : BackgroundService
             foreach (var pkg in currentProvisioned.Except(seenProvisioned))
             {
                 GuardLogger.Warn($"[MONITOR] RE-INSTALLED detected: {pkg} — removing immediately!");
-                if (AppxManager.RemoveProvisionedPackage(pkg))
+                if (_config.DryRun)
+                    GuardLogger.Info($"[DRY-RUN] Would re-remove provisioned: {pkg}");
+                else if (AppxManager.RemoveProvisionedPackage(pkg))
                     GuardLogger.Info($"[MONITOR] Re-removal complete: {pkg}");
                 else
                     GuardLogger.Warn($"[MONITOR] Re-removal failed: {pkg} [admin required]");
@@ -2458,7 +2779,11 @@ public class GuardService : BackgroundService
             foreach (var family in currentInstalled.Except(seenInstalled))
             {
                 GuardLogger.Warn($"[MONITOR] RE-INSTALLED AppxPackage: {family} — removing!");
-                if (fullNameByFamily.TryGetValue(family, out var fullName) &&
+                if (_config.DryRun)
+                {
+                    GuardLogger.Info($"[DRY-RUN] Would re-remove AppxPackage: {family}");
+                }
+                else if (fullNameByFamily.TryGetValue(family, out var fullName) &&
                     !string.IsNullOrEmpty(fullName) &&
                     AppxManager.RemoveAppxPackage(fullName))
                 {
@@ -2470,10 +2795,14 @@ public class GuardService : BackgroundService
                 }
             }
 
-            foreach (var prog in currentWin32.Where(p => !seenWin32.Contains(p.DisplayName)))
+            foreach (var prog in currentWin32.Where(p => !seenWin32.Contains(p.DisplayName) && !p.UserHive))
             {
                 GuardLogger.Warn($"[MONITOR] RE-INSTALLED Win32: {prog.DisplayName} — removing!");
-                if (Win32Guard.RemoveProgram(prog.DisplayName, prog.UninstallString, prog.QuietUninstallString))
+                if (_config.DryRun)
+                {
+                    GuardLogger.Info($"[DRY-RUN] Would re-remove Win32: {prog.DisplayName}");
+                }
+                else if (Win32Guard.RemoveProgram(prog.DisplayName, prog.UninstallString, prog.QuietUninstallString))
                     GuardLogger.Info($"[MONITOR] Re-removal complete: {prog.DisplayName}");
                 else
                     GuardLogger.Warn($"[MONITOR] Re-removal failed or needs manual removal: {prog.DisplayName}");
@@ -2499,6 +2828,7 @@ public class GuardService : BackgroundService
         int skipped = 0;
         int systemAppsSkipped = 0;
         int failed = 0;
+        var matchedFamilies = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         // 0. Safety net: restore point before destructive changes (self-throttles)
         if (!dryRun && _config.Prevention.CreateRestorePoint)
@@ -2525,6 +2855,7 @@ public class GuardService : BackgroundService
                     skipped++;
                     continue;
                 }
+                matchedFamilies.Add(familyName);
 
                 // Use PackageFullName from the query (no second PowerShell call needed)
                 if (string.IsNullOrEmpty(fullName))
@@ -2580,6 +2911,7 @@ public class GuardService : BackgroundService
                     skipped++;
                     continue;
                 }
+                matchedFamilies.Add(AppxManager.ProvisionedFamilyName(pkgName));
 
                 if (dryRun)
                 {
@@ -2615,8 +2947,14 @@ public class GuardService : BackgroundService
         if (_config.Prevention.RemoveWin32Programs)
         {
             var programs = Win32Guard.GetBlacklistedPrograms(_config.Blacklist, _config.Whitelist);
-            foreach (var (display, uninstall, quiet) in programs)
+            foreach (var (display, uninstall, quiet, userHive) in programs)
             {
+                if (userHive)
+                {
+                    // HKU\<sid> is user-writable — never run its strings as SYSTEM
+                    GuardLogger.Info($"Win32 bloat in user hive (report only, not executed): {display}");
+                    continue;
+                }
                 if (dryRun)
                 {
                     GuardLogger.Info($"[DRY-RUN] Would uninstall Win32 program: {display} [requires admin]");
@@ -2634,6 +2972,46 @@ public class GuardService : BackgroundService
                     failed++;
                 }
             }
+        }
+
+        // 2.9 Reprovisioning persistence — the deprovision markers + the 25H2
+        // policy need the family list even when a removal toggle is off, so
+        // enumerate matches independently when persistence is on but removal off.
+        if (_config.Prevention.MarkDeprovisioned || _config.Prevention.RemoveDefaultStorePackages)
+        {
+            if (!(_config.Prevention.RemoveAppxPackages && _config.Prevention.RemoveProvisionedPackages))
+            {
+                foreach (var p in AppxManager.GetBlacklistedPackages(_config.Blacklist, _config.Whitelist))
+                    matchedFamilies.Add(p.PackageFamilyName);
+                foreach (var pkg in AppxManager.GetBlacklistedProvisionedPackages(_config.Blacklist, _config.Whitelist))
+                    matchedFamilies.Add(AppxManager.ProvisionedFamilyName(pkg));
+            }
+            if (matchedFamilies.Count > 0)
+            {
+                if (dryRun)
+                {
+                    GuardLogger.Info($"[DRY-RUN] Would mark {matchedFamilies.Count} families deprovisioned and list them for RemoveDefaultStorePackages");
+                }
+                else
+                {
+                    if (_config.Prevention.MarkDeprovisioned)
+                    {
+                        var n = AppxManager.MarkDeprovisioned(matchedFamilies);
+                        GuardLogger.Info($"Applied: MarkDeprovisioned ({n} markers)");
+                    }
+                    if (_config.Prevention.RemoveDefaultStorePackages)
+                        AppxManager.ApplyRemoveDefaultStorePackages(matchedFamilies);
+                }
+            }
+        }
+
+        // 2.10 winget sweep for Store apps Appx removal can't see
+        if (_config.Prevention.WingetSweep)
+        {
+            if (dryRun)
+                GuardLogger.Info("[DRY-RUN] Would run winget uninstall sweep");
+            else
+                WingetGuard.Sweep(_config);
         }
 
         // 3. Re-apply registry settings (they can be reset by Windows Update)
@@ -2701,7 +3079,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.39.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.40.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -2786,7 +3164,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.39.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.40.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -2938,8 +3316,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 6;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.39.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.39.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.40.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.40.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try
