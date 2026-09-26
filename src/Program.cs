@@ -404,10 +404,12 @@ internal static class Proc
                 try { Task.WaitAll(new Task[] { stdoutT, stderrT }, 5000); } catch { }
                 return ("", "", null);
             }
-            try { proc.WaitForExit(); } catch { }  // flush async reads
-            string stdout = "", stderr = "";
-            try { stdout = stdoutT.Result; } catch { }
-            try { stderr = stderrT.Result; } catch { }
+            // A detached grandchild can inherit the pipes and hold them open
+            // after this process exits — bound the EOF wait rather than block
+            // on .Result forever.
+            try { Task.WaitAll(new Task[] { stdoutT, stderrT }, 10000); } catch { }
+            var stdout = stdoutT.Status == TaskStatus.RanToCompletion ? stdoutT.Result : "";
+            var stderr = stderrT.Status == TaskStatus.RanToCompletion ? stderrT.Result : "";
             return (stdout, stderr, proc.ExitCode);
         }
         catch { return ("", "", null); }
@@ -572,8 +574,19 @@ public static class AppxManager
         return string.IsNullOrEmpty(publisher) ? "" : $"{display}_{publisher}";
     }
 
+    /// <summary>Package names are simple identifiers (Name_ver_arch_resid_pubid)
+    /// — anything else is rejected before it can reach a PowerShell string.</summary>
+    private static bool IsPackageNameSafe(string name)
+        => !string.IsNullOrEmpty(name) &&
+           Regex.IsMatch(name, @"^[A-Za-z0-9_.\-~!]+$");
+
     public static bool RemoveAppxPackage(string packageFullName)
     {
+        if (!IsPackageNameSafe(packageFullName))
+        {
+            GuardLogger.Warn($"Rejected malformed package name: {packageFullName}");
+            return false;
+        }
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
@@ -594,6 +607,11 @@ public static class AppxManager
     /// Returns (success, isSystemApp). SystemApps cannot be removed per-user.</summary>
     public static (bool Success, bool IsSystemApp) RemoveAppxPackageForUser(string packageFullName, string? installPath = null)
     {
+        if (!IsPackageNameSafe(packageFullName))
+        {
+            GuardLogger.Warn($"Rejected malformed package name: {packageFullName}");
+            return (false, false);
+        }
         // SystemApps have null InstallPath — cannot be removed per-user (0x80073CFA)
         if (string.IsNullOrEmpty(installPath))
         {
@@ -619,6 +637,11 @@ public static class AppxManager
 
     public static bool RemoveProvisionedPackage(string packageName)
     {
+        if (!IsPackageNameSafe(packageName))
+        {
+            GuardLogger.Warn($"Rejected malformed package name: {packageName}");
+            return false;
+        }
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
@@ -685,8 +708,9 @@ public static class RegistryGuard
     private static readonly (string Path, string Name, int Value)[] TelemetryUserWrites = {
         (@"SOFTWARE\Microsoft\Windows\CurrentVersion\Privacy", "TailoredExperiencesWithDiagnosticDataEnabled", 0),
         (@"SOFTWARE\Microsoft\Windows\CurrentVersion\AdvertisingInfo", "Enabled", 0),
-        (@"SOFTWARE\Microsoft\InputPersonalization", "RestrictImplicitTextCollection", 0),
-        (@"SOFTWARE\Microsoft\InputPersonalization", "RestrictImplicitInkCollection", 0),
+        // 1 = restrict collection (0 would leave text/ink harvesting ON)
+        (@"SOFTWARE\Microsoft\InputPersonalization", "RestrictImplicitTextCollection", 1),
+        (@"SOFTWARE\Microsoft\InputPersonalization", "RestrictImplicitInkCollection", 1),
         (@"SOFTWARE\Microsoft\InputPersonalization\TrainedDataStore", "HarvestContacts", 0),
         (@"SOFTWARE\Microsoft\Siuf\Rules", "NumberOfSIUFInPeriod", 0),
         (ExplorerAdvancedPath, "Start_TrackProgs", 0),
@@ -1746,11 +1770,15 @@ public static class Win32BloatGuard
         string text;
         try
         {
-            text = File.Exists(hostsPath) ? File.ReadAllText(hostsPath) : "";
+            // Strict decode — a silently-replaced byte would corrupt unrelated
+            // hosts content on rewrite. Better to skip than to write garbage.
+            text = File.Exists(hostsPath)
+                ? File.ReadAllText(hostsPath, new System.Text.UTF8Encoding(false, true))
+                : "";
         }
         catch (Exception ex)
         {
-            GuardLogger.Warn($"Cannot read hosts file: {ex.Message}");
+            GuardLogger.Warn($"Cannot read hosts file (skipped): {ex.Message}");
             return;
         }
 
@@ -1766,6 +1794,16 @@ public static class Win32BloatGuard
         }
         if (beginIdx < 0 && !enabled)
             return; // nothing to do — don't touch the file
+        if (!enabled && beginIdx < 0)
+            return;
+        // Skip the write when the block is already in the desired state.
+        try
+        {
+            var original = File.ReadAllText(hostsPath, new System.Text.UTF8Encoding(false, true));
+            if (text == original)
+                return;
+        }
+        catch { return; }
         try
         {
             File.WriteAllText(hostsPath, text);
@@ -2220,6 +2258,24 @@ public class GuardService : BackgroundService
                     systemAppsSkipped++;
                 }
             }
+        }
+
+        // When a removal toggle is off, its packages were never enumerated —
+        // but the persistence layers still need the families to protect future
+        // profiles and feature updates.
+        if ((_config.Prevention.MarkDeprovisioned || _config.Prevention.RemoveDefaultStorePackages) &&
+            (!_config.Prevention.RemoveAppxPackages || !_config.Prevention.RemoveProvisionedPackages))
+        {
+            if (!_config.Prevention.RemoveAppxPackages)
+                foreach (var (family, _, _, isFw, _) in
+                         AppxManager.GetBlacklistedPackages(_config.Blacklist, _config.Whitelist))
+                    if (!isFw && !IsWhitelisted(family))
+                        matchedFamilies.Add(family);
+            if (!_config.Prevention.RemoveProvisionedPackages)
+                foreach (var (_, provFamily) in
+                         AppxManager.GetBlacklistedProvisionedPackages(_config.Blacklist, _config.Whitelist))
+                    if (!IsWhitelisted(provFamily))
+                        matchedFamilies.Add(provFamily);
         }
 
         // 3. Re-apply registry settings (they can be reset by Windows Update)

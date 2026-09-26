@@ -190,11 +190,16 @@ def is_admin() -> bool:
 
 
 def run_powershell(cmd: str, timeout: int = 60) -> Tuple[str, str, int]:
-    """Run a PowerShell command and return (stdout, stderr, exit_code)."""
-    proc = subprocess.run(
-        ["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", cmd],
-        capture_output=True, timeout=timeout
-    )
+    """Run a PowerShell command and return (stdout, stderr, exit_code).
+    Missing binaries and timeouts return rc=-1 instead of raising — a scan
+    must never abort because a tool is absent or hung."""
+    try:
+        proc = subprocess.run(
+            ["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", cmd],
+            capture_output=True, timeout=timeout
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return "", "", -1
     # Windows console output is often CP932/Shift-JIS — use errors="replace" to avoid crashes
     stdout = proc.stdout.decode("cp932", errors="replace") if proc.stdout else ""
     stderr = proc.stderr.decode("cp932", errors="replace") if proc.stderr else ""
@@ -202,7 +207,10 @@ def run_powershell(cmd: str, timeout: int = 60) -> Tuple[str, str, int]:
 
 
 def run_cmd(args: List[str], timeout: int = 30) -> Tuple[str, int]:
-    proc = subprocess.run(args, capture_output=True, timeout=timeout)
+    try:
+        proc = subprocess.run(args, capture_output=True, timeout=timeout)
+    except (OSError, subprocess.TimeoutExpired):
+        return "", -1
     out = proc.stdout.decode("cp932", errors="replace") if proc.stdout else ""
     return out.strip(), proc.returncode
 
@@ -322,7 +330,18 @@ def get_package_full_names() -> dict:
     return mapping
 
 
+# Package names are simple identifiers (Name_ver_arch_resid_pubid) — anything
+# else is rejected before it can reach a PowerShell string.
+_PKG_NAME_RE = re.compile(r"^[A-Za-z0-9_.\-~!]+$")
+
+
+def _safe_pkg_name(name: str) -> bool:
+    return bool(name) and bool(_PKG_NAME_RE.fullmatch(name))
+
+
 def remove_appx_package(package_full_name: str) -> bool:
+    if not _safe_pkg_name(package_full_name):
+        return False
     # -AllUsers removes for every user at once (admin); falls back to per-user
     scope = " -AllUsers" if is_admin() else ""
     ps_cmd = f"Remove-AppxPackage -Package '{package_full_name}'{scope} -ErrorAction SilentlyContinue"
@@ -388,6 +407,8 @@ def run_restore(config: dict, logger: logging.Logger) -> int:
 
 
 def remove_provisioned_package(package_name: str) -> bool:
+    if not _safe_pkg_name(package_name):
+        return False
     # PackageName is supplied by get_blacklisted_provisioned — no lookup respawn
     ps_cmd = (f"Remove-AppxProvisionedPackage -Online -PackageName '{package_name}' "
               f"-ErrorAction SilentlyContinue")
@@ -601,8 +622,9 @@ TELEMETRY_USER_WRITES = (
     (r"SOFTWARE\Microsoft\Windows\CurrentVersion\Privacy",
      "TailoredExperiencesWithDiagnosticDataEnabled", 0),
     (r"SOFTWARE\Microsoft\Windows\CurrentVersion\AdvertisingInfo", "Enabled", 0),
-    (r"SOFTWARE\Microsoft\InputPersonalization", "RestrictImplicitTextCollection", 0),
-    (r"SOFTWARE\Microsoft\InputPersonalization", "RestrictImplicitInkCollection", 0),
+    # 1 = restrict collection (0 would leave text/ink harvesting ON)
+    (r"SOFTWARE\Microsoft\InputPersonalization", "RestrictImplicitTextCollection", 1),
+    (r"SOFTWARE\Microsoft\InputPersonalization", "RestrictImplicitInkCollection", 1),
     (r"SOFTWARE\Microsoft\InputPersonalization\TrainedDataStore", "HarvestContacts", 0),
     (r"SOFTWARE\Microsoft\Siuf\Rules", "NumberOfSIUFInPeriod", 0),
     (r"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced", "Start_TrackProgs", 0),
@@ -1087,9 +1109,11 @@ def set_telemetry_hosts_block(enabled: bool, logger: logging.Logger):
     fully reversible. Conservative list: no Windows Update/Store/activation."""
     hosts = _hosts_file_path()
     try:
-        text = hosts.read_text(encoding="utf-8", errors="replace") if hosts.exists() else ""
-    except OSError as e:
-        logger.warning(f"Cannot read hosts file: {e}")
+        # Strict decode — silently replacing undecodable bytes would corrupt
+        # unrelated hosts content on rewrite. Skip rather than write garbage.
+        text = hosts.read_text(encoding="utf-8") if hosts.exists() else ""
+    except (OSError, UnicodeDecodeError) as e:
+        logger.warning(f"Cannot read hosts file (skipped): {e}")
         return
 
     begin_idx = text.find(HOSTS_BLOCK_BEGIN)
@@ -1101,6 +1125,9 @@ def set_telemetry_hosts_block(enabled: bool, logger: logging.Logger):
         text = text.rstrip("\n") + f"\n\n{HOSTS_BLOCK_BEGIN}\n{block}\n{HOSTS_BLOCK_END}\n"
     if begin_idx == -1 and not enabled:
         return  # nothing to do — don't touch the file
+    # Skip the write when the block is already in the desired state
+    if text == (hosts.read_text(encoding="utf-8") if hosts.exists() else ""):
+        return
     try:
         hosts.write_text(text, encoding="utf-8")
         logger.info(f"Telemetry hosts block {'applied' if enabled else 'removed'} "
@@ -1394,6 +1421,19 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
         logger.info("[DRY-RUN] Would apply registry prevention")
     else:
         apply_registry_prevention(config, logger)
+
+    # When a removal toggle is off, its packages were never enumerated —
+    # but the persistence layers still need the families to protect future
+    # profiles and feature updates.
+    if (prev.get("MarkDeprovisioned", True) or prev.get("RemoveDefaultStorePackages", True)) and (
+            not prev.get("RemoveAppxPackages", True) or not prev.get("RemoveProvisionedPackages", True)):
+        if not prev.get("RemoveAppxPackages", True):
+            for family_name, _, _ in get_blacklisted_packages(blacklist, whitelist):
+                matched_families.add(family_name)
+        if not prev.get("RemoveProvisionedPackages", True):
+            for _, _, family in get_blacklisted_provisioned(blacklist, whitelist):
+                if family:
+                    matched_families.add(family)
 
     # Persist removal: Deprovisioned markers stop feature-update re-installs;
     # the 25H2 policy stops provisioning for future user profiles
