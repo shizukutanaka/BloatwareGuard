@@ -35,7 +35,7 @@ also apply correctly when the tool runs as a SYSTEM service and for users create
 || 23. Windows Error Reporting uploads off | ✅ | ✅ | HKLM needs admin |
 || 24. Edge update services → demand-start + update tasks off | ✅ | ✅ | Requires admin |
 || 25. OEM driver payloads excluded from Windows Update | ✅ | ✅ | HKLM needs admin |
-|| 26. App permissions force-denied (conservative set — camera/mic/location left) | ✅ | ✅ | HKLM needs admin |
+|| 26. App permissions force-denied (conservative set — camera/mic/location left) + ad-ID/FindMyDevice policies | ✅ | ✅ | HKLM needs admin |
 || 27. Xbox services demoted to demand-start | ✅ | ✅ | HKLM needs admin |
 || 28. HKLM keys exported to .reg before changes (restorable) | ✅ | ✅ | — |
 || 29. Print Spooler off (**opt-in**, default off — PrintNightmare surface) | ✅ | ✅ | Requires admin |
