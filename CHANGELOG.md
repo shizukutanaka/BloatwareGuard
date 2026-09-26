@@ -2,6 +2,13 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.31.0-mvp: telemetry tasks — census/family-safety/net-trace
+
+### Changed
+- `DisableTelemetryTasks` extended (25 → 29): Device Census `Device` /
+  `Device User` (hardware+app inventory upload), `FamilySafetyMonitor`,
+  and `NetTrace\GatherNetworkInfo`.
+
 ## [Unreleased] — v1.30.0-mvp: telemetry tasks — RetailDemo/Flighting/feedback
 
 ### Changed

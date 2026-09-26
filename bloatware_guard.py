@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.30.0-mvp - Python prototype
+BloatwareGuard v1.31.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -34,7 +34,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.30.0-mvp"
+APP_VERSION = "1.31.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -1349,6 +1349,12 @@ TELEMETRY_TASK_PATHS = (
     "\\Microsoft\\Windows\\Flighting\\FeatureConfig\\UsageDataFlushed",
     "\\Microsoft\\Windows\\Flighting\\FeatureConfig\\UsageDataReporting",
     "\\Microsoft\\Windows\\Feedback\\WipAppUsageClient",
+    # Device Census (hardware/app inventory upload), Family Safety usage
+    # monitor, on-demand network-info collection
+    "\\Microsoft\\Windows\\Device Information\\Device",
+    "\\Microsoft\\Windows\\Device Information\\Device User",
+    "\\Microsoft\\Windows\\Shell\\FamilySafetyMonitor",
+    "\\Microsoft\\Windows\\NetTrace\\GatherNetworkInfo",
 )
 
 
