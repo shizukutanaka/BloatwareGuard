@@ -81,6 +81,16 @@ public class PreventionLayers
 
     /// <summary>Layer 11: Disable Widgets board (news & interests feed)</summary>
     public bool DisableWidgets { get; set; } = true;
+
+    /// <summary>Layer 12: Disable telemetry (DiagTrack, advertising ID, tailored
+    /// experiences, ink/typing collection, feedback nags, activity history)</summary>
+    public bool DisableTelemetry { get; set; } = true;
+
+    /// <summary>Layer 13: Disable GameDVR / Game Bar background capture</summary>
+    public bool DisableGameDvr { get; set; } = true;
+
+    /// <summary>Layer 14: Disable Delivery Optimization P2P update sharing</summary>
+    public bool DisableDeliveryOptimization { get; set; } = true;
 }
 
 // ─── JSON source-gen context (trim-safe: avoids IL2026 with PublishTrimmed) ──
@@ -540,6 +550,12 @@ public static class RegistryGuard
     private const string WindowsAiPath = @"SOFTWARE\Policies\Microsoft\Windows\WindowsAI";
     private const string WidgetsDshPath = @"SOFTWARE\Policies\Microsoft\Dsh";
     private const string WindowsFeedsPath = @"SOFTWARE\Policies\Microsoft\Windows\Windows Feeds";
+    private const string DataCollectionPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection";
+    private const string SystemPolicyPath = @"SOFTWARE\Policies\Microsoft\Windows\System";
+    private const string EdgePolicyPath = @"SOFTWARE\Policies\Microsoft\Edge";
+    private const string GameDvrPolicyPath = @"SOFTWARE\Policies\Microsoft\Windows\GameDVR";
+    private const string DoPolicyPath = @"SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization";
+    private const string AiFabricServicePath = @"SYSTEM\CurrentControlSet\Services\WSAIFabricSvc";
 
     // Per-user paths (relative to a user hive root — HKCU or HKEY_USERS\<SID>)
     private const string UserCdmPath = @"Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager";
@@ -549,6 +565,17 @@ public static class RegistryGuard
     private const string UserWindowsAiPath = @"Software\Policies\Microsoft\Windows\WindowsAI";
     private const string UserSearchPath = @"Software\Microsoft\Windows\CurrentVersion\Search";
     private const string UserProfileEngagementPath = @"Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement";
+    private const string UserAdvertisingInfoPath = @"Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo";
+    private const string UserPrivacyPath = @"Software\Microsoft\Windows\CurrentVersion\Privacy";
+    private const string UserOnlineSpeechPath = @"Software\Microsoft\Speech_OneCore\Settings\OnlineSpeechPrivacy";
+    private const string UserTipcPath = @"Software\Microsoft\Input\TIPC";
+    private const string UserInputPersonalizationPath = @"Software\Microsoft\InputPersonalization";
+    private const string UserInputStorePath = @"Software\Microsoft\InputPersonalization\TrainedDataStore";
+    private const string UserPersonalizationPath = @"Software\Microsoft\Personalization\Settings";
+    private const string UserSiufPath = @"Software\Microsoft\Siuf\Rules";
+    private const string UserGameConfigStorePath = @"System\GameConfigStore";
+    private const string UserGameDvrPath = @"Software\Microsoft\Windows\CurrentVersion\GameDVR";
+    private const string UserDeliveryOptimizationPath = @"Software\Microsoft\Windows\CurrentVersion\DeliveryOptimization\Settings";
     private const string UserAccountNotificationsPath = @"Software\Microsoft\Windows\CurrentVersion\SystemSettings\AccountNotifications";
     private const string UserSuggestedToastPath = @"Software\Microsoft\Windows\CurrentVersion\Notifications\Settings\Windows.SystemToast.Suggested";
     private const string UserMobilityPath = @"Software\Microsoft\Windows\CurrentVersion\Mobility";
@@ -586,6 +613,15 @@ public static class RegistryGuard
 
         if (layers.DisableWidgets)
             DisableWidgets();
+
+        if (layers.DisableTelemetry)
+            DisableTelemetry();
+
+        if (layers.DisableGameDvr)
+            DisableGameDvr();
+
+        if (layers.DisableDeliveryOptimization)
+            DisableDeliveryOptimization();
     }
 
     /// <summary>
@@ -817,8 +853,10 @@ public static class RegistryGuard
         }
     }
 
-    /// <summary>Disable Recall / Windows AI data analysis (24H2+, Copilot+ PCs).
-    /// Policy keys block snapshot capture; the optional feature is also removed best-effort.</summary>
+    /// <summary>Disable Recall / Windows AI data analysis (24H2+, Copilot+ PCs) and
+    /// the "Click to Do" AI actions. Policy keys block snapshot capture; the optional
+    /// Recall feature is also removed best-effort, and the AI fabric service is
+    /// demoted from auto-start to demand-start.</summary>
     public static void DisableRecall()
     {
         try
@@ -827,7 +865,20 @@ public static class RegistryGuard
             key?.SetValue("DisableAIDataAnalysis", 1, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("TurnOffSavingSnapshots", 1, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("AllowRecallEnablement", 0, Microsoft.Win32.RegistryValueKind.DWord);
-            SetUserDwordAllHives(UserWindowsAiPath, "DisableAIDataAnalysis", 1);
+            key?.SetValue("DisableClickToDo", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            ForEachUserHive(hive =>
+            {
+                SetHiveDword(hive, UserWindowsAiPath, "DisableAIDataAnalysis", 1);
+                SetHiveDword(hive, UserWindowsAiPath, "DisableClickToDo", 1);
+            });
+
+            // AI fabric service: 2=auto, 3=demand. Absent without NPU/Copilot+ hardware.
+            try
+            {
+                using var svc = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(AiFabricServicePath, writable: true);
+                svc?.SetValue("Start", 3, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            catch { }
 
             // Remove the optional feature entirely where present — absent on most
             // hardware, so failure is expected and logged only at Warn.
@@ -842,7 +893,7 @@ public static class RegistryGuard
             using var proc = Process.Start(psi);
             proc?.WaitForExit(120000);
 
-            GuardLogger.Info("Applied: DisableRecall (WindowsAI policies set, Recall feature removal attempted)");
+            GuardLogger.Info("Applied: DisableRecall (WindowsAI policies + Click to Do off, Recall feature removal attempted, WSAIFabricSvc=demand)");
         }
         catch (Exception ex)
         {
@@ -850,18 +901,23 @@ public static class RegistryGuard
         }
     }
 
-    /// <summary>Disable Bing web results + suggestions in Start/Search — every user hive.</summary>
+    /// <summary>Disable Bing web results + suggestions in Start/Search — every user
+    /// hive — plus the machine-wide Cortana-in-search policy.</summary>
     public static void DisableSearchSuggestions()
     {
         try
         {
+            using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(WindowsSearchPath);
+            key?.SetValue("AllowCortana", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("CortanaConsent", 0, Microsoft.Win32.RegistryValueKind.DWord);
+
             ForEachUserHive(hive =>
             {
                 SetHiveDword(hive, UserExplorerPoliciesPath, "DisableSearchBoxSuggestions", 1);
                 SetHiveDword(hive, UserSearchPath, "BingSearchEnabled", 0);
                 SetHiveDword(hive, UserSearchPath, "CortanaConsent", 0);
             });
-            GuardLogger.Info("Applied: DisableSearchSuggestions (Bing/search suggestions off, all hives)");
+            GuardLogger.Info("Applied: DisableSearchSuggestions (Bing/search suggestions + Cortana off, all hives)");
         }
         catch (Exception ex)
         {
@@ -886,6 +942,116 @@ public static class RegistryGuard
         {
             GuardLogger.Error($"Failed to disable widgets: {ex.Message}");
         }
+    }
+
+    /// <summary>Disable Windows telemetry at every documented surface:
+    /// AllowTelemetry policy, DiagTrack (Connected User Experiences) service,
+    /// advertising ID, tailored experiences, online speech recognition, inking/typing
+    /// collection, feedback-nag frequency, app-launch tracking, activity history
+    /// upload, and Edge diagnostic data. Key set mirrors Win11Debloat
+    /// Disable_Telemetry.reg.</summary>
+    public static void DisableTelemetry()
+    {
+        try
+        {
+            using var dc = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(DataCollectionPath);
+            dc?.SetValue("AllowTelemetry", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            using var sys = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(SystemPolicyPath);
+            sys?.SetValue("PublishUserActivities", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            sys?.SetValue("UploadUserActivities", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            using var edge = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(EdgePolicyPath);
+            edge?.SetValue("PersonalizationReportingEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            edge?.SetValue("DiagnosticData", 0, Microsoft.Win32.RegistryValueKind.DWord);
+
+            ForEachUserHive(hive =>
+            {
+                SetHiveDword(hive, UserAdvertisingInfoPath, "Enabled", 0);
+                SetHiveDword(hive, UserPrivacyPath, "TailoredExperiencesWithDiagnosticDataEnabled", 0);
+                SetHiveDword(hive, UserOnlineSpeechPath, "HasAccepted", 0);
+                SetHiveDword(hive, UserTipcPath, "Enabled", 0);
+                SetHiveDword(hive, UserInputPersonalizationPath, "RestrictImplicitInkCollection", 1);
+                SetHiveDword(hive, UserInputPersonalizationPath, "RestrictImplicitTextCollection", 1);
+                SetHiveDword(hive, UserInputStorePath, "HarvestContacts", 0);
+                SetHiveDword(hive, UserPersonalizationPath, "AcceptedPrivacyPolicy", 0);
+                SetHiveDword(hive, UserExplorerAdvancedPath, "Start_TrackProgs", 0);
+                SetHiveDword(hive, UserSiufPath, "NumberOfSIUFInPeriod", 0);
+            });
+
+            // "Connected User Experiences and Telemetry" (DiagTrack) — the actual
+            // telemetry uploader; absent on some SKUs, failures are non-fatal.
+            RunToolSilent("sc.exe", "stop DiagTrack");
+            RunToolSilent("sc.exe", "config DiagTrack start= disabled");
+
+            GuardLogger.Info("Applied: DisableTelemetry (AllowTelemetry=0, DiagTrack off, privacy surfaces set)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to disable telemetry: {ex.Message}");
+        }
+    }
+
+    /// <summary>Disable GameDVR / Game Bar background capture — recording buffer
+    /// costs GPU cycles even when never used.</summary>
+    public static void DisableGameDvr()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(GameDvrPolicyPath);
+            key?.SetValue("AllowGameDVR", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            ForEachUserHive(hive =>
+            {
+                SetHiveDword(hive, UserGameConfigStorePath, "GameDVR_Enabled", 0);
+                SetHiveDword(hive, UserGameDvrPath, "AppCaptureEnabled", 0);
+            });
+            GuardLogger.Info("Applied: DisableGameDvr (AllowGameDVR=0, GameDVR_Enabled=0, AppCaptureEnabled=0)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to disable GameDVR: {ex.Message}");
+        }
+    }
+
+    /// <summary>Disable Delivery Optimization P2P update sharing — the machine
+    /// stops uploading update payloads to other PCs on the network/internet.</summary>
+    public static void DisableDeliveryOptimization()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(DoPolicyPath);
+            key?.SetValue("DODownloadMode", 0, Microsoft.Win32.RegistryValueKind.DWord);
+
+            SetUserDwordAllHives(UserDeliveryOptimizationPath, "DownloadMode", 0);
+            // The Delivery Optimization service reads the NETWORK SERVICE hive
+            // (S-1-5-20) — write it explicitly too.
+            try
+            {
+                using var net = Registry.Users.CreateSubKey(
+                    @"S-1-5-20\" + UserDeliveryOptimizationPath);
+                net?.SetValue("DownloadMode", 0, RegistryValueKind.DWord);
+            }
+            catch { }
+
+            GuardLogger.Info("Applied: DisableDeliveryOptimization (DODownloadMode=0)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to disable delivery optimization: {ex.Message}");
+        }
+    }
+
+    private static void RunToolSilent(string fileName, string arguments)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = fileName,
+            Arguments = arguments,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        using var proc = Process.Start(psi);
+        proc?.WaitForExit(15000);
     }
 }
 
@@ -1305,7 +1471,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.9.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.10.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -1388,7 +1554,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.9.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.10.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -1540,8 +1706,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 6;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.9.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.9.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.10.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.10.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try

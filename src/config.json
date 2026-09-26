@@ -87,7 +87,10 @@
     "DisableCopilot": true,
     "DisableRecall": true,
     "DisableSearchSuggestions": true,
-    "DisableWidgets": true
+    "DisableWidgets": true,
+    "DisableTelemetry": true,
+    "DisableGameDvr": true,
+    "DisableDeliveryOptimization": true
   },
   "DryRun": false
 }

@@ -1,8 +1,8 @@
-# BloatwareGuard v1.9.0-mvp
+# BloatwareGuard v1.10.0-mvp
 
 ## What It Does
 
-Removes Windows bloatware across **11 prevention layers** in both **Python** and **C#** implementations.
+Removes Windows bloatware across **14 prevention layers** in both **Python** and **C#** implementations.
 Per-user settings are written to **every loaded user hive + the Default profile template**, so they
 also apply correctly when the tool runs as a SYSTEM service and for users created later.
 
@@ -21,6 +21,9 @@ also apply correctly when the tool runs as a SYSTEM service and for users create
 || 9. Recall / Windows AI off (policy + feature removal) | ✅ | ✅ | Own hive only |
 || 10. Search suggestions / Bing off (all hives) | ✅ | ✅ | Own hive only |
 || 11. Widgets board off (policy + taskbar button) | ✅ | ✅ | HKLM needs admin |
+|| 12. Telemetry off (DiagTrack svc, ad ID, feedback nags, activity history) | ✅ | ✅ | HKLM needs admin |
+|| 13. GameDVR / Game Bar capture off | ✅ | ✅ | HKLM needs admin |
+|| 14. Delivery Optimization P2P sharing off | ✅ | ✅ | HKLM needs admin |
 
 ---
 
@@ -139,8 +142,8 @@ dotnet publish src/BloatwareGuard.csproj -c Release -r win-x64 --self-contained 
 ## Version
 
 ```bash
-python bloatware_guard.py --version   # BloatwareGuard v1.9.0-mvp
-BloatwareGuard.exe --version          # BloatwareGuard v1.9.0-mvp
+python bloatware_guard.py --version   # BloatwareGuard v1.10.0-mvp
+BloatwareGuard.exe --version          # BloatwareGuard v1.10.0-mvp
 ```
 
 ---

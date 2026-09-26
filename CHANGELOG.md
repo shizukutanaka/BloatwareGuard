@@ -2,6 +2,26 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.10.0-mvp: privacy & telemetry hardening
+
+### Added
+- **3 new prevention layers** (`Prevention` config flags, default on; key sets mirror
+  Win11Debloat `Disable_Telemetry.reg` / `Disable_DVR.reg` / `Disable_Delivery_Optimization.reg`):
+  - `DisableTelemetry` — `AllowTelemetry=0`; **DiagTrack** ("Connected User Experiences and
+    Telemetry") service stopped + disabled; per-hive: advertising ID, tailored experiences,
+    online speech recognition, inking/typing collection (`TIPC`, `InputPersonalization`,
+    `HarvestContacts`), feedback frequency (`Siuf\Rules`), `Start_TrackProgs`; HKLM:
+    `PublishUserActivities`/`UploadUserActivities=0`, Edge `PersonalizationReportingEnabled=0`,
+    `DiagnosticData=0`
+  - `DisableGameDvr` — `AllowGameDVR=0` policy + per-hive `GameDVR_Enabled=0`,
+    `AppCaptureEnabled=0` (kills Game Bar's background recording buffer)
+  - `DisableDeliveryOptimization` — `DODownloadMode=0` policy + per-hive `DownloadMode=0`,
+    including the `S-1-5-20` (NETWORK SERVICE) hive the DO service actually reads
+- **Layer 9 (`DisableRecall`) extended** — also sets `DisableClickToDo=1` (24H2 "Click to Do"
+  AI actions, HKLM + hives) and demotes `WSAIFabricSvc` (AI fabric service) to demand-start.
+- **Layer 10 (`DisableSearchSuggestions`) extended** — machine-wide `AllowCortana=0` +
+  `CortanaConsent=0` policy (`SOFTWARE\Policies\Microsoft\Windows\Windows Search`).
+
 ## [Unreleased] — v1.9.0-mvp: Windows 11 24H2 coverage
 
 ### Added

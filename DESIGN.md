@@ -25,7 +25,10 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 │    ├─ TurnOffWindowsCopilot = 1 (HKLM+hives)        │
 │    ├─ WindowsAI: DisableAIDataAnalysis = 1 等       │
 │    ├─ DisableSearchBoxSuggestions = 1 (all hives)   │
-│    └─ Dsh: AllowNewsAndInterests = 0 + TaskbarDa=0  │
+│    ├─ Dsh: AllowNewsAndInterests = 0 + TaskbarDa=0  │
+│    ├─ AllowTelemetry=0 + DiagTrack 停止 (全ハイブ)   │
+│    ├─ GameDVR: AllowGameDVR=0 + GameDVR_Enabled=0   │
+│    └─ DeliveryOptimization: DODownloadMode=0        │
 ├─────────────────────────────────────────────────────┤
 │  Config: config.json (blacklist + intervals)        │
 │  Log: Windows Event Log + file                      │
@@ -48,6 +51,10 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 | Recall/AI スナップショット | DisableAIDataAnalysis=1, TurnOffSavingSnapshots=1, AllowRecallEnablement=0 + Disable-WindowsOptionalFeature | DisableRecall |
 | Bing/検索サジェスト | DisableSearchBoxSuggestions=1, BingSearchEnabled=0 (全ハイブ) | DisableSearchSuggestions |
 | ウィジェット/ニュース | AllowNewsAndInterests=0, EnableFeeds=0, TaskbarDa=0 | DisableWidgets |
+| テレメトリ (診断データ/広告ID/フィードバック/アクティビティ履歴/Edge) | AllowTelemetry=0, DiagTrack サービス停止, AdvertisingInfo Enabled=0, TailoredExperiencesWithDiagnosticDataEnabled=0, Start_TrackProgs=0, PublishUserActivities=0 等 — 全ハイブ | DisableTelemetry |
+| GameDVR (バックグラウンド録画) | AllowGameDVR=0 (HKLM), GameDVR_Enabled=0, AppCaptureEnabled=0 (全ハイブ) | DisableGameDvr |
+| Delivery Optimization (P2P 更新共有) | DODownloadMode=0 (HKLM+全ハイブ+S-1-5-20) | DisableDeliveryOptimization |
+| Click to Do (AI アクション) | WindowsAI DisableClickToDo=1 (HKLM+全ハイブ) + WSAIFabricSvc 手動起動化 | DisableRecall |
 
 ## ブラックリスト方式
 - config.json の `Blacklist` にパッケージ名の**部分一致**パターンを列挙

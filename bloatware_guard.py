@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.9.0-mvp - Python prototype
+BloatwareGuard v1.10.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -34,7 +34,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.9.0-mvp"
+APP_VERSION = "1.10.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -165,6 +165,9 @@ def load_config(path: Path) -> dict:
                 "DisableRecall": True,
                 "DisableSearchSuggestions": True,
                 "DisableWidgets": True,
+                "DisableTelemetry": True,
+                "DisableGameDvr": True,
+                "DisableDeliveryOptimization": True,
             },
             "DryRun": False,
         }
@@ -407,6 +410,18 @@ _USER_ACCOUNT_NOTIFICATIONS = r"Software\Microsoft\Windows\CurrentVersion\System
 _USER_SUGGESTED_TOAST = (r"Software\Microsoft\Windows\CurrentVersion"
                          r"\Notifications\Settings\Windows.SystemToast.Suggested")
 _USER_MOBILITY = r"Software\Microsoft\Windows\CurrentVersion\Mobility"
+_USER_ADVERTISING_INFO = r"Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo"
+_USER_PRIVACY = r"Software\Microsoft\Windows\CurrentVersion\Privacy"
+_USER_ONLINE_SPEECH = r"Software\Microsoft\Speech_OneCore\Settings\OnlineSpeechPrivacy"
+_USER_TIPC = r"Software\Microsoft\Input\TIPC"
+_USER_INPUT_PERSONALIZATION = r"Software\Microsoft\InputPersonalization"
+_USER_INPUT_STORE = r"Software\Microsoft\InputPersonalization\TrainedDataStore"
+_USER_PERSONALIZATION = r"Software\Microsoft\Personalization\Settings"
+_USER_SIUF = r"Software\Microsoft\Siuf\Rules"
+_USER_GAME_CONFIG_STORE = r"System\GameConfigStore"
+_USER_GAME_DVR = r"Software\Microsoft\Windows\CurrentVersion\GameDVR"
+_USER_DELIVERY_OPT = (r"Software\Microsoft\Windows\CurrentVersion"
+                      r"\DeliveryOptimization\Settings")
 
 # HKLM subkey used to temporarily mount the Default-profile template hive
 _DEFAULT_HIVE_MOUNT = "BloatwareGuard_DefaultProfile"
@@ -558,19 +573,27 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_registry_dword("HKLM", ai_pol, "DisableAIDataAnalysis", 1)
         set_registry_dword("HKLM", ai_pol, "TurnOffSavingSnapshots", 1)
         set_registry_dword("HKLM", ai_pol, "AllowRecallEnablement", 0)
+        set_registry_dword("HKLM", ai_pol, "DisableClickToDo", 1)
         set_user_dword_all_hives(_USER_WINDOWS_AI, "DisableAIDataAnalysis", 1, logger)
+        set_user_dword_all_hives(_USER_WINDOWS_AI, "DisableClickToDo", 1, logger)
         if is_admin():
             # Remove the optional feature where present — absent on most hardware
             run_powershell(
                 "Disable-WindowsOptionalFeature -Online -FeatureName 'Recall' "
                 "-NoRestart -ErrorAction SilentlyContinue | Out-Null", timeout=120)
-        logger.info("Applied: DisableRecall (WindowsAI policies set, Recall feature removal attempted)")
+        # AI fabric service: 2=auto, 3=demand. Absent without NPU/Copilot+ hardware.
+        set_registry_dword("HKLM", r"SYSTEM\CurrentControlSet\Services\WSAIFabricSvc", "Start", 3)
+        logger.info("Applied: DisableRecall (WindowsAI policies + Click to Do off, "
+                    "Recall feature removal attempted, WSAIFabricSvc=demand)")
 
     if prev.get("DisableSearchSuggestions", True):
+        search_pol = r"SOFTWARE\Policies\Microsoft\Windows\Windows Search"
+        set_registry_dword("HKLM", search_pol, "AllowCortana", 0)
+        set_registry_dword("HKLM", search_pol, "CortanaConsent", 0)
         set_user_dword_all_hives(_USER_EXPLORER_POLICIES, "DisableSearchBoxSuggestions", 1, logger)
         set_user_dword_all_hives(_USER_SEARCH, "BingSearchEnabled", 0, logger)
         set_user_dword_all_hives(_USER_SEARCH, "CortanaConsent", 0, logger)
-        logger.info("Applied: DisableSearchSuggestions (Bing/search suggestions off, all hives)")
+        logger.info("Applied: DisableSearchSuggestions (Bing/search suggestions + Cortana off, all hives)")
 
     if prev.get("DisableWidgets", True):
         set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Dsh", "AllowNewsAndInterests", 0)
@@ -578,6 +601,68 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                            "EnableFeeds", 0)
         set_user_dword_all_hives(_USER_EXPLORER_ADV, "TaskbarDa", 0, logger)
         logger.info("Applied: DisableWidgets (AllowNewsAndInterests = 0, TaskbarDa = 0)")
+
+    if prev.get("DisableTelemetry", True):
+        # Key set mirrors Win11Debloat Disable_Telemetry.reg
+        set_registry_dword(
+            "HKLM", r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
+            "AllowTelemetry", 0)
+        set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\System",
+                           "PublishUserActivities", 0)
+        set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\System",
+                           "UploadUserActivities", 0)
+        set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Edge",
+                           "PersonalizationReportingEnabled", 0)
+        set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Edge",
+                           "DiagnosticData", 0)
+
+        def _apply_telemetry(root, prefix):
+            def w(path, name, value):
+                key_path = f"{prefix}\\{path}" if prefix else path
+                key = winreg.CreateKeyEx(root, key_path, 0, winreg.KEY_WRITE)
+                winreg.SetValueEx(key, name, 0, winreg.REG_DWORD, value)
+                winreg.CloseKey(key)
+            w(_USER_ADVERTISING_INFO, "Enabled", 0)
+            w(_USER_PRIVACY, "TailoredExperiencesWithDiagnosticDataEnabled", 0)
+            w(_USER_ONLINE_SPEECH, "HasAccepted", 0)
+            w(_USER_TIPC, "Enabled", 0)
+            w(_USER_INPUT_PERSONALIZATION, "RestrictImplicitInkCollection", 1)
+            w(_USER_INPUT_PERSONALIZATION, "RestrictImplicitTextCollection", 1)
+            w(_USER_INPUT_STORE, "HarvestContacts", 0)
+            w(_USER_PERSONALIZATION, "AcceptedPrivacyPolicy", 0)
+            w(_USER_EXPLORER_ADV, "Start_TrackProgs", 0)
+            w(_USER_SIUF, "NumberOfSIUFInPeriod", 0)
+
+        for_each_user_hive(_apply_telemetry, logger)
+
+        # "Connected User Experiences and Telemetry" (DiagTrack) — the actual
+        # telemetry uploader; absent on some SKUs, failures are non-fatal.
+        run_cmd(["sc.exe", "stop", "DiagTrack"])
+        run_cmd(["sc.exe", "config", "DiagTrack", "start=", "disabled"])
+        logger.info("Applied: DisableTelemetry (AllowTelemetry=0, DiagTrack off, "
+                    "privacy surfaces set)")
+
+    if prev.get("DisableGameDvr", True):
+        set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\GameDVR",
+                           "AllowGameDVR", 0)
+        set_user_dword_all_hives(_USER_GAME_CONFIG_STORE, "GameDVR_Enabled", 0, logger)
+        set_user_dword_all_hives(_USER_GAME_DVR, "AppCaptureEnabled", 0, logger)
+        logger.info("Applied: DisableGameDvr (AllowGameDVR=0, GameDVR_Enabled=0, "
+                    "AppCaptureEnabled=0)")
+
+    if prev.get("DisableDeliveryOptimization", True):
+        set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization",
+                           "DODownloadMode", 0)
+        set_user_dword_all_hives(_USER_DELIVERY_OPT, "DownloadMode", 0, logger)
+        # The Delivery Optimization service reads the NETWORK SERVICE hive (S-1-5-20)
+        try:
+            key = winreg.CreateKeyEx(
+                winreg.HKEY_USERS, "S-1-5-20\\" + _USER_DELIVERY_OPT, 0, winreg.KEY_WRITE)
+            winreg.SetValueEx(key, "DownloadMode", 0, winreg.REG_DWORD, 0)
+            winreg.CloseKey(key)
+        except Exception:
+            pass
+        logger.info("Applied: DisableDeliveryOptimization (DODownloadMode=0)")
 
 
 # ─── Scheduled Task Prevention ───────────────────────────────────────────────
@@ -948,7 +1033,9 @@ def run_self_test() -> int:
                     "PreventDeviceMetadata", "DisableOemScheduledTasks",
                     "BlockProvisioning", "ReinstallMonitor",
                     "DisableCopilot", "DisableRecall",
-                    "DisableSearchSuggestions", "DisableWidgets"]
+                    "DisableSearchSuggestions", "DisableWidgets",
+                    "DisableTelemetry", "DisableGameDvr",
+                    "DisableDeliveryOptimization"]
         missing = [k for k in required if k not in prev]
         assert not missing, f"missing prevention keys: {missing}"
 
@@ -970,7 +1057,7 @@ def run_self_test() -> int:
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
     check("T4: Logger file + console wiring", t_logging)
     check("T5: is_admin() callable", t_is_admin)
-    check("T6: Prevention layers — 12 registered", t_prevention_layers)
+    check("T6: Prevention layers — 15 registered", t_prevention_layers)
     check("T7: Removal ledger write/read", t_removal_ledger)
     check("T8: Full-name batch map", t_full_name_map)
 
