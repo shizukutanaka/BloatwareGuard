@@ -1,5 +1,5 @@
 @echo off
-REM BloatwareGuard v1.8.0-mvp - Deployment Verification Script
+REM BloatwareGuard v1.54.0-mvp - Deployment Verification Script
 REM Requirements:
 REM   1. Windows 11 (self-contained C# build - NO .NET runtime needed)
 REM   2. Run as Administrator for C# dry-run (UAC manifest requests admin)
@@ -11,7 +11,7 @@ REM       Admin rights are required by the UAC manifest even for --version.
 setlocal enabledelayedexpansion
 
 echo ========================================
-echo BloatwareGuard v1.8.0-mvp - Deploy Verify
+echo BloatwareGuard v1.54.0-mvp - Deploy Verify
 echo ========================================
 echo.
 
