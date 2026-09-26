@@ -1781,6 +1781,7 @@ public static class Win32BloatGuard
             GuardLogger.Warn($"Cannot read hosts file (skipped): {ex.Message}");
             return;
         }
+        var original = text;  // single read — a second read could fail on absent file
 
         var beginIdx = text.IndexOf(HostsBlockBegin, StringComparison.Ordinal);
         var endIdx = text.IndexOf(HostsBlockEnd, StringComparison.Ordinal);
@@ -1794,16 +1795,9 @@ public static class Win32BloatGuard
         }
         if (beginIdx < 0 && !enabled)
             return; // nothing to do — don't touch the file
-        if (!enabled && beginIdx < 0)
-            return;
         // Skip the write when the block is already in the desired state.
-        try
-        {
-            var original = File.ReadAllText(hostsPath, new System.Text.UTF8Encoding(false, true));
-            if (text == original)
-                return;
-        }
-        catch { return; }
+        if (File.Exists(hostsPath) && text == original)
+            return;
         try
         {
             File.WriteAllText(hostsPath, text);

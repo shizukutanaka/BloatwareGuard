@@ -310,8 +310,11 @@ def _is_whitelisted(name: str, whitelist: List[str]) -> bool:
 
 def get_package_full_names() -> dict:
     """Map PackageFamilyName -> PackageFullName in one PowerShell call.
-    Avoids spawning a process per package inside scan loops."""
-    ps_cmd = "Get-AppxPackage | Select-Object PackageFamilyName,PackageFullName | ConvertTo-Json"
+    Avoids spawning a process per package inside scan loops. -AllUsers when
+    elevated so packages installed only for other users still resolve."""
+    scope = " -AllUsers" if is_admin() else ""
+    ps_cmd = (f"Get-AppxPackage{scope} | "
+              "Select-Object PackageFamilyName,PackageFullName | ConvertTo-Json")
     stdout, _, rc = run_powershell(ps_cmd, timeout=120)
     mapping = {}
     if rc != 0 or not stdout:
@@ -1115,6 +1118,7 @@ def set_telemetry_hosts_block(enabled: bool, logger: logging.Logger):
     except (OSError, UnicodeDecodeError) as e:
         logger.warning(f"Cannot read hosts file (skipped): {e}")
         return
+    original = text  # single read — a second read could fail on absent file
 
     begin_idx = text.find(HOSTS_BLOCK_BEGIN)
     end_idx = text.find(HOSTS_BLOCK_END)
@@ -1126,7 +1130,7 @@ def set_telemetry_hosts_block(enabled: bool, logger: logging.Logger):
     if begin_idx == -1 and not enabled:
         return  # nothing to do — don't touch the file
     # Skip the write when the block is already in the desired state
-    if text == (hosts.read_text(encoding="utf-8") if hosts.exists() else ""):
+    if hosts.exists() and text == original:
         return
     try:
         hosts.write_text(text, encoding="utf-8")
