@@ -27,7 +27,6 @@ Removes Windows bloatware across **23 prevention layers** in both **Python** and
 | 17. Win32/MSI/EXE bloatware uninstall (silent uninstallers only) | ✅ | ✅ | Admin |
 | 18. OEM/vendor service stop+disable | ✅ | ✅ | Admin |
 | 19. Startup (Run/RunOnce) bloat cleanup across all hives | ✅ | ✅ | Current user |
-
 || 20. Game Bar GameDVR capture off (policy + per-hive) | ✅ | ✅ | HKLM (admin) |
 || 21. Telemetry-domain hosts block (26 domains, reversible) | ✅ | ✅ | Admin |
 || 22. winget silent-uninstall sweep | ✅ | ✅ | Admin (skips w/o winget) |
