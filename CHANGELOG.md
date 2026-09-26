@@ -2,6 +2,13 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.38.0-mvp: SysMain/TabletInputService demoted
+
+### Changed
+- `DisableMiscBloatServices` extended (11 → 13 demand-start): `SysMain`
+  (Superfetch's resident prefetch scanner — dead weight on SSD machines)
+  and `TabletInputService` (touch-keyboard surface on non-touch PCs).
+
 ## [Unreleased] — v1.37.0-mvp: telemetry tasks — AIT/speech/disk
 
 ### Changed
