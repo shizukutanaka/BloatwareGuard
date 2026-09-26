@@ -83,7 +83,11 @@
         "Microsoft.NetworkSpeedTest",
         "Microsoft.Office.Sway",
         "Microsoft.Office.Desktop",
-        "MSTranslatorBeta"
+        "MSTranslatorBeta",
+        "MicrosoftWindows.CrossDevice",
+        "Microsoft.ECApp",
+        "SystweakSoftware",
+        "PricerunnerAB"
     ],
     "Whitelist": [
         "Microsoft.WindowsStore",

@@ -8,7 +8,9 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 - Blacklist +13 dead/deprecated stock apps and promo stubs that the 24H2
   image still ships: 3D Viewer (both ids), Print3D, Whiteboard, Wallet,
   Messaging, OneConnect, CommsPhone, Appconnector, NetworkSpeedTest, Sway,
-  Office Hub launcher (`Microsoft.Office.Desktop`), MSTranslatorBeta.
+  Office Hub launcher (`Microsoft.Office.Desktop`), MSTranslatorBeta —
+  plus `MicrosoftWindows.CrossDevice`, `Microsoft.ECApp`, `SystweakSoftware`,
+  `PricerunnerAB` (82→86 total entries).
 - Self-test T9 extended: asserts every Python shared data-list entry
   (telemetry tasks, autologgers, hosts, startup names) exists in Program.cs.
 

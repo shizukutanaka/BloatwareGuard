@@ -503,6 +503,9 @@ public static class ConfigLoader
                 "MSTranslatorBeta",
                 "MicrosoftWindows.Client.WebExperience",  // Widgets board host package
                 "Microsoft.MicrosoftJournal",             // Journal note app
+                "MicrosoftWindows.CrossDevice",           // Cross-Device Experience stub
+                "Microsoft.ECApp",                        // Edge app-maker stub
+                "SystweakSoftware", "PricerunnerAB",
 
                 // OEM utilities (uncomment as needed)
                 // "DellInc.Dell",

@@ -155,6 +155,10 @@ DEFAULT_BLACKLIST = [
     "Microsoft.Office.Sway",
     "Microsoft.Office.Desktop",          # Office Hub launcher / promo stub
     "MSTranslatorBeta",
+    "MicrosoftWindows.CrossDevice",      # Cross-Device Experience stub (Phone Link)
+    "Microsoft.ECApp",                   # Edge app-maker stub
+    "SystweakSoftware",                  # optimizer ads
+    "PricerunnerAB",
 ]
 
 
