@@ -320,6 +320,15 @@ public static class GuardLogger
         {
             try
             {
+                // A resident service appends forever — rotate at 1 MB,
+                // keeping one prior generation (*.old)
+                var info = new FileInfo(logPath);
+                if (info.Exists && info.Length > 1_000_000)
+                {
+                    var old = logPath + ".old";
+                    File.Delete(old);
+                    File.Move(logPath, old);
+                }
                 File.AppendAllText(logPath, line + Environment.NewLine);
             }
             catch { /* ignore file log errors */ }
@@ -3086,6 +3095,12 @@ public class GuardService : BackgroundService
         // 0. Safety net: restore point before destructive changes (self-throttles)
         if (!dryRun && _config.Prevention.CreateRestorePoint)
             Win32Guard.CreateRestorePoint();
+
+        // 0.5 Back up every HKLM key BEFORE any writes — this scan touches the
+        // deprovision/Store-policy keys before ApplyAll would back them up;
+        // the once-per-process guard makes the later call a no-op
+        if (!dryRun && _config.Prevention.BackupRegistry)
+            RegistryGuard.BackupRegistryKeys();
 
         // 1. Remove installed AppxPackages matching blacklist
         if (_config.Prevention.RemoveAppxPackages)

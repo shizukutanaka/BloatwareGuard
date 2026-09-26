@@ -35,7 +35,7 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 │    ├─ Capability 除去 (IE/StepsRecorder/WordPad)    │
 │    ├─ Win32 除去 (Uninstall キー走査+MSI サイレント)│
 │    ├─ 復元ポイント作成 (スキャン前、24h スロットル)  │
-│    ├─ テレメトリタスク停止 (CompatTel/CEIP 等58件)  │
+│    ├─ テレメトリタスク停止 (CompatTel/CEIP 等56件)  │
 │    ├─ StartupApproved 無効化マーカー (Run/RunOnce)  │
 │    ├─ Windows Error Reporting 停止                 │
 │    ├─ Edge Update サービス/タスク → demand 化       │

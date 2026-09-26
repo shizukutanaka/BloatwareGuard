@@ -26,6 +26,7 @@ import time
 import ctypes
 import argparse
 import logging
+import logging.handlers
 import tempfile
 import shutil
 from pathlib import Path
@@ -52,7 +53,10 @@ def setup_logging(log_file: Path) -> logging.Logger:
                             datefmt="%Y-%m-%d %H:%M:%S")
 
     try:
-        fh = logging.FileHandler(str(log_file), encoding="utf-8")
+        # A resident service appends forever — rotate at 1 MB, keep one backup
+        fh = logging.handlers.RotatingFileHandler(
+            str(log_file), maxBytes=1_000_000, backupCount=1,
+            encoding="utf-8")
         fh.setFormatter(fmt)
         logger.addHandler(fh)
     except PermissionError:
@@ -1958,6 +1962,15 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
 
     matched_families = set()
 
+    # 0.5 Back up every HKLM key BEFORE any writes — run_scan touches the
+    # deprovision/Store-policy keys before apply_registry_prevention would
+    # back them up; the once-per-process guard makes the later call a no-op
+    if prev.get("BackupRegistry", True):
+        if dry_run:
+            logger.info("[DRY-RUN] Would export registry backup")
+        else:
+            backup_registry_keys(logger)
+
     # 1. Remove installed packages
     if prev.get("RemoveAppxPackages", True):
         packages = get_blacklisted_packages(blacklist, whitelist)
@@ -2423,7 +2436,8 @@ def run_self_test() -> int:
                                   ("_STARTUP_BLOAT_NAMES", _STARTUP_BLOAT_NAMES),
                                   ("DEFAULT_BLACKLIST", DEFAULT_BLACKLIST),
                                   ("MICROSOFT_SYSTEM_TASK_PREFIXES",
-                                   MICROSOFT_SYSTEM_TASK_PREFIXES)):
+                                   MICROSOFT_SYSTEM_TASK_PREFIXES),
+                                  ("_BACKUP_KEY_PATHS", _BACKUP_KEY_PATHS)):
                 miss = [e for e in entries if e not in cs_src]
                 assert not miss, f"{name} entries missing from Program.cs: {miss}"
 
