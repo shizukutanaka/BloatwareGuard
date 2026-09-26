@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.26.0-mvp - Python prototype
+BloatwareGuard v1.27.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -34,7 +34,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.26.0-mvp"
+APP_VERSION = "1.27.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -929,6 +929,12 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_registry_dword("HKLM",
                            r"SOFTWARE\Policies\Microsoft\Windows\SettingSync",
                            "DisableSettingSync", 2)
+        # "Share across devices" (Connected Devices Platform) consent off
+        cdp = r"Software\Microsoft\Windows\CurrentVersion\CDP"
+        set_user_dword_all_hives(cdp, "CdpSessionUserAuthzPolicy", 0, logger)
+        set_user_dword_all_hives(cdp, "RomeSdkChannelUserAuthzPolicy", 0, logger)
+        set_user_dword_all_hives(cdp + r"\SettingsPage",
+                                 "RomeSdkChannelUserAuthzPolicy", 0, logger)
         logger.info("Applied: DisableTelemetry (AllowTelemetry=0, DiagTrack off, "
                     "privacy surfaces set)")
 

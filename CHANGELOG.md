@@ -2,6 +2,14 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.27.0-mvp: shared-experiences consent off
+
+### Changed
+- `DisableTelemetry` also zeros the Connected Devices Platform consent
+  policies (`CdpSessionUserAuthzPolicy`, `RomeSdkChannelUserAuthzPolicy`)
+  across every user hive — "Share across devices" / cross-device
+  experiences off even though `CDPSvc` is already demand-start.
+
 ## [Unreleased] — v1.26.0-mvp: push-install / settings-sync surfaces
 
 ### Changed
