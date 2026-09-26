@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.53.0-mvp - Python prototype
+BloatwareGuard v1.54.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -34,7 +34,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.53.0-mvp"
+APP_VERSION = "1.54.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -1325,6 +1325,14 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                     "UserDataSvc", "PimIndexMaintenanceSvc",
                     # Diagnostic Service Host pair — WDI diagnostics sessions
                     "WdiSystemHost", "WdiServiceHost",
+                    # Diagnostic Policy Service + Diagnostic Execution Service
+                    # — both Automatic by default; Manual keeps netsh/PowerShell
+                    # diagnostics working on demand while killing the resident
+                    # diagnostic pipeline
+                    "DPS", "diagsvc",
+                    # Data Collection and Publishing Service — feeds the
+                    # diagnostic ingest pipeline
+                    "DcpSvc",
                     "PcaSvc",                # Program Compatibility Assistant
                     # Microsoft Pay (dead), Windows Insider, Mixed Reality,
                     # AllJoyn, smart card triad

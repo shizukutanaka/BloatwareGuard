@@ -2,6 +2,14 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.54.0-mvp: diagnostic service demotion
+
+### Changed
+- `DisableMiscBloatServices` 42→45: added `DPS` (Diagnostic Policy Service),
+  `diagsvc` (Diagnostic Execution Service) — both Automatic by default,
+  demand-start keeps netsh/PowerShell diagnostics working — and `DcpSvc`
+  (Data Collection and Publishing Service, diagnostic ingest feeder).
+
 ## [Unreleased] — v1.53.0-mvp: stock-app blacklist audit + parity fixes
 
 ### Added
