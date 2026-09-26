@@ -133,6 +133,9 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 - `BloatwareGuard.exe install` — Windowsサービスに登録
 - `BloatwareGuard.exe uninstall` — サービスから削除
 - `BloatwareGuard.exe status` — サービス状態確認
+- `BloatwareGuard.exe list-installed` — ブラックリスト一致のインストール済みパッケージを一覧表示 (Python 側は `--list-installed`)
+- `BloatwareGuard.exe --version` — バージョン表示
+- `BloatwareGuard.exe --self-test` — 内部構造テスト (管理者不要; py T1–T9 / C# T1–T7)
 
 ## 注意
 - 管理者権限必須 (app.manifest で requireAdministrator)
