@@ -1765,6 +1765,11 @@ public static class RegistryGuard
         {
             using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(WindowsUpdatePolicyPath);
             key?.SetValue("ExcludeWUDriversInQualityUpdate", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            // Stop device-metadata (icons + vendor companion apps) downloads —
+            // another OEM silent-delivery channel alongside WU drivers
+            using var meta = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Microsoft\Windows\CurrentVersion\Device Metadata");
+            meta?.SetValue("PreventDeviceMetadataFromNetwork", 1, Microsoft.Win32.RegistryValueKind.DWord);
             GuardLogger.Info("Applied: BlockOemDriverUpdates (ExcludeWUDriversInQualityUpdate=1)");
         }
         catch (Exception ex)
@@ -1809,6 +1814,7 @@ public static class RegistryGuard
         @"SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo",
         @"SOFTWARE\Policies\Microsoft\FindMyDevice",
         @"SOFTWARE\Policies\Microsoft\Windows\SettingSync",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Device Metadata",
     };
     private static bool _backupDone;
 
@@ -1989,7 +1995,12 @@ public static class RegistryGuard
             {
                 DemoteService(svc);
             }
-            GuardLogger.Info("Applied: DisableMiscBloatServices (11 services → demand-start)");
+            // Remote Registry: read/write registry over SMB — a real attack
+            // surface with no consumer use case; disable outright (not
+            // demand-start, which still leaves it reachable).
+            RunToolSilent("sc.exe", "stop RemoteRegistry");
+            RunToolSilent("sc.exe", "config RemoteRegistry start= disabled");
+            GuardLogger.Info("Applied: DisableMiscBloatServices (11 services → demand-start, RemoteRegistry disabled)");
         }
         catch (Exception ex)
         {
@@ -2608,7 +2619,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.28.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.29.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -2693,7 +2704,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.28.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.29.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -2845,8 +2856,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 6;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.28.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.28.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.29.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.29.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try

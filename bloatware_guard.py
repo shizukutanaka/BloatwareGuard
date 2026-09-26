@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.28.0-mvp - Python prototype
+BloatwareGuard v1.29.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -34,7 +34,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.28.0-mvp"
+APP_VERSION = "1.29.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -737,6 +737,7 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo",
     r"SOFTWARE\Policies\Microsoft\FindMyDevice",
     r"SOFTWARE\Policies\Microsoft\Windows\SettingSync",
+    r"SOFTWARE\Microsoft\Windows\CurrentVersion\Device Metadata",
 )
 _registry_backup_done = False
 
@@ -1035,6 +1036,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_registry_dword("HKLM",
                            r"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate",
                            "ExcludeWUDriversInQualityUpdate", 1)
+        # Device Metadata channel off — OEM companion apps ship through it
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Microsoft\Windows\CurrentVersion\Device Metadata",
+                           "PreventDeviceMetadataFromNetwork", 1)
         logger.info("Applied: BlockOemDriverUpdates "
                     "(ExcludeWUDriversInQualityUpdate=1)")
 
@@ -1133,8 +1138,12 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                     "esrv_svc", "ESRV_SVC_QUEENCREEK",
                     "PushToInstall", "SEMgrSvc", "PhoneSvc"):
             demote_service(svc)
+        # Remote Registry: remote registry read/write over SMB — disabled
+        # outright (demand-start would still leave the surface reachable)
+        run_cmd(["sc.exe", "stop", "RemoteRegistry"])
+        run_cmd(["sc.exe", "config", "RemoteRegistry", "start=", "disabled"])
         logger.info("Applied: DisableMiscBloatServices "
-                    "(11 services → demand-start)")
+                    "(11 services → demand-start, RemoteRegistry disabled)")
 
     if prev.get("DisableSpotlight", True):
         # Desktop Spotlight = content-delivery channel (wallpaper promos)

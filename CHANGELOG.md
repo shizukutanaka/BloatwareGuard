@@ -2,6 +2,18 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.29.0-mvp: RemoteRegistry / device-metadata channel
+
+### Changed
+- `DisableMiscBloatServices` now **disables** `RemoteRegistry` outright
+  (SMB remote-registry attack surface; demand-start would still leave it
+  reachable). The other 11 services stay demand-start.
+- `BlockOemDriverUpdates` also sets
+  `Device Metadata\PreventDeviceMetadataFromNetwork=1` — closes the
+  channel OEMs use to silently deliver companion apps/icons alongside
+  drivers.
+- `BackupRegistry` export set extended (34 keys).
+
 ## [Unreleased] — v1.28.0-mvp: no phantom service keys
 
 ### Fixed
