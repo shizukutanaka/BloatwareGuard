@@ -238,6 +238,10 @@ internal static class Proc
     public static (string Stdout, string Stderr, int? ExitCode) Capture(
         ProcessStartInfo psi, int timeoutMs)
     {
+        // Redirect both streams ourselves — callers that only set stdout would
+        // throw InvalidOperationException on StandardError reads.
+        psi.RedirectStandardOutput = true;
+        psi.RedirectStandardError = true;
         using var proc = Process.Start(psi);
         if (proc == null)
             return ("", "failed to start", null);
@@ -727,10 +731,16 @@ public static class AppxManager
         !string.IsNullOrEmpty(name) && PackageNamePattern.IsMatch(name);
 
     /// <summary>Get-AppxProvisionedPackage returns no PublisherId — the
-    /// publisher is the last '_' segment of PackageName, so the family is
-    /// name + '_' + publisher.</summary>
+    /// publisher is the last '_' segment of PackageName. PackageName is
+    /// Name_version_arch_[resourceid_]_publisher, and the name itself may
+    /// contain underscores — so split the four well-formed suffix fields off
+    /// the RIGHT end, then join name + '_' + publisher.</summary>
     public static string ProvisionedFamilyName(string packageName)
     {
+        var segs = packageName.Split('_');
+        if (segs.Length >= 5)
+            return string.Join('_', segs[..^4]) + "_" + segs[^1];
+        // Malformed (<5 segments): fall back to first name + last publisher
         var first = packageName.IndexOf('_');
         var last = packageName.LastIndexOf('_');
         return (first > 0 && last > first)
@@ -854,9 +864,11 @@ public static class Win32Guard
 
         ScanKey(Registry.LocalMachine, UninstallPath);
         ScanKey(Registry.LocalMachine, UninstallPath32);
-        // CurrentUser maps to the *caller's* hive (SYSTEM's own under the
-        // service) — strings there were written by the caller, safe to run.
-        ScanKey(Registry.CurrentUser, UserUninstallPath);
+        // CurrentUser maps to the *caller's* hive: under an elevated
+        // interactive run that's the invoking (non-admin-origin) user — a
+        // user-writable hive whose uninstall strings must never execute with
+        // our admin token. Report-only, same rule as HKU\<sid>.
+        ScanKey(Registry.CurrentUser, UserUninstallPath, userHive: true);
         foreach (var sid in Registry.Users.GetSubKeyNames())
         {
             // Loaded user hives only (interactive profiles)
@@ -1144,8 +1156,9 @@ public static class RegistryGuard
         if (layers.DisableTelemetryAutologgers)
             DisableTelemetryAutologgers();
 
-        if (layers.BlockTelemetryEndpoints)
-            SetTelemetryHostsBlock(true);
+        // Toggling off must REMOVE the block — call unconditionally so the
+        // false path clears previously written entries.
+        SetTelemetryHostsBlock(layers.BlockTelemetryEndpoints);
     }
 
     // Boot-time ETW trace sessions that feed telemetry (privacy.sexy / Sophia
@@ -1155,6 +1168,7 @@ public static class RegistryGuard
         "AutoLogger-Diagtrack-Listener", "SQMLogger", "WiFiSession",
         "LwtNetLog", "NetCore", "NtfsLog", "UBPM", "MellonTelemetry",
         "Circular Kernel Context Logger", "DiagLog", "WFP-IPsec Diagnostics",
+        "RadioManager", "SetupPlatformTel",
     };
 
     /// <summary>Start=0 on telemetry ETW AutoLoggers. Opens — never creates —
@@ -1545,6 +1559,12 @@ public static class RegistryGuard
             ForEachUserHive(hive =>
             {
                 SetHiveDword(hive, UserExplorerPoliciesPath, "DisableSearchBoxSuggestions", 1);
+            });
+            // HKLM policy too — covers hive-creation edge cases
+            using var expSearch = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(ExplorerPoliciesHklmPath);
+            expSearch?.SetValue("DisableSearchBoxSuggestions", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            ForEachUserHive(hive =>
+            {
                 SetHiveDword(hive, UserSearchPath, "BingSearchEnabled", 0);
                 SetHiveDword(hive, UserSearchPath, "CortanaConsent", 0);
                 // SearchSettings: kill the dynamic search box + cloud search
@@ -1573,6 +1593,8 @@ public static class RegistryGuard
             using var feeds = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(WindowsFeedsPath);
             feeds?.SetValue("EnableFeeds", 0, Microsoft.Win32.RegistryValueKind.DWord);
             SetUserDwordAllHives(UserExplorerAdvancedPath, "TaskbarDa", 0);
+            // 2 = Feeds view hidden entirely (news/interests flyout off)
+            SetUserDwordAllHives(@"Software\Microsoft\Windows\CurrentVersion\Feeds", "ShellFeedsTaskbarViewMode", 2);
             GuardLogger.Info("Applied: DisableWidgets (AllowNewsAndInterests = 0, TaskbarDa = 0)");
         }
         catch (Exception ex)
@@ -1748,6 +1770,9 @@ public static class RegistryGuard
             {
                 SetHiveDword(hive, UserGameConfigStorePath, "GameDVR_Enabled", 0);
                 SetHiveDword(hive, UserGameDvrPath, "AppCaptureEnabled", 0);
+                // Game Bar nags: Nexus overlay hook + startup panel
+                SetHiveDword(hive, @"Software\Microsoft\GameBar", "UseNexusForGameBarEnabled", 0);
+                SetHiveDword(hive, @"Software\Microsoft\GameBar", "ShowStartupPanel", 0);
             });
             GuardLogger.Info("Applied: DisableGameDvr (AllowGameDVR=0, GameDVR_Enabled=0, AppCaptureEnabled=0)");
         }
@@ -2369,7 +2394,12 @@ public static class RegistryGuard
                                         // Mail/People/contacts sync — dead
                                         // weight once those apps are removed
                                         "CDPUserSvc", "OneSyncSvc", "UnistoreSvc",
-                                        "UserDataSvc", "PimIndexMaintenanceSvc" })
+                                        "UserDataSvc", "PimIndexMaintenanceSvc",
+                                        // Diagnostic Service Host pair — WDI
+                                        // diagnostics sessions
+                                        "WdiSystemHost", "WdiServiceHost",
+                                        // Program Compatibility Assistant
+                                        "PcaSvc" })
             {
                 DemoteService(svc);
             }
@@ -2378,7 +2408,7 @@ public static class RegistryGuard
             // demand-start, which still leaves it reachable).
             RunToolSilent("sc.exe", "stop RemoteRegistry");
             RunToolSilent("sc.exe", "config RemoteRegistry start= disabled");
-            GuardLogger.Info("Applied: DisableMiscBloatServices (21 services → demand-start, RemoteRegistry disabled)");
+            GuardLogger.Info("Applied: DisableMiscBloatServices (24 services → demand-start, RemoteRegistry disabled)");
         }
         catch (Exception ex)
         {
@@ -2731,6 +2761,13 @@ public static class WingetGuard
             var entry = raw?.Trim() ?? "";
             if (!entry.Contains('.') || !WingetIdPattern.IsMatch(entry))
                 continue;
+            // Whitelist still wins — a protected entry never reaches winget
+            if (config.Whitelist.Any(w => !string.IsNullOrWhiteSpace(w) &&
+                    entry.Contains(w.Trim(), StringComparison.OrdinalIgnoreCase)))
+            {
+                GuardLogger.Info($"Whitelisted (winget skip): {entry}");
+                continue;
+            }
             var psi = new ProcessStartInfo
             {
                 FileName = "winget.exe",
@@ -3160,7 +3197,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.43.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.44.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -3245,7 +3282,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.43.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.44.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -3397,8 +3434,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 6;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.43.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.43.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.44.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.44.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try

@@ -2,6 +2,40 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.44.0-mvp: GameBar nags, PcaSvc, review hardening
+
+### Changed
+- `DisableGameDvr`: per-hive `GameBar\UseNexusForGameBarEnabled` and
+  `ShowStartupPanel` = 0 — kills the Game Bar overlay hook and its
+  "press Win+G" startup nag left after DVR is off.
+- `DisableSearchSuggestions`: HKLM `Policies\Explorer\DisableSearchBoxSuggestions`
+  alongside the per-hive writes — covers hive-creation edge cases.
+- `DisableWidgets`: `Feeds\ShellFeedsTaskbarViewMode` = 2 per-hive —
+  hides the entire news/interests flyout.
+- `DisableTelemetryAutologgers`: 11 → 13 sessions (+`RadioManager`,
+  +`SetupPlatformTel` — setup/OS-component telemetry).
+- `DisableMiscBloatServices`: 23 → 24 (+`PcaSvc` Program Compatibility
+  Assistant telemetry).
+- `DisableTelemetryTasks`: +`FamilySafetyRefreshTask` — schedule-side
+  complement to the existing FamilySafetyMonitor entry.
+
+### Fixed (review)
+- `ProvisionedFamilyName`/`_provisioned_family`: package names containing
+  underscores lost their suffix — family now splits the four well-formed
+  `version_arch_resourceid_publisher` fields off the RIGHT end.
+- `WingetGuard.Sweep`/`winget_sweep`: a blacklisted id that also matched
+  the whitelist still reached `winget uninstall` — whitelist now wins.
+- Win32 sweep: `HKCU` uninstall entries were executed with our elevated
+  token under interactive admin runs (the caller's hive is user-writable).
+  HKCU is now report-only like `HKU\<sid>`.
+- `BlockTelemetryEndpoints` toggle-off never cleared a previously written
+  hosts block — the block manager is now called unconditionally so the
+  false path removes entries.
+- `Proc.Capture` threw `InvalidOperationException` for callers that only
+  redirected stdout — it now forces both stream redirects itself.
+- `DEFAULT_BLACKLIST` (Python fallback config) gained
+  `MicrosoftWindows.Client.WebExperience` to match config.json.
+
 ## [Unreleased] — v1.43.0-mvp: OneSettings, driver search, diagnostics hosts
 
 ### Changed

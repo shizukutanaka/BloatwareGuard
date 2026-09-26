@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.43.0-mvp - Python prototype
+BloatwareGuard v1.44.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -83,6 +83,7 @@ DEFAULT_BLACKLIST = [
     "Microsoft.GetHelp",
     "Microsoft.Getstarted",
     "Microsoft.MicrosoftJournal",
+    "MicrosoftWindows.Client.WebExperience",  # Widgets host
     "Microsoft.Microsoft3DViewer",
     "Microsoft.MixedReality.Portal",
     "Microsoft.BingNews",
@@ -503,9 +504,11 @@ def get_blacklisted_win32(blacklist, whitelist):
 
     _scan(winreg.HKEY_LOCAL_MACHINE, _UNINSTALL_PATH)
     _scan(winreg.HKEY_LOCAL_MACHINE, _UNINSTALL_PATH32)
-    # HKCU maps to the *caller's* hive (SYSTEM's own under the service) —
-    # strings there were written by the caller, so executing is fine.
-    _scan(winreg.HKEY_CURRENT_USER, _USER_UNINSTALL_PATH)
+    # HKCU maps to the *caller's* hive: under an elevated interactive run
+    # that's the invoking (non-admin-origin) user — a user-writable hive
+    # whose uninstall strings must never execute with our admin token.
+    # Report-only, same rule as HKU\<sid>.
+    _scan(winreg.HKEY_CURRENT_USER, _USER_UNINSTALL_PATH, user_hive=True)
     try:
         i = 0
         while True:
@@ -913,6 +916,8 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_registry_dword("HKLM", search_pol, "AllowCortana", 0)
         set_registry_dword("HKLM", search_pol, "CortanaConsent", 0)
         set_user_dword_all_hives(_USER_EXPLORER_POLICIES, "DisableSearchBoxSuggestions", 1, logger)
+        # HKLM policy too — covers hive-creation edge cases
+        set_registry_dword("HKLM", _EXPLORER_POLICIES_HKLM, "DisableSearchBoxSuggestions", 1)
         set_user_dword_all_hives(_USER_SEARCH, "BingSearchEnabled", 0, logger)
         # SearchSettings: dynamic search box + cloud search integrations
         set_user_dword_all_hives(_USER_SEARCH_SETTINGS, "IsDynamicSearchBoxEnabled", 0, logger)
@@ -927,6 +932,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\Windows Feeds",
                            "EnableFeeds", 0)
         set_user_dword_all_hives(_USER_EXPLORER_ADV, "TaskbarDa", 0, logger)
+        # 2 = Feeds view hidden entirely (news/interests flyout off)
+        set_user_dword_all_hives(
+            r"Software\Microsoft\Windows\CurrentVersion\Feeds",
+            "ShellFeedsTaskbarViewMode", 2, logger)
         logger.info("Applied: DisableWidgets (AllowNewsAndInterests = 0, TaskbarDa = 0)")
 
     if prev.get("DisableTelemetry", True):
@@ -1036,6 +1045,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                            "AllowGameDVR", 0)
         set_user_dword_all_hives(_USER_GAME_CONFIG_STORE, "GameDVR_Enabled", 0, logger)
         set_user_dword_all_hives(_USER_GAME_DVR, "AppCaptureEnabled", 0, logger)
+        # Game Bar nags: Nexus overlay hook + startup panel
+        set_user_dword_all_hives(r"Software\Microsoft\GameBar", "UseNexusForGameBarEnabled", 0, logger)
+        set_user_dword_all_hives(r"Software\Microsoft\GameBar", "ShowStartupPanel", 0, logger)
         logger.info("Applied: DisableGameDvr (AllowGameDVR=0, GameDVR_Enabled=0, "
                     "AppCaptureEnabled=0)")
 
@@ -1251,14 +1263,15 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                     "CDPUserSvc", "OneSyncSvc", "UnistoreSvc",
                     "UserDataSvc", "PimIndexMaintenanceSvc",
                     # Diagnostic Service Host pair — WDI diagnostics sessions
-                    "WdiSystemHost", "WdiServiceHost"):
+                    "WdiSystemHost", "WdiServiceHost",
+                    "PcaSvc"):                # Program Compatibility Assistant
             demote_service(svc)
         # Remote Registry: remote registry read/write over SMB — disabled
         # outright (demand-start would still leave the surface reachable)
         run_cmd(["sc.exe", "stop", "RemoteRegistry"])
         run_cmd(["sc.exe", "config", "RemoteRegistry", "start=", "disabled"])
         logger.info("Applied: DisableMiscBloatServices "
-                    "(23 services → demand-start, RemoteRegistry disabled)")
+                    "(24 services → demand-start, RemoteRegistry disabled)")
 
     if prev.get("DisableSpotlight", True):
         # Desktop Spotlight = content-delivery channel (wallpaper promos)
@@ -1411,7 +1424,12 @@ _REMOVE_DEFAULT_PKGS_PATH = (r"SOFTWARE\Policies\Microsoft\Windows\Appx"
 
 def _provisioned_family(package_name: str, display_name: str) -> str:
     """Get-AppxProvisionedPackage returns no PublisherId — the publisher is the
-    last '_' segment of PackageName; the family name is name + '_' + publisher."""
+    last '_' segment of PackageName. The package name is
+    Name_version_arch_[resourceid_]_publisher and the name itself may contain
+    underscores — split the four well-formed suffix fields off the RIGHT end."""
+    segs = package_name.split('_')
+    if len(segs) >= 5:
+        return '_'.join(segs[:-4]) + '_' + segs[-1]
     if "_" in package_name:
         return f"{package_name.split('_')[0]}_{package_name.rsplit('_', 1)[-1]}"
     return display_name
@@ -1534,9 +1552,14 @@ def winget_sweep(config: dict, logger: logging.Logger) -> int:
         logger.info("winget not found — skipping winget sweep")
         return 0
     removed = 0
+    whitelist = config.get("Whitelist", [])
     for entry in config.get("Blacklist", []):
         e = (entry or "").strip()
         if "." not in e or not _WINGET_ID_RE.fullmatch(e):
+            continue
+        # Whitelist still wins — a protected entry never reaches winget
+        if any(w.strip() and w.strip().lower() in e.lower() for w in whitelist):
+            logger.info(f"Whitelisted (winget skip): {e}")
             continue
         _, rc = run_cmd(["winget", "uninstall", "-e", "--id", e,
                          "--silent", "--disable-interactivity",
@@ -1621,6 +1644,7 @@ _EXTRA_AUTOLOGGERS = (
     "AutoLogger-Diagtrack-Listener", "SQMLogger", "WiFiSession",
     "LwtNetLog", "NetCore", "NtfsLog", "UBPM", "MellonTelemetry",
     "Circular Kernel Context Logger", "DiagLog", "WFP-IPsec Diagnostics",
+    "RadioManager", "SetupPlatformTel",
 )
 
 
@@ -1752,6 +1776,7 @@ TELEMETRY_TASK_PATHS = (
     "\\Microsoft\\Windows\\Device Information\\Device",
     "\\Microsoft\\Windows\\Device Information\\Device User",
     "\\Microsoft\\Windows\\Shell\\FamilySafetyMonitor",
+    "\\Microsoft\\Windows\\Shell\\FamilySafetyRefreshTask",
     "\\Microsoft\\Windows\\NetTrace\\GatherNetworkInfo",
     # Application Impact Telemetry, speech-model download, disk diagnostics
     "\\Microsoft\\Windows\\Application Experience\\AitEnableAgent",
@@ -1927,12 +1952,12 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
         else:
             disable_telemetry_autologgers(logger)
 
-    # 4.7 hosts-file null-route for pure telemetry endpoints (reversible)
-    if prev.get("BlockTelemetryEndpoints", True):
-        if dry_run:
-            logger.info("[DRY-RUN] Would block telemetry endpoints via hosts file")
-        else:
-            set_telemetry_hosts_block(True, logger)
+    # 4.7 hosts-file null-route for pure telemetry endpoints (reversible).
+    # Called unconditionally so toggling off removes a previously written block.
+    if dry_run:
+        logger.info("[DRY-RUN] Would manage telemetry endpoints hosts block")
+    else:
+        set_telemetry_hosts_block(prev.get("BlockTelemetryEndpoints", True), logger)
 
     # 4.8 winget sweep for Store apps Appx removal can't see
     if prev.get("WingetSweep", True):

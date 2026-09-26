@@ -1,4 +1,4 @@
-# BloatwareGuard v1.43.0-mvp
+# BloatwareGuard v1.44.0-mvp
 
 ## What It Does
 
@@ -172,8 +172,8 @@ dotnet publish src/BloatwareGuard.csproj -c Release -r win-x64 --self-contained 
 ## Version
 
 ```bash
-python bloatware_guard.py --version   # BloatwareGuard v1.43.0-mvp
-BloatwareGuard.exe --version          # BloatwareGuard v1.43.0-mvp
+python bloatware_guard.py --version   # BloatwareGuard v1.44.0-mvp
+BloatwareGuard.exe --version          # BloatwareGuard v1.44.0-mvp
 ```
 
 ---
