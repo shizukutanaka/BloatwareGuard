@@ -4,6 +4,16 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 
 ## [Unreleased] — v1.8.0-mvp hardening
 
+### Fixed — code-review hardening pass
+- **Provisioned-package family names actually work now**: `Get-AppxProvisionedPackage` returns no `PublisherId` property — the publisher is the last `_`-separated segment of `PackageName`, and is now derived from it. Deprovisioned markers and the 25H2 removal policy were being written under `<Name>_` (empty publisher) and never matched.
+- **Process spawning hardened**: all external commands (PowerShell, schtasks, reg, sc, winget, cmd) now capture stdout/stderr asynchronously with a hard deadline and kill the process tree on timeout — a hung PowerShell could previously block the entire scan, and `schtasks` error reads could throw after timeout.
+- **Privilege-escalation fix**: Win32 uninstall entries under user hives (`HKU\<sid>` — user-writable) are reported but never executed; running them as SYSTEM would let a local user plant a command for the elevated service to run.
+- **Vendor matching narrowed**: hardware-OEM names (Dell, Lenovo, HP, ASUS, Acer, Razer) now require a bloat keyword (update/support/assist/…) before action — drivers and hardware-integration software/services are no longer removable or stoppable by manufacturer name alone. Pure-junk vendors (McAfee, Norton, Avast, …) still match by name.
+- **DryRun honored in the monitor loop**: the reinstall monitor previously removed re-appearing packages even in dry-run mode.
+- **Default profile template path fixed**: `SystemDrive` is `C:` (no trailing backslash) — `Path.Combine` produced the drive-relative `C:Users\Default\NTUSER.DAT`, so future-profile policy stamping silently never ran.
+- **Input sanitization**: blacklist entries are restricted to a shell-safe charset before being embedded in PowerShell command strings; winget package ids validated to `[A-Za-z0-9_.-]+` before reaching a command line.
+- **NCSI reverted**: `EnableActiveProbing=0` removed — disabling NCSI active probing breaks captive-portal detection on hotel/café Wi-Fi.
+
 ### Added — debloat round 7 (Active Setup sweep + task/blacklist extensions)
 - **Active Setup stubs swept**: `HKLM\SOFTWARE\Microsoft\Active Setup\Installed Components` (64- and 32-bit views) — OEM stub installers that re-run at *every user sign-in* — now matched against blacklist∪vendor patterns (subkey name, StubPath, LocalizedName) and deleted, under `CleanStartupEntries`.
 - **Telemetry task list → 21**: +`DiskFootprint\Diagnostics`, `WinErrorReporting\QueueReporting`, `Device Information\Device` / `Device User`, `TextInput\TextInputModelDownloadTask`.

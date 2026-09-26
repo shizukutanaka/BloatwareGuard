@@ -65,7 +65,7 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 | Game Bar 常駐キャプチャ | AllowGameDVR=0 + per-hive capture 値 | DisableGameDvr |
 | winget 管理下の残滓 | winget uninstall --silent --disable-interactivity | WingetSweep |
 | MS 非推奨 capability (WordPad等) | Remove-WindowsCapability -Online | RemoveDeprecatedCapabilities |
-| テレメトリ/残留システムサービス | DiagTrack/dmwappushservice/Xbox系等を stop+disabled + NCSI EnableActiveProbing=0 | DisableTelemetryServices |
+| テレメトリ/残留システムサービス | DiagTrack/dmwappushservice/Xbox系等を stop+disabled(NCSI は無効化しない — キャプティブポータル検出が壊れるため) | DisableTelemetryServices |
 | ETW テレメトリ Autologger | WMI\Autologger 配下の Start=0 (Diagtrack-Listener/SQMLogger等) | DisableTelemetryAutologgers |
 
 ## ブラックリスト方式

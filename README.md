@@ -31,7 +31,7 @@ Removes Windows bloatware across **25 prevention layers** in both **Python** and
 || 21. Telemetry-domain hosts block (26 domains, reversible) | ✅ | ✅ | Admin |
 || 22. winget silent-uninstall sweep | ✅ | ✅ | Admin (skips w/o winget) |
 || 23. Deprecated capability removal (WordPad, Steps Recorder) | ✅ | ✅ | Admin |
-|| 24. Telemetry/leftover services (DiagTrack, Xbox, WMP) + NCSI | ✅ | ✅ | Admin |
+|| 24. Telemetry/leftover services (DiagTrack, Xbox, WMP) | ✅ | ✅ | Admin |
 || 25. ETW autologger sessions off (Diagtrack-Listener, SQMLogger…) | ✅ | ✅ | Admin |
 
 Layers 20–23 close the loop. `DisableGameDvr` stops Game Bar background
@@ -50,8 +50,8 @@ Layer 24 kills the telemetry pipeline itself: `DiagTrack` (Connected User
 Experiences and Telemetry), `dmwappushservice` (WAP push telemetry channel),
 `RetailDemo`, the Xbox Live services left dead once the Xbox apps are gone
 (`XblAuthManager`, `XblGameSave`, `XboxNetApiSvc`) and legacy `WMPNetworkSvc`
-all get `sc stop` + `start= disabled` — plus `EnableActiveProbing=0` on NCSI so
-Windows stops phoning `msftconnecttest.com` on every network reconnect.
+all get `sc stop` + `start= disabled`. NCSI active probing is deliberately
+left alone — disabling it breaks captive-portal (hotel/café Wi-Fi) sign-in.
 Layers 15/19/21 also gained coverage: `HideRecommendedSection` (Start-menu ads
 slot), `DODownloadMode=0` (Delivery Optimization P2P upload off), Windows
 Spotlight features, OOBE privacy screen, WER extra data, typing insights,
@@ -87,12 +87,19 @@ built-in OEM/vendor list. It only executes **silent** uninstall paths —
 `QuietUninstallString`, MSI product codes rewritten to `msiexec /x {GUID} /qn
 /norestart`, or an `UninstallString` already carrying `/S`, `/silent`, `/qn`,
 etc. Entries with only an interactive uninstaller are logged as "manual" so the
-scan can never hang on a UI prompt.
+scan can never hang on a UI prompt. Two safety rules: matches in user hives
+(`HKU\<sid>` — user-writable, so executing them as SYSTEM would be a privilege
+escalation) are reported but never run, and hardware-OEM names (Dell, Lenovo,
+HP, ASUS, Acer, Razer) additionally require a bloat keyword
+(update/support/assist/…) so drivers and hardware-integration software are
+never removed by name alone.
 
-Layer 18 stops and disables Windows **services** matching the same OEM/vendor
-list (trial nagware, updaters). Layer 19 deletes `Run`/`RunOnce` values matching
-blacklist/vendor patterns under HKLM (both bitness views) and every loaded user
-hive — the autostart side of OEM bloat that Appx removal never touches.
+Layer 18 stops and disables Windows **services** matching the same vendor
+matching (trial nagware, updaters; hardware-OEM services still need a bloat
+keyword, so RGB/audio/power services survive). Layer 19 deletes
+`Run`/`RunOnce` values matching blacklist/vendor patterns under HKLM (both
+bitness views) and every loaded user hive — the autostart side of OEM bloat
+that Appx removal never touches.
 
 Layer 15 is the broad privacy policy set — `AllowTelemetry=0`, activity-feed /
 Timeline upload off, cross-device clipboard off, advertising ID off, location

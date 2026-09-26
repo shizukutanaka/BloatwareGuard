@@ -377,6 +377,48 @@ public static class ConfigLoader
     }
 }
 
+// ─── Process helpers ─────────────────────────────────────────────────────────
+
+internal static class Proc
+{
+    /// <summary>Start a process and drain redirected streams asynchronously so a
+    /// hung child can never block the read, then enforce a hard deadline — kill
+    /// the tree on expiry. Returns (stdout, stderr, exitCode); exitCode is null
+    /// on timeout or launch failure.</summary>
+    public static (string Stdout, string Stderr, int? ExitCode) Capture(ProcessStartInfo psi, int timeoutMs)
+    {
+        try
+        {
+            using var proc = Process.Start(psi);
+            if (proc == null)
+                return ("", "", null);
+            var stdoutT = psi.RedirectStandardOutput
+                ? Task.Run(() => proc.StandardOutput.ReadToEnd())
+                : Task.FromResult("");
+            var stderrT = psi.RedirectStandardError
+                ? Task.Run(() => proc.StandardError.ReadToEnd())
+                : Task.FromResult("");
+            if (!proc.WaitForExit(timeoutMs))
+            {
+                try { proc.Kill(entireProcessTree: true); } catch { }
+                try { Task.WaitAll(new Task[] { stdoutT, stderrT }, 5000); } catch { }
+                return ("", "", null);
+            }
+            try { proc.WaitForExit(); } catch { }  // flush async reads
+            string stdout = "", stderr = "";
+            try { stdout = stdoutT.Result; } catch { }
+            try { stderr = stderrT.Result; } catch { }
+            return (stdout, stderr, proc.ExitCode);
+        }
+        catch { return ("", "", null); }
+    }
+
+    /// <summary>Wait with a hard deadline, kill on expiry. Returns exit code or
+    /// null on timeout/failure.</summary>
+    public static int? Wait(ProcessStartInfo psi, int timeoutMs)
+        => Capture(psi, timeoutMs).ExitCode;
+}
+
 // ─── Appx Package Manager ────────────────────────────────────────────────────
 
 public static class AppxManager
@@ -387,11 +429,12 @@ public static class AppxManager
     {
         var results = new List<(string, string, string, bool, string?)>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        // Only shell-safe entries reach the -Command argument — quotes or
+        // metacharacters in config must never break out of the PS string.
         var pattern = string.Join("|",
-            blacklist.Where(b => !string.IsNullOrWhiteSpace(b)).Select(Regex.Escape));
+            blacklist.Where(IsShellSafe).Select(Regex.Escape));
         if (pattern.Length == 0)
             return results;  // empty pattern would -match every package
-        pattern = pattern.Replace("'", "''");  // embedded quotes would break the PS command
         // -AllUsers surfaces packages installed for other users too (admin only)
         var scope = IsElevated() ? " -AllUsers" : "";
         var psi = new ProcessStartInfo
@@ -403,12 +446,7 @@ public static class AppxManager
             CreateNoWindow = true
         };
 
-        using var proc = Process.Start(psi);
-        var output = proc?.StandardOutput.ReadToEnd() ?? "";
-        if (proc != null && !proc.WaitForExit(180000))
-        {
-            try { proc.Kill(); } catch { }
-        }
+        var output = Proc.Capture(psi, 180000).Stdout;
 
         try
         {
@@ -472,26 +510,20 @@ public static class AppxManager
     {
         var results = new List<(string, string)>();
         var pattern = string.Join("|",
-            blacklist.Where(b => !string.IsNullOrWhiteSpace(b)).Select(Regex.Escape));
+            blacklist.Where(IsShellSafe).Select(Regex.Escape));
         if (pattern.Length == 0)
             return results;  // empty pattern would -match every package
-        pattern = pattern.Replace("'", "''");
 
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Get-AppxProvisionedPackage -Online | Where-Object {{$_.PackageName -match '{pattern}'}} | Select-Object PackageName,DisplayName,PublisherId | ConvertTo-Json\"",
+            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Get-AppxProvisionedPackage -Online | Where-Object {{$_.PackageName -match '{pattern}'}} | Select-Object PackageName,DisplayName | ConvertTo-Json\"",
             RedirectStandardOutput = true,
             UseShellExecute = false,
             CreateNoWindow = true
         };
 
-        using var proc = Process.Start(psi);
-        var output = proc?.StandardOutput.ReadToEnd() ?? "";
-        if (proc != null && !proc.WaitForExit(180000))
-        {
-            try { proc.Kill(); } catch { }
-        }
+        var output = Proc.Capture(psi, 180000).Stdout;
 
         try
         {
@@ -519,11 +551,25 @@ public static class AppxManager
         return results;
     }
 
+    /// <summary>True for entries safe to embed in a PowerShell -Command string
+    /// (letters/digits/._- space only — no quotes or shell metacharacters).</summary>
+    private static bool IsShellSafe(string s)
+        => !string.IsNullOrWhiteSpace(s) && Regex.IsMatch(s, @"^[\w.\- ]+$");
+
+    /// <summary>Derive DisplayName_PublisherId for a provisioned package.
+    /// Get-AppxProvisionedPackage returns no PublisherId, so the publisher is
+    /// taken from the last '_' segment of PackageName
+    /// (Name_Version_Architecture_ResourceId_PublisherId). "" when unresolvable.</summary>
     private static string ProvisionedFamilyName(JsonElement el)
     {
         var display = el.TryGetProperty("DisplayName", out var d) ? d.GetString() ?? "" : "";
-        var publisher = el.TryGetProperty("PublisherId", out var p) ? p.GetString() ?? "" : "";
-        return string.IsNullOrEmpty(display) ? "" : $"{display}_{publisher}";
+        var pkgName = el.TryGetProperty("PackageName", out var n) ? n.GetString() ?? "" : "";
+        if (string.IsNullOrEmpty(display))
+            return "";
+        var segs = pkgName.Split('_');
+        var publisher = segs.Length >= 5 && Regex.IsMatch(segs[^1], @"^[A-Za-z0-9]+$")
+            ? segs[^1] : "";
+        return string.IsNullOrEmpty(publisher) ? "" : $"{display}_{publisher}";
     }
 
     public static bool RemoveAppxPackage(string packageFullName)
@@ -538,12 +584,10 @@ public static class AppxManager
             CreateNoWindow = true
         };
 
-        using var proc = Process.Start(psi);
-        proc?.WaitForExit(60000);
-        string stderr = proc?.StandardError.ReadToEnd() ?? "";
+        var (_, stderr, rc) = Proc.Capture(psi, 60000);
         if (!string.IsNullOrEmpty(stderr))
             GuardLogger.Warn($"Remove-AppxPackage stderr: {stderr.Trim()}");
-        return proc?.ExitCode == 0;
+        return rc == 0;
     }
 
     /// <summary>Remove AppxPackage for CURRENT USER only (no admin required).
@@ -567,12 +611,10 @@ public static class AppxManager
             CreateNoWindow = true
         };
 
-        using var proc = Process.Start(psi);
-        proc?.WaitForExit(60000);
-        string stderr = proc?.StandardError.ReadToEnd() ?? "";
+        var (_, stderr, rc) = Proc.Capture(psi, 60000);
         if (!string.IsNullOrEmpty(stderr))
             GuardLogger.Warn($"Remove-AppxPackage (user) stderr: {stderr.Trim()}");
-        return (proc?.ExitCode == 0, false);
+        return (rc == 0, false);
     }
 
     public static bool RemoveProvisionedPackage(string packageName)
@@ -587,12 +629,10 @@ public static class AppxManager
             CreateNoWindow = true
         };
 
-        using var proc = Process.Start(psi);
-        proc?.WaitForExit(120000);
-        string stderr = proc?.StandardError.ReadToEnd() ?? "";
+        var (_, stderr, rc) = Proc.Capture(psi, 120000);
         if (!string.IsNullOrEmpty(stderr))
             GuardLogger.Warn($"RemoveProvisionedPackage stderr: {stderr.Trim()}");
-        return proc?.ExitCode == 0;
+        return rc == 0;
     }
 }
 
@@ -977,9 +1017,11 @@ public static class RegistryGuard
 
         // Stamp the Default profile template so FUTURE users get the policies.
         // reg.exe is required — winreg cannot load/unload hives.
-        var defaultNtuser = Path.Combine(
-            Environment.GetEnvironmentVariable("SystemDrive") ?? "C:",
-            @"Users\Default\NTUSER.DAT");
+        // SystemDrive is "C:" — normalize to a rooted path, else Path.Combine
+        // produces the drive-relative "C:Users\..." and the template is missed.
+        var systemDrive = (Environment.GetEnvironmentVariable("SystemDrive") ?? "C:")
+            .TrimEnd('\\') + "\\";
+        var defaultNtuser = Path.Combine(systemDrive, "Users", "Default", "NTUSER.DAT");
         if (File.Exists(defaultNtuser))
         {
             const string tempHive = "BloatwareGuard_Default";
@@ -1215,9 +1257,7 @@ public static class ScheduledTaskGuard
             CreateNoWindow = true
         };
 
-        using var proc = Process.Start(psi);
-        var output = proc?.StandardOutput.ReadToEnd() ?? "";
-        proc?.WaitForExit();
+        var output = Proc.Capture(psi, 120000).Stdout;
 
         try
         {
@@ -1275,10 +1315,7 @@ public static class ScheduledTaskGuard
             CreateNoWindow = true
         };
 
-        using var proc = Process.Start(psi);
-        proc?.WaitForExit();
-
-        if (proc?.ExitCode == 0)
+        if (Proc.Wait(psi, 15000) == 0)
             GuardLogger.Info($"Disabled scheduled task: {fullPath}");
         else
             GuardLogger.Warn($"Failed to disable task: {fullPath}");
@@ -1301,18 +1338,15 @@ public static class ScheduledTaskGuard
                 CreateNoWindow = true
             };
 
-            using var proc = Process.Start(psi);
-            if (proc == null)
-                continue;
-            proc.WaitForExit(15000);
-            if (proc.ExitCode == 0)
+            var rc = Proc.Wait(psi, 15000);
+            if (rc == 0)
             {
                 disabled++;
                 GuardLogger.Info($"Disabled telemetry task: {taskPath}");
             }
             else
             {
-                GuardLogger.Info($"Telemetry task not present (skip): {taskPath}");
+                GuardLogger.Info($"Telemetry task not present/timeout (skip): {taskPath}");
             }
         }
         GuardLogger.Info($"Disabled {disabled}/{TelemetryTaskPaths.Length} telemetry scheduled tasks");
@@ -1323,14 +1357,28 @@ public static class ScheduledTaskGuard
 
 public static class Win32BloatGuard
 {
-    // OEM/vendor name substrings — used for Win32 uninstallers, auto-start
-    // services, and Run/RunOnce startup entries (case-insensitive)
-    private static readonly string[] VendorPatterns = {
+    // Hardware OEMs — a bare manufacturer name is never enough to act on:
+    // drivers and hardware-integration utilities (touchpad, RGB, audio stack)
+    // must survive. They only match together with a bloat keyword.
+    private static readonly string[] HardwareVendorPatterns = {
+        "Lenovo", "Dell", "Hewlett", "HP Inc", "HPInc",
+        "ASUS", "ASUSTeK", "Acer", "Razer",
+    };
+    // Vendors whose typical OEM-shipped products are bloat/trialware by
+    // definition — a name match alone suffices.
+    private static readonly string[] JunkVendorPatterns = {
         "McAfee", "Norton", "NortonLifeLock", "Avast", "AVG Software",
-        "WildTangent", "CyberLink", "Lenovo", "Dell", "Hewlett", "HP Inc",
-        "HPInc", "ASUS", "ASUSTeK", "Acer", "Razer", "ExpressVPN", "NordVPN",
+        "WildTangent", "CyberLink", "ExpressVPN", "NordVPN",
         "Dropbox", "Spotify", "Adobe Creative Cloud", "CCleaner", "Booking.com",
     };
+    // Words that mark OEM software as nagware/updater rather than hardware support
+    private static readonly string[] BloatKeywords = {
+        "update", "updater", "support", "assist", "telemetry", "diagnostic",
+        "analytic", "nag", "promo", "customer", "optimizer", "helper",
+        "quickset", "registration", "survey", "experience", "trial", "offer", "deals",
+    };
+    private static readonly string[] VendorPatterns =
+        HardwareVendorPatterns.Concat(JunkVendorPatterns).ToArray();
 
     // Run/RunOnce keys swept for startup bloat — HKLM 64- and 32-bit views.
     // Policies\Explorer\Run is an often-overlooked autostart hive (also abused
@@ -1405,16 +1453,21 @@ public static class Win32BloatGuard
         "WMPNetworkSvc",      // Windows Media Player network sharing (legacy)
     };
 
-    // NCSI active probing phones home to msftconnecttest.com on every reconnect
-    private const string NcsiPath = @"SYSTEM\CurrentControlSet\Services\NlaSvc\Parameters\Internet";
-
+    /// <summary>Blacklist OR junk-vendor match suffices; a hardware-OEM match
+    /// additionally requires a bloat keyword so drivers/hardware-integration
+    /// software is never acted on by name alone.</summary>
     private static bool IsBloat(string text, GuardConfig config)
     {
         if (config.Whitelist.Any(w =>
             !string.IsNullOrEmpty(w) && text.Contains(w, StringComparison.OrdinalIgnoreCase)))
             return false;
-        return config.Blacklist.Concat(VendorPatterns).Any(p =>
-            !string.IsNullOrWhiteSpace(p) && text.Contains(p, StringComparison.OrdinalIgnoreCase));
+        if (config.Blacklist.Any(p => !string.IsNullOrWhiteSpace(p) &&
+            text.Contains(p, StringComparison.OrdinalIgnoreCase)))
+            return true;
+        if (JunkVendorPatterns.Any(p => text.Contains(p, StringComparison.OrdinalIgnoreCase)))
+            return true;
+        return HardwareVendorPatterns.Any(p => text.Contains(p, StringComparison.OrdinalIgnoreCase))
+            && BloatKeywords.Any(k => text.Contains(k, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>Return a non-interactive uninstall command, or null if the entry
@@ -1450,6 +1503,11 @@ public static class Win32BloatGuard
 
         foreach (var (root, path) in hives)
         {
+            // Privilege boundary: HKU\<user-sid> is writable by that user — a
+            // local user could plant a matching entry whose UninstallString the
+            // elevated service would execute. HKLM entries only; user-hive
+            // matches are reported, never run.
+            var userHive = Equals(root, Microsoft.Win32.Registry.Users);
             Microsoft.Win32.RegistryKey? parent;
             try { parent = root.OpenSubKey(path); }
             catch { continue; }
@@ -1475,6 +1533,11 @@ public static class Win32BloatGuard
 
                 if (string.IsNullOrEmpty(display) || !IsBloat(display, config))
                     continue;
+                if (userHive)
+                {
+                    GuardLogger.Info($"Win32 bloat in user hive (report only, not executed): {display}");
+                    continue;
+                }
                 var cmd = SilentUninstallCommand(uninstallStr, quietStr);
                 if (cmd == null)
                 {
@@ -1602,8 +1665,10 @@ public static class Win32BloatGuard
             GuardLogger.Info($"Startup bloat entries {(dryRun ? "flagged" : "deleted")}: {deleted}");
     }
 
-    /// <summary>Stop + disable OEM/vendor auto-start services (updaters, nagware).</summary>
-    public static void DisableOemServices()
+    /// <summary>Stop + disable OEM/vendor auto-start services (updaters, nagware).
+    /// Hardware-OEM services additionally require a bloat keyword — drivers and
+    /// hardware-integration services (RGB, audio, power) are never touched.</summary>
+    public static void DisableOemServices(GuardConfig config)
     {
         var pattern = string.Join("|", VendorPatterns.Select(Regex.Escape));
         var psi = new ProcessStartInfo
@@ -1616,14 +1681,7 @@ public static class Win32BloatGuard
             UseShellExecute = false,
             CreateNoWindow = true
         };
-        string output;
-        try
-        {
-            using var proc = Process.Start(psi);
-            output = proc?.StandardOutput.ReadToEnd() ?? "";
-            proc?.WaitForExit(60000);
-        }
-        catch { return; }
+        var output = Proc.Capture(psi, 60000).Stdout;
         if (string.IsNullOrWhiteSpace(output))
             return;
 
@@ -1659,6 +1717,9 @@ public static class Win32BloatGuard
             if (string.IsNullOrEmpty(name) ||
                 startType.Equals("Disabled", StringComparison.OrdinalIgnoreCase) ||
                 startType == "4")
+                continue;
+            // Hardware vendors also need a bloat keyword — skips e.g. RGB/audio services
+            if (!IsBloat($"{name} {display}", config))
                 continue;
             RunSc($"stop \"{name}\"");
             if (RunSc($"config \"{name}\" start= disabled"))
@@ -1739,6 +1800,9 @@ public static class Win32BloatGuard
                 continue; // header/separator line
             var name = cols[0];
             var pkgId = cols[1];
+            // winget ids are simple identifiers — anything else never reaches a shell
+            if (!Regex.IsMatch(pkgId, @"^[A-Za-z0-9_.\-]+$"))
+                continue;
             if (!IsBloat($"{name} {pkgId}", config))
                 continue;
             if (dryRun)
@@ -1801,8 +1865,9 @@ public static class Win32BloatGuard
         return removed;
     }
 
-    /// <summary>Stop + disable telemetry/leftover system services and kill
-    /// NCSI active-probing connectivity checks (msftconnecttest.com).</summary>
+    /// <summary>Stop + disable telemetry/leftover system services (DiagTrack,
+    /// Xbox leftovers, WMP sharing). NCSI active probing stays on — disabling it
+    /// breaks captive-portal detection on public Wi-Fi.</summary>
     public static int DisableTelemetryServices()
     {
         var disabled = 0;
@@ -1821,142 +1886,78 @@ public static class Win32BloatGuard
                 GuardLogger.Warn($"Service disable failed [admin required?]: {name}");
             }
         }
-        // NCSI active probing
-        try
-        {
-            using var ncsi = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(NcsiPath);
-            ncsi?.SetValue("EnableActiveProbing", 0, Microsoft.Win32.RegistryValueKind.DWord);
-            GuardLogger.Info("Applied: NCSI EnableActiveProbing = 0");
-        }
-        catch (Exception ex)
-        {
-            GuardLogger.Warn($"NCSI probing disable: {ex.Message}");
-        }
         GuardLogger.Info($"Disabled {disabled} telemetry/leftover services");
         return disabled;
     }
 
     private static int RunCmdExitCode(string command, int timeoutSec)
     {
-        try
+        var psi = new ProcessStartInfo
         {
-            var psi = new ProcessStartInfo
-            {
-                FileName = "cmd.exe",
-                Arguments = $"/c \"{command}\"",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-            using var proc = Process.Start(psi);
-            if (proc == null)
-                return -1;
-            if (!proc.WaitForExit(timeoutSec * 1000))
-            {
-                try { proc.Kill(); } catch { /* ignored */ }
-                return -1;
-            }
-            return proc.ExitCode;
-        }
-        catch { return -1; }
+            FileName = "cmd.exe",
+            Arguments = $"/c \"{command}\"",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        return Proc.Wait(psi, timeoutSec * 1000) ?? -1;
     }
 
     private static (string Stdout, int Rc) RunCmdCapture(string command, int timeoutSec)
     {
-        try
+        var psi = new ProcessStartInfo
         {
-            var psi = new ProcessStartInfo
-            {
-                FileName = "cmd.exe",
-                Arguments = $"/c \"{command}\"",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-            using var proc = Process.Start(psi);
-            if (proc == null)
-                return ("", -1);
-            var outp = proc.StandardOutput.ReadToEnd();
-            if (!proc.WaitForExit(timeoutSec * 1000))
-            {
-                try { proc.Kill(); } catch { /* ignored */ }
-                return (outp, -1);
-            }
-            return (outp.Trim(), proc.ExitCode);
-        }
-        catch { return ("", -1); }
+            FileName = "cmd.exe",
+            Arguments = $"/c \"{command}\"",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        var (stdout, _, rc) = Proc.Capture(psi, timeoutSec * 1000);
+        return (stdout.Trim(), rc ?? -1);
     }
 
     private static (string Stdout, int Rc) RunPowerShellCapture(string command, int timeoutSec)
     {
-        try
+        var psi = new ProcessStartInfo
         {
-            var psi = new ProcessStartInfo
-            {
-                FileName = "powershell.exe",
-                Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"{command}\"",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-            using var proc = Process.Start(psi);
-            if (proc == null)
-                return ("", -1);
-            var outp = proc.StandardOutput.ReadToEnd();
-            if (!proc.WaitForExit(timeoutSec * 1000))
-            {
-                try { proc.Kill(); } catch { /* ignored */ }
-                return (outp, -1);
-            }
-            return (outp.Trim(), proc.ExitCode);
-        }
-        catch { return ("", -1); }
+            FileName = "powershell.exe",
+            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"{command}\"",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        var (stdout, _, rc) = Proc.Capture(psi, timeoutSec * 1000);
+        return (stdout.Trim(), rc ?? -1);
     }
 
     private static bool RunSc(string arguments)
     {
-        try
+        var psi = new ProcessStartInfo
         {
-            var psi = new ProcessStartInfo
-            {
-                FileName = "sc.exe",
-                Arguments = arguments,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-            using var proc = Process.Start(psi);
-            return proc != null && proc.WaitForExit(20000) && proc.ExitCode == 0;
-        }
-        catch { return false; }
+            FileName = "sc.exe",
+            Arguments = arguments,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        return Proc.Wait(psi, 20000) == 0;
     }
 
     private static bool RunCmd(string command, int timeoutSec)
     {
-        try
+        var psi = new ProcessStartInfo
         {
-            var psi = new ProcessStartInfo
-            {
-                FileName = "cmd.exe",
-                Arguments = $"/c \"{command}\"",
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-            using var proc = Process.Start(psi);
-            if (proc == null)
-                return false;
-            if (!proc.WaitForExit(timeoutSec * 1000))
-            {
-                try { proc.Kill(); } catch { /* ignored */ }
-                return false;
-            }
-            return proc.ExitCode == 0;
-        }
-        catch { return false; }
+            FileName = "cmd.exe",
+            Arguments = $"/c \"{command}\"",
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        return Proc.Wait(psi, timeoutSec * 1000) == 0;
     }
 
     private static IEnumerable<string> EnumerateUserSidHives()
@@ -2020,7 +2021,7 @@ public class GuardService : BackgroundService
             if (_config.Prevention.DisableOemServices)
             {
                 GuardLogger.Info("Disabling OEM/vendor services...");
-                Win32BloatGuard.DisableOemServices();
+                Win32BloatGuard.DisableOemServices(_config);
             }
         }
 
@@ -2039,7 +2040,7 @@ public class GuardService : BackgroundService
 
                 if (_config.Prevention.ReinstallMonitor)
                 {
-                    CheckReinstalls(seenProvisioned, seenInstalled, firstScan);
+                    CheckReinstalls(seenProvisioned, seenInstalled, firstScan, _config.DryRun);
                     firstScan = false;
                 }
             }
@@ -2054,7 +2055,7 @@ public class GuardService : BackgroundService
 
     /// <summary>Detect packages that re-appeared since the last scan and remove them.</summary>
     private void CheckReinstalls(
-        HashSet<string> seenProvisioned, HashSet<string> seenInstalled, bool firstScan)
+        HashSet<string> seenProvisioned, HashSet<string> seenInstalled, bool firstScan, bool dryRun)
     {
         var currentProvisioned = new HashSet<string>(
             AppxManager.GetBlacklistedProvisionedPackages(_config.Blacklist, _config.Whitelist)
@@ -2069,7 +2070,11 @@ public class GuardService : BackgroundService
             foreach (var pkg in currentProvisioned.Except(seenProvisioned))
             {
                 GuardLogger.Warn($"[MONITOR] RE-INSTALLED detected: {pkg} — removing immediately!");
-                if (AppxManager.RemoveProvisionedPackage(pkg))
+                if (dryRun)
+                {
+                    GuardLogger.Info($"[DRY-RUN] Would re-remove provisioned package: {pkg}");
+                }
+                else if (AppxManager.RemoveProvisionedPackage(pkg))
                     GuardLogger.Info($"[MONITOR] Re-removal complete: {pkg}");
                 else
                     GuardLogger.Warn($"[MONITOR] Re-removal failed: {pkg} [admin required]");
@@ -2081,7 +2086,11 @@ public class GuardService : BackgroundService
             foreach (var family in currentInstalled.Except(seenInstalled))
             {
                 GuardLogger.Warn($"[MONITOR] RE-INSTALLED AppxPackage: {family} — removing!");
-                if (fullNameByFamily.TryGetValue(family, out var fullName) &&
+                if (dryRun)
+                {
+                    GuardLogger.Info($"[DRY-RUN] Would re-remove package: {family}");
+                }
+                else if (fullNameByFamily.TryGetValue(family, out var fullName) &&
                     !string.IsNullOrEmpty(fullName) &&
                     AppxManager.RemoveAppxPackage(fullName))
                 {
@@ -2261,7 +2270,7 @@ public class GuardService : BackgroundService
             if (dryRun)
                 GuardLogger.Info("[DRY-RUN] Would disable OEM/vendor services");
             else
-                Win32BloatGuard.DisableOemServices();
+                Win32BloatGuard.DisableOemServices(_config);
         }
         if (_config.Prevention.CleanStartupEntries)
             Win32BloatGuard.CleanStartupEntries(_config, dryRun);
@@ -2380,7 +2389,7 @@ public class Program
             if (config.Prevention.DisableTelemetryTasks)
                 ScheduledTaskGuard.DisableTelemetryTasks();
             if (config.Prevention.DisableOemServices)
-                Win32BloatGuard.DisableOemServices();
+                Win32BloatGuard.DisableOemServices(config);
         }
         else
         {
@@ -2469,8 +2478,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
             UseShellExecute = false,
             CreateNoWindow = true
         };
-        using var proc = Process.Start(psi);
-        Console.WriteLine(proc?.StandardOutput.ReadToEnd());
+        var (stdout, _, _) = Proc.Capture(psi, 15000);
+        Console.WriteLine(stdout);
     }
 
     /// <summary>Re-register staged AppxPackages recorded in the removal ledger.
@@ -2535,9 +2544,7 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
             UseShellExecute = false,
             CreateNoWindow = true
         };
-        using var proc = Process.Start(psi);
-        proc?.WaitForExit(60000);
-        return proc?.ExitCode == 0;
+        return Proc.Wait(psi, 60000) == 0;
     }
 
     /// <summary>

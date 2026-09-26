@@ -266,7 +266,7 @@ def get_blacklisted_provisioned(blacklist: List[str], whitelist: List[str]) -> L
     25H2 removal policy are written under."""
     results = []
     ps_cmd = ("Get-AppxProvisionedPackage -Online | "
-              "Select-Object DisplayName,PackageName,PublisherId | ConvertTo-Json")
+              "Select-Object DisplayName,PackageName | ConvertTo-Json")
     stdout, stderr, rc = run_powershell(ps_cmd, timeout=120)
 
     if rc != 0 or not stdout:
@@ -279,8 +279,12 @@ def get_blacklisted_provisioned(blacklist: List[str], whitelist: List[str]) -> L
         for pkg in data:
             display = pkg.get("DisplayName", "")
             package_name = pkg.get("PackageName", "")
-            publisher = pkg.get("PublisherId", "")
-            family = f"{display}_{publisher}" if display else ""
+            # Get-AppxProvisionedPackage returns no PublisherId — the publisher
+            # is the last '_' segment of PackageName
+            # (Name_Version_Architecture_ResourceId_PublisherId)
+            segs = package_name.split("_")
+            publisher = segs[-1] if len(segs) >= 5 and segs[-1].isalnum() else ""
+            family = f"{display}_{publisher}" if display and publisher else ""
             if (is_target_package(display, blacklist, whitelist)
                     and not _is_whitelisted(package_name, whitelist)
                     and not _is_whitelisted(family, whitelist)):
@@ -507,7 +511,10 @@ def apply_per_user_policies(prev: dict, logger: logging.Logger):
 
     # Stamp the Default profile template so FUTURE users get the policies.
     # reg.exe is required — winreg cannot load/unload hives.
-    ntuser = Path(os.environ.get("SystemDrive", "C:")) / "Users" / "Default" / "NTUSER.DAT"
+    # SystemDrive is "C:" — normalize to a rooted path, else "C:Users\..."
+    # is drive-relative and the template is missed.
+    drive = os.environ.get("SystemDrive", "C:\\").rstrip("\\") + "\\"
+    ntuser = Path(drive) / "Users" / "Default" / "NTUSER.DAT"
     if ntuser.exists():
         _, rc = run_cmd(["reg.exe", "load", f"HKU\\{DEFAULT_HIVE_NAME}", str(ntuser)], timeout=15)
         if rc == 0:
@@ -624,14 +631,49 @@ EDGE_POLICIES = (
     ("BingAdsSuppression", 1),
 )
 
-# OEM/vendor name substrings — used for Win32 uninstallers, auto-start services,
-# and Run/RunOnce startup entries (matched case-insensitively)
-VENDOR_PATTERNS = (
+# Hardware OEMs — a bare manufacturer name is never enough to act on: drivers
+# and hardware-integration utilities (touchpad, RGB, audio stack) must survive.
+# They only match together with a bloat keyword.
+HARDWARE_VENDOR_PATTERNS = (
+    "Lenovo", "Dell", "Hewlett", "HP Inc", "HPInc",
+    "ASUS", "ASUSTeK", "Acer", "Razer",
+)
+# Vendors whose typical OEM-shipped products are bloat/trialware by definition —
+# a name match alone suffices.
+JUNK_VENDOR_PATTERNS = (
     "McAfee", "Norton", "NortonLifeLock", "Avast", "AVG Software",
-    "WildTangent", "CyberLink", "Lenovo", "Dell", "Hewlett", "HP Inc",
-    "HPInc", "ASUS", "ASUSTeK", "Acer", "Razer", "ExpressVPN", "NordVPN",
+    "WildTangent", "CyberLink", "ExpressVPN", "NordVPN",
     "Dropbox", "Spotify", "Adobe Creative Cloud", "CCleaner", "Booking.com",
 )
+VENDOR_PATTERNS = HARDWARE_VENDOR_PATTERNS + JUNK_VENDOR_PATTERNS
+
+# Words that mark OEM software as nagware/updater rather than hardware support
+BLOAT_KEYWORDS = (
+    "update", "updater", "support", "assist", "telemetry", "diagnostic",
+    "analytic", "nag", "promo", "customer", "optimizer", "helper",
+    "quickset", "registration", "survey", "experience", "trial", "offer", "deals",
+)
+
+
+def _is_vendor_bloat(text: str, whitelist) -> bool:
+    """Junk-vendor name alone suffices; hardware OEMs also need a bloat keyword
+    so drivers/hardware-integration entries are never acted on by name alone."""
+    if is_target_package(text, JUNK_VENDOR_PATTERNS, whitelist):
+        return True
+    return (is_target_package(text, HARDWARE_VENDOR_PATTERNS, whitelist)
+            and is_target_package(text, BLOAT_KEYWORDS, ()))
+
+
+def _is_bloat_text(text: str, config: dict) -> bool:
+    """Blacklist match OR vendor-bloat match (junk vendor / hw-vendor+keyword),
+    respecting the whitelist. Used for all destructive Win32-side actions."""
+    whitelist = config.get("Whitelist", [])
+    if _is_whitelisted(text, whitelist):
+        return False
+    if is_target_package(text, config.get("Blacklist", []), whitelist):
+        return True
+    return _is_vendor_bloat(text, whitelist)
+
 
 # Run/RunOnce keys swept for startup bloat
 RUN_KEY_PATHS = (
@@ -717,9 +759,6 @@ TELEMETRY_SERVICES = (
     "XboxNetApiSvc",      # Xbox Live Networking
     "WMPNetworkSvc",      # Windows Media Player network sharing (legacy)
 )
-
-# NCSI active probing phones home to msftconnecttest.com on every reconnect
-NCSI_PATH = r"SYSTEM\CurrentControlSet\Services\NlaSvc\Parameters\Internet"
 
 # ETW autologger sessions that exist solely to feed telemetry — Start=0 stops
 # them at boot (the privacy.sexy / Sophia Script technique)
@@ -815,21 +854,23 @@ def _win32_silent_uninstall_cmd(uninstall_str: str, quiet_str: str) -> Optional[
 def remove_win32_bloatware(config: dict, dry_run: bool, logger: logging.Logger) -> int:
     """Uninstall Win32/desktop bloat (MSI/EXE) — Appx removal can't see these.
     Sweeps the Uninstall registry hives (HKLM 64/32-bit + loaded user hives) for
-    DisplayNames matching Blacklist ∪ VENDOR_PATTERNS, excluding Whitelist.
-    Only entries with a silent uninstall path are touched."""
+    DisplayNames matching Blacklist ∪ vendor patterns, excluding Whitelist.
+    Only entries with a silent uninstall path are touched.
+
+    Privilege boundary: user-hive (HKU\\<sid>) entries are user-writable — a
+    local user could plant a matching entry whose UninstallString the elevated
+    service would execute. Only HKLM entries are ever run; user-hive matches
+    are reported, not executed."""
     try:
         import winreg
     except ImportError:
         return 0
-    blacklist = config.get("Blacklist", [])
-    whitelist = config.get("Whitelist", [])
-    patterns = [p for p in list(blacklist) + list(VENDOR_PATTERNS) if p.strip()]
 
-    hives = [(winreg.HKEY_LOCAL_MACHINE, p) for p in WIN32_UNINSTALL_PATHS]
-    hives += [(winreg.HKEY_USERS, f"{sid}\\{WIN32_UNINSTALL_PATHS[0]}")
+    hives = [(winreg.HKEY_LOCAL_MACHINE, p, False) for p in WIN32_UNINSTALL_PATHS]
+    hives += [(winreg.HKEY_USERS, f"{sid}\\{WIN32_UNINSTALL_PATHS[0]}", True)
               for sid in _loaded_user_sids()]
     removed = 0
-    for root, path in hives:
+    for root, path, user_hive in hives:
         try:
             parent = winreg.OpenKey(root, path, 0, winreg.KEY_READ)
         except OSError:
@@ -846,7 +887,10 @@ def remove_win32_bloatware(config: dict, dry_run: bool, logger: logging.Logger) 
         for sub in sub_names:
             display, uninstall_str, quiet_str = _read_uninstall_entry(
                 root, f"{path}\\{sub}")
-            if not display or not is_target_package(display, patterns, whitelist):
+            if not display or not _is_bloat_text(display, config):
+                continue
+            if user_hive:
+                logger.info(f"Win32 bloat in user hive (report only, not executed): {display}")
                 continue
             cmd = _win32_silent_uninstall_cmd(uninstall_str, quiet_str)
             if cmd is None:
@@ -873,9 +917,6 @@ def clean_startup_entries(config: dict, dry_run: bool, logger: logging.Logger):
         import winreg
     except ImportError:
         return
-    blacklist = config.get("Blacklist", [])
-    whitelist = config.get("Whitelist", [])
-    patterns = [p for p in list(blacklist) + list(VENDOR_PATTERNS) if p.strip()]
 
     targets = [(winreg.HKEY_LOCAL_MACHINE, p) for p in HKLM_RUN_KEY_PATHS]
     targets += [(winreg.HKEY_USERS, f"{sid}\\{p}")
@@ -898,7 +939,7 @@ def clean_startup_entries(config: dict, dry_run: bool, logger: logging.Logger):
                 break
             i += 1
         for name, data, _kind in values:
-            if not is_target_package(f"{name} {data}", patterns, whitelist):
+            if not _is_bloat_text(f"{name} {data}", config):
                 continue
             if dry_run:
                 logger.info(f"[DRY-RUN] Would delete startup entry: {path}\\{name}")
@@ -936,8 +977,7 @@ def clean_startup_entries(config: dict, dry_run: bool, logger: logging.Logger):
                             blobs.append(str(winreg.QueryValueEx(sk, val_name)[0]))
                         except OSError:
                             pass
-                matched = any(is_target_package(b, patterns, whitelist)
-                              for b in blobs)
+                matched = any(_is_bloat_text(b, config) for b in blobs)
             except OSError:
                 matched = False
             if not matched:
@@ -958,8 +998,10 @@ def clean_startup_entries(config: dict, dry_run: bool, logger: logging.Logger):
         logger.info(f"Startup bloat entries {'flagged' if dry_run else 'deleted'}: {deleted}")
 
 
-def disable_oem_services(logger: logging.Logger):
-    """Stop + disable OEM/vendor auto-start services (updaters, trial nagware)."""
+def disable_oem_services(config: dict, logger: logging.Logger):
+    """Stop + disable OEM/vendor auto-start services (updaters, trial nagware).
+    Hardware-OEM services additionally require a bloat keyword — drivers and
+    hardware-integration services (RGB, audio, power) are never touched."""
     pattern = "|".join(re.escape(p) for p in VENDOR_PATTERNS)
     ps_cmd = ("Get-Service | Where-Object {$_.Name -match '" + pattern +
               "' -or $_.DisplayName -match '" + pattern + "'} | "
@@ -980,6 +1022,10 @@ def disable_oem_services(logger: logging.Logger):
         start_type = svc.get("StartType")
         if not name or start_type == "Disabled" or start_type == 4:
             continue
+        # Hardware vendors also need a bloat keyword — skips RGB/audio services
+        if not _is_vendor_bloat(f"{name} {svc.get('DisplayName', '')}",
+                                config.get("Whitelist", [])):
+            continue
         run_cmd(["sc.exe", "stop", name], timeout=20)
         _, rc2 = run_cmd(["sc.exe", "config", name, "start=", "disabled"],
                          timeout=20)
@@ -993,7 +1039,8 @@ def disable_oem_services(logger: logging.Logger):
 
 def disable_telemetry_services(logger: logging.Logger) -> int:
     """Stop + disable telemetry/leftover system services (DiagTrack, Xbox
-    leftovers, WMP sharing) and kill NCSI active-probing connectivity checks."""
+    leftovers, WMP sharing). NCSI active probing stays on — disabling it
+    breaks captive-portal detection on public Wi-Fi."""
     disabled = 0
     for name in TELEMETRY_SERVICES:
         _, rc = run_cmd(["sc.exe", "query", name], timeout=10)
@@ -1006,9 +1053,6 @@ def disable_telemetry_services(logger: logging.Logger) -> int:
             logger.info(f"Disabled telemetry service: {name}")
         else:
             logger.warning(f"Service disable failed [admin required?]: {name}")
-    # NCSI active probing — stops msftconnecttest.com connectivity checks
-    if set_registry_dword("HKLM", NCSI_PATH, "EnableActiveProbing", 0):
-        logger.info("Applied: NCSI EnableActiveProbing = 0")
     logger.info(f"Disabled {disabled} telemetry/leftover services")
     return disabled
 
@@ -1085,17 +1129,16 @@ def winget_sweep(config: dict, dry_run: bool, logger: logging.Logger) -> int:
         timeout=180)
     if rc != 0 or not stdout:
         return 0
-    blacklist = config.get("Blacklist", [])
-    whitelist = config.get("Whitelist", [])
-    patterns = [p for p in list(blacklist) + list(VENDOR_PATTERNS) if p.strip()]
-
     removed = 0
     for line in stdout.splitlines():
         cols = re.split(r"\s{2,}", line.strip())
         if len(cols) < 2 or not cols[0] or cols[1].startswith("-"):
             continue  # header/separator line
         name, pkg_id = cols[0], cols[1]
-        if not is_target_package(f"{name} {pkg_id}", patterns, whitelist):
+        # winget ids are simple identifiers — anything else never reaches a shell
+        if not re.fullmatch(r"[A-Za-z0-9_.\-]+", pkg_id):
+            continue
+        if not _is_bloat_text(f"{name} {pkg_id}", config):
             continue
         if dry_run:
             logger.info(f"[DRY-RUN] Would winget-uninstall: {name} ({pkg_id})")
@@ -1408,7 +1451,7 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
         if dry_run:
             logger.info("[DRY-RUN] Would disable OEM/vendor services")
         else:
-            disable_oem_services(logger)
+            disable_oem_services(config, logger)
     if prev.get("CleanStartupEntries", True):
         clean_startup_entries(config, dry_run, logger)
 
@@ -1464,10 +1507,13 @@ def run_service(config: dict, logger: logging.Logger):
                 }
 
                 if not first_scan:
+                    dry_run = config.get("DryRun", False)
                     for package_name in current_provisioned - seen_provisioned:
                         logger.warning(
                             f"[MONITOR] RE-INSTALLED detected: {package_name} — removing immediately!")
-                        if remove_provisioned_package(package_name):
+                        if dry_run:
+                            logger.info(f"[DRY-RUN] Would re-remove provisioned package: {package_name}")
+                        elif remove_provisioned_package(package_name):
                             logger.info(f"[MONITOR] Re-removal complete: {package_name}")
                         else:
                             logger.warning(f"[MONITOR] Re-removal failed: {package_name}")
@@ -1477,6 +1523,9 @@ def run_service(config: dict, logger: logging.Logger):
                     for family_name in reinstalled:
                         logger.warning(
                             f"[MONITOR] RE-INSTALLED AppxPackage: {family_name} — removing!")
+                        if dry_run:
+                            logger.info(f"[DRY-RUN] Would re-remove package: {family_name}")
+                            continue
                         full_name = full_names.get(family_name)
                         if full_name and remove_appx_package(full_name):
                             logger.info(f"[MONITOR] Re-removal complete: {family_name}")
