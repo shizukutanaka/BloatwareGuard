@@ -2,6 +2,15 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.50.0-mvp: location/sensor stack, SNMP, WWAN demote
+
+### Changed
+- `DisableMiscBloatServices`: 33 → 42 demand-start — `lfsvc` (geolocation),
+  `SensorService`/`SensrSvc`/`sensrsvc` (sensor monitoring), `SNMPTRAP`
+  (dead SNMP traps), `TroubleshootingSvc` (recommended-troubleshooting
+  runner — its policy is already off), `WwanSvc`/`WwanAuthSvc` (cellular;
+  demand-start keeps LTE functional).
+
 ## [Unreleased] — v1.49.0-mvp: CDM master switch, extra content surfaces, Near Share
 
 ### Changed

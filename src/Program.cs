@@ -2460,7 +2460,13 @@ public static class RegistryGuard
                                         "WalletService", "wisvc",
                                         "SharedRealitySvc", "perceptionsimulation",
                                         "Spectrum", "AJRouter", "SCardSvr",
-                                        "ScDeviceEnum", "CertPropSvc" })
+                                        "ScDeviceEnum", "CertPropSvc",
+                                        // Location tracking + sensor monitoring stack
+                                        "lfsvc", "SensorService", "SensrSvc", "sensrsvc",
+                                        // SNMP traps (dead), recommended-troubleshooting
+                                        // runner, cellular WWAN (demand-start keeps LTE)
+                                        "SNMPTRAP", "TroubleshootingSvc", "WwanSvc",
+                                        "WwanAuthSvc" })
             {
                 DemoteService(svc);
             }
@@ -2469,7 +2475,7 @@ public static class RegistryGuard
             // demand-start, which still leaves it reachable).
             RunToolSilent("sc.exe", "stop RemoteRegistry");
             RunToolSilent("sc.exe", "config RemoteRegistry start= disabled");
-            GuardLogger.Info("Applied: DisableMiscBloatServices (33 services → demand-start, RemoteRegistry disabled)");
+            GuardLogger.Info("Applied: DisableMiscBloatServices (42 services → demand-start, RemoteRegistry disabled)");
         }
         catch (Exception ex)
         {
@@ -3286,7 +3292,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.49.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.50.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -3371,7 +3377,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.49.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.50.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -3523,8 +3529,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 6;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.49.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.49.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.50.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.50.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try

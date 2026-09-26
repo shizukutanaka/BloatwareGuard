@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.49.0-mvp - Python prototype
+BloatwareGuard v1.50.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -1301,14 +1301,20 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                     # AllJoyn, smart card triad
                     "WalletService", "wisvc",
                     "SharedRealitySvc", "perceptionsimulation", "Spectrum",
-                    "AJRouter", "SCardSvr", "ScDeviceEnum", "CertPropSvc"):
+                    "AJRouter", "SCardSvr", "ScDeviceEnum", "CertPropSvc",
+                    # Location tracking + sensor monitoring stack
+                    "lfsvc", "SensorService", "SensrSvc", "sensrsvc",
+                    # SNMP traps (dead), recommended-troubleshooting runner,
+                    # cellular WWAN (demand-start keeps LTE working)
+                    "SNMPTRAP", "TroubleshootingSvc", "WwanSvc",
+                    "WwanAuthSvc"):
             demote_service(svc)
         # Remote Registry: remote registry read/write over SMB — disabled
         # outright (demand-start would still leave the surface reachable)
         run_cmd(["sc.exe", "stop", "RemoteRegistry"])
         run_cmd(["sc.exe", "config", "RemoteRegistry", "start=", "disabled"])
         logger.info("Applied: DisableMiscBloatServices "
-                    "(33 services → demand-start, RemoteRegistry disabled)")
+                    "(42 services → demand-start, RemoteRegistry disabled)")
 
     if prev.get("DisableSpotlight", True):
         # Desktop Spotlight = content-delivery channel (wallpaper promos)
