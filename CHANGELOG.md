@@ -2,6 +2,13 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.33.0-mvp: Start recent-doc tracking off
+
+### Changed
+- `HideStartRecommendations` also sets `Start_TrackDocs=0` in every user
+  hive — the Recommended section draws from this tracking, so collection
+  stops rather than just hiding its output.
+
 ## [Unreleased] — v1.32.0-mvp: reinstall monitor covers Win32
 
 ### Changed

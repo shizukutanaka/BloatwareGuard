@@ -2088,6 +2088,10 @@ public static class RegistryGuard
                 @"SOFTWARE\Policies\Microsoft\Windows\Explorer");
             pol?.SetValue("HideRecommendedSection", 1,
                           Microsoft.Win32.RegistryValueKind.DWord);
+            // The section draws from recent-doc tracking — stop collecting it
+            SetUserDwordAllHives(
+                @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
+                "Start_TrackDocs", 0);
             GuardLogger.Info("Applied: HideStartRecommendations");
         }
         catch (Exception ex)
@@ -2648,7 +2652,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.32.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.33.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -2733,7 +2737,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.32.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.33.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -2885,8 +2889,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 6;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.32.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.32.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.33.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.33.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try
