@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.41.0-mvp - Python prototype
+BloatwareGuard v1.42.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -34,7 +34,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.41.0-mvp"
+APP_VERSION = "1.42.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -632,6 +632,7 @@ _USER_SUGGESTED_TOAST = (r"Software\Microsoft\Windows\CurrentVersion"
 _USER_MOBILITY = r"Software\Microsoft\Windows\CurrentVersion\Mobility"
 _USER_ADVERTISING_INFO = r"Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo"
 _USER_PRIVACY = r"Software\Microsoft\Windows\CurrentVersion\Privacy"
+_USER_PRIVACY_POLICIES = r"Software\Policies\Microsoft\Windows\Privacy"
 _USER_ONLINE_SPEECH = r"Software\Microsoft\Speech_OneCore\Settings\OnlineSpeechPrivacy"
 _USER_TIPC = r"Software\Microsoft\Input\TIPC"
 _USER_INPUT_PERSONALIZATION = r"Software\Microsoft\InputPersonalization"
@@ -915,6 +916,7 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_user_dword_all_hives(_USER_SEARCH_SETTINGS, "IsDynamicSearchBoxEnabled", 0, logger)
         set_user_dword_all_hives(_USER_SEARCH_SETTINGS, "IsAADCloudSearchEnabled", 0, logger)
         set_user_dword_all_hives(_USER_SEARCH_SETTINGS, "IsMSACloudSearchEnabled", 0, logger)
+        set_user_dword_all_hives(_USER_SEARCH_SETTINGS, "IsDeviceSearchHistoryEnabled", 0, logger)
         set_user_dword_all_hives(_USER_SEARCH, "CortanaConsent", 0, logger)
         logger.info("Applied: DisableSearchSuggestions (Bing/search suggestions + Cortana off, all hives)")
 
@@ -958,6 +960,8 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             w(_USER_EXPLORER_ADV, "Start_TrackProgs", 0)
             w(_USER_SIUF, "NumberOfSIUFInPeriod", 0)
             w(_USER_INTL_PROFILE, "HttpAcceptLanguageOptOut", 1)
+            # Tailored-experiences policy (policy-level, not just the value)
+            w(_USER_PRIVACY_POLICIES, "TailoredExperiencesWithDiagnosticDataEnabled", 0)
 
         for_each_user_hive(_apply_telemetry, logger)
 
@@ -1008,6 +1012,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         env_key = r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment"
         set_registry_string("HKLM", env_key, "POWERSHELL_TELEMETRY_OPTOUT", "1")
         set_registry_string("HKLM", env_key, "DOTNET_CLI_TELEMETRY_OPTOUT", "1")
+        # CEIP policy + feedback nag prompts
+        set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\SQMClient\Windows",
+                           "CEIPEnable", 0)
+        set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\DataCollection",
+                           "DoNotShowFeedbackNotifications", 1)
         # "Share across devices" (Connected Devices Platform) consent off
         cdp = r"Software\Microsoft\Windows\CurrentVersion\CDP"
         set_user_dword_all_hives(cdp, "CdpSessionUserAuthzPolicy", 0, logger)
@@ -1029,6 +1038,8 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization",
                            "DODownloadMode", 0)
         set_user_dword_all_hives(_USER_DELIVERY_OPT, "DownloadMode", 0, logger)
+        # The DoSvc service still auto-starts for CDN fetches — demote it too
+        demote_service("DoSvc")
         # The Delivery Optimization service reads the NETWORK SERVICE hive (S-1-5-20)
         try:
             key = winreg.CreateKeyEx(
@@ -1093,6 +1104,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_user_dword_all_hives(_USER_WER, "Disabled", 1, logger)
         set_user_dword_all_hives(_USER_WER, "DontShowUI", 1, logger)
         set_user_dword_all_hives(_USER_WER, "LoggingDisabled", 1, logger)
+        # WER support service + companion → demand-start
+        for svc in ("wercplsupport",):
+            demote_service(svc)
         logger.info("Applied: DisableErrorReporting (WER uploads + UI + logging off)")
 
     if prev.get("DisableEdgeUpdateBloat", True):
@@ -1213,14 +1227,19 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                     "PushToInstall", "SEMgrSvc", "PhoneSvc",
                     "SysMain", "TabletInputService",
                     "WSearch",                # indexer — resident file scan
-                    "AssignedAccessManagerSvc"):  # kiosk assigned-access
+                    "AssignedAccessManagerSvc",  # kiosk assigned-access
+                    "DusmSvc",                # data-usage metering
+                    # Per-user service templates for Mail/People/contacts
+                    # sync — dead weight once those apps are removed
+                    "CDPUserSvc", "OneSyncSvc", "UnistoreSvc",
+                    "UserDataSvc", "PimIndexMaintenanceSvc"):
             demote_service(svc)
         # Remote Registry: remote registry read/write over SMB — disabled
         # outright (demand-start would still leave the surface reachable)
         run_cmd(["sc.exe", "stop", "RemoteRegistry"])
         run_cmd(["sc.exe", "config", "RemoteRegistry", "start=", "disabled"])
         logger.info("Applied: DisableMiscBloatServices "
-                    "(15 services → demand-start, RemoteRegistry disabled)")
+                    "(21 services → demand-start, RemoteRegistry disabled)")
 
     if prev.get("DisableSpotlight", True):
         # Desktop Spotlight = content-delivery channel (wallpaper promos)
@@ -1727,6 +1746,10 @@ TELEMETRY_TASK_PATHS = (
     # Recommended-troubleshooting scanner uploads diagnostic packages
     "\\Microsoft\\Windows\\Diagnosis\\RecommendedTroubleshootingScanner",
     "\\Microsoft\\Windows\\Diagnosis\\Scheduled",
+    # SQM telemetry task + disk-diagnostic resolver + WinSAT scoring run
+    "\\Microsoft\\Windows\\PI\\Sqm-Tasks",
+    "\\Microsoft\\Windows\\DiskDiagnostic\\Microsoft-Windows-DiskDiagnosticResolver",
+    "\\Microsoft\\Windows\\Maintenance\\WinSAT",
 )
 
 

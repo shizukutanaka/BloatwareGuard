@@ -2,6 +2,28 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.42.0-mvp: service demotion sweep + CEIP/feedback policies
+
+### Changed
+- `DisableMiscBloatServices`: 15 → 21 demand-start — `DusmSvc` (data-usage
+  metering) and the per-user service templates powering removed apps:
+  `CDPUserSvc`, `OneSyncSvc`, `UnistoreSvc`, `UserDataSvc`,
+  `PimIndexMaintenanceSvc` (Mail/contacts/My People sync backends).
+- `DisableDeliveryOptimization`: `DoSvc` demoted — the service still
+  auto-started for CDN fetches even with `DODownloadMode=0`.
+- `DisableErrorReporting`: `wercplsupport` (WER control-panel support)
+  demoted to demand-start.
+- `DisableTelemetry`: `CEIPEnable=0` (SQMClient policy),
+  `DoNotShowFeedbackNotifications=1` (feedback nag prompts off), and the
+  policy-level `Policies\...\Privacy\TailoredExperiencesWithDiagnosticDataEnabled=0`
+  per hive (not just the value key).
+- `DisableSearchSuggestions`: `IsDeviceSearchHistoryEnabled=0` per hive.
+- `DisableEdgeBloat`: `DropEnabled`, `CryptoWalletEnabled`,
+  `EdgeAssetDeliveryServiceEnabled` off (Drop syncs files to OneDrive).
+- `DisableTelemetryTasks`: +3 — `PI\Sqm-Tasks`,
+  `DiskDiagnostic\Microsoft-Windows-DiskDiagnosticResolver`,
+  `Maintenance\WinSAT`.
+
 ## [Unreleased] — v1.41.0-mvp: promo surfaces + dev telemetry + URL leaks
 
 ### Changed
