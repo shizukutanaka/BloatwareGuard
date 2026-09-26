@@ -186,6 +186,10 @@ public class PreventionLayers
     /// <summary>Layer 38: no forced Windows Update reboot while a user is
     /// logged on</summary>
     public bool NoForcedReboot { get; set; } = true;
+
+    /// <summary>Layer 39: hide the Start menu "Recommended" section —
+    /// it surfaces promoted apps, not just your files</summary>
+    public bool HideStartRecommendations { get; set; } = true;
 }
 
 // ─── JSON source-gen context (trim-safe: avoids IL2026 with PublishTrimmed) ──
@@ -988,6 +992,9 @@ public static class RegistryGuard
 
         if (layers.NoForcedReboot)
             NoForcedReboot();
+
+        if (layers.HideStartRecommendations)
+            HideStartRecommendations();
     }
 
     /// <summary>
@@ -1392,6 +1399,26 @@ public static class RegistryGuard
                 exp?.SetValue("AllowExperimentation", 0, Microsoft.Win32.RegistryValueKind.DWord);
             }
             catch { }
+            // Cap diagnostic log/dump collection and enhanced analytics
+            try
+            {
+                using var dcl = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(DataCollectionPath);
+                if (dcl != null)
+                {
+                    dcl.SetValue("LimitDiagnosticLogCollection", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                    dcl.SetValue("LimitDumpCollection", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                    dcl.SetValue("LimitEnhancedDiagnosticDataWindowsAnalytics", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                }
+            }
+            catch { }
+            // Malicious Software Removal Tool infection reports off
+            try
+            {
+                using var mrt = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\MRT");
+                mrt?.SetValue("DontReportInfectionInformation", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            catch { }
 
             GuardLogger.Info("Applied: DisableTelemetry (AllowTelemetry=0, DiagTrack off, privacy surfaces set)");
         }
@@ -1739,6 +1766,8 @@ public static class RegistryGuard
         @"SOFTWARE\Policies\Microsoft\Windows Defender\Spynet",
         @"SOFTWARE\Microsoft\PolicyManager\current\device\System",
         @"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU",
+        @"SOFTWARE\Policies\Microsoft\MRT",
+        @"SOFTWARE\Policies\Microsoft\Windows\Explorer",
     };
     private static bool _backupDone;
 
@@ -1992,6 +2021,25 @@ public static class RegistryGuard
         catch (Exception ex)
         {
             GuardLogger.Error($"Failed to set reboot policy: {ex.Message}");
+        }
+    }
+
+    /// <summary>Layer 39: HideRecommendedSection removes Start's
+    /// "Recommended" section — it surfaces promoted apps, not just files
+    /// (Windows 11 22H2+ policy).</summary>
+    public static void HideStartRecommendations()
+    {
+        try
+        {
+            using var pol = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Policies\Microsoft\Windows\Explorer");
+            pol?.SetValue("HideRecommendedSection", 1,
+                          Microsoft.Win32.RegistryValueKind.DWord);
+            GuardLogger.Info("Applied: HideStartRecommendations");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to hide Start recommendations: {ex.Message}");
         }
     }
 
@@ -2518,7 +2566,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.22.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.23.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -2603,7 +2651,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.22.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.23.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -2755,8 +2803,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 6;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.22.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.22.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.23.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.23.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try

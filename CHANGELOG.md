@@ -2,6 +2,20 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.23.0-mvp: Start recommendations / diagnostic caps
+
+### Added
+- **`HideStartRecommendations`** — `Explorer` policy
+  `HideRecommendedSection=1` (22H2+): removes Start's "Recommended"
+  section, which surfaces promoted apps rather than your own files.
+
+### Changed
+- `DisableTelemetry` also caps diagnostic collection
+  (`LimitDiagnosticLogCollection`, `LimitDumpCollection`,
+  `LimitEnhancedDiagnosticDataWindowsAnalytics`) and sets MRT
+  `DontReportInfectionInformation=1`.
+- `BackupRegistry` export set extended (29 keys).
+
 ## [Unreleased] — v1.22.0-mvp: AutoPlay off / WU forced-reboot prevention
 
 ### Added

@@ -1,8 +1,8 @@
-# BloatwareGuard v1.22.0-mvp
+# BloatwareGuard v1.23.0-mvp
 
 ## What It Does
 
-Removes Windows bloatware across **38 prevention layers** in both **Python** and **C#** implementations.
+Removes Windows bloatware across **39 prevention layers** in both **Python** and **C#** implementations.
 Per-user settings are written to **every loaded user hive + the Default profile template**, so they
 also apply correctly when the tool runs as a SYSTEM service and for users created later.
 
@@ -48,6 +48,7 @@ also apply correctly when the tool runs as a SYSTEM service and for users create
 || 36. Desktop Spotlight off (wallpaper promo channel) | ✅ | ✅ | Per-hive |
 || 37. AutoPlay/AutoRun off (removable-media execution vector) | ✅ | ✅ | HKLM needs admin |
 || 38. No forced Windows Update reboot while logged on | ✅ | ✅ | HKLM needs admin |
+|| 39. Start "Recommended" section hidden (promoted-apps surface) | ✅ | ✅ | HKLM needs admin |
 
 ---
 
@@ -166,8 +167,8 @@ dotnet publish src/BloatwareGuard.csproj -c Release -r win-x64 --self-contained 
 ## Version
 
 ```bash
-python bloatware_guard.py --version   # BloatwareGuard v1.22.0-mvp
-BloatwareGuard.exe --version          # BloatwareGuard v1.22.0-mvp
+python bloatware_guard.py --version   # BloatwareGuard v1.23.0-mvp
+BloatwareGuard.exe --version          # BloatwareGuard v1.23.0-mvp
 ```
 
 ---

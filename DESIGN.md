@@ -54,7 +54,8 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 │    ├─ 雑サービス群 (dmwappush 他) → demand 化     │
 │    ├─ Desktop Spotlight (壁紙広告面) 停止          │
 │    ├─ AutoPlay/AutoRun 無効化                      │
-│    └─ WU 強制再起動防止 (ログオン中)               │
+│    ├─ WU 強制再起動防止 (ログオン中)               │
+│    └─ Start「おすすめ」非表示 + 診断ログ/MRT 制限  │
 ├─────────────────────────────────────────────────────┤
 │  Config: config.json (blacklist + intervals)        │
 │  Log: Windows Event Log + file                      │
@@ -105,6 +106,7 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 | Desktop Spotlight | DesktopSpotlight\Settings Enabled=0 + Wallpapers BackgroundType=0 (全ハイブ) | DisableSpotlight |
 | AutoPlay/AutoRun | Policies\Explorer NoDriveTypeAutoRun=255, NoAutorun=1 (HKLM+全ハイブ) | DisableAutoplay |
 | WU 強制再起動 | WindowsUpdate\AU NoAutoRebootWithLoggedOnUsers=1, AlwaysAutoRebootAtScheduledTime=0 | NoForcedReboot |
+| Start「おすすめ」 | Policies\...\Explorer HideRecommendedSection=1 | HideStartRecommendations |
 
 ## ブラックリスト方式
 - config.json の `Blacklist` にパッケージ名の**部分一致**パターンを列挙

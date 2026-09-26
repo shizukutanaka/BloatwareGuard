@@ -120,7 +120,8 @@
     "DisableMiscBloatServices": true,
     "DisableSpotlight": true,
     "DisableAutoplay": true,
-    "NoForcedReboot": true
+    "NoForcedReboot": true,
+    "HideStartRecommendations": true
   },
   "DryRun": false
 }

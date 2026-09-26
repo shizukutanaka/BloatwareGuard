@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.22.0-mvp - Python prototype
+BloatwareGuard v1.23.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -34,7 +34,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.22.0-mvp"
+APP_VERSION = "1.23.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -198,6 +198,7 @@ def load_config(path: Path) -> dict:
                 "DisableSpotlight": True,
                 "DisableAutoplay": True,
                 "NoForcedReboot": True,
+                "HideStartRecommendations": True,
             },
             "DryRun": False,
         }
@@ -714,6 +715,8 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Policies\Microsoft\Windows Defender\Spynet",
     r"SOFTWARE\Microsoft\PolicyManager\current\device\System",
     r"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU",
+    r"SOFTWARE\Policies\Microsoft\MRT",
+    r"SOFTWARE\Policies\Microsoft\Windows\Explorer",
 )
 _registry_backup_done = False
 
@@ -905,6 +908,15 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             "HKLM",
             r"SOFTWARE\Microsoft\PolicyManager\current\device\System",
             "AllowExperimentation", 0)
+        # Cap diagnostic log/dump collection + enhanced analytics
+        data_collection = (
+            r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection")
+        for name in ("LimitDiagnosticLogCollection", "LimitDumpCollection",
+                     "LimitEnhancedDiagnosticDataWindowsAnalytics"):
+            set_registry_dword("HKLM", data_collection, name, 1)
+        # MRT infection reports off
+        set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\MRT",
+                           "DontReportInfectionInformation", 1)
         logger.info("Applied: DisableTelemetry (AllowTelemetry=0, DiagTrack off, "
                     "privacy surfaces set)")
 
@@ -1130,6 +1142,13 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_registry_dword("HKLM", au, "NoAutoRebootWithLoggedOnUsers", 1)
         set_registry_dword("HKLM", au, "AlwaysAutoRebootAtScheduledTime", 0)
         logger.info("Applied: NoForcedReboot (WU reboot policy)")
+
+    if prev.get("HideStartRecommendations", True):
+        # Start "Recommended" section — promoted apps surface (22H2+)
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Policies\Microsoft\Windows\Explorer",
+                           "HideRecommendedSection", 1)
+        logger.info("Applied: HideStartRecommendations")
 
 
 def disable_startup_bloat(config: dict, logger: logging.Logger):
@@ -1658,7 +1677,7 @@ def run_self_test() -> int:
                     "DisableCloudClipboard", "DisableRemoteAssistance",
                     "BlockInsiderPreview", "DisableMiscBloatServices",
                     "DisableSpotlight", "DisableAutoplay",
-                    "NoForcedReboot"]
+                    "NoForcedReboot", "HideStartRecommendations"]
         missing = [k for k in required if k not in prev]
         assert not missing, f"missing prevention keys: {missing}"
 
@@ -1680,7 +1699,7 @@ def run_self_test() -> int:
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
     check("T4: Logger file + console wiring", t_logging)
     check("T5: is_admin() callable", t_is_admin)
-    check("T6: Prevention layers — 39 registered", t_prevention_layers)
+    check("T6: Prevention layers — 40 registered", t_prevention_layers)
     check("T7: Removal ledger write/read", t_removal_ledger)
     check("T8: Full-name batch map", t_full_name_map)
 
