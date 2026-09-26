@@ -2,6 +2,14 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.39.0-mvp: WSearch/AssignedAccess demoted
+
+### Changed
+- `DisableMiscBloatServices` extended (13 → 15 demand-start): `WSearch`
+  (the indexer's resident file scan — demand-start keeps search working
+  but stops the always-on crawl) and `AssignedAccessManagerSvc` (kiosk
+  assigned-access machinery unused outside managed deployments).
+
 ## [Unreleased] — v1.38.0-mvp: SysMain/TabletInputService demoted
 
 ### Changed

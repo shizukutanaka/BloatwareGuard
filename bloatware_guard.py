@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.38.0-mvp - Python prototype
+BloatwareGuard v1.39.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -34,7 +34,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.38.0-mvp"
+APP_VERSION = "1.39.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -1141,14 +1141,16 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                     "CDPSvc", "NvTelemetryContainer",
                     "esrv_svc", "ESRV_SVC_QUEENCREEK",
                     "PushToInstall", "SEMgrSvc", "PhoneSvc",
-                    "SysMain", "TabletInputService"):
+                    "SysMain", "TabletInputService",
+                    "WSearch",                # indexer — resident file scan
+                    "AssignedAccessManagerSvc"):  # kiosk assigned-access
             demote_service(svc)
         # Remote Registry: remote registry read/write over SMB — disabled
         # outright (demand-start would still leave the surface reachable)
         run_cmd(["sc.exe", "stop", "RemoteRegistry"])
         run_cmd(["sc.exe", "config", "RemoteRegistry", "start=", "disabled"])
         logger.info("Applied: DisableMiscBloatServices "
-                    "(13 services → demand-start, RemoteRegistry disabled)")
+                    "(15 services → demand-start, RemoteRegistry disabled)")
 
     if prev.get("DisableSpotlight", True):
         # Desktop Spotlight = content-delivery channel (wallpaper promos)

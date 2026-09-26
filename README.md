@@ -1,4 +1,4 @@
-# BloatwareGuard v1.38.0-mvp
+# BloatwareGuard v1.39.0-mvp
 
 ## What It Does
 
@@ -44,7 +44,7 @@ also apply correctly when the tool runs as a SYSTEM service and for users create
 || 32. Cross-device clipboard sync off (copied content stays local) | ✅ | ✅ | HKLM needs admin |
 || 33. Remote Assistance inbound offers off | ✅ | ✅ | HKLM needs admin |
 || 34. Windows Insider preview enrollment blocked | ✅ | ✅ | HKLM needs admin |
-|| 35. Misc bloat services → demand-start (13: push/MDM, Maps, media sharing, diagnostics, Nearby Sharing, Store push-install, NFC payments, Phone Link, NVIDIA/Intel telemetry, SysMain prefetch, touch keyboard) + RemoteRegistry disabled | ✅ | ✅ | HKLM needs admin |
+|| 35. Misc bloat services → demand-start (15: push/MDM, Maps, media sharing, diagnostics, Nearby Sharing, Store push-install, NFC payments, Phone Link, NVIDIA/Intel telemetry, SysMain prefetch, touch keyboard, search indexer, kiosk assigned-access) + RemoteRegistry disabled | ✅ | ✅ | HKLM needs admin |
 || 36. Desktop Spotlight off (wallpaper promo channel) | ✅ | ✅ | Per-hive |
 || 37. AutoPlay/AutoRun off (removable-media execution vector) | ✅ | ✅ | HKLM needs admin |
 || 38. No forced Windows Update reboot while logged on | ✅ | ✅ | HKLM needs admin |
@@ -167,8 +167,8 @@ dotnet publish src/BloatwareGuard.csproj -c Release -r win-x64 --self-contained 
 ## Version
 
 ```bash
-python bloatware_guard.py --version   # BloatwareGuard v1.38.0-mvp
-BloatwareGuard.exe --version          # BloatwareGuard v1.38.0-mvp
+python bloatware_guard.py --version   # BloatwareGuard v1.39.0-mvp
+BloatwareGuard.exe --version          # BloatwareGuard v1.39.0-mvp
 ```
 
 ---
