@@ -1,8 +1,8 @@
-# BloatwareGuard v1.15.0-mvp
+# BloatwareGuard v1.16.0-mvp
 
 ## What It Does
 
-Removes Windows bloatware across **26 prevention layers** in both **Python** and **C#** implementations.
+Removes Windows bloatware across **27 prevention layers** in both **Python** and **C#** implementations.
 Per-user settings are written to **every loaded user hive + the Default profile template**, so they
 also apply correctly when the tool runs as a SYSTEM service and for users created later.
 
@@ -27,7 +27,7 @@ also apply correctly when the tool runs as a SYSTEM service and for users create
 || 15. OneDrive sync off + Explorer pin hidden (**opt-in**, default off) | ✅ | ✅ | HKLM needs admin |
 || 16. Teams Chat taskbar button off | ✅ | ✅ | Own hive only |
 || 17. Edge sidebar / startup boost / prelaunch / first-run off | ✅ | ✅ | HKLM needs admin |
-|| 18. Optional capabilities removed (IE mode, Steps Recorder, WordPad) | ✅ | ✅ | Requires admin |
+|| 18. Optional capabilities removed (IE mode, Steps Recorder, WordPad, XPS Viewer, Fax&Scan, Wireless Display) | ✅ | ✅ | Requires admin |
 || 19. Win32 bloatware uninstalled (McAfee/Norton OEM preinstalls — MSI silent) | ✅ | ✅ | Requires admin |
 || 20. Restore point before destructive scans (self-throttles 24h) | ✅ | ✅ | Requires admin |
 || 21. Microsoft telemetry tasks off (CompatTelRunner, CEIP, Siuf, Maps) | ✅ | ✅ | Requires admin |
@@ -36,6 +36,7 @@ also apply correctly when the tool runs as a SYSTEM service and for users create
 || 24. Edge update services → demand-start + update tasks off | ✅ | ✅ | Requires admin |
 || 25. OEM driver payloads excluded from Windows Update | ✅ | ✅ | HKLM needs admin |
 || 26. App permissions force-denied (conservative set — camera/mic/location left) | ✅ | ✅ | HKLM needs admin |
+|| 27. Xbox services demoted to demand-start | ✅ | ✅ | HKLM needs admin |
 
 ---
 
@@ -154,8 +155,8 @@ dotnet publish src/BloatwareGuard.csproj -c Release -r win-x64 --self-contained 
 ## Version
 
 ```bash
-python bloatware_guard.py --version   # BloatwareGuard v1.15.0-mvp
-BloatwareGuard.exe --version          # BloatwareGuard v1.15.0-mvp
+python bloatware_guard.py --version   # BloatwareGuard v1.16.0-mvp
+BloatwareGuard.exe --version          # BloatwareGuard v1.16.0-mvp
 ```
 
 ---

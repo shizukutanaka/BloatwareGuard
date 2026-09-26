@@ -41,7 +41,9 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 │    ├─ Edge Update サービス/タスク → demand 化       │
 │    ├─ WU OEM ドライバ配布遮断                     │
 │    ├─ AppPrivacy 強制拒否 (camera/mic/location 除く)│
-│    └─ RetailDemo / 動的検索ボックス停止            │
+│    ├─ RetailDemo / 動的検索ボックス停止            │
+│    ├─ Xbox サービス ×4 → demand 化                 │
+│    └─ AutoLogger-Diagtrack / Ink Workspace 停止    │
 ├─────────────────────────────────────────────────────┤
 │  Config: config.json (blacklist + intervals)        │
 │  Log: Windows Event Log + file                      │
@@ -80,6 +82,7 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 | Edge Update 常駐 | edgeupdate/edgeupdatem/MicrosoftEdgeElevationService → Start=3 + EdgeUpdateTask* 3件 /DISABLE | DisableEdgeUpdateBloat |
 | WU 経由 OEM ドライバ | ExcludeWUDriversInQualityUpdate=1 (WindowsUpdate policy) | BlockOemDriverUpdates |
 | アプリ権限 (保守的セット) | AppPrivacy LetApps* =2 (16 件、camera/mic/location 除外) | DisableAppPermissions |
+| Xbox サービス | XblAuthManager/XblGameSave/XboxNetApiSvc/XboxGipSvc → Start=3 | DisableXboxServices |
 
 ## ブラックリスト方式
 - config.json の `Blacklist` にパッケージ名の**部分一致**パターンを列挙

@@ -136,6 +136,11 @@ public class PreventionLayers
     /// (background run, account info, contacts, diagnostics…). Camera, mic and
     /// location are deliberately left alone — legitimate apps need them.</summary>
     public bool DisableAppPermissions { get; set; } = true;
+
+    /// <summary>Layer 27: Demote Xbox services to demand-start — they sit
+    /// permanently running even on machines that never touch gaming/Xbox
+    /// sign-in. Demand-start keeps Game Bar/Xbox features usable on demand.</summary>
+    public bool DisableXboxServices { get; set; } = true;
 }
 
 // ─── JSON source-gen context (trim-safe: avoids IL2026 with PublishTrimmed) ──
@@ -466,7 +471,7 @@ public static class AppxManager
     /// Requires admin; non-admin/non-present entries are skipped by PowerShell.</summary>
     public static void RemoveOptionalCapabilities()
     {
-        var pattern = "Browser.InternetExplorer|App.StepsRecorder|Microsoft.Windows.WordPad";
+        var pattern = "Browser.InternetExplorer|App.StepsRecorder|Microsoft.Windows.WordPad|XPS.Viewer|Print.Fax.Scan|App.WirelessDisplay.Connect";
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
@@ -896,6 +901,9 @@ public static class RegistryGuard
 
         if (layers.DisableAppPermissions)
             DisableAppPermissions();
+
+        if (layers.DisableXboxServices)
+            DisableXboxServices();
     }
 
     /// <summary>
@@ -1264,6 +1272,22 @@ public static class RegistryGuard
             // RetailDemo data-collection service (present on most images)
             RunToolSilent("sc.exe", "stop RetailDemo");
             RunToolSilent("sc.exe", "config RetailDemo start= disabled");
+            // ETW AutoLogger that feeds DiagTrack — Start=0 kills the boot-time trace
+            try
+            {
+                using var autolog = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SYSTEM\CurrentControlSet\Control\WMI\AutoLogger\AutoLogger-Diagtrack-Listener");
+                autolog?.SetValue("Start", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            catch { }
+            // Ink Workspace suggestion surface (ads inside the pen menu)
+            try
+            {
+                using var ink = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\WindowsInkWorkspace");
+                ink?.SetValue("AllowWindowsInkWorkspace", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            catch { }
 
             GuardLogger.Info("Applied: DisableTelemetry (AllowTelemetry=0, DiagTrack off, privacy surfaces set)");
         }
@@ -1529,6 +1553,32 @@ public static class RegistryGuard
         catch (Exception ex)
         {
             GuardLogger.Error($"Failed to disable app permissions: {ex.Message}");
+        }
+    }
+
+    /// <summary>Layer 27: demote Xbox services to demand-start. These sit
+    /// permanently running even without any gaming use; demand-start keeps
+    /// Game Bar / Xbox sign-in functional when actually invoked.</summary>
+    public static void DisableXboxServices()
+    {
+        try
+        {
+            foreach (var svc in new[] { "XblAuthManager", "XblGameSave",
+                                        "XboxNetApiSvc", "XboxGipSvc" })
+            {
+                try
+                {
+                    using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                        $@"SYSTEM\CurrentControlSet\Services\{svc}");
+                    key?.SetValue("Start", 3, Microsoft.Win32.RegistryValueKind.DWord);
+                }
+                catch { }
+            }
+            GuardLogger.Info("Applied: DisableXboxServices (4 services → demand-start)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to demote Xbox services: {ex.Message}");
         }
     }
 
@@ -2062,7 +2112,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.15.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.16.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -2147,7 +2197,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.15.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.16.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -2299,8 +2349,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 6;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.15.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.15.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.16.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.16.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try

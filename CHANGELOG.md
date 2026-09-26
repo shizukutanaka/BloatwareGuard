@@ -2,6 +2,22 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.16.0-mvp: Xbox services / AutoLogger / capability set
+
+### Added
+- **`DisableXboxServices`** — `XblAuthManager`, `XblGameSave`, `XboxNetApiSvc`,
+  `XboxGipSvc` demoted to demand-start (`Start=3`). They run permanently on
+  machines that never touch Xbox sign-in; demand-start keeps Game Bar and
+  Xbox features usable when invoked.
+
+### Changed
+- `RemoveOptionalCapabilities` list extended: `XPS.Viewer`, `Print.Fax.Scan`,
+  `App.WirelessDisplay.Connect` join IE mode / Steps Recorder / WordPad.
+- `DisableTelemetry` also sets the `AutoLogger-Diagtrack-Listener` ETW trace
+  to `Start=0` (boot-time telemetry feed, same knob O&O ShutUp10 toggles)
+  and disables the Ink Workspace suggestion surface
+  (`AllowWindowsInkWorkspace=0`).
+
 ## [Unreleased] — v1.15.0-mvp: app permissions / cloud search / RetailDemo
 
 ### Added

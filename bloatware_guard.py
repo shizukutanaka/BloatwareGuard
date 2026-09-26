@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.15.0-mvp - Python prototype
+BloatwareGuard v1.16.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -34,7 +34,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.15.0-mvp"
+APP_VERSION = "1.16.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -180,6 +180,7 @@ def load_config(path: Path) -> dict:
                 "DisableEdgeUpdateBloat": True,
                 "BlockOemDriverUpdates": True,
                 "DisableAppPermissions": True,
+                "DisableXboxServices": True,
             },
             "DryRun": False,
         }
@@ -398,7 +399,9 @@ def remove_provisioned_package(package_name: str) -> bool:
 def remove_optional_capabilities(logger: logging.Logger) -> bool:
     """Remove deprecated/legacy optional capabilities (IE mode, Steps Recorder,
     WordPad). Requires admin; non-present entries are skipped by PowerShell."""
-    pattern = "Browser.InternetExplorer|App.StepsRecorder|Microsoft.Windows.WordPad"
+    pattern = ("Browser.InternetExplorer|App.StepsRecorder|"
+               "Microsoft.Windows.WordPad|XPS.Viewer|Print.Fax.Scan|"
+               "App.WirelessDisplay.Connect")
     _, _, rc = run_powershell(
         "Get-WindowsCapability -Online | Where-Object "
         f"{{$_.Name -match '{pattern}' -and $_.State -eq 'Installed'}} | "
@@ -809,6 +812,15 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         # RetailDemo data-collection service (present on most images)
         run_cmd(["sc.exe", "stop", "RetailDemo"])
         run_cmd(["sc.exe", "config", "RetailDemo", "start=", "disabled"])
+        # ETW AutoLogger feeding DiagTrack — Start=0 kills the boot-time trace
+        set_registry_dword(
+            "HKLM",
+            r"SYSTEM\CurrentControlSet\Control\WMI\AutoLogger\AutoLogger-Diagtrack-Listener",
+            "Start", 0)
+        # Ink Workspace suggestion surface (ads inside the pen menu)
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Policies\Microsoft\WindowsInkWorkspace",
+                           "AllowWindowsInkWorkspace", 0)
         logger.info("Applied: DisableTelemetry (AllowTelemetry=0, DiagTrack off, "
                     "privacy surfaces set)")
 
@@ -913,6 +925,21 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                                r"SOFTWARE\Policies\Microsoft\Windows\AppPrivacy",
                                name, 2)
         logger.info(f"Applied: DisableAppPermissions ({len(app_privacy)} force-denied)")
+
+    if prev.get("DisableXboxServices", True):
+        # Demand-start (Start=3) — Game Bar/Xbox sign-in still work on demand
+        import winreg as _wr2
+        for svc in ("XblAuthManager", "XblGameSave",
+                    "XboxNetApiSvc", "XboxGipSvc"):
+            try:
+                k = _wr2.CreateKeyEx(
+                    _wr2.HKEY_LOCAL_MACHINE,
+                    rf"SYSTEM\CurrentControlSet\Services\{svc}", 0, _wr2.KEY_WRITE)
+                _wr2.SetValueEx(k, "Start", 0, _wr2.REG_DWORD, 3)
+                _wr2.CloseKey(k)
+            except OSError:
+                pass
+        logger.info("Applied: DisableXboxServices (4 services → demand-start)")
 
 
 def disable_startup_bloat(config: dict, logger: logging.Logger):
@@ -1426,7 +1453,7 @@ def run_self_test() -> int:
                     "CreateRestorePoint", "DisableTelemetryTasks",
                     "DisableStartupBloat", "DisableErrorReporting",
                     "DisableEdgeUpdateBloat", "BlockOemDriverUpdates",
-                    "DisableAppPermissions"]
+                    "DisableAppPermissions", "DisableXboxServices"]
         missing = [k for k in required if k not in prev]
         assert not missing, f"missing prevention keys: {missing}"
 
@@ -1448,7 +1475,7 @@ def run_self_test() -> int:
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
     check("T4: Logger file + console wiring", t_logging)
     check("T5: is_admin() callable", t_is_admin)
-    check("T6: Prevention layers — 27 registered", t_prevention_layers)
+    check("T6: Prevention layers — 28 registered", t_prevention_layers)
     check("T7: Removal ledger write/read", t_removal_ledger)
     check("T8: Full-name batch map", t_full_name_map)
 
