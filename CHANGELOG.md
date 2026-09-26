@@ -2,6 +2,13 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.37.0-mvp: telemetry tasks — AIT/speech/disk
+
+### Changed
+- `DisableTelemetryTasks` extended (29 → 32): `AitEnableAgent`
+  (Application Impact Telemetry), `SpeechModelDownloadTask`,
+  `DiskFootprint\Diagnostics`.
+
 ## [Unreleased] — v1.36.0-mvp: per-hive Spotlight policies
 
 ### Changed

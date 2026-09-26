@@ -1,4 +1,4 @@
-# BloatwareGuard v1.36.0-mvp
+# BloatwareGuard v1.37.0-mvp
 
 ## What It Does
 
@@ -30,7 +30,7 @@ also apply correctly when the tool runs as a SYSTEM service and for users create
 || 18. Optional capabilities removed (IE mode, Steps Recorder, WordPad, XPS Viewer, Fax&Scan, Wireless Display) | ✅ | ✅ | Requires admin |
 || 19. Win32 bloatware uninstalled (McAfee/Norton OEM preinstalls — MSI silent) | ✅ | ✅ | Requires admin |
 || 20. Restore point before destructive scans (self-throttles 24h) | ✅ | ✅ | Requires admin |
-|| 21. Microsoft telemetry tasks off (29: CompatTelRunner, CEIP, Siuf, Maps, Office CEIP, RetailDemo, Insider flighting, feedback, Device Census, family safety, net-trace) | ✅ | ✅ | Requires admin |
+|| 21. Microsoft telemetry tasks off (32: CompatTelRunner, CEIP, Siuf, Maps, Office CEIP, RetailDemo, Insider flighting, feedback, Device Census, family safety, net-trace, AIT, speech models, disk diagnostics) | ✅ | ✅ | Requires admin |
 || 22. Bloatware autostart entries disabled (StartupApproved marker + Startup-folder rename — restorable) | ✅ | ✅ | Per-hive, some HKLM |
 || 23. Windows Error Reporting uploads off | ✅ | ✅ | HKLM needs admin |
 || 24. Edge update services → demand-start + update tasks off | ✅ | ✅ | Requires admin |
@@ -167,8 +167,8 @@ dotnet publish src/BloatwareGuard.csproj -c Release -r win-x64 --self-contained 
 ## Version
 
 ```bash
-python bloatware_guard.py --version   # BloatwareGuard v1.36.0-mvp
-BloatwareGuard.exe --version          # BloatwareGuard v1.36.0-mvp
+python bloatware_guard.py --version   # BloatwareGuard v1.37.0-mvp
+BloatwareGuard.exe --version          # BloatwareGuard v1.37.0-mvp
 ```
 
 ---
