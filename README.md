@@ -2,19 +2,43 @@
 
 ## What It Does
 
-Removes Windows bloatware across **7 prevention layers** in both **Python** and **C#** implementations.
+Removes Windows bloatware across **14 prevention toggles** in both **Python** and **C#** implementations.
 
 ### Layers
 
 || Layer | Python | C# | Non-Admin |
 ||---|---|---|---|
-|| 1. AppxPackage removal | ✅ | ✅ | Regular→✓, SystemApp→skip |
+|| 1. AppxPackage removal (-AllUsers when elevated) | ✅ | ✅ | Regular→✓, SystemApp→skip |
 || 2. ProvisionedPackage removal | ✅ | ✅ | Requires admin |
 || 3. Consumer Experiences | ✅ | ✅ | HKCU write |
 || 4. Cloud Content | ✅ | ✅ | HKCU write |
 || 5. Device Metadata | ✅ | ✅ | HKLM (admin) |
-|| 6. OEM Scheduled Tasks | ✅ | ✅ | ✅ Disable works |
+|| 6. OEM Scheduled Tasks (TaskPath+TaskName match) | ✅ | ✅ | ✅ Disable works |
 || 7. Re-install Monitor | ✅ | ✅ | ✅ Service mode |
+|| 8. Deprovisioned markers (blocks feature-update reinstalls) | ✅ | ✅ | HKLM (admin) |
+|| 9. 25H2 `RemoveDefaultStorePackages` policy (new profiles) | ✅ | ✅ | HKLM (admin) |
+|| 10. Content-delivery hardening across all user hives + Default | ✅ | ✅ | Current user only |
+|| 11. AI features: Copilot, Recall, Click to Do | ✅ | ✅ | HKLM (admin) |
+|| 12. Widgets / News-and-Interests board | ✅ | ✅ | HKLM (admin) |
+|| 13. Start-search web suggestions (Bing) | ✅ | ✅ | HKLM+HKCU |
+|| 14. Telemetry/CEIP scheduled tasks (exact paths) | ✅ | ✅ | Admin |
+
+Layer 9 uses the official Windows 11 25H2 Group Policy *"Remove Default Microsoft
+Store packages from the system"* — for each blacklisted package family found on
+the system it writes `HKLM\SOFTWARE\Policies\Microsoft\Windows\Appx\RemoveDefaultMicrosoftStorePackages\<PackageFamilyName>`
+with `RemovePackage=1`, so Windows itself removes those apps at first sign-in of
+new user profiles. Inert on builds older than 25H2.
+
+Layer 8 creates empty keys under
+`HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\Deprovisioned\<PackageFamilyName>`
+— the documented marker Windows checks before re-provisioning apps during a
+feature update.
+
+Layer 10 exists because the service runs as SYSTEM: HKCU writes would land in
+SYSTEM's own hive. The tool instead applies the ContentDeliveryManager killswitch
+set, `ShowCopilotButton`, `Start_IrisRecommendations`, `DisableSearchBoxSuggestions`,
+and `TurnOffWindowsCopilot` to every loaded `HKU\S-1-5-21-*` hive and loads the
+`C:\Users\Default\NTUSER.DAT` template so future profiles inherit them.
 
 ---
 
@@ -96,7 +120,9 @@ Both implementations log `[requires admin]` for ProvisionedPackage entries durin
 
 ### ProvisionedPackage Removal
 
-Requires admin (`DISM /Online /Remove-ProvisionedPackage`). Non-admin path logs `[requires admin]` and continues.
+Requires admin (`Remove-AppxProvisionedPackage -Online`). Non-admin path logs `[requires admin]` and continues.
+The provisioned query returns `PackageName` **and** the derived `PackageFamilyName`
+(`DisplayName_PublisherId`) in one pass — the family name feeds layers 8 and 9.
 
 ### Whitelist
 

@@ -22,7 +22,15 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 │    ├─ DisableCloudOptimizedContent = 1              │
 │    ├─ PreventDeviceMetadataFromNetwork = 1          │
 │    ├─ SilentInstalledAppsEnabled = 0                │
-│    └─ SystemPaneSuggestionsEnabled = 0              │
+│    ├─ SystemPaneSuggestionsEnabled = 0              │
+│    ├─ CDM killswitches ×18 (all HKU user hives +    │
+│    │   Default profile — service runs as SYSTEM)    │
+│    ├─ TurnOffWindowsCopilot / DisableAIDataAnalysis │
+│    │   / AllowRecallEnablement / DisableClickToDo   │
+│    ├─ AllowNewsAndInterests = 0 (Widgets)           │
+│    ├─ DisableSearchBoxSuggestions = 1 (Bing検索)    │
+│    ├─ Deprovisioned markers (feature update耐性)    │
+│    └─ RemoveDefaultStorePackages (25H2 policy)      │
 ├─────────────────────────────────────────────────────┤
 │  Config: config.json (blacklist + intervals)        │
 │  Log: Windows Event Log + file                      │
@@ -33,13 +41,19 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 
 | 経路 | 対策 | レイヤー |
 |------|------|----------|
-| AppxPackage (インストール済み) | Remove-AppxPackage | RemoveAppxPackages |
-| ProvisionedPackage (プロビジョニング) | Remove-AppxProvisionedPackage | RemoveAppxPackages |
+| AppxPackage (インストール済み・全ユーザー) | Remove-AppxPackage (-AllUsers) | RemoveAppxPackages |
+| ProvisionedPackage (プロビジョニング) | Remove-AppxProvisionedPackage | RemoveProvisionedPackages |
 | Consumer Experiences (おすすめアプリ) | DisableWindowsConsumerFeatures=1 | DisableConsumerExperiences |
 | Cloud Content (ストア提案) | DisableSoftLanding=1 | DisableCloudContent |
 | Device Metadata (companion app自動DL) | PreventDeviceMetadataFromNetwork=1 | PreventDeviceMetadata |
 | OEM Scheduled Tasks | schtasks /DISABLE | DisableOemScheduledTasks |
-| Silent App Install | SilentInstalledAppsEnabled=0 | BlockProvisioning |
+| Silent App Install / 提案コンテンツ | CDM killswitches ×18 (全ユーザーハイブ + Default profile) | HardenContentDelivery |
+| Feature Update での再プロビジョニング | Deprovisioned\<family> マーカーキー | MarkDeprovisioned |
+| 新規ユーザーへの既定アプリ配布 (25H2) | RemoveDefaultStorePackages\<family> RemovePackage=1 | RemoveDefaultStorePackages |
+| Copilot / Recall / Click to Do | TurnOffWindowsCopilot=1, DisableAIDataAnalysis=1 等 | DisableAiFeatures |
+| Widgets (ニュース/天気ボード) | AllowNewsAndInterests=0 | DisableWidgets |
+| Start検索の Bing ウェブ提案 | DisableSearchBoxSuggestions=1 | DisableSearchSuggestions |
+| Microsoft テレメトリ/CEIP タスク | schtasks /DISABLE (exact path list) | DisableTelemetryTasks |
 
 ## ブラックリスト方式
 - config.json の `Blacklist` にパッケージ名の**部分一致**パターンを列挙

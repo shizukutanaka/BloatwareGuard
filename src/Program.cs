@@ -68,6 +68,30 @@ public class PreventionLayers
 
     /// <summary>Layer 7: Monitor for re-installed packages and auto-remove</summary>
     public bool ReinstallMonitor { get; set; } = true;
+
+    /// <summary>Write AppxAllUserStore\Deprovisioned markers so feature updates
+    /// don't re-provision removed apps (documented Windows behavior)</summary>
+    public bool MarkDeprovisioned { get; set; } = true;
+
+    /// <summary>25H2 policy: auto-remove default Store packages at first sign-in of
+    /// NEW user profiles (HKLM\SOFTWARE\Policies\Microsoft\Windows\Appx\RemoveDefaultMicrosoftStorePackages)</summary>
+    public bool RemoveDefaultStorePackages { get; set; } = true;
+
+    /// <summary>Apply content-delivery/suggestion suppression to every loaded user
+    /// hive + the Default profile, not just HKCU (a SYSTEM service's HKCU is useless)</summary>
+    public bool HardenContentDelivery { get; set; } = true;
+
+    /// <summary>Policy-disable Copilot, Recall data analysis and Click to Do</summary>
+    public bool DisableAiFeatures { get; set; } = true;
+
+    /// <summary>Policy-disable the Widgets/News-and-Interests board</summary>
+    public bool DisableWidgets { get; set; } = true;
+
+    /// <summary>Disable Bing/web suggestions in Start-menu search</summary>
+    public bool DisableSearchSuggestions { get; set; } = true;
+
+    /// <summary>Disable known Microsoft telemetry/CEIP scheduled tasks by exact path</summary>
+    public bool DisableTelemetryTasks { get; set; } = true;
 }
 
 // ─── JSON source-gen context (trim-safe: avoids IL2026 with PublishTrimmed) ──
@@ -260,6 +284,10 @@ public static class ConfigLoader
                 "Microsoft.MicrosoftEdge.Stable",
                 "Microsoft.DevHome",
                 "Microsoft.Copilot",
+                "Microsoft.OutlookForWindows",        // new Outlook (replaces Mail & Calendar)
+                "microsoft.windowscommunicationsapps", // legacy Mail & Calendar (deprecated Dec 2024)
+                "Microsoft.BingSearch",
+                "Microsoft.Windows.Ai.Copilot.Provider",
                 "Clipchamp.Clipchamp",
 
                 // Third-party bloatware commonly pre-installed
@@ -279,6 +307,7 @@ public static class ConfigLoader
                 "Facebook.InstagramBeta",
                 "Facebook.Facebook",
                 "WhatsApp",
+                "Disney.",
 
                 // OEM utilities (uncomment as needed)
                 // "DellInc.Dell",
@@ -314,14 +343,18 @@ public static class AppxManager
         List<string> blacklist, List<string> whitelist)
     {
         var results = new List<(string, string, string, bool, string?)>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var pattern = string.Join("|",
             blacklist.Where(b => !string.IsNullOrWhiteSpace(b)).Select(Regex.Escape));
         if (pattern.Length == 0)
             return results;  // empty pattern would -match every package
+        pattern = pattern.Replace("'", "''");  // embedded quotes would break the PS command
+        // -AllUsers surfaces packages installed for other users too (admin only)
+        var scope = IsElevated() ? " -AllUsers" : "";
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Get-AppxPackage | Where-Object {{$_.PackageFamilyName -match '{pattern}'}} | Select-Object PackageFamilyName,Name,PackageFullName,IsFramework,InstallPath | ConvertTo-Json\"",
+            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Get-AppxPackage{scope} | Where-Object {{$_.PackageFamilyName -match '{pattern}'}} | Select-Object PackageFamilyName,Name,PackageFullName,IsFramework,InstallPath | ConvertTo-Json\"",
             RedirectStandardOutput = true,
             UseShellExecute = false,
             CreateNoWindow = true
@@ -329,7 +362,10 @@ public static class AppxManager
 
         using var proc = Process.Start(psi);
         var output = proc?.StandardOutput.ReadToEnd() ?? "";
-        proc?.WaitForExit();
+        if (proc != null && !proc.WaitForExit(180000))
+        {
+            try { proc.Kill(); } catch { }
+        }
 
         try
         {
@@ -343,7 +379,9 @@ public static class AppxManager
                     var fullName = el.GetProperty("PackageFullName").GetString() ?? "";
                     var isFw = el.TryGetProperty("IsFramework", out var fw) && fw.ValueKind == JsonValueKind.True;
                     var installPath = el.TryGetProperty("InstallPath", out var ip) ? ip.GetString() : null;
-                    if (!IsWhitelisted(family, whitelist))
+                    // -AllUsers emits one row per user per package — dedupe
+                    var dedupeKey = string.IsNullOrEmpty(fullName) ? family : fullName;
+                    if (!IsWhitelisted(family, whitelist) && seen.Add(dedupeKey))
                         results.Add((family, name, fullName, isFw, installPath));
                 }
             }
@@ -354,7 +392,8 @@ public static class AppxManager
                 var fullName = doc.RootElement.GetProperty("PackageFullName").GetString() ?? "";
                 var isFw = doc.RootElement.TryGetProperty("IsFramework", out var fw) && fw.ValueKind == JsonValueKind.True;
                 var installPath = doc.RootElement.TryGetProperty("InstallPath", out var ip) ? ip.GetString() : null;
-                if (!IsWhitelisted(family, whitelist))
+                var dedupeKey = string.IsNullOrEmpty(fullName) ? family : fullName;
+                if (!IsWhitelisted(family, whitelist) && seen.Add(dedupeKey))
                     results.Add((family, name, fullName, isFw, installPath));
             }
         }
@@ -370,19 +409,35 @@ public static class AppxManager
             packageFamilyName.Contains(w, StringComparison.OrdinalIgnoreCase));
     }
 
-    /// <summary>Get all provisioned packages (these re-deploy on new user creation)</summary>
-    public static List<string> GetBlacklistedProvisionedPackages(List<string> blacklist, List<string> whitelist)
+    /// <summary>True when running elevated — enables -AllUsers enumeration.</summary>
+    public static bool IsElevated()
     {
-        var results = new List<string>();
+        try
+        {
+            using var id = System.Security.Principal.WindowsIdentity.GetCurrent();
+            return new System.Security.Principal.WindowsPrincipal(id)
+                .IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
+        }
+        catch { return false; }
+    }
+
+    /// <summary>Get all provisioned packages (these re-deploy on new user creation).
+    /// Returns (PackageName, PackageFamilyName) — the family name (DisplayName_PublisherId)
+    /// is what Deprovisioned markers and the 25H2 removal policy are keyed on.</summary>
+    public static List<(string PackageName, string FamilyName)> GetBlacklistedProvisionedPackages(
+        List<string> blacklist, List<string> whitelist)
+    {
+        var results = new List<(string, string)>();
         var pattern = string.Join("|",
             blacklist.Where(b => !string.IsNullOrWhiteSpace(b)).Select(Regex.Escape));
         if (pattern.Length == 0)
             return results;  // empty pattern would -match every package
+        pattern = pattern.Replace("'", "''");
 
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Get-AppxProvisionedPackage -Online | Where-Object {{$_.PackageName -match '{pattern}'}} | Select-Object PackageName | ConvertTo-Json\"",
+            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Get-AppxProvisionedPackage -Online | Where-Object {{$_.PackageName -match '{pattern}'}} | Select-Object PackageName,DisplayName,PublisherId | ConvertTo-Json\"",
             RedirectStandardOutput = true,
             UseShellExecute = false,
             CreateNoWindow = true
@@ -390,7 +445,10 @@ public static class AppxManager
 
         using var proc = Process.Start(psi);
         var output = proc?.StandardOutput.ReadToEnd() ?? "";
-        proc?.WaitForExit();
+        if (proc != null && !proc.WaitForExit(180000))
+        {
+            try { proc.Kill(); } catch { }
+        }
 
         try
         {
@@ -400,20 +458,29 @@ public static class AppxManager
                 foreach (var el in doc.RootElement.EnumerateArray())
                 {
                     var pkg = el.GetProperty("PackageName").GetString() ?? "";
-                    if (!IsWhitelisted(pkg, whitelist))
-                        results.Add(pkg);
+                    var family = ProvisionedFamilyName(el);
+                    if (!IsWhitelisted(pkg, whitelist) && !IsWhitelisted(family, whitelist))
+                        results.Add((pkg, family));
                 }
             }
             else if (doc.RootElement.ValueKind == JsonValueKind.Object)
             {
                 var pkg = doc.RootElement.GetProperty("PackageName").GetString() ?? "";
-                if (!IsWhitelisted(pkg, whitelist))
-                    results.Add(pkg);
+                var family = ProvisionedFamilyName(doc.RootElement);
+                if (!IsWhitelisted(pkg, whitelist) && !IsWhitelisted(family, whitelist))
+                    results.Add((pkg, family));
             }
         }
         catch { }
 
         return results;
+    }
+
+    private static string ProvisionedFamilyName(JsonElement el)
+    {
+        var display = el.TryGetProperty("DisplayName", out var d) ? d.GetString() ?? "" : "";
+        var publisher = el.TryGetProperty("PublisherId", out var p) ? p.GetString() ?? "" : "";
+        return string.IsNullOrEmpty(display) ? "" : $"{display}_{publisher}";
     }
 
     public static bool RemoveAppxPackage(string packageFullName)
@@ -494,6 +561,29 @@ public static class RegistryGuard
     private const string DeviceMetadataPath = @"SOFTWARE\Policies\Microsoft\Windows\Device Metadata";
     private const string AppCompatPath = @"SOFTWARE\Policies\Microsoft\Windows\AppCompat";
     private const string WindowsSearchPath = @"SOFTWARE\Policies\Microsoft\Windows\Windows Search";
+    private const string CopilotPolicyPath = @"SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot";
+    private const string WindowsAiPolicyPath = @"SOFTWARE\Policies\Microsoft\Windows\WindowsAI";
+    private const string DshPolicyPath = @"SOFTWARE\Policies\Microsoft\Dsh";
+    private const string NewsInterestsPolicyManagerPath = @"SOFTWARE\Microsoft\PolicyManager\default\NewsAndInterests\AllowNewsAndInterests";
+    private const string ExplorerPolicyPath = @"SOFTWARE\Policies\Microsoft\Windows\Explorer";
+    private const string RemoveDefaultPackagesPath = @"SOFTWARE\Policies\Microsoft\Windows\Appx\RemoveDefaultMicrosoftStorePackages";
+    private const string DeprovisionedPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\Deprovisioned";
+    private const string ContentDeliveryPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager";
+    private const string ExplorerAdvancedPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced";
+
+    // Suggestion/ads delivery killswitches — the full set used by Win11Debloat's
+    // Disable_Windows_Suggestions.reg, all DWORD 0
+    private static readonly string[] ContentDeliveryValues = {
+        "ContentDeliveryAllowed", "FeatureManagementEnabled",
+        "OemPreInstalledAppsEnabled", "PreInstalledAppsEnabled",
+        "PreInstalledAppsEverEnabled", "RotatingLockScreenEnabled",
+        "RotatingLockScreenOverlayEnabled", "SilentInstalledAppsEnabled",
+        "SoftLandingEnabled", "SystemPaneSuggestionsEnabled",
+        "SubscribedContent-310093Enabled", "SubscribedContent-338387Enabled",
+        "SubscribedContent-338388Enabled", "SubscribedContent-338389Enabled",
+        "SubscribedContent-338393Enabled", "SubscribedContent-353694Enabled",
+        "SubscribedContent-353696Enabled", "SubscribedContent-353698Enabled",
+    };
 
     public static void ApplyAll(PreventionLayers layers)
     {
@@ -508,6 +598,20 @@ public static class RegistryGuard
 
         if (layers.BlockProvisioning)
             BlockProvisioning();
+
+        if (layers.DisableAiFeatures)
+            DisableAiFeatures();
+
+        if (layers.DisableWidgets)
+            DisableWidgets();
+
+        // HKLM policy for Start-search web suggestions (Bing)
+        if (layers.DisableSearchSuggestions)
+            DisableSearchSuggestions();
+
+        // Per-user policies — must hit every loaded hive, not just HKCU
+        if (layers.HardenContentDelivery || layers.DisableSearchSuggestions || layers.DisableAiFeatures)
+            ApplyPerUserPolicies(layers);
     }
 
     /// <summary>Turn off Microsoft consumer experiences (suggested apps)</summary>
@@ -579,6 +683,214 @@ public static class RegistryGuard
             GuardLogger.Error($"Failed to block provisioning: {ex.Message}");
         }
     }
+
+    /// <summary>Policy-disable Copilot, Recall data analysis and Click to Do (HKLM).</summary>
+    public static void DisableAiFeatures()
+    {
+        try
+        {
+            using var copilot = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(CopilotPolicyPath);
+            copilot?.SetValue("TurnOffWindowsCopilot", 1, Microsoft.Win32.RegistryValueKind.DWord);
+
+            using var ai = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(WindowsAiPolicyPath);
+            ai?.SetValue("DisableAIDataAnalysis", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            ai?.SetValue("AllowRecallEnablement", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            ai?.SetValue("DisableClickToDo", 1, Microsoft.Win32.RegistryValueKind.DWord);
+
+            GuardLogger.Info("Applied: TurnOffWindowsCopilot + DisableAIDataAnalysis + DisableClickToDo");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to disable AI features: {ex.Message}");
+        }
+    }
+
+    /// <summary>Policy-disable the Widgets / News-and-Interests board (HKLM).</summary>
+    public static void DisableWidgets()
+    {
+        try
+        {
+            using var dsh = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(DshPolicyPath);
+            dsh?.SetValue("AllowNewsAndInterests", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // PolicyManager default — the feed stays off even if the policy is cleared
+            using var pm = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(NewsInterestsPolicyManagerPath);
+            pm?.SetValue("value", 0, Microsoft.Win32.RegistryValueKind.DWord);
+
+            GuardLogger.Info("Applied: AllowNewsAndInterests = 0");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to disable widgets: {ex.Message}");
+        }
+    }
+
+    /// <summary>Disable Bing/web suggestions inside Start-menu search (HKLM).</summary>
+    public static void DisableSearchSuggestions()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(ExplorerPolicyPath);
+            key?.SetValue("DisableSearchBoxSuggestions", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            GuardLogger.Info("Applied: DisableSearchBoxSuggestions = 1");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to disable search suggestions: {ex.Message}");
+        }
+    }
+
+    /// <summary>Per-user policies applied under every loaded user hive plus the
+    /// Default profile template. A service running as SYSTEM would otherwise write
+    /// them to SYSTEM's own HKCU where they do nothing for interactive users.</summary>
+    private static void ApplyPerUserPolicies(PreventionLayers layers)
+    {
+        var applied = 0;
+        foreach (var sid in EnumerateUserSidHives())
+        {
+            try
+            {
+                ApplyUserPolicies(Microsoft.Win32.Registry.Users, sid, layers);
+                applied++;
+            }
+            catch (Exception ex)
+            {
+                GuardLogger.Warn($"User hive {sid}: {ex.Message}");
+            }
+        }
+
+        // Stamp the Default profile template so FUTURE users get the policies.
+        // reg.exe is required — winreg cannot load/unload hives.
+        var defaultNtuser = Path.Combine(
+            Environment.GetEnvironmentVariable("SystemDrive") ?? "C:",
+            @"Users\Default\NTUSER.DAT");
+        if (File.Exists(defaultNtuser))
+        {
+            const string tempHive = "BloatwareGuard_Default";
+            if (RunReg($"load HKU\\{tempHive} \"{defaultNtuser}\""))
+            {
+                try
+                {
+                    ApplyUserPolicies(Microsoft.Win32.Registry.Users, tempHive, layers);
+                }
+                catch (Exception ex)
+                {
+                    GuardLogger.Warn($"Default profile hive: {ex.Message}");
+                }
+                RunReg($"unload HKU\\{tempHive}");
+            }
+        }
+        GuardLogger.Info($"Per-user policies applied to {applied} loaded hive(s) + Default profile");
+    }
+
+    /// <summary>SIDs of loaded real-user hives under HKEY_USERS (S-1-5-21-* only;
+    /// skips .DEFAULT, *_Classes, and service SIDs like S-1-5-18).</summary>
+    private static IEnumerable<string> EnumerateUserSidHives()
+    {
+        string[] names;
+        try { names = Microsoft.Win32.Registry.Users.GetSubKeyNames(); }
+        catch { yield break; }
+        foreach (var n in names)
+            if (n.StartsWith("S-1-5-21-", StringComparison.OrdinalIgnoreCase) &&
+                !n.EndsWith("_Classes", StringComparison.OrdinalIgnoreCase))
+                yield return n;
+    }
+
+    private static void ApplyUserPolicies(Microsoft.Win32.RegistryKey hiveRoot,
+        string subKeyPrefix, PreventionLayers layers)
+    {
+        if (layers.HardenContentDelivery)
+        {
+            using var cdm = hiveRoot.CreateSubKey($"{subKeyPrefix}\\{ContentDeliveryPath}");
+            if (cdm != null)
+                foreach (var v in ContentDeliveryValues)
+                    cdm.SetValue(v, 0, Microsoft.Win32.RegistryValueKind.DWord);
+
+            using var adv = hiveRoot.CreateSubKey($"{subKeyPrefix}\\{ExplorerAdvancedPath}");
+            adv?.SetValue("ShowCopilotButton", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            adv?.SetValue("Start_IrisRecommendations", 0, Microsoft.Win32.RegistryValueKind.DWord);
+        }
+        if (layers.DisableSearchSuggestions)
+        {
+            using var explorer = hiveRoot.CreateSubKey($"{subKeyPrefix}\\{ExplorerPolicyPath}");
+            explorer?.SetValue("DisableSearchBoxSuggestions", 1, Microsoft.Win32.RegistryValueKind.DWord);
+        }
+        if (layers.DisableAiFeatures)
+        {
+            using var copilot = hiveRoot.CreateSubKey($"{subKeyPrefix}\\{CopilotPolicyPath}");
+            copilot?.SetValue("TurnOffWindowsCopilot", 1, Microsoft.Win32.RegistryValueKind.DWord);
+        }
+    }
+
+    private static bool RunReg(string arguments)
+    {
+        try
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = "reg.exe",
+                Arguments = arguments,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            using var proc = Process.Start(psi);
+            return proc != null && proc.WaitForExit(15000) && proc.ExitCode == 0;
+        }
+        catch { return false; }
+    }
+
+    /// <summary>Create Deprovisioned marker keys for matched families — Windows
+    /// checks this documented path and skips re-provisioning during feature updates.</summary>
+    public static void MarkDeprovisioned(IEnumerable<string> familyNames)
+    {
+        var count = 0;
+        foreach (var family in familyNames)
+        {
+            if (string.IsNullOrEmpty(family))
+                continue;
+            try
+            {
+                using var key = Microsoft.Win32.Registry.LocalMachine
+                    .CreateSubKey($"{DeprovisionedPath}\\{family}");
+                if (key != null)
+                    count++;
+            }
+            catch (Exception ex)
+            {
+                GuardLogger.Warn($"Deprovisioned marker failed for {family}: {ex.Message}");
+            }
+        }
+        if (count > 0)
+            GuardLogger.Info($"Deprovisioned markers written for {count} package families");
+    }
+
+    /// <summary>Windows 11 25H2 policy: remove these Store packages at first sign-in
+    /// of new user profiles. Inert on older builds — unknown policy keys are ignored.</summary>
+    public static void WriteRemoveDefaultStorePackagesPolicy(IEnumerable<string> familyNames)
+    {
+        var count = 0;
+        foreach (var family in familyNames)
+        {
+            if (string.IsNullOrEmpty(family))
+                continue;
+            try
+            {
+                using var key = Microsoft.Win32.Registry.LocalMachine
+                    .CreateSubKey($"{RemoveDefaultPackagesPath}\\{family}");
+                if (key != null)
+                {
+                    key.SetValue("RemovePackage", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                    count++;
+                }
+            }
+            catch (Exception ex)
+            {
+                GuardLogger.Warn($"RemoveDefaultStorePackages failed for {family}: {ex.Message}");
+            }
+        }
+        if (count > 0)
+            GuardLogger.Info($"RemoveDefaultStorePackages policy set for {count} package families");
+    }
 }
 
 // ─── Scheduled Task Manager ──────────────────────────────────────────────────
@@ -588,8 +900,28 @@ public static class ScheduledTaskGuard
     // Known OEM bloatware task patterns — must be specific enough to avoid matching Microsoft system tasks
     private static readonly string[] OemTaskPatterns = {
         "OEM", "Dell", "HPInc", "HPA", "Lenovo", "ASUS", "Acer", "McAfee", "Norton",
-        "SupportAssist", "Vantage", "Armoury", "Crate", "CustomerExperienceImprovement",
-        "Customer Experience Improvement", "Reinstall", "Restore", "Bloatware"
+        "SupportAssist", "Vantage", "Armoury", "Crate", "Reinstall", "Restore", "Bloatware"
+    };
+
+    // Microsoft telemetry/CEIP scheduled tasks — explicit full paths, disabled outright.
+    // Mirrors the telemetry task lists used by Win11Debloat / Sophia Script.
+    private static readonly string[] TelemetryTaskPaths = {
+        @"\Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser",
+        @"\Microsoft\Windows\Application Experience\ProgramDataUpdater",
+        @"\Microsoft\Windows\Application Experience\PcaPatchDbUpdate",
+        @"\Microsoft\Windows\Application Experience\StartupAppTask",
+        @"\Microsoft\Windows\Autochk\Proxy",
+        @"\Microsoft\Windows\Customer Experience Improvement Program\Consolidator",
+        @"\Microsoft\Windows\Customer Experience Improvement Program\KernelCeipTask",
+        @"\Microsoft\Windows\Customer Experience Improvement Program\UsbCeip",
+        @"\Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticDataCollector",
+        @"\Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticResolver",
+        @"\Microsoft\Windows\Feedback\Siuf\DmClient",
+        @"\Microsoft\Windows\Feedback\Siuf\DmClientOnScenarioDownload",
+        @"\Microsoft\Windows\Maps\MapsToastTask",
+        @"\Microsoft\Windows\Maps\MapsUpdateTask",
+        @"\Microsoft\Windows\Power Efficiency Diagnostics\AnalyzeSystem",
+        @"\Microsoft\Windows\Speech\SpeechModelDownloadTask",
     };
 
     // Microsoft system tasks that MUST NEVER be disabled (TaskPath prefixes)
@@ -636,7 +968,10 @@ public static class ScheduledTaskGuard
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Get-ScheduledTask | Where-Object {{$_.TaskPath -like '*OEM*' -or $_.TaskName -match '{string.Join("|", OemTaskPatterns.Select(Regex.Escape))}'}} | Select-Object TaskName,TaskPath,State | ConvertTo-Json\"",
+            // Match TaskPath too — e.g. CEIP tasks live under
+            // \Microsoft\Windows\Customer Experience Improvement Program\ with
+            // innocuous names like "Consolidator" that name-matching alone misses
+            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Get-ScheduledTask | Where-Object {{$_.TaskPath -like '*OEM*' -or $_.TaskName -match '{string.Join("|", OemTaskPatterns.Select(Regex.Escape))}' -or $_.TaskPath -match '{string.Join("|", OemTaskPatterns.Select(Regex.Escape))}'}} | Select-Object TaskName,TaskPath,State | ConvertTo-Json\"",
             RedirectStandardOutput = true,
             UseShellExecute = false,
             CreateNoWindow = true
@@ -710,6 +1045,40 @@ public static class ScheduledTaskGuard
         else
             GuardLogger.Warn($"Failed to disable task: {fullPath}");
     }
+
+    /// <summary>Disable known Microsoft telemetry/CEIP scheduled tasks by exact path.
+    /// Missing tasks are logged at info level — they vary by Windows build.</summary>
+    public static void DisableTelemetryTasks()
+    {
+        var disabled = 0;
+        foreach (var taskPath in TelemetryTaskPaths)
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = "schtasks.exe",
+                Arguments = $"/Change /TN \"{taskPath}\" /DISABLE",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            using var proc = Process.Start(psi);
+            if (proc == null)
+                continue;
+            proc.WaitForExit(15000);
+            if (proc.ExitCode == 0)
+            {
+                disabled++;
+                GuardLogger.Info($"Disabled telemetry task: {taskPath}");
+            }
+            else
+            {
+                GuardLogger.Info($"Telemetry task not present (skip): {taskPath}");
+            }
+        }
+        GuardLogger.Info($"Disabled {disabled}/{TelemetryTaskPaths.Length} telemetry scheduled tasks");
+    }
 }
 
 // ─── Service Config Bridge ───────────────────────────────────────────────────
@@ -751,6 +1120,12 @@ public class GuardService : BackgroundService
                 GuardLogger.Info("Disabling OEM scheduled tasks...");
                 ScheduledTaskGuard.DisableOemTasks();
             }
+
+            if (_config.Prevention.DisableTelemetryTasks)
+            {
+                GuardLogger.Info("Disabling telemetry/CEIP scheduled tasks...");
+                ScheduledTaskGuard.DisableTelemetryTasks();
+            }
         }
 
         // Layer 7: baseline-diff detection — a package that appears after being
@@ -786,7 +1161,8 @@ public class GuardService : BackgroundService
         HashSet<string> seenProvisioned, HashSet<string> seenInstalled, bool firstScan)
     {
         var currentProvisioned = new HashSet<string>(
-            AppxManager.GetBlacklistedProvisionedPackages(_config.Blacklist, _config.Whitelist),
+            AppxManager.GetBlacklistedProvisionedPackages(_config.Blacklist, _config.Whitelist)
+                .Select(p => p.PackageName),
             StringComparer.OrdinalIgnoreCase);
         var installed = AppxManager.GetBlacklistedPackages(_config.Blacklist, _config.Whitelist);
         var currentInstalled = new HashSet<string>(
@@ -839,6 +1215,7 @@ public class GuardService : BackgroundService
         int skipped = 0;
         int systemAppsSkipped = 0;
         int failed = 0;
+        var matchedFamilies = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         // 1. Remove installed AppxPackages matching blacklist
         if (_config.Prevention.RemoveAppxPackages)
@@ -861,6 +1238,8 @@ public class GuardService : BackgroundService
                     skipped++;
                     continue;
                 }
+
+                matchedFamilies.Add(familyName);
 
                 // Use PackageFullName from the query (no second PowerShell call needed)
                 if (string.IsNullOrEmpty(fullName))
@@ -908,14 +1287,16 @@ public class GuardService : BackgroundService
         if (_config.Prevention.RemoveProvisionedPackages)
         {
             var provisioned = AppxManager.GetBlacklistedProvisionedPackages(_config.Blacklist, _config.Whitelist);
-            foreach (var pkgName in provisioned)
+            foreach (var (pkgName, provFamily) in provisioned)
             {
-                if (IsWhitelisted(pkgName))
+                if (IsWhitelisted(pkgName) || IsWhitelisted(provFamily))
                 {
                     GuardLogger.Info($"Whitelisted provisioned (skip): {pkgName}");
                     skipped++;
                     continue;
                 }
+
+                matchedFamilies.Add(provFamily);
 
                 if (dryRun)
                 {
@@ -941,6 +1322,20 @@ public class GuardService : BackgroundService
             RegistryGuard.ApplyAll(_config.Prevention);
         else
             GuardLogger.Info("[DRY-RUN] Would re-apply registry prevention settings");
+
+        // 4. Persist removal: Deprovisioned markers stop feature-update re-installs;
+        //    the 25H2 policy stops provisioning for future user profiles
+        if (!dryRun && matchedFamilies.Count > 0)
+        {
+            if (_config.Prevention.MarkDeprovisioned)
+                RegistryGuard.MarkDeprovisioned(matchedFamilies);
+            if (_config.Prevention.RemoveDefaultStorePackages)
+                RegistryGuard.WriteRemoveDefaultStorePackagesPolicy(matchedFamilies);
+        }
+        else if (dryRun && matchedFamilies.Count > 0)
+        {
+            GuardLogger.Info($"[DRY-RUN] Would mark {matchedFamilies.Count} package families deprovisioned + write removal policy");
+        }
 
         GuardLogger.Info($"Scan complete. {(dryRun ? "Would remove" : "Removed")} {removed} packages, skipped {skipped}, system apps skipped {systemAppsSkipped}, failed {failed}.");
     }
@@ -1051,7 +1446,10 @@ public class Program
         if (!dryRun)
         {
             RegistryGuard.ApplyAll(config.Prevention);
-            ScheduledTaskGuard.DisableOemTasks();
+            if (config.Prevention.DisableOemScheduledTasks)
+                ScheduledTaskGuard.DisableOemTasks();
+            if (config.Prevention.DisableTelemetryTasks)
+                ScheduledTaskGuard.DisableTelemetryTasks();
         }
         else
         {
@@ -1218,7 +1616,7 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
     private static int RunSelfTest(GuardConfig config)
     {
         var passed = 0;
-        var total = 6;
+        var total = 8;
         var results = new List<string>();
 
         GuardLogger.Info("=== BloatwareGuard v1.8.0-mvp — Self-Test Mode === [no admin required]");
@@ -1325,6 +1723,59 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         catch (Exception ex)
         {
             results.Add($"[FAIL] T6: Trim safety — {ex.Message}");
+        }
+
+        // Test 7: New prevention-layer flags exist and default to true
+        try
+        {
+            var flags = new[] { "MarkDeprovisioned", "RemoveDefaultStorePackages",
+                "HardenContentDelivery", "DisableAiFeatures", "DisableWidgets",
+                "DisableSearchSuggestions", "DisableTelemetryTasks" };
+            var missing = flags.Where(f =>
+                typeof(PreventionLayers).GetProperty(f) == null).ToList();
+            var defaultsOn = flags.All(f =>
+                typeof(PreventionLayers).GetProperty(f) is { } prop &&
+                prop.GetValue(new PreventionLayers()) is bool b && b);
+            if (missing.Count == 0 && defaultsOn)
+            {
+                results.Add("[PASS] T7: Prevention layers — 7 new flags registered & default-on");
+                GuardLogger.Info("[PASS] T7: New prevention flags present");
+                passed++;
+            }
+            else
+            {
+                results.Add($"[FAIL] T7: Prevention layers — missing/off-by-default: {string.Join(",", missing)}");
+            }
+        }
+        catch (Exception ex)
+        {
+            results.Add($"[FAIL] T7: Prevention layers — {ex.Message}");
+        }
+
+        // Test 8: New prevention-layer methods wired
+        try
+        {
+            bool wired =
+                typeof(RegistryGuard).GetMethod("MarkDeprovisioned") != null &&
+                typeof(RegistryGuard).GetMethod("WriteRemoveDefaultStorePackagesPolicy") != null &&
+                typeof(RegistryGuard).GetMethod("DisableAiFeatures") != null &&
+                typeof(RegistryGuard).GetMethod("DisableWidgets") != null &&
+                typeof(RegistryGuard).GetMethod("DisableSearchSuggestions") != null &&
+                typeof(ScheduledTaskGuard).GetMethod("DisableTelemetryTasks") != null;
+            if (wired)
+            {
+                results.Add("[PASS] T8: New prevention methods — MarkDeprovisioned/25H2-policy/AI/Widgets/Search/TelemetryTasks");
+                GuardLogger.Info("[PASS] T8: New prevention methods wired");
+                passed++;
+            }
+            else
+            {
+                results.Add("[FAIL] T8: New prevention methods — a method is missing");
+            }
+        }
+        catch (Exception ex)
+        {
+            results.Add($"[FAIL] T8: New prevention methods — {ex.Message}");
         }
 
         // Summary

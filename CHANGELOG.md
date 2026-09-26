@@ -4,7 +4,25 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 
 ## [Unreleased] — v1.8.0-mvp hardening
 
+### Added — debloat round 2 (researched vs. Win11Debloat / WindowsDecrapifier / MS Learn)
+- **7 new prevention toggles** (all default-on, config `Prevention.*`):
+  - `MarkDeprovisioned` — writes `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\Deprovisioned\<PackageFamilyName>` for every blacklisted family; the documented marker Windows checks before re-provisioning removed apps during feature updates.
+  - `RemoveDefaultStorePackages` — Windows 11 25H2 official Group Policy ("Remove Default Microsoft Store packages from the system"): writes `HKLM\SOFTWARE\Policies\Microsoft\Windows\Appx\RemoveDefaultMicrosoftStorePackages\<family>` `RemovePackage=1` so the OS itself strips those apps at first sign-in of new user profiles. Inert on older builds.
+  - `HardenContentDelivery` — the full 18-value ContentDeliveryManager killswitch set (Win11Debloat's `Disable_Windows_Suggestions.reg`) + `ShowCopilotButton`/`Start_IrisRecommendations`, applied to **every loaded `HKU\S-1-5-21-*` hive and the Default profile template** — previously HKCU writes from the SYSTEM service went to SYSTEM's own hive and protected nobody.
+  - `DisableAiFeatures` — `TurnOffWindowsCopilot=1`, `DisableAIDataAnalysis=1` (Recall), `AllowRecallEnablement=0`, `DisableClickToDo=1` (HKLM + per-hive Copilot policy).
+  - `DisableWidgets` — `AllowNewsAndInterests=0` (Policy + PolicyManager default).
+  - `DisableSearchSuggestions` — `DisableSearchBoxSuggestions=1` (HKLM + per-hive) kills Bing/web results in Start-menu search.
+  - `DisableTelemetryTasks` — disables 16 known Microsoft telemetry/CEIP scheduled tasks by exact path (CompatAppraiser, ProgramDataUpdater, CEIP Consolidator/KernelCeip/UsbCeip, Siuf DmClient, Maps tasks, …).
+- **Blacklist additions** (5): `Microsoft.OutlookForWindows` (new Outlook auto-provisioned since Mail & Calendar deprecation), `microsoft.windowscommunicationsapps` (dead Mail & Calendar remnants), `Microsoft.BingSearch`, `Microsoft.Windows.Ai.Copilot.Provider`, `Disney.`.
+- Self-tests: Python 8→11 checks (framework/dedupe filtering, provisioned name+family derivation, telemetry list sanity, CDM set, whitelist parity), C# 6→8 (new flags registered & default-on, new methods wired).
+
 ### Fixed
+- **CEIP scheduled tasks were never matched**: the OEM scan only matched `TaskName` — CEIP tasks like `Consolidator` live under `...\Customer Experience Improvement Program\` TaskPath. The query now matches TaskPath too; the (now redundant) CEIP name patterns moved out of the OEM list since `DisableTelemetryTasks` owns them by exact path.
+- **Python could remove framework packages**: `IsFramework` was never queried — Python now filters frameworks like C# does.
+- **Provisioned removal spawned an extra PowerShell lookup per package**: the query now returns `PackageName` directly (also yields `PackageFamilyName` via `DisplayName_PublisherId` for the marker/policy layers).
+- **Python generated-default `Whitelist` had 4 entries vs. C#/shipped 8** — aligned.
+- Python removal now uses `Remove-AppxPackage -AllUsers` when elevated (per-user fallback); both implementations enumerate `Get-AppxPackage -AllUsers` when admin so other users' installs are seen (results deduped).
+- PowerShell command injection-safety: blacklist patterns are `''`-escaped before embedding; package queries get bounded `WaitForExit` (180s) instead of unbounded waits.
 - **EXE startup crash (critical)**: `PublishTrimmed` removed reflection-based JSON serialization, crashing every command at startup. Replaced with source-generated `GuardJsonContext`.
 - **Config toggles ignored**: `RemoveProvisionedPackages`/`ReinstallMonitor` were nested inside `RemoveAppxPackages` — independent toggles now work (C# + Python).
 - **Reinstall monitor false positives**: baseline was seeded with *current* packages, so non-admin runs spammed fake "reinstalled" alerts; baseline now seeds from the removal ledger.

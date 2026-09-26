@@ -98,6 +98,10 @@ DEFAULT_BLACKLIST = [
     "Microsoft.MicrosoftEdge.Stable",
     "Microsoft.DevHome",
     "Microsoft.Copilot",
+    "Microsoft.OutlookForWindows",        # new Outlook (replaces Mail & Calendar)
+    "microsoft.windowscommunicationsapps",  # legacy Mail & Calendar (deprecated Dec 2024)
+    "Microsoft.BingSearch",
+    "Microsoft.Windows.Ai.Copilot.Provider",
     "Clipchamp.Clipchamp",
     # Third-party
     "McAfee",
@@ -114,6 +118,7 @@ DEFAULT_BLACKLIST = [
     "Facebook.InstagramBeta",
     "Facebook.Facebook",
     "WhatsApp",
+    "Disney.",
     "A278AB0D.DisneyMagicKingdoms",
     "A278AB0D.MarchofEmpires",
 ]
@@ -130,6 +135,10 @@ def load_config(path: Path) -> dict:
                 "Microsoft.WindowsCalculator",
                 "Microsoft.WindowsNotepad",
                 "Microsoft.WindowsTerminal",
+                "Microsoft.Windows.ShellExperienceHost",
+                "Microsoft.Windows.Cortana",
+                "Microsoft.Windows.SecHealthUI",
+                "Microsoft.Windows.Apprep.ChxApp",
             ],
             "Prevention": {
                 "RemoveAppxPackages": True,
@@ -140,6 +149,13 @@ def load_config(path: Path) -> dict:
                 "DisableOemScheduledTasks": True,
                 "BlockProvisioning": True,
                 "ReinstallMonitor": True,
+                "MarkDeprovisioned": True,
+                "RemoveDefaultStorePackages": True,
+                "HardenContentDelivery": True,
+                "DisableAiFeatures": True,
+                "DisableWidgets": True,
+                "DisableSearchSuggestions": True,
+                "DisableTelemetryTasks": True,
             },
             "DryRun": False,
         }
@@ -191,12 +207,17 @@ def is_target_package(pkg_name: str, blacklist: List[str], whitelist: List[str])
 def get_blacklisted_packages(blacklist: List[str], whitelist: List[str]) -> List[Tuple[str, str, str]]:
     """Return (PackageFamilyName, Name, InstallPath) for packages matching blacklist.
     InstallPath is None for SystemApps (cannot be removed per-user).
-    Whitelisted packages are never returned."""
+    Whitelisted and IsFramework packages are never returned (framework parity with C#).
+    Enumerates all users when elevated (-AllUsers)."""
     if not blacklist:
         return []
 
+    # -AllUsers surfaces packages installed for other users too (admin only)
+    scope = " -AllUsers" if is_admin() else ""
     results = []
-    ps_cmd = "Get-AppxPackage | Select-Object PackageFamilyName,Name,InstallPath | ConvertTo-Json"
+    seen = set()
+    ps_cmd = (f"Get-AppxPackage{scope} | "
+              "Select-Object PackageFamilyName,Name,InstallPath,IsFramework | ConvertTo-Json")
     stdout, stderr, rc = run_powershell(ps_cmd, timeout=120)
 
     if rc != 0 or not stdout:
@@ -207,9 +228,15 @@ def get_blacklisted_packages(blacklist: List[str], whitelist: List[str]) -> List
         if isinstance(data, dict):
             data = [data]
         for pkg in data:
+            if pkg.get("IsFramework"):
+                continue  # never remove framework packages
             family = pkg.get("PackageFamilyName", "")
             name = pkg.get("Name", "")
             install_path = pkg.get("InstallPath", "")  # None for SystemApps
+            # -AllUsers emits one row per user per package — dedupe by family
+            if family in seen:
+                continue
+            seen.add(family)
             if is_target_package(family, blacklist, whitelist):
                 results.append((family, name, install_path))
     except (json.JSONDecodeError, TypeError):
@@ -218,11 +245,14 @@ def get_blacklisted_packages(blacklist: List[str], whitelist: List[str]) -> List
     return results
 
 
-def get_blacklisted_provisioned(blacklist: List[str], whitelist: List[str]) -> List[str]:
-    """Return DisplayName of provisioned packages matching blacklist.
-    Whitelisted packages are never returned."""
+def get_blacklisted_provisioned(blacklist: List[str], whitelist: List[str]) -> List[Tuple[str, str, str]]:
+    """Return (DisplayName, PackageName, PackageFamilyName) for provisioned packages
+    matching blacklist. Whitelisted packages are never returned. PackageFamilyName
+    is derived as DisplayName_PublisherId — the key Deprovisioned markers and the
+    25H2 removal policy are written under."""
     results = []
-    ps_cmd = "Get-AppxProvisionedPackage -Online | Select-Object DisplayName,PackageName | ConvertTo-Json"
+    ps_cmd = ("Get-AppxProvisionedPackage -Online | "
+              "Select-Object DisplayName,PackageName,PublisherId | ConvertTo-Json")
     stdout, stderr, rc = run_powershell(ps_cmd, timeout=120)
 
     if rc != 0 or not stdout:
@@ -234,12 +264,22 @@ def get_blacklisted_provisioned(blacklist: List[str], whitelist: List[str]) -> L
             data = [data]
         for pkg in data:
             display = pkg.get("DisplayName", "")
-            if is_target_package(display, blacklist, whitelist):
-                results.append(display)
+            package_name = pkg.get("PackageName", "")
+            publisher = pkg.get("PublisherId", "")
+            family = f"{display}_{publisher}" if display else ""
+            if (is_target_package(display, blacklist, whitelist)
+                    and not _is_whitelisted(package_name, whitelist)
+                    and not _is_whitelisted(family, whitelist)):
+                results.append((display, package_name, family))
     except (json.JSONDecodeError, TypeError):
         pass
 
     return results
+
+
+def _is_whitelisted(name: str, whitelist: List[str]) -> bool:
+    lname = name.lower()
+    return any(w and w.lower() in lname for w in whitelist)
 
 
 def get_package_full_names() -> dict:
@@ -265,8 +305,13 @@ def get_package_full_names() -> dict:
 
 
 def remove_appx_package(package_full_name: str) -> bool:
-    ps_cmd = f"Remove-AppxPackage -Package '{package_full_name}' -ErrorAction SilentlyContinue"
+    # -AllUsers removes for every user at once (admin); falls back to per-user
+    scope = " -AllUsers" if is_admin() else ""
+    ps_cmd = f"Remove-AppxPackage -Package '{package_full_name}'{scope} -ErrorAction SilentlyContinue"
     _, _, rc = run_powershell(ps_cmd, timeout=60)
+    if rc != 0 and scope:
+        ps_cmd = f"Remove-AppxPackage -Package '{package_full_name}' -ErrorAction SilentlyContinue"
+        _, _, rc = run_powershell(ps_cmd, timeout=60)
     return rc == 0
 
 
@@ -324,14 +369,10 @@ def run_restore(config: dict, logger: logging.Logger) -> int:
     return 0
 
 
-def remove_provisioned_package(display_name: str) -> bool:
-    # Need the exact package name for removal
-    ps_cmd = (
-        f"$pkg = Get-AppxProvisionedPackage -Online | "
-        f"Where-Object {{$_.DisplayName -eq '{display_name}'}}; "
-        f"if ($pkg) {{ Remove-AppxProvisionedPackage -Online "
-        f"-PackageName $pkg.PackageName -ErrorAction SilentlyContinue }}"
-    )
+def remove_provisioned_package(package_name: str) -> bool:
+    # PackageName is supplied by get_blacklisted_provisioned — no lookup respawn
+    ps_cmd = (f"Remove-AppxProvisionedPackage -Online -PackageName '{package_name}' "
+              f"-ErrorAction SilentlyContinue")
     _, _, rc = run_powershell(ps_cmd, timeout=60)
     return rc == 0
 
@@ -349,6 +390,192 @@ def set_registry_dword(hive, path: str, name: str, value: int) -> bool:
         return True
     except Exception:
         return False
+
+
+# Registry paths used by the prevention layers
+DEPROVISIONED_PATH = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\Deprovisioned"
+REMOVE_DEFAULT_PACKAGES_PATH = r"SOFTWARE\Policies\Microsoft\Windows\Appx\RemoveDefaultMicrosoftStorePackages"
+COPILOT_POLICY_PATH = r"SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot"
+WINDOWS_AI_POLICY_PATH = r"SOFTWARE\Policies\Microsoft\Windows\WindowsAI"
+DSH_POLICY_PATH = r"SOFTWARE\Policies\Microsoft\Dsh"
+NEWS_INTERESTS_PM_PATH = r"SOFTWARE\Microsoft\PolicyManager\default\NewsAndInterests\AllowNewsAndInterests"
+EXPLORER_POLICY_PATH = r"SOFTWARE\Policies\Microsoft\Windows\Explorer"
+CDM_PATH = r"SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
+EXPLORER_ADVANCED_PATH = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
+DEFAULT_HIVE_NAME = "BloatwareGuard_Default"
+
+# Suggestion/ads delivery killswitches — the full set used by Win11Debloat's
+# Disable_Windows_Suggestions.reg, all written as DWORD 0
+CONTENT_DELIVERY_VALUES = (
+    "ContentDeliveryAllowed", "FeatureManagementEnabled",
+    "OemPreInstalledAppsEnabled", "PreInstalledAppsEnabled",
+    "PreInstalledAppsEverEnabled", "RotatingLockScreenEnabled",
+    "RotatingLockScreenOverlayEnabled", "SilentInstalledAppsEnabled",
+    "SoftLandingEnabled", "SystemPaneSuggestionsEnabled",
+    "SubscribedContent-310093Enabled", "SubscribedContent-338387Enabled",
+    "SubscribedContent-338388Enabled", "SubscribedContent-338389Enabled",
+    "SubscribedContent-338393Enabled", "SubscribedContent-353694Enabled",
+    "SubscribedContent-353696Enabled", "SubscribedContent-353698Enabled",
+)
+
+
+def set_hive_dword(root, prefix: str, path: str, name: str, value: int) -> bool:
+    """Set a DWORD under a given registry root + subkey prefix (e.g. an HKEY_USERS SID)."""
+    try:
+        import winreg
+        full_path = f"{prefix}\\{path}" if prefix else path
+        key = winreg.CreateKeyEx(root, full_path, 0, winreg.KEY_WRITE)
+        winreg.SetValueEx(key, name, 0, winreg.REG_DWORD, value)
+        winreg.CloseKey(key)
+        return True
+    except Exception:
+        return False
+
+
+def _loaded_user_sids() -> List[str]:
+    """SIDs of loaded real-user hives under HKEY_USERS (S-1-5-21-* only).
+    Skips .DEFAULT, *_Classes, and service SIDs like S-1-5-18."""
+    try:
+        import winreg
+        sids = []
+        key = winreg.OpenKey(winreg.HKEY_USERS, "")
+        i = 0
+        while True:
+            try:
+                name = winreg.EnumKey(key, i)
+            except OSError:
+                break
+            if name.upper().startswith("S-1-5-21-") and not name.endswith("_Classes"):
+                sids.append(name)
+            i += 1
+        winreg.CloseKey(key)
+        return sids
+    except Exception:
+        return []
+
+
+def _apply_user_policies(root, prefix: str, prev: dict) -> int:
+    """Write per-user policy values under one hive (prefix = SID or loaded hive name).
+    Returns the number of values written."""
+    written = 0
+    if prev.get("HardenContentDelivery", True):
+        for v in CONTENT_DELIVERY_VALUES:
+            written += set_hive_dword(root, prefix, CDM_PATH, v, 0)
+        written += set_hive_dword(root, prefix, EXPLORER_ADVANCED_PATH, "ShowCopilotButton", 0)
+        written += set_hive_dword(root, prefix, EXPLORER_ADVANCED_PATH, "Start_IrisRecommendations", 0)
+    if prev.get("DisableSearchSuggestions", True):
+        written += set_hive_dword(root, prefix, EXPLORER_POLICY_PATH, "DisableSearchBoxSuggestions", 1)
+    if prev.get("DisableAiFeatures", True):
+        written += set_hive_dword(root, prefix, COPILOT_POLICY_PATH, "TurnOffWindowsCopilot", 1)
+    return written
+
+
+def apply_per_user_policies(prev: dict, logger: logging.Logger):
+    """Apply per-user policies under every loaded user hive plus the Default
+    profile template. A service running as SYSTEM would otherwise write them
+    to SYSTEM's own HKCU where they do nothing for interactive users."""
+    try:
+        import winreg
+    except ImportError:
+        return  # non-Windows
+    applied = 0
+    for sid in _loaded_user_sids():
+        applied += _apply_user_policies(winreg.HKEY_USERS, sid, prev)
+    # Interactive run: current user's hive (usually also a loaded SID — idempotent)
+    applied += _apply_user_policies(winreg.HKEY_CURRENT_USER, "", prev)
+
+    # Stamp the Default profile template so FUTURE users get the policies.
+    # reg.exe is required — winreg cannot load/unload hives.
+    ntuser = Path(os.environ.get("SystemDrive", "C:")) / "Users" / "Default" / "NTUSER.DAT"
+    if ntuser.exists():
+        _, rc = run_cmd(["reg.exe", "load", f"HKU\\{DEFAULT_HIVE_NAME}", str(ntuser)], timeout=15)
+        if rc == 0:
+            applied += _apply_user_policies(winreg.HKEY_USERS, DEFAULT_HIVE_NAME, prev)
+            run_cmd(["reg.exe", "unload", f"HKU\\{DEFAULT_HIVE_NAME}"], timeout=15)
+    logger.info(f"Per-user policies applied ({applied} values across loaded hives + Default profile)")
+
+
+def mark_deprovisioned(families, logger: logging.Logger):
+    """Create Deprovisioned marker keys for matched families — Windows checks this
+    documented path and skips re-provisioning during feature updates."""
+    try:
+        import winreg
+    except ImportError:
+        return
+    count = 0
+    for family in families:
+        if not family:
+            continue
+        try:
+            key = winreg.CreateKeyEx(
+                winreg.HKEY_LOCAL_MACHINE,
+                f"{DEPROVISIONED_PATH}\\{family}", 0, winreg.KEY_WRITE)
+            winreg.CloseKey(key)
+            count += 1
+        except Exception as e:
+            logger.warning(f"Deprovisioned marker failed for {family}: {e}")
+    if count:
+        logger.info(f"Deprovisioned markers written for {count} package families")
+
+
+def write_default_store_packages_policy(families, logger: logging.Logger):
+    """Windows 11 25H2 policy: remove these Store packages at first sign-in of new
+    user profiles. Inert on older builds — unknown policy keys are ignored."""
+    try:
+        import winreg
+    except ImportError:
+        return
+    count = 0
+    for family in families:
+        if not family:
+            continue
+        try:
+            key = winreg.CreateKeyEx(
+                winreg.HKEY_LOCAL_MACHINE,
+                f"{REMOVE_DEFAULT_PACKAGES_PATH}\\{family}", 0, winreg.KEY_WRITE)
+            winreg.SetValueEx(key, "RemovePackage", 0, winreg.REG_DWORD, 1)
+            winreg.CloseKey(key)
+            count += 1
+        except Exception as e:
+            logger.warning(f"RemoveDefaultStorePackages failed for {family}: {e}")
+    if count:
+        logger.info(f"RemoveDefaultStorePackages policy set for {count} package families")
+
+
+# Microsoft telemetry/CEIP scheduled tasks — explicit full paths, disabled outright.
+# Mirrors the telemetry task lists used by Win11Debloat / Sophia Script.
+TELEMETRY_TASK_PATHS = (
+    r"\Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser",
+    r"\Microsoft\Windows\Application Experience\ProgramDataUpdater",
+    r"\Microsoft\Windows\Application Experience\PcaPatchDbUpdate",
+    r"\Microsoft\Windows\Application Experience\StartupAppTask",
+    r"\Microsoft\Windows\Autochk\Proxy",
+    r"\Microsoft\Windows\Customer Experience Improvement Program\Consolidator",
+    r"\Microsoft\Windows\Customer Experience Improvement Program\KernelCeipTask",
+    r"\Microsoft\Windows\Customer Experience Improvement Program\UsbCeip",
+    r"\Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticDataCollector",
+    r"\Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticResolver",
+    r"\Microsoft\Windows\Feedback\Siuf\DmClient",
+    r"\Microsoft\Windows\Feedback\Siuf\DmClientOnScenarioDownload",
+    r"\Microsoft\Windows\Maps\MapsToastTask",
+    r"\Microsoft\Windows\Maps\MapsUpdateTask",
+    r"\Microsoft\Windows\Power Efficiency Diagnostics\AnalyzeSystem",
+    r"\Microsoft\Windows\Speech\SpeechModelDownloadTask",
+)
+
+
+def disable_telemetry_tasks(logger: logging.Logger):
+    """Disable known Microsoft telemetry/CEIP scheduled tasks by exact path.
+    Missing tasks are logged at info level — they vary by Windows build."""
+    disabled = 0
+    for task_path in TELEMETRY_TASK_PATHS:
+        _, rc = run_cmd(["schtasks", "/Change", "/TN", task_path, "/DISABLE"], timeout=15)
+        if rc == 0:
+            disabled += 1
+            logger.info(f"Disabled telemetry task: {task_path}")
+        else:
+            logger.info(f"Telemetry task not present (skip): {task_path}")
+    logger.info(f"Disabled {disabled}/{len(TELEMETRY_TASK_PATHS)} telemetry scheduled tasks")
 
 
 def apply_registry_prevention(config: dict, logger: logging.Logger):
@@ -377,6 +604,28 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_registry_dword("HKCU", cdm, "SystemPaneSuggestionsEnabled", 0)
         set_registry_dword("HKCU", cdm, "SubscribedContent-338389Enabled", 0)
         logger.info("Applied: BlockProvisioning (silent installs + suggestions disabled)")
+
+    if prev.get("DisableAiFeatures", True):
+        set_registry_dword("HKLM", COPILOT_POLICY_PATH, "TurnOffWindowsCopilot", 1)
+        set_registry_dword("HKLM", WINDOWS_AI_POLICY_PATH, "DisableAIDataAnalysis", 1)
+        set_registry_dword("HKLM", WINDOWS_AI_POLICY_PATH, "AllowRecallEnablement", 0)
+        set_registry_dword("HKLM", WINDOWS_AI_POLICY_PATH, "DisableClickToDo", 1)
+        logger.info("Applied: TurnOffWindowsCopilot + DisableAIDataAnalysis + DisableClickToDo")
+
+    if prev.get("DisableWidgets", True):
+        set_registry_dword("HKLM", DSH_POLICY_PATH, "AllowNewsAndInterests", 0)
+        # PolicyManager default — the feed stays off even if the policy is cleared
+        set_registry_dword("HKLM", NEWS_INTERESTS_PM_PATH, "value", 0)
+        logger.info("Applied: AllowNewsAndInterests = 0")
+
+    if prev.get("DisableSearchSuggestions", True):
+        set_registry_dword("HKLM", EXPLORER_POLICY_PATH, "DisableSearchBoxSuggestions", 1)
+        logger.info("Applied: DisableSearchBoxSuggestions = 1")
+
+    # Per-user policies — must hit every loaded hive, not just HKCU
+    if (prev.get("HardenContentDelivery", True) or prev.get("DisableSearchSuggestions", True)
+            or prev.get("DisableAiFeatures", True)):
+        apply_per_user_policies(prev, logger)
 
 
 # ─── Scheduled Task Prevention ───────────────────────────────────────────────
@@ -408,12 +657,15 @@ def disable_oem_scheduled_tasks(logger: logging.Logger):
     """Disable known OEM scheduled tasks that reinstall bloatware."""
     patterns = (
         "OEM|Dell|HPInc|HPA|Lenovo|ASUS|Acer|McAfee|Norton|"
-        "SupportAssist|Vantage|Armoury|Crate|CustomerExperienceImprovement|"
-        "Customer Experience Improvement|Reinstall|Restore|Bloatware"
+        "SupportAssist|Vantage|Armoury|Crate|Reinstall|Restore|Bloatware"
     )
+    # Match TaskPath too — e.g. CEIP tasks live under
+    # \Microsoft\Windows\Customer Experience Improvement Program\ with
+    # innocuous names like "Consolidator" that name-matching alone misses
     ps_cmd = (
         f"Get-ScheduledTask | "
-        f"Where-Object {{$_.TaskPath -like '*OEM*' -or $_.TaskName -match '{patterns}'}} | "
+        f"Where-Object {{$_.TaskPath -like '*OEM*' -or $_.TaskName -match '{patterns}' "
+        f"-or $_.TaskPath -match '{patterns}'}} | "
         f"Select-Object TaskName,TaskPath,State | ConvertTo-Json"
     )
     stdout, _, rc = run_powershell(ps_cmd, timeout=60)
@@ -461,6 +713,7 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
     prev = config.get("Prevention", {})
     removed = 0
     matched = 0
+    matched_families = set()
 
     # 1. Remove installed packages
     if prev.get("RemoveAppxPackages", True):
@@ -468,6 +721,7 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
         matched += len(packages)
         full_names = get_package_full_names() if packages else {}
         for family_name, display_name, install_path in packages:
+            matched_families.add(family_name)
             full_name = full_names.get(family_name)
             is_system_app = not install_path or install_path.strip() == ""
             if dry_run:
@@ -496,11 +750,12 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
     if prev.get("RemoveProvisionedPackages", True):
         provisioned = get_blacklisted_provisioned(blacklist, whitelist)
         matched += len(provisioned)
-        for display_name in provisioned:
+        for display_name, package_name, family in provisioned:
+            matched_families.add(family)
             if dry_run:
                 logger.info(f"[DRY-RUN] Would remove ProvisionedPackage: {display_name} [requires admin]")
             else:
-                if remove_provisioned_package(display_name):
+                if remove_provisioned_package(package_name):
                     logger.info(f"Removed ProvisionedPackage: {display_name}")
                     record_removal(config, {"kind": "provisioned", "name": display_name})
                     removed += 1
@@ -513,12 +768,32 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
     else:
         apply_registry_prevention(config, logger)
 
+    # Persist removal: Deprovisioned markers stop feature-update re-installs;
+    # the 25H2 policy stops provisioning for future user profiles
+    if prev.get("MarkDeprovisioned", True) or prev.get("RemoveDefaultStorePackages", True):
+        if dry_run:
+            if matched_families:
+                logger.info(f"[DRY-RUN] Would mark {len(matched_families)} package families "
+                            "deprovisioned + write removal policy")
+        else:
+            if prev.get("MarkDeprovisioned", True):
+                mark_deprovisioned(matched_families, logger)
+            if prev.get("RemoveDefaultStorePackages", True):
+                write_default_store_packages_policy(matched_families, logger)
+
     # 4. Disable OEM tasks
     if prev.get("DisableOemScheduledTasks", True):
         if dry_run:
             logger.info("[DRY-RUN] Would disable OEM scheduled tasks")
         else:
             disable_oem_scheduled_tasks(logger)
+
+    # 5. Disable Microsoft telemetry/CEIP tasks
+    if prev.get("DisableTelemetryTasks", True):
+        if dry_run:
+            logger.info("[DRY-RUN] Would disable telemetry scheduled tasks")
+        else:
+            disable_telemetry_tasks(logger)
 
     logger.info(f"Scan complete. {matched} packages matched blacklist; removed {removed}.")
     return removed
@@ -553,6 +828,8 @@ def run_service(config: dict, logger: logging.Logger):
         apply_registry_prevention(config, logger)
         if prev.get("DisableOemScheduledTasks", True):
             disable_oem_scheduled_tasks(logger)
+        if prev.get("DisableTelemetryTasks", True):
+            disable_telemetry_tasks(logger)
 
     while True:
         try:
@@ -561,19 +838,22 @@ def run_service(config: dict, logger: logging.Logger):
 
             # Layer 7: Re-install Monitor
             if prev.get("ReinstallMonitor", True):
-                current_provisioned = set(get_blacklisted_provisioned(blacklist, whitelist))
+                current_provisioned = {
+                    pkg_name
+                    for _, pkg_name, _ in get_blacklisted_provisioned(blacklist, whitelist)
+                }
                 current_installed = {
                     family for family, _, _ in get_blacklisted_packages(blacklist, whitelist)
                 }
 
                 if not first_scan:
-                    for display_name in current_provisioned - seen_provisioned:
+                    for package_name in current_provisioned - seen_provisioned:
                         logger.warning(
-                            f"[MONITOR] RE-INSTALLED detected: {display_name} — removing immediately!")
-                        if remove_provisioned_package(display_name):
-                            logger.info(f"[MONITOR] Re-removal complete: {display_name}")
+                            f"[MONITOR] RE-INSTALLED detected: {package_name} — removing immediately!")
+                        if remove_provisioned_package(package_name):
+                            logger.info(f"[MONITOR] Re-removal complete: {package_name}")
                         else:
-                            logger.warning(f"[MONITOR] Re-removal failed: {display_name}")
+                            logger.warning(f"[MONITOR] Re-removal failed: {package_name}")
 
                     reinstalled = current_installed - seen_installed
                     full_names = get_package_full_names() if reinstalled else {}
@@ -672,6 +952,7 @@ def run_self_test() -> int:
             path = Path(td) / "config.json"
             created = load_config(path)
             assert created["Blacklist"], "default blacklist empty"
+            assert len(created["Whitelist"]) == 8, "default whitelist not aligned with C#"
             reloaded = load_config(path)
             assert reloaded["Blacklist"] == created["Blacklist"], "round-trip mismatch"
 
@@ -687,10 +968,22 @@ def run_self_test() -> int:
         fake_json = json.dumps([
             {"PackageFamilyName": "Microsoft.XboxGamingOverlay_8wekyb3d8bbwe",
              "Name": "Microsoft.XboxGamingOverlay",
-             "InstallPath": "C:\\Program Files\\WindowsApps\\xbox"},
+             "InstallPath": "C:\\Program Files\\WindowsApps\\xbox",
+             "IsFramework": False},
             {"PackageFamilyName": "Microsoft.WindowsCalculator_8wekyb3d8bbwe",
              "Name": "Microsoft.WindowsCalculator",
-             "InstallPath": "C:\\Program Files\\WindowsApps\\calc"},
+             "InstallPath": "C:\\Program Files\\WindowsApps\\calc",
+             "IsFramework": False},
+            # Framework packages must never be returned even when blacklisted
+            {"PackageFamilyName": "Microsoft.XboxFramework_8wekyb3d8bbwe",
+             "Name": "Microsoft.XboxFramework",
+             "InstallPath": "C:\\Program Files\\WindowsApps\\xbfw",
+             "IsFramework": True},
+            # -AllUsers emits one row per user — duplicates must be deduped
+            {"PackageFamilyName": "Microsoft.XboxGamingOverlay_8wekyb3d8bbwe",
+             "Name": "Microsoft.XboxGamingOverlay",
+             "InstallPath": "C:\\Program Files\\WindowsApps\\xbox",
+             "IsFramework": False},
         ])
         orig = run_powershell
         globals()["run_powershell"] = lambda cmd, timeout=60: (fake_json, "", 0)
@@ -698,6 +991,26 @@ def run_self_test() -> int:
             pkgs = get_blacklisted_packages(["Microsoft.Xbox"], ["Calculator"])
             assert len(pkgs) == 1 and pkgs[0][1] == "Microsoft.XboxGamingOverlay", \
                 f"unexpected result: {pkgs}"
+        finally:
+            globals()["run_powershell"] = orig
+
+    def t_get_provisioned_parse():
+        fake_json = json.dumps([
+            {"DisplayName": "Microsoft.BingNews",
+             "PackageName": "Microsoft.BingNews_4.6.32001.0_neutral_~_8wekyb3d8bbwe",
+             "PublisherId": "8wekyb3d8bbwe"},
+            {"DisplayName": "Microsoft.WindowsCalculator",
+             "PackageName": "Microsoft.WindowsCalculator_11.0_x64__8wekyb3d8bbwe",
+             "PublisherId": "8wekyb3d8bbwe"},
+        ])
+        orig = run_powershell
+        globals()["run_powershell"] = lambda cmd, timeout=60: (fake_json, "", 0)
+        try:
+            provs = get_blacklisted_provisioned(["Microsoft.BingNews"], ["Calculator"])
+            assert len(provs) == 1, f"unexpected result: {provs}"
+            display, package_name, family = provs[0]
+            assert package_name == "Microsoft.BingNews_4.6.32001.0_neutral_~_8wekyb3d8bbwe"
+            assert family == "Microsoft.BingNews_8wekyb3d8bbwe"
         finally:
             globals()["run_powershell"] = orig
 
@@ -740,9 +1053,23 @@ def run_self_test() -> int:
         required = ["RemoveAppxPackages", "RemoveProvisionedPackages",
                     "DisableConsumerExperiences", "DisableCloudContent",
                     "PreventDeviceMetadata", "DisableOemScheduledTasks",
-                    "BlockProvisioning", "ReinstallMonitor"]
+                    "BlockProvisioning", "ReinstallMonitor",
+                    "MarkDeprovisioned", "RemoveDefaultStorePackages",
+                    "HardenContentDelivery", "DisableAiFeatures",
+                    "DisableWidgets", "DisableSearchSuggestions",
+                    "DisableTelemetryTasks"]
         missing = [k for k in required if k not in prev]
         assert not missing, f"missing prevention keys: {missing}"
+
+    def t_telemetry_task_paths():
+        assert len(TELEMETRY_TASK_PATHS) >= 10, "telemetry task list unexpectedly small"
+        for p in TELEMETRY_TASK_PATHS:
+            assert p.startswith("\\Microsoft\\Windows\\"), f"non-Microsoft task path: {p}"
+        assert any("Customer Experience Improvement Program" in p for p in TELEMETRY_TASK_PATHS)
+
+    def t_content_delivery_values():
+        assert len(CONTENT_DELIVERY_VALUES) >= 15, "CDM killswitch set too small"
+        assert "SilentInstalledAppsEnabled" in CONTENT_DELIVERY_VALUES
 
     def t_removal_ledger():
         with tempfile.TemporaryDirectory() as td:
@@ -759,12 +1086,15 @@ def run_self_test() -> int:
 
     check("T1: Config default-create + reload", t_config_roundtrip)
     check("T2: Blacklist/whitelist matching", t_matching)
-    check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
+    check("T3: Get-AppxPackage JSON parsing (+framework/dedupe)", t_get_packages_parse)
     check("T4: Logger file + console wiring", t_logging)
     check("T5: is_admin() callable", t_is_admin)
-    check("T6: Prevention layers — 8 registered", t_prevention_layers)
+    check("T6: Prevention layers — 15 registered", t_prevention_layers)
     check("T7: Removal ledger write/read", t_removal_ledger)
     check("T8: Full-name batch map", t_full_name_map)
+    check("T9: ProvisionedPackage parse (name + family)", t_get_provisioned_parse)
+    check("T10: Telemetry task paths well-formed", t_telemetry_task_paths)
+    check("T11: ContentDelivery killswitch set", t_content_delivery_values)
 
     print()
     passed = 0

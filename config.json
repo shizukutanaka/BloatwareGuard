@@ -31,6 +31,10 @@
     "Microsoft.MicrosoftEdge.Stable",
     "Microsoft.DevHome",
     "Microsoft.Copilot",
+    "Microsoft.OutlookForWindows",
+    "microsoft.windowscommunicationsapps",
+    "Microsoft.BingSearch",
+    "Microsoft.Windows.Ai.Copilot.Provider",
     "Clipchamp.Clipchamp",
     "McAfee",
     "Norton",
@@ -47,7 +51,8 @@
     "PandoraMediaInc.29680B314EFC2",
     "Facebook.InstagramBeta",
     "Facebook.Facebook",
-    "WhatsApp"
+    "WhatsApp",
+    "Disney."
   ],
   "Whitelist": [
     "Microsoft.WindowsStore",
@@ -67,7 +72,14 @@
     "PreventDeviceMetadata": true,
     "DisableOemScheduledTasks": true,
     "BlockProvisioning": true,
-    "ReinstallMonitor": true
+    "ReinstallMonitor": true,
+    "MarkDeprovisioned": true,
+    "RemoveDefaultStorePackages": true,
+    "HardenContentDelivery": true,
+    "DisableAiFeatures": true,
+    "DisableWidgets": true,
+    "DisableSearchSuggestions": true,
+    "DisableTelemetryTasks": true
   },
   "DryRun": false
 }
