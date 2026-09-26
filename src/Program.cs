@@ -1243,6 +1243,14 @@ public static class RegistryGuard
         "watson.events.data.microsoft.com", "survey.watson.microsoft.com",
         // Office/ARIA telemetry pipe + diagnostics report upload endpoint
         "mobile.pipe.aria.microsoft.com", "diagnostics.support.microsoft.com",
+        // regional/v10c ingest variants on the same ARIA pipe
+        "self.events.data.microsoft.com", "v10c.events.data.microsoft.com",
+        "au-v10.events.data.microsoft.com", "eu-v10.events.data.microsoft.com",
+        "jp-v10.events.data.microsoft.com", "us-v10.events.data.microsoft.com",
+        "au-v10c.events.data.microsoft.com", "eu-v10c.events.data.microsoft.com",
+        "jp-v10c.events.data.microsoft.com", "us-v10c.events.data.microsoft.com",
+        "activity.windows.com",
+        "api.diagnostics.office.com",
     };
     private const string HostsBlockBegin = "# >>> BloatwareGuard telemetry block";
     private const string HostsBlockEnd = "# <<< BloatwareGuard telemetry block";

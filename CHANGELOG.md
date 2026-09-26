@@ -29,6 +29,10 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 - `_BACKUP_KEY_PATHS`/`BackupKeyPaths` now include the Deprovisioned and
   RemoveDefaultStorePackages keys; self-test T9 also cross-checks the backup
   path list against Program.cs.
+- Telemetry hosts 34→45: added `self.events`/`v10c`/regional `v10`/`v10c`
+  ingest variants (same ARIA pipeline), `activity.windows.com` (Timeline —
+  ActivityFeedPolicy already off), `api.diagnostics.office.com` — all
+  pure-telemetry per hagezi dns-blocklists + MS Learn endpoint docs.
 
 ## [Unreleased] — v1.53.0-mvp: stock-app blacklist audit + parity fixes
 

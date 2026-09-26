@@ -1605,6 +1605,17 @@ _TELEMETRY_HOSTS = (
     "watson.events.data.microsoft.com", "survey.watson.microsoft.com",
     # Office/ARIA telemetry pipe + diagnostics report upload endpoint
     "mobile.pipe.aria.microsoft.com", "diagnostics.support.microsoft.com",
+    # *.events.data.microsoft.com regional/v10c ingest variants (hagezi
+    # dns-blocklists + MS Learn non-Enterprise endpoint doc; same ARIA pipe)
+    "self.events.data.microsoft.com", "v10c.events.data.microsoft.com",
+    "au-v10.events.data.microsoft.com", "eu-v10.events.data.microsoft.com",
+    "jp-v10.events.data.microsoft.com", "us-v10.events.data.microsoft.com",
+    "au-v10c.events.data.microsoft.com", "eu-v10c.events.data.microsoft.com",
+    "jp-v10c.events.data.microsoft.com", "us-v10c.events.data.microsoft.com",
+    # Timeline activity-history sync (ActivityFeedPolicy disabled in policy)
+    "activity.windows.com",
+    # Office diagnostics upload endpoint
+    "api.diagnostics.office.com",
 )
 _HOSTS_BLOCK_BEGIN = "# >>> BloatwareGuard telemetry block"
 _HOSTS_BLOCK_END = "# <<< BloatwareGuard telemetry block"
