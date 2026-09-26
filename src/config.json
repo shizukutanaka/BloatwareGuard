@@ -107,7 +107,10 @@
     "BackupRegistry": true,
     "DisablePrintSpooler": false,
     "BlockOemWpbtExecution": true,
-    "DisableReservedStorage": true
+    "DisableReservedStorage": true,
+    "DisableCloudClipboard": true,
+    "DisableRemoteAssistance": true,
+    "BlockInsiderPreview": true
   },
   "DryRun": false
 }

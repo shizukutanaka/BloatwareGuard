@@ -157,6 +157,18 @@ public class PreventionLayers
     /// <summary>Layer 31: Disable Reserved Storage (~7GB) — updates then use
     /// free disk space like they did pre-1903</summary>
     public bool DisableReservedStorage { get; set; } = true;
+
+    /// <summary>Layer 32: Stop clipboard history syncing to Microsoft cloud
+    /// (cross-device clipboard uploads copied content)</summary>
+    public bool DisableCloudClipboard { get; set; } = true;
+
+    /// <summary>Layer 33: Remote Assistance off — stops unsolicited
+    /// help-request tickets being accepted</summary>
+    public bool DisableRemoteAssistance { get; set; } = true;
+
+    /// <summary>Layer 34: Block Windows Insider preview enrollment —
+    /// prevents preview builds (and their heavier telemetry) arriving</summary>
+    public bool BlockInsiderPreview { get; set; } = true;
 }
 
 // ─── JSON source-gen context (trim-safe: avoids IL2026 with PublishTrimmed) ──
@@ -932,6 +944,15 @@ public static class RegistryGuard
 
         if (layers.DisableReservedStorage)
             DisableReservedStorage();
+
+        if (layers.DisableCloudClipboard)
+            DisableCloudClipboard();
+
+        if (layers.DisableRemoteAssistance)
+            DisableRemoteAssistance();
+
+        if (layers.BlockInsiderPreview)
+            BlockInsiderPreview();
     }
 
     /// <summary>
@@ -1651,6 +1672,8 @@ public static class RegistryGuard
         @"SYSTEM\CurrentControlSet\Control\WMI\AutoLogger\AutoLogger-Diagtrack-Listener",
         @"SYSTEM\CurrentControlSet\Control\Session Manager",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\ReserveManager",
+        @"SYSTEM\CurrentControlSet\Control\Remote Assistance",
+        @"SOFTWARE\Policies\Microsoft\Windows\PreviewBuilds",
     };
     private static bool _backupDone;
 
@@ -1743,6 +1766,75 @@ public static class RegistryGuard
         catch (Exception ex)
         {
             GuardLogger.Error($"Failed to disable reserved storage: {ex.Message}");
+        }
+    }
+
+    /// <summary>Layer 32: clipboard history syncs content to Microsoft's
+    /// cloud for cross-device paste — allow local history but not the sync.</summary>
+    public static void DisableCloudClipboard()
+    {
+        try
+        {
+            using var sys = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Policies\Microsoft\Windows\System");
+            sys?.SetValue("AllowCrossDeviceClipboard", 0,
+                          Microsoft.Win32.RegistryValueKind.DWord);
+            ForEachUserHive((hive, prefix) =>
+            {
+                using var clip = hive.CreateSubKey(prefix +
+                    @"Software\Microsoft\Clipboard");
+                clip?.SetValue("EnableClipboardHistory", 0,
+                               Microsoft.Win32.RegistryValueKind.DWord);
+            });
+            GuardLogger.Info("Applied: DisableCloudClipboard");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to disable cloud clipboard: {ex.Message}");
+        }
+    }
+
+    /// <summary>Layer 33: Remote Assistance inbound offers off.</summary>
+    public static void DisableRemoteAssistance()
+    {
+        try
+        {
+            using var ra = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SYSTEM\CurrentControlSet\Control\Remote Assistance");
+            if (ra != null)
+            {
+                ra.SetValue("fAllowToGetHelp", 0,
+                            Microsoft.Win32.RegistryValueKind.DWord);
+                ra.SetValue("fAllowFullControl", 0,
+                            Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            GuardLogger.Info("Applied: DisableRemoteAssistance");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to disable Remote Assistance: {ex.Message}");
+        }
+    }
+
+    /// <summary>Layer 34: prevent Windows Insider preview enrollment —
+    /// preview builds ship heavier telemetry and instability.</summary>
+    public static void BlockInsiderPreview()
+    {
+        try
+        {
+            using var pb = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Policies\Microsoft\Windows\PreviewBuilds");
+            pb?.SetValue("AllowBuildPreview", 0,
+                         Microsoft.Win32.RegistryValueKind.DWord);
+            using var sh = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Microsoft\WindowsSelfHost\UI\Visibility");
+            sh?.SetValue("HideInsiderPage", 1,
+                         Microsoft.Win32.RegistryValueKind.DWord);
+            GuardLogger.Info("Applied: BlockInsiderPreview");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to block Insider preview: {ex.Message}");
         }
     }
 
@@ -1886,6 +1978,15 @@ public static class ScheduledTaskGuard
         @"\Microsoft\Windows\Feedback\Siuf\DmClientOnScenarioDownload",
         @"\Microsoft\Windows\Maps\MapsUpdateTask",
         @"\Microsoft\Windows\Maps\MapsToastTask",
+        // Office Customer Experience Improvement Program (when Office is
+        // installed; schtasks ignores missing paths)
+        @"\Microsoft\Office\OfficeTelemetryAgentLogOn",
+        @"\Microsoft\Office\OfficeTelemetryAgentLogOn2016",
+        @"\Microsoft\Office\OfficeTelemetryAgentFallBack",
+        @"\Microsoft\Office\OfficeTelemetryAgentFallBack2016",
+        @"\Microsoft\Office\Office 15 Subscription Heartbeat",
+        @"\Microsoft\Office\Office Feature Updates",
+        @"\Microsoft\Office\Office Feature Updates Logon",
     };
 
     /// <summary>Disable the known Microsoft telemetry/CEIP scheduled tasks.</summary>
@@ -2260,7 +2361,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.18.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.19.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -2345,7 +2446,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.18.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.19.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -2497,8 +2598,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 6;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.18.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.18.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.19.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.19.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try

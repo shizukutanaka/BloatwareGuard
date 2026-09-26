@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.18.0-mvp - Python prototype
+BloatwareGuard v1.19.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -34,7 +34,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.18.0-mvp"
+APP_VERSION = "1.19.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -185,6 +185,9 @@ def load_config(path: Path) -> dict:
                 "DisablePrintSpooler": False,
                 "BlockOemWpbtExecution": True,
                 "DisableReservedStorage": True,
+                "DisableCloudClipboard": True,
+                "DisableRemoteAssistance": True,
+                "BlockInsiderPreview": True,
             },
             "DryRun": False,
         }
@@ -696,6 +699,8 @@ _BACKUP_KEY_PATHS = (
     r"SYSTEM\CurrentControlSet\Control\WMI\AutoLogger\AutoLogger-Diagtrack-Listener",
     r"SYSTEM\CurrentControlSet\Control\Session Manager",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\ReserveManager",
+    r"SYSTEM\CurrentControlSet\Control\Remote Assistance",
+    r"SOFTWARE\Policies\Microsoft\Windows\PreviewBuilds",
 )
 _registry_backup_done = False
 
@@ -1006,6 +1011,35 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword("HKLM", reserve, name, val)
         logger.info("Applied: DisableReservedStorage (ReserveManager)")
 
+    if prev.get("DisableCloudClipboard", True):
+        # Local history stays usable; stop the cloud sync of copied content
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Policies\Microsoft\Windows\System",
+                           "AllowCrossDeviceClipboard", 0)
+        set_user_dword_all_hives(
+            r"Software\Microsoft\Clipboard",
+            "EnableClipboardHistory", 0, logger)
+        logger.info("Applied: DisableCloudClipboard")
+
+    if prev.get("DisableRemoteAssistance", True):
+        # Inbound help-request offers off
+        for name in ("fAllowToGetHelp", "fAllowFullControl"):
+            set_registry_dword(
+                "HKLM",
+                r"SYSTEM\CurrentControlSet\Control\Remote Assistance",
+                name, 0)
+        logger.info("Applied: DisableRemoteAssistance")
+
+    if prev.get("BlockInsiderPreview", True):
+        # Preview builds ship heavier telemetry + instability
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Policies\Microsoft\Windows\PreviewBuilds",
+                           "AllowBuildPreview", 0)
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Microsoft\WindowsSelfHost\UI\Visibility",
+                           "HideInsiderPage", 1)
+        logger.info("Applied: BlockInsiderPreview")
+
     if prev.get("DisableXboxServices", True):
         # Demand-start (Start=3) — Game Bar/Xbox sign-in still work on demand
         import winreg as _wr2
@@ -1176,6 +1210,15 @@ TELEMETRY_TASK_PATHS = (
     "\\Microsoft\\Windows\\Feedback\\Siuf\\DmClientOnScenarioDownload",
     "\\Microsoft\\Windows\\Maps\\MapsUpdateTask",
     "\\Microsoft\\Windows\\Maps\\MapsToastTask",
+    # Office Customer Experience Improvement Program (when Office is
+    # installed; schtasks ignores missing paths)
+    "\\Microsoft\\Office\\OfficeTelemetryAgentLogOn",
+    "\\Microsoft\\Office\\OfficeTelemetryAgentLogOn2016",
+    "\\Microsoft\\Office\\OfficeTelemetryAgentFallBack",
+    "\\Microsoft\\Office\\OfficeTelemetryAgentFallBack2016",
+    "\\Microsoft\\Office\\Office 15 Subscription Heartbeat",
+    "\\Microsoft\\Office\\Office Feature Updates",
+    "\\Microsoft\\Office\\Office Feature Updates Logon",
 )
 
 
@@ -1535,7 +1578,9 @@ def run_self_test() -> int:
                     "DisableEdgeUpdateBloat", "BlockOemDriverUpdates",
                     "DisableAppPermissions", "DisableXboxServices",
                     "BackupRegistry", "DisablePrintSpooler",
-                    "BlockOemWpbtExecution", "DisableReservedStorage"]
+                    "BlockOemWpbtExecution", "DisableReservedStorage",
+                    "DisableCloudClipboard", "DisableRemoteAssistance",
+                    "BlockInsiderPreview"]
         missing = [k for k in required if k not in prev]
         assert not missing, f"missing prevention keys: {missing}"
 
@@ -1557,7 +1602,7 @@ def run_self_test() -> int:
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
     check("T4: Logger file + console wiring", t_logging)
     check("T5: is_admin() callable", t_is_admin)
-    check("T6: Prevention layers — 32 registered", t_prevention_layers)
+    check("T6: Prevention layers — 35 registered", t_prevention_layers)
     check("T7: Removal ledger write/read", t_removal_ledger)
     check("T8: Full-name batch map", t_full_name_map)
 

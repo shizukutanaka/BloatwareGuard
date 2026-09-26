@@ -2,6 +2,23 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.19.0-mvp: cloud clipboard / Remote Assistance / Insider block
+
+### Added
+- **`DisableCloudClipboard`** — `AllowCrossDeviceClipboard=0` policy plus
+  `EnableClipboardHistory=0` per-hive. Clipboard content stops syncing to
+  Microsoft's cloud (local history stays usable).
+- **`DisableRemoteAssistance`** — `fAllowToGetHelp=0`, `fAllowFullControl=0`:
+  inbound Remote Assistance offers refused.
+- **`BlockInsiderPreview`** — `PreviewBuilds\AllowBuildPreview=0` +
+  `HideInsiderPage=1`. Preview builds ship heavier telemetry and
+  instability; enrollment is now blocked.
+
+### Changed
+- `DisableTelemetryTasks` list extended with the Office CEIP set
+  (OfficeTelemetryAgent*/Heartbeat/Feature Updates — 7 tasks, ignored when
+  Office is absent). Total: 20 tasks.
+
 ## [Unreleased] — v1.18.0-mvp: WPBT block / Reserved Storage release
 
 ### Added

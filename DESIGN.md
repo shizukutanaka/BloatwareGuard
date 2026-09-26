@@ -47,7 +47,9 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 │    ├─ 変更前 .reg エクスポート (backup/)           │
 │    ├─ Print Spooler 停止 (opt-in, PrintNightmare)  │
 │    ├─ WPBT (UEFI OEM 注入) 遮断                    │
-│    └─ Reserved Storage (~7GB) 解放                 │
+│    ├─ Reserved Storage (~7GB) 解放                 │
+│    ├─ クラウドクリップボード同期 / RA 停止         │
+│    └─ Insider Preview 登録遮断 + Office CEIP      │
 ├─────────────────────────────────────────────────────┤
 │  Config: config.json (blacklist + intervals)        │
 │  Log: Windows Event Log + file                      │
@@ -91,6 +93,9 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 | Print Spooler (opt-in, 既定OFF) | sc stop + config start= disabled | DisablePrintSpooler |
 | WPBT (UEFI OEM バイナリ注入) | Session Manager\DisableWpbtExecution=1 | BlockOemWpbtExecution |
 | Reserved Storage | ReserveManager ShippedWithReserves=0, MiscPolicyInfo=2, PassedPolicy=0 (~7GB 解放) | DisableReservedStorage |
+| クラウドクリップボード | System policy AllowCrossDeviceClipboard=0 + 全ハイブ EnableClipboardHistory=0 | DisableCloudClipboard |
+| Remote Assistance | Remote Assistance\fAllowToGetHelp=0, fAllowFullControl=0 | DisableRemoteAssistance |
+| Insider Preview | PreviewBuilds\AllowBuildPreview=0 + WindowsSelfHost HideInsiderPage=1 | BlockInsiderPreview |
 
 ## ブラックリスト方式
 - config.json の `Blacklist` にパッケージ名の**部分一致**パターンを列挙
