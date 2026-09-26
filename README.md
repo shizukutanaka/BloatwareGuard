@@ -1,133 +1,54 @@
-# BloatwareGuard v1.8.0-mvp
+# BloatwareGuard v1.39.0-mvp
 
 ## What It Does
 
-Removes Windows bloatware across **25 prevention layers** in both **Python** and **C#** implementations.
+Removes Windows bloatware across **39 prevention layers** in both **Python** and **C#** implementations.
+Per-user settings are written to **every loaded user hive + the Default profile template**, so they
+also apply correctly when the tool runs as a SYSTEM service and for users created later.
 
 ### Layers
 
 || Layer | Python | C# | Non-Admin |
 ||---|---|---|---|
-|| 1. AppxPackage removal (-AllUsers when elevated) | ✅ | ✅ | Regular→✓, SystemApp→skip |
+|| 1. AppxPackage removal (all users when admin) | ✅ | ✅ | Regular→✓, SystemApp→skip |
 || 2. ProvisionedPackage removal | ✅ | ✅ | Requires admin |
-|| 3. Consumer Experiences | ✅ | ✅ | HKCU write |
-|| 4. Cloud Content | ✅ | ✅ | HKCU write |
+|| 3. Consumer Experiences | ✅ | ✅ | HKLM (admin) |
+|| 4. Cloud Content | ✅ | ✅ | HKLM (admin) |
 || 5. Device Metadata | ✅ | ✅ | HKLM (admin) |
-|| 6. OEM Scheduled Tasks (TaskPath+TaskName match) | ✅ | ✅ | ✅ Disable works |
-|| 7. Re-install Monitor | ✅ | ✅ | ✅ Service mode |
-|| 8. Deprovisioned markers (blocks feature-update reinstalls) | ✅ | ✅ | HKLM (admin) |
-|| 9. 25H2 `RemoveDefaultStorePackages` policy (new profiles) | ✅ | ✅ | HKLM (admin) |
-|| 10. Content-delivery hardening across all user hives + Default | ✅ | ✅ | Current user only |
-|| 11. AI features: Copilot, Recall, Click to Do | ✅ | ✅ | HKLM (admin) |
-|| 12. Widgets / News-and-Interests board | ✅ | ✅ | HKLM (admin) |
-|| 13. Start-search web suggestions (Bing) | ✅ | ✅ | HKLM+HKCU |
-|| 14. Telemetry/CEIP scheduled tasks (exact paths) | ✅ | ✅ | Admin |
-| 15. Telemetry/privacy policies (telemetry level, activity feed, ad ID, tailored experiences, per-hive tracking) | ✅ | ✅ | HKLM+hives (admin) |
-| 16. Edge annoyance policies (sidebar, startup boost, Spotlight, shopping) | ✅ | ✅ | HKLM (admin) |
-| 17. Win32/MSI/EXE bloatware uninstall (silent uninstallers only) | ✅ | ✅ | Admin |
-| 18. OEM/vendor service stop+disable | ✅ | ✅ | Admin |
-| 19. Startup (Run/RunOnce) bloat cleanup across all hives | ✅ | ✅ | Current user |
-|| 20. Game Bar GameDVR capture off (policy + per-hive) | ✅ | ✅ | HKLM (admin) |
-|| 21. Telemetry-domain hosts block (26 domains, reversible) | ✅ | ✅ | Admin |
-|| 22. winget silent-uninstall sweep | ✅ | ✅ | Admin (skips w/o winget) |
-|| 23. Deprecated capability removal (WordPad, Steps Recorder) | ✅ | ✅ | Admin |
-|| 24. Telemetry/leftover services (DiagTrack, Xbox, WMP) | ✅ | ✅ | Admin |
-|| 25. ETW autologger sessions off (Diagtrack-Listener, SQMLogger…) | ✅ | ✅ | Admin |
-
-Layers 20–23 close the loop. `DisableGameDvr` stops Game Bar background
-capture via `AllowGameDVR=0` (HKLM policy) plus per-hive `AppCaptureEnabled`/
-`GameDVR_Enabled`. `BlockTelemetryEndpoints` null-routes **26 pure-telemetry
-domains** through a marked hosts-file block — the Spybot Anti-Beacon technique;
-the list is conservative (no Windows Update / Store / activation endpoints) and
-**toggling the flag off removes the block**, so it's fully reversible.
-`WingetSweep` runs `winget list` + `winget uninstall --silent
---disable-interactivity` for matches the Uninstall-hive sweep can't reach
-silently, skipping cleanly when App Installer is absent.
-`RemoveDeprecatedCapabilities` removes Windows capabilities Microsoft itself
-deprecated (WordPad, Steps Recorder).
-
-Layer 24 kills the telemetry pipeline itself: `DiagTrack` (Connected User
-Experiences and Telemetry), `dmwappushservice` (WAP push telemetry channel),
-`RetailDemo`, the Xbox Live services left dead once the Xbox apps are gone
-(`XblAuthManager`, `XblGameSave`, `XboxNetApiSvc`) and legacy `WMPNetworkSvc`
-all get `sc stop` + `start= disabled`. NCSI active probing is deliberately
-left alone — disabling it breaks captive-portal (hotel/café Wi-Fi) sign-in.
-Layers 15/19/21 also gained coverage: `HideRecommendedSection` (Start-menu ads
-slot), `DODownloadMode=0` (Delivery Optimization P2P upload off), Windows
-Spotlight features, OOBE privacy screen, WER extra data, typing insights,
-Explorer sync-provider promos, Edge New-Tab feed, and the often-overlooked
-`Policies\Explorer\Run` autostart hive in the startup sweep.
-
-**Layer 25** targets the deepest telemetry layer: boot-time **ETW autologger
-sessions** under `HKLM\SYSTEM\CurrentControlSet\Control\WMI\Autologger` —
-`Diagtrack-Listener`, `SQMLogger`, `DataMarket`, `AppModel`,
-`CloudExperienceHostOobe`, `DiagLog`, `LwtNetLog`, `TileStore`, `UBPM`,
-`WiFiSession` get `Start=0` (the privacy.sexy / Sophia Script technique); only
-keys that exist are touched. Round-6 policy additions: SettingSync disabled
-(`DisableSettingSync=2`), the SCOOBE "let's finish setting up your device" nag
-screen off, and five Edge web-service leaks (`SendSiteInfoToImproveServices`,
-`ResolveNavigationErrorsUseWebService`, `AlternateErrorPagesEnabled`,
-`UserFeedbackAllowed`, `BingAdsSuppression`).
-
-Round 7 also closed the last autostart vector: **Active Setup**
-(`HKLM\SOFTWARE\Microsoft\Active Setup\Installed Components`, both bitness
-views) — OEM stub installers that re-run at *every user sign-in* — now swept
-with the same blacklist/vendor matching (value-name, StubPath and LocalizedName
-checked; matching subkeys deleted). The telemetry task list grew to 21 exact
-paths (DiskFootprint, WinErrorReporting `QueueReporting`, Device Information,
-TextInput model download). Blacklist +2: `MicrosoftWindows.Client.WebExperience`
-(the Widgets runtime pack — Widgets are already policy-disabled, the pack just
-lingers) and `MicrosoftCorporationII.QuickAssist` (a documented vishing vector —
-Microsoft's own Storm-1811 write-ups detail attackers abusing it for
-social-engineering remote access).
-
-Layer 17 sweeps the `Uninstall` registry hives (HKLM 64- and 32-bit views plus
-every loaded user hive) for `DisplayName` values matching the blacklist plus a
-built-in OEM/vendor list. It only executes **silent** uninstall paths —
-`QuietUninstallString`, MSI product codes rewritten to `msiexec /x {GUID} /qn
-/norestart`, or an `UninstallString` already carrying `/S`, `/silent`, `/qn`,
-etc. Entries with only an interactive uninstaller are logged as "manual" so the
-scan can never hang on a UI prompt. Two safety rules: matches in user hives
-(`HKU\<sid>` — user-writable, so executing them as SYSTEM would be a privilege
-escalation) are reported but never run, and hardware-OEM names (Dell, Lenovo,
-HP, ASUS, Acer, Razer) additionally require a bloat keyword
-(update/support/assist/…) so drivers and hardware-integration software are
-never removed by name alone.
-
-Layer 18 stops and disables Windows **services** matching the same vendor
-matching (trial nagware, updaters; hardware-OEM services still need a bloat
-keyword, so RGB/audio/power services survive). Layer 19 deletes
-`Run`/`RunOnce` values matching blacklist/vendor patterns under HKLM (both
-bitness views) and every loaded user hive — the autostart side of OEM bloat
-that Appx removal never touches.
-
-Layer 15 is the broad privacy policy set — `AllowTelemetry=0`, activity-feed /
-Timeline upload off, cross-device clipboard off, advertising ID off, location
-scripting off, Delivery Optimization P2P upload off (`DODownloadMode=0`), the
-OOBE privacy screen skipped, WER extra data off, and the Start-menu
-"Recommended" section hidden — plus per-hive values that can't be policy-managed
-(tailored experiences, ink/typing personalization, `Start_TrackProgs`, SIUF
-cadence, Explorer sync-provider ads, typing insights). Layer 16 hardens Edge via
-official `HKLM\SOFTWARE\Policies\Microsoft\Edge` policies — sidebar, Startup
-Boost, Spotlight recommendations, personalization reporting, shopping
-assistant, New-Tab feed (the browser stays whitelisted; only the noise is cut).
-
-Layer 9 uses the official Windows 11 25H2 Group Policy *"Remove Default Microsoft
-Store packages from the system"* — for each blacklisted package family found on
-the system it writes `HKLM\SOFTWARE\Policies\Microsoft\Windows\Appx\RemoveDefaultMicrosoftStorePackages\<PackageFamilyName>`
-with `RemovePackage=1`, so Windows itself removes those apps at first sign-in of
-new user profiles. Inert on builds older than 25H2.
-
-Layer 8 creates empty keys under
-`HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\Deprovisioned\<PackageFamilyName>`
-— the documented marker Windows checks before re-provisioning apps during a
-feature update.
-
-Layer 10 exists because the service runs as SYSTEM: HKCU writes would land in
-SYSTEM's own hive. The tool instead applies the ContentDeliveryManager killswitch
-set, `ShowCopilotButton`, `Start_IrisRecommendations`, `DisableSearchBoxSuggestions`,
-and `TurnOffWindowsCopilot` to every loaded `HKU\S-1-5-21-*` hive and loads the
-`C:\Users\Default\NTUSER.DAT` template so future profiles inherit them.
+|| 6. OEM Scheduled Tasks | ✅ | ✅ | ✅ Disable works |
+|| 7. Re-install Monitor (Appx + provisioned + Win32 channels) | ✅ | ✅ | ✅ Service mode |
+|| 8. Copilot off (policy, all hives) | ✅ | ✅ | Own hive only |
+|| 9. Recall / Windows AI off (policy + feature removal) | ✅ | ✅ | Own hive only |
+|| 10. Search suggestions / Bing off (all hives) | ✅ | ✅ | Own hive only |
+|| 11. Widgets board off (policy + taskbar button) | ✅ | ✅ | HKLM needs admin |
+|| 12. Telemetry off (DiagTrack svc, ad ID, feedback nags, activity history) | ✅ | ✅ | HKLM needs admin |
+|| 13. GameDVR / Game Bar capture off | ✅ | ✅ | HKLM needs admin |
+|| 14. Delivery Optimization P2P sharing off | ✅ | ✅ | HKLM needs admin |
+|| 15. OneDrive sync off + Explorer pin hidden (**opt-in**, default off) | ✅ | ✅ | HKLM needs admin |
+|| 16. Teams Chat taskbar button off | ✅ | ✅ | Own hive only |
+|| 17. Edge sidebar / startup boost / prelaunch / first-run off | ✅ | ✅ | HKLM needs admin |
+|| 18. Optional capabilities removed (IE mode, Steps Recorder, WordPad, XPS Viewer, Fax&Scan, Wireless Display) | ✅ | ✅ | Requires admin |
+|| 19. Win32 bloatware uninstalled (McAfee/Norton OEM preinstalls — MSI silent) | ✅ | ✅ | Requires admin |
+|| 20. Restore point before destructive scans (self-throttles 24h) | ✅ | ✅ | Requires admin |
+|| 21. Microsoft telemetry tasks off (32: CompatTelRunner, CEIP, Siuf, Maps, Office CEIP, RetailDemo, Insider flighting, feedback, Device Census, family safety, net-trace, AIT, speech models, disk diagnostics) | ✅ | ✅ | Requires admin |
+|| 22. Bloatware autostart entries disabled (StartupApproved marker + Startup-folder rename — restorable) | ✅ | ✅ | Per-hive, some HKLM |
+|| 23. Windows Error Reporting uploads off | ✅ | ✅ | HKLM needs admin |
+|| 24. Edge update services → demand-start + update tasks off | ✅ | ✅ | Requires admin |
+|| 25. OEM driver payloads excluded from Windows Update | ✅ | ✅ | HKLM needs admin |
+|| 26. App permissions force-denied (conservative set — camera/mic/location left) + ad-ID/FindMyDevice policies | ✅ | ✅ | HKLM needs admin |
+|| 27. Xbox services demoted to demand-start | ✅ | ✅ | HKLM needs admin |
+|| 28. HKLM keys exported to .reg before changes (restorable) | ✅ | ✅ | — |
+|| 29. Print Spooler off (**opt-in**, default off — PrintNightmare surface) | ✅ | ✅ | Requires admin |
+|| 30. WPBT (UEFI OEM binary injection) blocked | ✅ | ✅ | HKLM needs admin |
+|| 31. Reserved Storage (~7GB) released | ✅ | ✅ | HKLM needs admin |
+|| 32. Cross-device clipboard sync off (copied content stays local) | ✅ | ✅ | HKLM needs admin |
+|| 33. Remote Assistance inbound offers off | ✅ | ✅ | HKLM needs admin |
+|| 34. Windows Insider preview enrollment blocked | ✅ | ✅ | HKLM needs admin |
+|| 35. Misc bloat services → demand-start (15: push/MDM, Maps, media sharing, diagnostics, Nearby Sharing, Store push-install, NFC payments, Phone Link, NVIDIA/Intel telemetry, SysMain prefetch, touch keyboard, search indexer, kiosk assigned-access) + RemoteRegistry disabled | ✅ | ✅ | HKLM needs admin |
+|| 36. Desktop Spotlight off (wallpaper promo channel) | ✅ | ✅ | Per-hive |
+|| 37. AutoPlay/AutoRun off (removable-media execution vector) | ✅ | ✅ | HKLM needs admin |
+|| 38. No forced Windows Update reboot while logged on | ✅ | ✅ | HKLM needs admin |
+|| 39. Start "Recommended" section hidden (promoted-apps surface) | ✅ | ✅ | HKLM needs admin |
 
 ---
 
@@ -209,9 +130,7 @@ Both implementations log `[requires admin]` for ProvisionedPackage entries durin
 
 ### ProvisionedPackage Removal
 
-Requires admin (`Remove-AppxProvisionedPackage -Online`). Non-admin path logs `[requires admin]` and continues.
-The provisioned query returns `PackageName` **and** the derived `PackageFamilyName`
-(`DisplayName_PublisherId`) in one pass — the family name feeds layers 8 and 9.
+Requires admin (`DISM /Online /Remove-ProvisionedPackage`). Non-admin path logs `[requires admin]` and continues.
 
 ### Whitelist
 
@@ -248,8 +167,8 @@ dotnet publish src/BloatwareGuard.csproj -c Release -r win-x64 --self-contained 
 ## Version
 
 ```bash
-python bloatware_guard.py --version   # BloatwareGuard v1.8.0-mvp
-BloatwareGuard.exe --version          # BloatwareGuard v1.8.0-mvp
+python bloatware_guard.py --version   # BloatwareGuard v1.39.0-mvp
+BloatwareGuard.exe --version          # BloatwareGuard v1.39.0-mvp
 ```
 
 ---

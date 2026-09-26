@@ -21,18 +21,41 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 │    ├─ DisableSoftLanding = 1                        │
 │    ├─ DisableCloudOptimizedContent = 1              │
 │    ├─ PreventDeviceMetadataFromNetwork = 1          │
-│    ├─ SilentInstalledAppsEnabled = 0                │
-│    ├─ SystemPaneSuggestionsEnabled = 0              │
-│    ├─ CDM killswitches ×18 (all HKU user hives +    │
-│    │   Default profile — service runs as SYSTEM)    │
-│    ├─ TurnOffWindowsCopilot / DisableAIDataAnalysis │
-│    │   / AllowRecallEnablement / DisableClickToDo   │
-│    ├─ AllowNewsAndInterests = 0 (Widgets)           │
-│    ├─ DisableSearchBoxSuggestions = 1 (Bing検索)    │
-│    ├─ Telemetry/Edge/GameDVR/OOBE policies ×20+     │
-│    ├─ hosts telemetry block (26 domains, 可逆)      │
-│    ├─ Deprovisioned markers (feature update耐性)    │
-│    └─ RemoveDefaultStorePackages (25H2 policy)      │
+│    ├─ CDM SubscribedContent/* = 0 (all hives)       │
+│    ├─ TurnOffWindowsCopilot = 1 (HKLM+hives)        │
+│    ├─ WindowsAI: DisableAIDataAnalysis = 1 等       │
+│    ├─ DisableSearchBoxSuggestions = 1 (all hives)   │
+│    ├─ Dsh: AllowNewsAndInterests = 0 + TaskbarDa=0  │
+│    ├─ AllowTelemetry=0 + DiagTrack 停止 (全ハイブ)   │
+│    ├─ GameDVR: AllowGameDVR=0 + GameDVR_Enabled=0   │
+│    ├─ DeliveryOptimization: DODownloadMode=0        │
+│    ├─ OneDrive: DisableFileSyncNGSC=1 (opt-in)      │
+│    ├─ TaskbarMn=0 + HideSCAMeetNow=1 (全ハイブ)     │
+│    ├─ Edge: Sidebar/StartupBoost/Prelaunch off      │
+│    ├─ Capability 除去 (IE/StepsRecorder/WordPad)    │
+│    ├─ Win32 除去 (Uninstall キー走査+MSI サイレント)│
+│    ├─ 復元ポイント作成 (スキャン前、24h スロットル)  │
+│    ├─ テレメトリタスク停止 (CompatTel/CEIP 等13件)  │
+│    ├─ StartupApproved 無効化マーカー (Run/RunOnce)  │
+│    ├─ Windows Error Reporting 停止                 │
+│    ├─ Edge Update サービス/タスク → demand 化       │
+│    ├─ WU OEM ドライバ配布遮断                     │
+│    ├─ AppPrivacy 強制拒否 (camera/mic/location 除く)│
+│    ├─ RetailDemo / 動的検索ボックス停止            │
+│    ├─ Xbox サービス ×4 → demand 化                 │
+│    ├─ AutoLogger-Diagtrack / Ink Workspace 停止    │
+│    ├─ 変更前 .reg エクスポート (backup/)           │
+│    ├─ Print Spooler 停止 (opt-in, PrintNightmare)  │
+│    ├─ WPBT (UEFI OEM 注入) 遮断                    │
+│    ├─ Reserved Storage (~7GB) 解放                 │
+│    ├─ クラウドクリップボード同期 / RA 停止         │
+│    ├─ Insider Preview 登録遮断 + Office CEIP      │
+│    ├─ Defender SpyNet / 機能実験 / Edge 推奨停止   │
+│    ├─ 雑サービス群 (dmwappush 他) → demand 化     │
+│    ├─ Desktop Spotlight (壁紙広告面) 停止          │
+│    ├─ AutoPlay/AutoRun 無効化                      │
+│    ├─ WU 強制再起動防止 (ログオン中)               │
+│    └─ Start「おすすめ」非表示 + 診断ログ/MRT 制限  │
 ├─────────────────────────────────────────────────────┤
 │  Config: config.json (blacklist + intervals)        │
 │  Log: Windows Event Log + file                      │
@@ -43,30 +66,47 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 
 | 経路 | 対策 | レイヤー |
 |------|------|----------|
-| AppxPackage (インストール済み・全ユーザー) | Remove-AppxPackage (-AllUsers) | RemoveAppxPackages |
-| ProvisionedPackage (プロビジョニング) | Remove-AppxProvisionedPackage | RemoveProvisionedPackages |
+| AppxPackage (インストール済み) | Remove-AppxPackage | RemoveAppxPackages |
+| ProvisionedPackage (プロビジョニング) | Remove-AppxProvisionedPackage | RemoveAppxPackages |
 | Consumer Experiences (おすすめアプリ) | DisableWindowsConsumerFeatures=1 | DisableConsumerExperiences |
 | Cloud Content (ストア提案) | DisableSoftLanding=1 | DisableCloudContent |
 | Device Metadata (companion app自動DL) | PreventDeviceMetadataFromNetwork=1 | PreventDeviceMetadata |
 | OEM Scheduled Tasks | schtasks /DISABLE | DisableOemScheduledTasks |
-| Silent App Install / 提案コンテンツ | CDM killswitches ×18 (全ユーザーハイブ + Default profile) | HardenContentDelivery |
-| Feature Update での再プロビジョニング | Deprovisioned\<family> マーカーキー | MarkDeprovisioned |
-| 新規ユーザーへの既定アプリ配布 (25H2) | RemoveDefaultStorePackages\<family> RemovePackage=1 | RemoveDefaultStorePackages |
-| Copilot / Recall / Click to Do | TurnOffWindowsCopilot=1, DisableAIDataAnalysis=1 等 | DisableAiFeatures |
-| Widgets (ニュース/天気ボード) | AllowNewsAndInterests=0 | DisableWidgets |
-| Start検索の Bing ウェブ提案 | DisableSearchBoxSuggestions=1 | DisableSearchSuggestions |
-| Microsoft テレメトリ/CEIP タスク | schtasks /DISABLE (exact path list) | DisableTelemetryTasks |
-| テレメトリ/プライバシーポリシー | DataCollection/ActivityFeed/AdID 等の ADMX ポリシー | DisableTelemetryPolicies |
-| Edge の余計な機能 (sidebar/startup boost/Spotlight) | HKLM\Policies\Microsoft\Edge DWORDs | HardenEdgePolicies |
-| Win32 (MSI/EXE) ブロートウェア | Uninstall ハイブ走査 + サイレントアンインストールのみ | RemoveWin32Bloatware |
-| OEM サービス (自動起動) | sc.exe stop + start= disabled | DisableOemServices |
-| スタートアップ登録 (Run/RunOnce/Policies\Explorer\Run/Active Setup) | 全ハイブで該当値・スタブを削除 | CleanStartupEntries |
-| テレメトリ送信先ドメイン | hosts で 0.0.0.0 に固定(26件・マーカー付き可逆) | BlockTelemetryEndpoints |
-| Game Bar 常駐キャプチャ | AllowGameDVR=0 + per-hive capture 値 | DisableGameDvr |
-| winget 管理下の残滓 | winget uninstall --silent --disable-interactivity | WingetSweep |
-| MS 非推奨 capability (WordPad等) | Remove-WindowsCapability -Online | RemoveDeprecatedCapabilities |
-| テレメトリ/残留システムサービス | DiagTrack/dmwappushservice/Xbox系等を stop+disabled(NCSI は無効化しない — キャプティブポータル検出が壊れるため) | DisableTelemetryServices |
-| ETW テレメトリ Autologger | WMI\Autologger 配下の Start=0 (Diagtrack-Listener/SQMLogger等) | DisableTelemetryAutologgers |
+| Silent App Install | SilentInstalledAppsEnabled=0 | BlockProvisioning |
+| 各種サジェスト/広告面 (Start/設定/ロック画面/トースト) | SubscribedContent-*=0, Start_IrisRecommendations=0, ShowSyncProviderNotifications=0 等 — 全ユーザーハイブ+Defaultテンプレート | BlockProvisioning |
+| Copilot | TurnOffWindowsCopilot=1 (HKLM+全ハイブ) | DisableCopilot |
+| Recall/AI スナップショット | DisableAIDataAnalysis=1, TurnOffSavingSnapshots=1, AllowRecallEnablement=0 + Disable-WindowsOptionalFeature | DisableRecall |
+| Bing/検索サジェスト | DisableSearchBoxSuggestions=1, BingSearchEnabled=0 (全ハイブ) | DisableSearchSuggestions |
+| ウィジェット/ニュース | AllowNewsAndInterests=0, EnableFeeds=0, TaskbarDa=0 | DisableWidgets |
+| テレメトリ (診断データ/広告ID/フィードバック/アクティビティ履歴/Edge) | AllowTelemetry=0, DiagTrack サービス停止, AdvertisingInfo Enabled=0, TailoredExperiencesWithDiagnosticDataEnabled=0, Start_TrackProgs=0, PublishUserActivities=0 等 — 全ハイブ | DisableTelemetry |
+| GameDVR (バックグラウンド録画) | AllowGameDVR=0 (HKLM), GameDVR_Enabled=0, AppCaptureEnabled=0 (全ハイブ) | DisableGameDvr |
+| Delivery Optimization (P2P 更新共有) | DODownloadMode=0 (HKLM+全ハイブ+S-1-5-20) | DisableDeliveryOptimization |
+| Click to Do (AI アクション) | WindowsAI DisableClickToDo=1 (HKLM+全ハイブ) + WSAIFabricSvc 手動起動化 | DisableRecall |
+| OneDrive (opt-in, 既定OFF) | DisableFileSyncNGSC=1 (HKLM) + CLSID IsPinnedToNameSpaceTree=0 (全ハイブ) | DisableOneDrive |
+| Teams Chat ボタン | TaskbarMn=0, HideSCAMeetNow=1 (全ハイブ) | DisableChatTaskbar |
+| Edge 常駐・初回 | HubsSidebarEnabled=0, StartupBoostEnabled=0, AllowPrelaunch=0, HideFirstRunExperience=1 | DisableEdgeBloat |
+| オプション機能 (IE/StepsRecorder/WordPad) | Remove-WindowsCapability -Online | RemoveOptionalCapabilities |
+| Win32 ブロートウェア (OEM プレインストール) | HKLM/HKLM(WOW6432)/全ユーザーハイブの Uninstall キー走査 → QuietUninstallString or `msiexec /x {guid} /qn` | RemoveWin32Programs |
+| 復元ポイント | Enable-ComputerRestore + Checkpoint-Computer (MODIFY_SETTINGS、スキャン前、24h スロットル) | CreateRestorePoint |
+| MS テレメトリタスク | 固定リストの schtasks /DISABLE: CompatTelRunner, CEIP Consolidator/UsbCeip/KernelCeip, Autochk Proxy, DiskDiagnostic, Siuf DmClient, MapsUpdate/Toast 他 | DisableTelemetryTasks |
+| スタートアップブロート | Run キー走査 (HKLM 64/32 + 全ハイブ) → StartupApproved\Run に 0x03 無効化マーカー (削除せず復元可能) | DisableStartupBloat |
+| Windows Error Reporting | Disabled=1, DontSendAdditionalData=1 (HKLM+policy), DontShowUI=1, LoggingDisabled=1 (全ハイブ) | DisableErrorReporting |
+| Edge Update 常駐 | edgeupdate/edgeupdatem/MicrosoftEdgeElevationService → Start=3 + EdgeUpdateTask* 3件 /DISABLE | DisableEdgeUpdateBloat |
+| WU 経由 OEM ドライバ | ExcludeWUDriversInQualityUpdate=1 (WindowsUpdate policy) | BlockOemDriverUpdates |
+| アプリ権限 (保守的セット) | AppPrivacy LetApps* =2 (16 件、camera/mic/location 除外) | DisableAppPermissions |
+| Xbox サービス | XblAuthManager/XblGameSave/XboxNetApiSvc/XboxGipSvc → Start=3 | DisableXboxServices |
+| レジストリバックアップ | reg export → %ProgramData%\BloatwareGuard\backup\*.reg (適用前、1回/プロセス) | BackupRegistry |
+| Print Spooler (opt-in, 既定OFF) | sc stop + config start= disabled | DisablePrintSpooler |
+| WPBT (UEFI OEM バイナリ注入) | Session Manager\DisableWpbtExecution=1 | BlockOemWpbtExecution |
+| Reserved Storage | ReserveManager ShippedWithReserves=0, MiscPolicyInfo=2, PassedPolicy=0 (~7GB 解放) | DisableReservedStorage |
+| クラウドクリップボード | System policy AllowCrossDeviceClipboard=0 + 全ハイブ EnableClipboardHistory=0 | DisableCloudClipboard |
+| Remote Assistance | Remote Assistance\fAllowToGetHelp=0, fAllowFullControl=0 | DisableRemoteAssistance |
+| Insider Preview | PreviewBuilds\AllowBuildPreview=0 + WindowsSelfHost HideInsiderPage=1 | BlockInsiderPreview |
+| 雑ブロートサービス | dmwappush/MapsBroker/WMPNetworkSvc/DiagnosticsHub/CDPSvc/NvTelemetry/ESRV_*/PushToInstall/SEMgrSvc/PhoneSvc → Start=3 | DisableMiscBloatServices |
+| Desktop Spotlight | DesktopSpotlight\Settings Enabled=0 + Wallpapers BackgroundType=0 (全ハイブ) | DisableSpotlight |
+| AutoPlay/AutoRun | Policies\Explorer NoDriveTypeAutoRun=255, NoAutorun=1 (HKLM+全ハイブ) | DisableAutoplay |
+| WU 強制再起動 | WindowsUpdate\AU NoAutoRebootWithLoggedOnUsers=1, AlwaysAutoRebootAtScheduledTime=0 | NoForcedReboot |
+| Start「おすすめ」 | Policies\...\Explorer HideRecommendedSection=1 | HideStartRecommendations |
 
 ## ブラックリスト方式
 - config.json の `Blacklist` にパッケージ名の**部分一致**パターンを列挙

@@ -11,6 +11,7 @@ using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Win32;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -69,70 +70,126 @@ public class PreventionLayers
     /// <summary>Layer 7: Monitor for re-installed packages and auto-remove</summary>
     public bool ReinstallMonitor { get; set; } = true;
 
-    /// <summary>Write AppxAllUserStore\Deprovisioned markers so feature updates
-    /// don't re-provision removed apps (documented Windows behavior)</summary>
-    public bool MarkDeprovisioned { get; set; } = true;
+    /// <summary>Layer 8: Disable Windows Copilot via policy (HKLM + every user hive)</summary>
+    public bool DisableCopilot { get; set; } = true;
 
-    /// <summary>25H2 policy: auto-remove default Store packages at first sign-in of
-    /// NEW user profiles (HKLM\SOFTWARE\Policies\Microsoft\Windows\Appx\RemoveDefaultMicrosoftStorePackages)</summary>
-    public bool RemoveDefaultStorePackages { get; set; } = true;
+    /// <summary>Layer 9: Disable Recall/AI data analysis via policy (24H2+) + feature removal</summary>
+    public bool DisableRecall { get; set; } = true;
 
-    /// <summary>Apply content-delivery/suggestion suppression to every loaded user
-    /// hive + the Default profile, not just HKCU (a SYSTEM service's HKCU is useless)</summary>
-    public bool HardenContentDelivery { get; set; } = true;
-
-    /// <summary>Policy-disable Copilot, Recall data analysis and Click to Do</summary>
-    public bool DisableAiFeatures { get; set; } = true;
-
-    /// <summary>Policy-disable the Widgets/News-and-Interests board</summary>
-    public bool DisableWidgets { get; set; } = true;
-
-    /// <summary>Disable Bing/web suggestions in Start-menu search</summary>
+    /// <summary>Layer 10: Disable Bing web results & suggestions in Start/Search</summary>
     public bool DisableSearchSuggestions { get; set; } = true;
 
-    /// <summary>Disable known Microsoft telemetry/CEIP scheduled tasks by exact path</summary>
-    public bool DisableTelemetryTasks { get; set; } = true;
+    /// <summary>Layer 11: Disable Widgets board (news & interests feed)</summary>
+    public bool DisableWidgets { get; set; } = true;
 
-    /// <summary>Group-policy telemetry/privacy suppression (DataCollection, activity
-    /// feed, advertising ID, tailored experiences, per-hive tracking values)</summary>
-    public bool DisableTelemetryPolicies { get; set; } = true;
+    /// <summary>Layer 12: Disable telemetry (DiagTrack, advertising ID, tailored
+    /// experiences, ink/typing collection, feedback nags, activity history)</summary>
+    public bool DisableTelemetry { get; set; } = true;
 
-    /// <summary>Policy-disable Edge annoyances (sidebar, startup boost, spotlight
-    /// recommendations, personalization reporting, shopping assistant)</summary>
-    public bool HardenEdgePolicies { get; set; } = true;
-
-    /// <summary>Purge blacklist/vendor Run &amp; RunOnce startup entries across
-    /// HKLM (64/32-bit) and all loaded user hives</summary>
-    public bool CleanStartupEntries { get; set; } = true;
-
-    /// <summary>Stop + disable OEM/vendor auto-start services (updaters, nagware)</summary>
-    public bool DisableOemServices { get; set; } = true;
-
-    /// <summary>Uninstall Win32/MSI/EXE bloat via Uninstall hives — only entries
-    /// with a silent uninstall path (QuietUninstallString / msiexec / silent flags)</summary>
-    public bool RemoveWin32Bloatware { get; set; } = true;
-
-    /// <summary>Policy-disable GameDVR background capture (HKLM + per-hive)</summary>
+    /// <summary>Layer 13: Disable GameDVR / Game Bar background capture</summary>
     public bool DisableGameDvr { get; set; } = true;
 
-    /// <summary>Null-route pure-telemetry endpoints via a marked hosts-file block
-    /// (Spybot Anti-Beacon technique; toggling off removes the block)</summary>
-    public bool BlockTelemetryEndpoints { get; set; } = true;
+    /// <summary>Layer 14: Disable Delivery Optimization P2P update sharing</summary>
+    public bool DisableDeliveryOptimization { get; set; } = true;
 
-    /// <summary>winget uninstall --silent sweep for bloat/vendor matches
-    /// (skips cleanly when App Installer is absent)</summary>
-    public bool WingetSweep { get; set; } = true;
+    /// <summary>Layer 15: Disable OneDrive sync + hide its Explorer pin.
+    /// Opt-in (default false) — affects active file sync.</summary>
+    public bool DisableOneDrive { get; set; }
 
-    /// <summary>Remove deprecated Windows capabilities (WordPad, Steps Recorder)</summary>
-    public bool RemoveDeprecatedCapabilities { get; set; } = true;
+    /// <summary>Layer 16: Hide the Teams Chat taskbar button</summary>
+    public bool DisableChatTaskbar { get; set; } = true;
 
-    /// <summary>Stop + disable telemetry/leftover system services (DiagTrack,
-    /// dmwappushservice, Xbox leftovers, WMP sharing) + NCSI active probing</summary>
-    public bool DisableTelemetryServices { get; set; } = true;
+    /// <summary>Layer 17: Disable Edge sidebar, startup boost, prelaunch, first-run</summary>
+    public bool DisableEdgeBloat { get; set; } = true;
 
-    /// <summary>Start=0 on boot-time ETW autologger sessions that only feed
-    /// telemetry (Diagtrack-Listener, SQMLogger, WiFiSession, …)</summary>
-    public bool DisableTelemetryAutologgers { get; set; } = true;
+    /// <summary>Layer 18: Remove optional capabilities (IE mode, Steps Recorder, WordPad)</summary>
+    public bool RemoveOptionalCapabilities { get; set; } = true;
+
+    /// <summary>Remove Win32 programs (McAfee/Norton OEM preinstalls etc.) whose
+    /// DisplayName matches the blacklist — MSI entries get silent uninstall.
+    /// The primary OEM bloat channel: most preinstalls are Win32, not Appx.</summary>
+    public bool RemoveWin32Programs { get; set; } = true;
+
+    /// <summary>Create a system restore point before the first destructive scan</summary>
+    public bool CreateRestorePoint { get; set; } = true;
+
+    /// <summary>Layer 21: Disable Microsoft telemetry/CEIP scheduled tasks
+    /// (CompatTelRunner, CEIP Consolidator, DiskDiagnostic, Siuf DmClient, Maps)</summary>
+    public bool DisableTelemetryTasks { get; set; } = true;
+
+    /// <summary>Layer 22: Disable bloatware autostart entries via the
+    /// StartupApproved\\Run disabled marker (restorable, not deleted)</summary>
+    public bool DisableStartupBloat { get; set; } = true;
+
+    /// <summary>Layer 23: Disable Windows Error Reporting uploads</summary>
+    public bool DisableErrorReporting { get; set; } = true;
+
+    /// <summary>Layer 24: Demote Edge update services to demand-start and
+    /// disable their scheduled tasks (Edge still updates on demand)</summary>
+    public bool DisableEdgeUpdateBloat { get; set; } = true;
+
+    /// <summary>Layer 25: Exclude OEM driver payloads from Windows Update
+    /// (WU is a channel for OEM bloatware re-delivery)</summary>
+    public bool BlockOemDriverUpdates { get; set; } = true;
+
+    /// <summary>Layer 26: Force-deny a conservative AppPrivacy permission set
+    /// (background run, account info, contacts, diagnostics…). Camera, mic and
+    /// location are deliberately left alone — legitimate apps need them.</summary>
+    public bool DisableAppPermissions { get; set; } = true;
+
+    /// <summary>Layer 27: Demote Xbox services to demand-start — they sit
+    /// permanently running even on machines that never touch gaming/Xbox
+    /// sign-in. Demand-start keeps Game Bar/Xbox features usable on demand.</summary>
+    public bool DisableXboxServices { get; set; } = true;
+
+    /// <summary>Layer 28: Export every HKLM key we touch to .reg files under
+    /// %ProgramData%\BloatwareGuard\backup\ before applying (once per run)</summary>
+    public bool BackupRegistry { get; set; } = true;
+
+    /// <summary>Layer 29: Disable the Print Spooler — opt-in (default false);
+    /// kills the PrintNightmare attack surface on machines that never print</summary>
+    public bool DisablePrintSpooler { get; set; }
+
+    /// <summary>Layer 30: Disable WPBT — UEFI tables OEMs use to inject
+    /// executables into Windows at boot (ASUS Live Update abuse vector)</summary>
+    public bool BlockOemWpbtExecution { get; set; } = true;
+
+    /// <summary>Layer 31: Disable Reserved Storage (~7GB) — updates then use
+    /// free disk space like they did pre-1903</summary>
+    public bool DisableReservedStorage { get; set; } = true;
+
+    /// <summary>Layer 32: Stop clipboard history syncing to Microsoft cloud
+    /// (cross-device clipboard uploads copied content)</summary>
+    public bool DisableCloudClipboard { get; set; } = true;
+
+    /// <summary>Layer 33: Remote Assistance off — stops unsolicited
+    /// help-request tickets being accepted</summary>
+    public bool DisableRemoteAssistance { get; set; } = true;
+
+    /// <summary>Layer 34: Block Windows Insider preview enrollment —
+    /// prevents preview builds (and their heavier telemetry) arriving</summary>
+    public bool BlockInsiderPreview { get; set; } = true;
+
+    /// <summary>Layer 35: Demote misc bloat services nobody invokes
+    /// interactively — dmwappushservice (WAP push/MDM), MapsBroker,
+    /// WMPNetworkSvc, DiagnosticsHub — to demand-start</summary>
+    public bool DisableMiscBloatServices { get; set; } = true;
+
+    /// <summary>Layer 36: Desktop Spotlight off — the wallpaper surface is
+    /// also a content-delivery channel (promos baked into wallpapers)</summary>
+    public bool DisableSpotlight { get; set; } = true;
+
+    /// <summary>Layer 37: AutoPlay/AutoRun off — removable-media auto-execute
+    /// is a classic payload vector</summary>
+    public bool DisableAutoplay { get; set; } = true;
+
+    /// <summary>Layer 38: no forced Windows Update reboot while a user is
+    /// logged on</summary>
+    public bool NoForcedReboot { get; set; } = true;
+
+    /// <summary>Layer 39: hide the Start menu "Recommended" section —
+    /// it surfaces promoted apps, not just your files</summary>
+    public bool HideStartRecommendations { get; set; } = true;
 }
 
 // ─── JSON source-gen context (trim-safe: avoids IL2026 with PublishTrimmed) ──
@@ -173,6 +230,8 @@ public static class GuardLogger
     public static void Warn(string msg) => Write("WARN", msg);
     public static void Error(string msg) => Write("ERROR", msg);
 
+    private static bool _sourceChecked;
+
     private static void Write(string level, string msg)
     {
         var line = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [{level}] {msg}";
@@ -180,7 +239,12 @@ public static class GuardLogger
 
         try
         {
-            EnsureSourceExists();
+            // SourceExists probes the registry — do it once, not per log line
+            if (!_sourceChecked)
+            {
+                _sourceChecked = true;
+                EnsureSourceExists();
+            }
             EventLog.WriteEntry(EventSource, msg,
                 level == "ERROR" ? EventLogEntryType.Error :
                 level == "WARN" ? EventLogEntryType.Warning :
@@ -323,13 +387,17 @@ public static class ConfigLoader
                 "Microsoft.Clipchamp",
                 "MicrosoftTeams",
                 "Microsoft.MicrosoftEdge.Stable",
-                "Microsoft.DevHome",
+                "Microsoft.Windows.DevHome",       // Dev Home (+ GitHub extension)
                 "Microsoft.Copilot",
-                "Microsoft.OutlookForWindows",        // new Outlook (replaces Mail & Calendar)
-                "microsoft.windowscommunicationsapps", // legacy Mail & Calendar (deprecated Dec 2024)
-                "Microsoft.BingSearch",
-                "Microsoft.Windows.Ai.Copilot.Provider",
                 "Clipchamp.Clipchamp",
+                "MSTeams",                          // New Teams (Work/School), provisioned via AppX push
+                "Microsoft.OutlookForWindows",      // New Outlook, preinstalled since 23H2
+                "Microsoft.WindowsCommunicationsApps", // Mail & Calendar (discontinued Dec 2024)
+                "MicrosoftCorporationII.MicrosoftFamily",
+                "MicrosoftCorporationII.QuickAssist",
+                "Microsoft.BingSearch",
+                "Microsoft.MicrosoftStickyNotes",
+                "Microsoft.Edge.GameAssist",
 
                 // Third-party bloatware commonly pre-installed
                 "McAfee",
@@ -340,7 +408,7 @@ public static class ConfigLoader
                 "RealtekSemiconductor",
                 "SynapticsIncorporated",
                 "BytedancePte.Ltd.TikTok",
-                "KING.COM.CandyCrush",
+                "KING.COM.",                       // CandyCrush + all King.com promo games
                 "A278AB0D.DisneyMagicKingdoms",
                 "A278AB0D.MarchofEmpires",
                 "D5EA27B7.Duolingo-LearnLanguagesforFree",
@@ -348,9 +416,20 @@ public static class ConfigLoader
                 "Facebook.InstagramBeta",
                 "Facebook.Facebook",
                 "WhatsApp",
-                "Disney.",
-                "MicrosoftWindows.Client.WebExperience",   // Widgets runtime pack
-                "MicrosoftCorporationII.QuickAssist",       // documented vishing vector
+                "Disney",                          // Disney+ etc.
+                "Amazon.com.Amazon",
+                "AmazonVideo.PrimeVideo",
+                "LinkedIn",
+                "Flipboard",
+                "Asphalt8Airborne",
+                "CyberLinkMediaSuite",
+                "EclipseManager",
+                "Booking",
+                "PicsArt",
+                "Twitter",
+                "Evernote",
+                "ExpressVPN",
+                "Nordcurrent",
 
                 // OEM utilities (uncomment as needed)
                 // "DellInc.Dell",
@@ -377,50 +456,6 @@ public static class ConfigLoader
     }
 }
 
-// ─── Process helpers ─────────────────────────────────────────────────────────
-
-internal static class Proc
-{
-    /// <summary>Start a process and drain redirected streams asynchronously so a
-    /// hung child can never block the read, then enforce a hard deadline — kill
-    /// the tree on expiry. Returns (stdout, stderr, exitCode); exitCode is null
-    /// on timeout or launch failure.</summary>
-    public static (string Stdout, string Stderr, int? ExitCode) Capture(ProcessStartInfo psi, int timeoutMs)
-    {
-        try
-        {
-            using var proc = Process.Start(psi);
-            if (proc == null)
-                return ("", "", null);
-            var stdoutT = psi.RedirectStandardOutput
-                ? Task.Run(() => proc.StandardOutput.ReadToEnd())
-                : Task.FromResult("");
-            var stderrT = psi.RedirectStandardError
-                ? Task.Run(() => proc.StandardError.ReadToEnd())
-                : Task.FromResult("");
-            if (!proc.WaitForExit(timeoutMs))
-            {
-                try { proc.Kill(entireProcessTree: true); } catch { }
-                try { Task.WaitAll(new Task[] { stdoutT, stderrT }, 5000); } catch { }
-                return ("", "", null);
-            }
-            // A detached grandchild can inherit the pipes and hold them open
-            // after this process exits — bound the EOF wait rather than block
-            // on .Result forever.
-            try { Task.WaitAll(new Task[] { stdoutT, stderrT }, 10000); } catch { }
-            var stdout = stdoutT.Status == TaskStatus.RanToCompletion ? stdoutT.Result : "";
-            var stderr = stderrT.Status == TaskStatus.RanToCompletion ? stderrT.Result : "";
-            return (stdout, stderr, proc.ExitCode);
-        }
-        catch { return ("", "", null); }
-    }
-
-    /// <summary>Wait with a hard deadline, kill on expiry. Returns exit code or
-    /// null on timeout/failure.</summary>
-    public static int? Wait(ProcessStartInfo psi, int timeoutMs)
-        => Capture(psi, timeoutMs).ExitCode;
-}
-
 // ─── Appx Package Manager ────────────────────────────────────────────────────
 
 public static class AppxManager
@@ -430,59 +465,83 @@ public static class AppxManager
         List<string> blacklist, List<string> whitelist)
     {
         var results = new List<(string, string, string, bool, string?)>();
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        // Only shell-safe entries reach the -Command argument — quotes or
-        // metacharacters in config must never break out of the PS string.
         var pattern = string.Join("|",
-            blacklist.Where(IsShellSafe).Select(Regex.Escape));
+            blacklist.Where(b => !string.IsNullOrWhiteSpace(b)).Select(Regex.Escape));
         if (pattern.Length == 0)
             return results;  // empty pattern would -match every package
-        // -AllUsers surfaces packages installed for other users too (admin only)
-        var scope = IsElevated() ? " -AllUsers" : "";
-        var psi = new ProcessStartInfo
-        {
-            FileName = "powershell.exe",
-            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Get-AppxPackage{scope} | Where-Object {{$_.PackageFamilyName -match '{pattern}'}} | Select-Object PackageFamilyName,Name,PackageFullName,IsFramework,InstallPath | ConvertTo-Json\"",
-            RedirectStandardOutput = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
 
-        var output = Proc.Capture(psi, 180000).Stdout;
+        // -AllUsers catches packages installed for other profiles (requires admin —
+        // non-admin gets an error, so fall back to the current-user scope).
+        var output = RunPackageQuery(pattern, allUsers: true);
+        if (string.IsNullOrWhiteSpace(output))
+            output = RunPackageQuery(pattern, allUsers: false);
+
+        // -AllUsers returns one row per user — dedupe by PackageFullName
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         try
         {
             var doc = JsonDocument.Parse(output.Trim());
-            if (doc.RootElement.ValueKind == JsonValueKind.Array)
+            var elements = doc.RootElement.ValueKind == JsonValueKind.Array
+                ? doc.RootElement.EnumerateArray().ToList()
+                : new List<JsonElement> { doc.RootElement };
+            foreach (var el in elements)
             {
-                foreach (var el in doc.RootElement.EnumerateArray())
-                {
-                    var family = el.GetProperty("PackageFamilyName").GetString() ?? "";
-                    var name = el.GetProperty("Name").GetString() ?? "";
-                    var fullName = el.GetProperty("PackageFullName").GetString() ?? "";
-                    var isFw = el.TryGetProperty("IsFramework", out var fw) && fw.ValueKind == JsonValueKind.True;
-                    var installPath = el.TryGetProperty("InstallPath", out var ip) ? ip.GetString() : null;
-                    // -AllUsers emits one row per user per package — dedupe
-                    var dedupeKey = string.IsNullOrEmpty(fullName) ? family : fullName;
-                    if (!IsWhitelisted(family, whitelist) && seen.Add(dedupeKey))
-                        results.Add((family, name, fullName, isFw, installPath));
-                }
-            }
-            else if (doc.RootElement.ValueKind == JsonValueKind.Object)
-            {
-                var family = doc.RootElement.GetProperty("PackageFamilyName").GetString() ?? "";
-                var name = doc.RootElement.GetProperty("Name").GetString() ?? "";
-                var fullName = doc.RootElement.GetProperty("PackageFullName").GetString() ?? "";
-                var isFw = doc.RootElement.TryGetProperty("IsFramework", out var fw) && fw.ValueKind == JsonValueKind.True;
-                var installPath = doc.RootElement.TryGetProperty("InstallPath", out var ip) ? ip.GetString() : null;
-                var dedupeKey = string.IsNullOrEmpty(fullName) ? family : fullName;
-                if (!IsWhitelisted(family, whitelist) && seen.Add(dedupeKey))
+                var family = el.GetProperty("PackageFamilyName").GetString() ?? "";
+                var name = el.GetProperty("Name").GetString() ?? "";
+                var fullName = el.GetProperty("PackageFullName").GetString() ?? "";
+                var isFw = el.TryGetProperty("IsFramework", out var fw) && fw.ValueKind == JsonValueKind.True;
+                var installPath = el.TryGetProperty("InstallPath", out var ip) ? ip.GetString() : null;
+                if (!IsWhitelisted(family, whitelist) && seen.Add(fullName))
                     results.Add((family, name, fullName, isFw, installPath));
             }
         }
         catch { /* no matches or parse error */ }
 
         return results;
+    }
+
+    private static string RunPackageQuery(string pattern, bool allUsers)
+    {
+        var scope = allUsers ? " -AllUsers" : "";
+        var psi = new ProcessStartInfo
+        {
+            FileName = "powershell.exe",
+            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Get-AppxPackage{scope} | Where-Object {{$_.PackageFamilyName -match '{pattern}'}} | Select-Object PackageFamilyName,Name,PackageFullName,IsFramework,InstallPath | ConvertTo-Json\"",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+
+        using var proc = Process.Start(psi);
+        var output = proc?.StandardOutput.ReadToEnd() ?? "";
+        proc?.WaitForExit();
+        return proc?.ExitCode == 0 ? output : "";
+    }
+
+    /// <summary>Remove deprecated/legacy optional Windows capabilities.
+    /// Conservative list: IE compatibility mode (Edge covers IE-mode), Steps
+    /// Recorder (deprecated), WordPad (removed by MS in 24H2 anyway).
+    /// Requires admin; non-admin/non-present entries are skipped by PowerShell.</summary>
+    public static void RemoveOptionalCapabilities()
+    {
+        var pattern = "Browser.InternetExplorer|App.StepsRecorder|Microsoft.Windows.WordPad|XPS.Viewer|Print.Fax.Scan|App.WirelessDisplay.Connect";
+        var psi = new ProcessStartInfo
+        {
+            FileName = "powershell.exe",
+            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Get-WindowsCapability -Online | Where-Object {{$_.Name -match '{pattern}' -and $_.State -eq 'Installed'}} | Remove-WindowsCapability -Online -ErrorAction SilentlyContinue | Out-Null\"",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        using var proc = Process.Start(psi);
+        proc?.WaitForExit(180000);  // DISM ops can be slow
+        if (proc?.ExitCode == 0)
+            GuardLogger.Info("Applied: RemoveOptionalCapabilities (IE/StepsRecorder/WordPad)");
+        else
+            GuardLogger.Warn("RemoveOptionalCapabilities: no capabilities removed (absent or admin required)");
     }
 
     /// <summary>Check if a package family name matches any whitelist entry</summary>
@@ -492,40 +551,27 @@ public static class AppxManager
             packageFamilyName.Contains(w, StringComparison.OrdinalIgnoreCase));
     }
 
-    /// <summary>True when running elevated — enables -AllUsers enumeration.</summary>
-    public static bool IsElevated()
+    /// <summary>Get all provisioned packages (these re-deploy on new user creation)</summary>
+    public static List<string> GetBlacklistedProvisionedPackages(List<string> blacklist, List<string> whitelist)
     {
-        try
-        {
-            using var id = System.Security.Principal.WindowsIdentity.GetCurrent();
-            return new System.Security.Principal.WindowsPrincipal(id)
-                .IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
-        }
-        catch { return false; }
-    }
-
-    /// <summary>Get all provisioned packages (these re-deploy on new user creation).
-    /// Returns (PackageName, PackageFamilyName) — the family name (DisplayName_PublisherId)
-    /// is what Deprovisioned markers and the 25H2 removal policy are keyed on.</summary>
-    public static List<(string PackageName, string FamilyName)> GetBlacklistedProvisionedPackages(
-        List<string> blacklist, List<string> whitelist)
-    {
-        var results = new List<(string, string)>();
+        var results = new List<string>();
         var pattern = string.Join("|",
-            blacklist.Where(IsShellSafe).Select(Regex.Escape));
+            blacklist.Where(b => !string.IsNullOrWhiteSpace(b)).Select(Regex.Escape));
         if (pattern.Length == 0)
             return results;  // empty pattern would -match every package
 
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Get-AppxProvisionedPackage -Online | Where-Object {{$_.PackageName -match '{pattern}'}} | Select-Object PackageName,DisplayName | ConvertTo-Json\"",
+            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Get-AppxProvisionedPackage -Online | Where-Object {{$_.PackageName -match '{pattern}'}} | Select-Object PackageName | ConvertTo-Json\"",
             RedirectStandardOutput = true,
             UseShellExecute = false,
             CreateNoWindow = true
         };
 
-        var output = Proc.Capture(psi, 180000).Stdout;
+        using var proc = Process.Start(psi);
+        var output = proc?.StandardOutput.ReadToEnd() ?? "";
+        proc?.WaitForExit();
 
         try
         {
@@ -535,17 +581,15 @@ public static class AppxManager
                 foreach (var el in doc.RootElement.EnumerateArray())
                 {
                     var pkg = el.GetProperty("PackageName").GetString() ?? "";
-                    var family = ProvisionedFamilyName(el);
-                    if (!IsWhitelisted(pkg, whitelist) && !IsWhitelisted(family, whitelist))
-                        results.Add((pkg, family));
+                    if (!IsWhitelisted(pkg, whitelist))
+                        results.Add(pkg);
                 }
             }
             else if (doc.RootElement.ValueKind == JsonValueKind.Object)
             {
                 var pkg = doc.RootElement.GetProperty("PackageName").GetString() ?? "";
-                var family = ProvisionedFamilyName(doc.RootElement);
-                if (!IsWhitelisted(pkg, whitelist) && !IsWhitelisted(family, whitelist))
-                    results.Add((pkg, family));
+                if (!IsWhitelisted(pkg, whitelist))
+                    results.Add(pkg);
             }
         }
         catch { }
@@ -553,40 +597,8 @@ public static class AppxManager
         return results;
     }
 
-    /// <summary>True for entries safe to embed in a PowerShell -Command string
-    /// (letters/digits/._- space only — no quotes or shell metacharacters).</summary>
-    private static bool IsShellSafe(string s)
-        => !string.IsNullOrWhiteSpace(s) && Regex.IsMatch(s, @"^[\w.\- ]+$");
-
-    /// <summary>Derive DisplayName_PublisherId for a provisioned package.
-    /// Get-AppxProvisionedPackage returns no PublisherId, so the publisher is
-    /// taken from the last '_' segment of PackageName
-    /// (Name_Version_Architecture_ResourceId_PublisherId). "" when unresolvable.</summary>
-    private static string ProvisionedFamilyName(JsonElement el)
-    {
-        var display = el.TryGetProperty("DisplayName", out var d) ? d.GetString() ?? "" : "";
-        var pkgName = el.TryGetProperty("PackageName", out var n) ? n.GetString() ?? "" : "";
-        if (string.IsNullOrEmpty(display))
-            return "";
-        var segs = pkgName.Split('_');
-        var publisher = segs.Length >= 5 && Regex.IsMatch(segs[^1], @"^[A-Za-z0-9]+$")
-            ? segs[^1] : "";
-        return string.IsNullOrEmpty(publisher) ? "" : $"{display}_{publisher}";
-    }
-
-    /// <summary>Package names are simple identifiers (Name_ver_arch_resid_pubid)
-    /// — anything else is rejected before it can reach a PowerShell string.</summary>
-    private static bool IsPackageNameSafe(string name)
-        => !string.IsNullOrEmpty(name) &&
-           Regex.IsMatch(name, @"^[A-Za-z0-9_.\-~!]+$");
-
     public static bool RemoveAppxPackage(string packageFullName)
     {
-        if (!IsPackageNameSafe(packageFullName))
-        {
-            GuardLogger.Warn($"Rejected malformed package name: {packageFullName}");
-            return false;
-        }
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
@@ -597,21 +609,18 @@ public static class AppxManager
             CreateNoWindow = true
         };
 
-        var (_, stderr, rc) = Proc.Capture(psi, 60000);
+        using var proc = Process.Start(psi);
+        proc?.WaitForExit(60000);
+        string stderr = proc?.StandardError.ReadToEnd() ?? "";
         if (!string.IsNullOrEmpty(stderr))
             GuardLogger.Warn($"Remove-AppxPackage stderr: {stderr.Trim()}");
-        return rc == 0;
+        return proc?.ExitCode == 0;
     }
 
     /// <summary>Remove AppxPackage for CURRENT USER only (no admin required).
     /// Returns (success, isSystemApp). SystemApps cannot be removed per-user.</summary>
     public static (bool Success, bool IsSystemApp) RemoveAppxPackageForUser(string packageFullName, string? installPath = null)
     {
-        if (!IsPackageNameSafe(packageFullName))
-        {
-            GuardLogger.Warn($"Rejected malformed package name: {packageFullName}");
-            return (false, false);
-        }
         // SystemApps have null InstallPath — cannot be removed per-user (0x80073CFA)
         if (string.IsNullOrEmpty(installPath))
         {
@@ -629,19 +638,16 @@ public static class AppxManager
             CreateNoWindow = true
         };
 
-        var (_, stderr, rc) = Proc.Capture(psi, 60000);
+        using var proc = Process.Start(psi);
+        proc?.WaitForExit(60000);
+        string stderr = proc?.StandardError.ReadToEnd() ?? "";
         if (!string.IsNullOrEmpty(stderr))
             GuardLogger.Warn($"Remove-AppxPackage (user) stderr: {stderr.Trim()}");
-        return (rc == 0, false);
+        return (proc?.ExitCode == 0, false);
     }
 
     public static bool RemoveProvisionedPackage(string packageName)
     {
-        if (!IsPackageNameSafe(packageName))
-        {
-            GuardLogger.Warn($"Rejected malformed package name: {packageName}");
-            return false;
-        }
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
@@ -652,10 +658,164 @@ public static class AppxManager
             CreateNoWindow = true
         };
 
-        var (_, stderr, rc) = Proc.Capture(psi, 120000);
+        using var proc = Process.Start(psi);
+        proc?.WaitForExit(120000);
+        string stderr = proc?.StandardError.ReadToEnd() ?? "";
         if (!string.IsNullOrEmpty(stderr))
             GuardLogger.Warn($"RemoveProvisionedPackage stderr: {stderr.Trim()}");
-        return rc == 0;
+        return proc?.ExitCode == 0;
+    }
+}
+
+// ─── Win32 program removal (non-Appx OEM bloatware) ─────────────────────────
+
+public static class Win32Guard
+{
+    // Registry Uninstall keys: 64-bit, 32-bit (WOW6432Node), and per-user
+    private const string UninstallPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall";
+    private const string UninstallPath32 = @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall";
+    private const string UserUninstallPath = @"Software\Microsoft\Windows\CurrentVersion\Uninstall";
+
+    // Extracts an MSI product GUID from an UninstallString (MsiExec /I{...})
+    private static readonly Regex MsiGuidPattern =
+        new(@"\{[0-9A-Fa-f\-]{36}\}", RegexOptions.Compiled);
+
+    /// <summary>Enumerate installed Win32 programs matching the blacklist.
+    /// Returns (DisplayName, UninstallString, QuietUninstallString).</summary>
+    public static List<(string DisplayName, string UninstallString, string QuietUninstallString)>
+        GetBlacklistedPrograms(List<string> blacklist, List<string> whitelist)
+    {
+        var results = new List<(string, string, string)>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        void ScanKey(RegistryKey root, string path)
+        {
+            try
+            {
+                using var key = root.OpenSubKey(path);
+                if (key == null)
+                    return;
+                foreach (var sub in key.GetSubKeyNames())
+                {
+                    try
+                    {
+                        using var sk = key.OpenSubKey(sub);
+                        var display = sk?.GetValue("DisplayName") as string;
+                        var uninstall = sk?.GetValue("UninstallString") as string;
+                        if (string.IsNullOrEmpty(display) || string.IsNullOrEmpty(uninstall))
+                            continue;
+                        // SystemComponents and updates are not removable programs
+                        if ((sk?.GetValue("SystemComponent") as int?) == 1)
+                            continue;
+                        var quiet = sk?.GetValue("QuietUninstallString") as string ?? "";
+                        if (!IsWhitelisted(display, whitelist) &&
+                            blacklist.Any(b => !string.IsNullOrWhiteSpace(b) &&
+                                display.Contains(b, StringComparison.OrdinalIgnoreCase)) &&
+                            seen.Add(display))
+                        {
+                            results.Add((display, uninstall, quiet));
+                        }
+                    }
+                    catch { }
+                }
+            }
+            catch { }
+        }
+
+        ScanKey(Registry.LocalMachine, UninstallPath);
+        ScanKey(Registry.LocalMachine, UninstallPath32);
+        ScanKey(Registry.CurrentUser, UserUninstallPath);
+        foreach (var sid in Registry.Users.GetSubKeyNames())
+        {
+            // Loaded user hives only (interactive profiles)
+            if (!Regex.IsMatch(sid, @"^S-1-5-21-\d+-\d+-\d+-\d+$"))
+                continue;
+            ScanKey(Registry.Users, $"{sid}\\{UserUninstallPath}");
+        }
+
+        return results;
+    }
+
+    private static bool IsWhitelisted(string display, List<string> whitelist) =>
+        whitelist.Any(w => !string.IsNullOrWhiteSpace(w) &&
+            display.Contains(w, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Silent-uninstall one program. Uses the vendor-supplied
+    /// QuietUninstallString when present; MSI entries fall back to
+    /// `msiexec /x {guid} /qn /norestart`. Non-silent uninstallers are
+    /// logged for manual removal instead of guessing vendor switches.</summary>
+    public static bool RemoveProgram(string displayName, string uninstallString, string quietUninstallString)
+    {
+        string cmd;
+        string args;
+        if (!string.IsNullOrEmpty(quietUninstallString))
+        {
+            var split = SplitCommandLine(quietUninstallString);
+            cmd = split.cmd; args = split.args;
+        }
+        else if (uninstallString.IndexOf("msiexec", StringComparison.OrdinalIgnoreCase) >= 0)
+        {
+            var m = MsiGuidPattern.Match(uninstallString);
+            if (!m.Success)
+                return false;
+            cmd = "msiexec.exe";
+            args = $"/x {m.Value} /qn /norestart";
+        }
+        else
+        {
+            GuardLogger.Info($"Win32 program needs manual removal (no silent uninstaller): {displayName} — {uninstallString}");
+            return false;
+        }
+
+        var psi = new ProcessStartInfo
+        {
+            FileName = cmd,
+            Arguments = args,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        using var proc = Process.Start(psi);
+        proc?.WaitForExit(300000);  // uninstallers can take minutes
+        return proc?.ExitCode == 0;
+    }
+
+    private static (string cmd, string args) SplitCommandLine(string commandLine)
+    {
+        commandLine = commandLine.Trim();
+        if (commandLine.StartsWith("\""))
+        {
+            var end = commandLine.IndexOf('"', 1);
+            if (end > 0)
+                return (commandLine[1..end], commandLine[(end + 1)..].Trim());
+        }
+        var space = commandLine.IndexOf(' ');
+        return space < 0 ? (commandLine, "") : (commandLine[..space], commandLine[(space + 1)..].Trim());
+    }
+
+    /// <summary>Create a system restore point before destructive changes.
+    /// Checkpoint-Computer self-throttles to one per 24h; failure is non-fatal.</summary>
+    public static void CreateRestorePoint()
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = "powershell.exe",
+            Arguments = "-NoProfile -ExecutionPolicy Bypass -Command " +
+                "\"Enable-ComputerRestore -Drive 'C:\\' -ErrorAction SilentlyContinue | Out-Null; " +
+                "Checkpoint-Computer -Description 'BloatwareGuard pre-scan' " +
+                "-RestorePointType 'MODIFY_SETTINGS' -ErrorAction SilentlyContinue | Out-Null\"",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        using var proc = Process.Start(psi);
+        proc?.WaitForExit(120000);
+        if (proc?.ExitCode == 0)
+            GuardLogger.Info("Applied: CreateRestorePoint (restore point created or throttled)");
+        else
+            GuardLogger.Warn("CreateRestorePoint: skipped (admin required or System Restore disabled)");
     }
 }
 
@@ -667,131 +827,96 @@ public static class RegistryGuard
     private const string DeviceMetadataPath = @"SOFTWARE\Policies\Microsoft\Windows\Device Metadata";
     private const string AppCompatPath = @"SOFTWARE\Policies\Microsoft\Windows\AppCompat";
     private const string WindowsSearchPath = @"SOFTWARE\Policies\Microsoft\Windows\Windows Search";
-    private const string CopilotPolicyPath = @"SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot";
-    private const string WindowsAiPolicyPath = @"SOFTWARE\Policies\Microsoft\Windows\WindowsAI";
-    private const string DshPolicyPath = @"SOFTWARE\Policies\Microsoft\Dsh";
-    private const string NewsInterestsPolicyManagerPath = @"SOFTWARE\Microsoft\PolicyManager\default\NewsAndInterests\AllowNewsAndInterests";
-    private const string ExplorerPolicyPath = @"SOFTWARE\Policies\Microsoft\Windows\Explorer";
-    private const string RemoveDefaultPackagesPath = @"SOFTWARE\Policies\Microsoft\Windows\Appx\RemoveDefaultMicrosoftStorePackages";
-    private const string DeprovisionedPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\Deprovisioned";
-    private const string ContentDeliveryPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager";
-    private const string ExplorerAdvancedPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced";
+    private const string WindowsCopilotPath = @"SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot";
+    private const string WindowsAiPath = @"SOFTWARE\Policies\Microsoft\Windows\WindowsAI";
+    private const string WidgetsDshPath = @"SOFTWARE\Policies\Microsoft\Dsh";
+    private const string WindowsFeedsPath = @"SOFTWARE\Policies\Microsoft\Windows\Windows Feeds";
+    private const string DataCollectionPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection";
+    private const string SystemPolicyPath = @"SOFTWARE\Policies\Microsoft\Windows\System";
     private const string EdgePolicyPath = @"SOFTWARE\Policies\Microsoft\Edge";
-
-    // Telemetry/privacy group policies — documented HKLM policy paths (path, name, value)
-    private static readonly (string Path, string Name, int Value)[] TelemetryPolicyWrites = {
-        (@"SOFTWARE\Policies\Microsoft\Windows\DataCollection", "AllowTelemetry", 0),
-        (@"SOFTWARE\Policies\Microsoft\Windows\DataCollection", "DoNotShowFeedbackNotifications", 1),
-        (@"SOFTWARE\Policies\Microsoft\Windows\System", "EnableActivityFeed", 0),
-        (@"SOFTWARE\Policies\Microsoft\Windows\System", "PublishUserActivities", 0),
-        (@"SOFTWARE\Policies\Microsoft\Windows\System", "UploadUserActivities", 0),
-        (@"SOFTWARE\Policies\Microsoft\Windows\System", "AllowCrossDeviceClipboard", 0),
-        (@"SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo", "DisabledByGroupPolicy", 1),
-        (@"SOFTWARE\Policies\Microsoft\Windows\LocationAndSensors", "DisableLocationScripting", 1),
-        (@"SOFTWARE\Policies\Microsoft\WindowsInkWorkspace", "AllowWindowsInkWorkspace", 0),
-        // Delivery Optimization P2P upload off (HTTP-only download mode)
-        (@"SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization", "DODownloadMode", 0),
-        // WER: never send extra crash data to Microsoft
-        (@"SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting", "DontSendAdditionalData", 1),
-        // Skip the OOBE privacy questions for new users
-        (@"SOFTWARE\Policies\Microsoft\Windows\OOBE", "DisablePrivacyExperience", 1),
-        // Windows Spotlight on lock screen / desktop
-        (@"SOFTWARE\Policies\Microsoft\Windows\CloudContent", "DisableWindowsSpotlightFeatures", 1),
-        // "Do not sync your settings" — settings aren't uploaded to the cloud
-        (@"SOFTWARE\Policies\Microsoft\Windows\SettingSync", "DisableSettingSync", 2),
-        // Hide the Start-menu "Recommended" section (ads + suggested apps slot)
-        (ExplorerPolicyPath, "HideRecommendedSection", 1),
-    };
-
-    // Per-user telemetry/privacy values — written to every loaded user hive.
-    // DisableTailoredExperiencesWithDiagnosticData is a documented User-class policy.
-    private static readonly (string Path, string Name, int Value)[] TelemetryUserWrites = {
-        (@"SOFTWARE\Microsoft\Windows\CurrentVersion\Privacy", "TailoredExperiencesWithDiagnosticDataEnabled", 0),
-        (@"SOFTWARE\Microsoft\Windows\CurrentVersion\AdvertisingInfo", "Enabled", 0),
-        // 1 = restrict collection (0 would leave text/ink harvesting ON)
-        (@"SOFTWARE\Microsoft\InputPersonalization", "RestrictImplicitTextCollection", 1),
-        (@"SOFTWARE\Microsoft\InputPersonalization", "RestrictImplicitInkCollection", 1),
-        (@"SOFTWARE\Microsoft\InputPersonalization\TrainedDataStore", "HarvestContacts", 0),
-        (@"SOFTWARE\Microsoft\Siuf\Rules", "NumberOfSIUFInPeriod", 0),
-        (ExplorerAdvancedPath, "Start_TrackProgs", 0),
-        // Explorer "sync provider" ads (OneDrive/MS promos in File Explorer)
-        (ExplorerAdvancedPath, "ShowSyncProviderNotifications", 0),
-        (@"SOFTWARE\Microsoft\Input\Settings", "InsightsEnabled", 0),
-        // SCOOBE — the "let's finish setting up your device" nag screen
-        (@"SOFTWARE\Microsoft\Windows\CurrentVersion\UserProfileEngagement", "ScoobeSystemSettingEnabled", 0),
-        (@"SOFTWARE\Policies\Microsoft\Windows\CloudContent", "DisableTailoredExperiencesWithDiagnosticData", 1),
-    };
-
-    // GameDVR capture: HKLM policy + per-user capture keys
     private const string GameDvrPolicyPath = @"SOFTWARE\Policies\Microsoft\Windows\GameDVR";
-    private static readonly (string Path, string Name, int Value)[] GameDvrUserWrites = {
-        (@"SOFTWARE\Microsoft\Windows\CurrentVersion\GameDVR", "AppCaptureEnabled", 0),
-        (@"SOFTWARE\System\GameConfigStore", "GameDVR_Enabled", 0),
+    private const string DoPolicyPath = @"SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization";
+    private const string AiFabricServicePath = @"SYSTEM\CurrentControlSet\Services\WSAIFabricSvc";
+    private const string OneDrivePolicyPath = @"SOFTWARE\Policies\Microsoft\Windows\OneDrive";
+
+    // Per-user paths (relative to a user hive root — HKCU or HKEY_USERS\<SID>)
+    private const string UserCdmPath = @"Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager";
+    private const string UserExplorerAdvancedPath = @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced";
+    private const string UserExplorerPoliciesPath = @"Software\Policies\Microsoft\Windows\Explorer";
+    private const string UserCopilotPath = @"Software\Policies\Microsoft\Windows\WindowsCopilot";
+    private const string UserWindowsAiPath = @"Software\Policies\Microsoft\Windows\WindowsAI";
+    private const string UserSearchPath = @"Software\Microsoft\Windows\CurrentVersion\Search";
+    private const string UserSearchSettingsPath = @"Software\Microsoft\Windows\CurrentVersion\SearchSettings";
+    private const string AppPrivacyPath = @"SOFTWARE\Policies\Microsoft\Windows\AppPrivacy";
+    private const string UserProfileEngagementPath = @"Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement";
+    private const string UserAdvertisingInfoPath = @"Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo";
+    private const string UserPrivacyPath = @"Software\Microsoft\Windows\CurrentVersion\Privacy";
+    private const string UserOnlineSpeechPath = @"Software\Microsoft\Speech_OneCore\Settings\OnlineSpeechPrivacy";
+    private const string UserTipcPath = @"Software\Microsoft\Input\TIPC";
+    private const string UserInputPersonalizationPath = @"Software\Microsoft\InputPersonalization";
+    private const string UserInputStorePath = @"Software\Microsoft\InputPersonalization\TrainedDataStore";
+    private const string UserPersonalizationPath = @"Software\Microsoft\Personalization\Settings";
+    private const string UserSiufPath = @"Software\Microsoft\Siuf\Rules";
+    private const string UserGameConfigStorePath = @"System\GameConfigStore";
+    private const string UserGameDvrPath = @"Software\Microsoft\Windows\CurrentVersion\GameDVR";
+    private const string UserDeliveryOptimizationPath = @"Software\Microsoft\Windows\CurrentVersion\DeliveryOptimization\Settings";
+    private const string UserExplorerPoliciesBasePath = @"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer";
+    private const string UserOneDriveClsidPath = @"Software\Classes\CLSID\{018D5C66-4533-4307-9B53-224DE2ED1FE6}";
+    private const string UserAccountNotificationsPath = @"Software\Microsoft\Windows\CurrentVersion\SystemSettings\AccountNotifications";
+    private const string UserSuggestedToastPath = @"Software\Microsoft\Windows\CurrentVersion\Notifications\Settings\Windows.SystemToast.Suggested";
+    private const string UserMobilityPath = @"Software\Microsoft\Windows\CurrentVersion\Mobility";
+    private const string WerPath = @"SOFTWARE\Microsoft\Windows\Windows Error Reporting";
+    private const string WerPolicyPath = @"SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting";
+    private const string UserWerPath = @"Software\Microsoft\Windows\Windows Error Reporting";
+    private const string MachineRunPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
+    private const string MachineRunPath32 = @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Run";
+    private const string MachineRunOncePath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce";
+    private const string UserRunPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
+    private const string UserRunOncePath = @"Software\Microsoft\Windows\CurrentVersion\RunOnce";
+    private const string StartupApprovedRun = @"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run";
+    private const string StartupApprovedRunOnce = @"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\RunOnce";
+    private const string WindowsUpdatePolicyPath = @"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate";
+
+    // Startup value names worth disabling even outside the package blacklist
+    // (OEM updaters, adware helpers). OneDrive stays out — DisableOneDrive is opt-in.
+    private static readonly string[] StartupBloatNames = {
+        "Skype", "Cortana", "MicrosoftEdgeAutoLaunch", "GameAssist",
+        "McAfee", "Norton", "WebAdvisor", "CCleaner", "Dell", "Lenovo",
+        "SupportAssist", "Acer", "ASUS", "HP"
     };
 
-    // Edge annoyance policies — documented MSEdge.admx policy names, all DWORD
-    private static readonly (string Name, int Value)[] EdgePolicies = {
-        ("HubsSidebarEnabled", 0), ("StandaloneHubsSidebarEnabled", 0),
-        ("StartupBoostEnabled", 0), ("SpotlightExperiencesAndRecommendationsEnabled", 0),
-        ("PersonalizationReportingEnabled", 0), ("ShowRecommendationsEnabled", 0),
-        ("EdgeShoppingAssistantEnabled", 0), ("NewTabPageContentEnabled", 0),
-        // privacy leaks: URLs/site data sent to Microsoft web services
-        ("SendSiteInfoToImproveServices", 0),
-        ("ResolveNavigationErrorsUseWebService", 0),
-        ("AlternateErrorPagesEnabled", 0), ("UserFeedbackAllowed", 0),
-        ("BingAdsSuppression", 1),
-    };
+    // 0x03 = disabled in StartupApproved (value kept — user can re-enable via Task Manager)
+    private static readonly byte[] StartupDisabledMarker =
+        { 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
-    // Suggestion/ads delivery killswitches — the full set used by Win11Debloat's
-    // Disable_Windows_Suggestions.reg, all DWORD 0
-    private static readonly string[] ContentDeliveryValues = {
-        "ContentDeliveryAllowed", "FeatureManagementEnabled",
-        "OemPreInstalledAppsEnabled", "PreInstalledAppsEnabled",
-        "PreInstalledAppsEverEnabled", "RotatingLockScreenEnabled",
-        "RotatingLockScreenOverlayEnabled", "SilentInstalledAppsEnabled",
-        "SoftLandingEnabled", "SystemPaneSuggestionsEnabled",
-        "SubscribedContent-310093Enabled", "SubscribedContent-338387Enabled",
-        "SubscribedContent-338388Enabled", "SubscribedContent-338389Enabled",
-        "SubscribedContent-338380Enabled", "SubscribedContent-338393Enabled",
-        "SubscribedContent-353694Enabled", "SubscribedContent-353696Enabled",
-        "SubscribedContent-353698Enabled",
-    };
-
-    // ETW autologger sessions that exist solely to feed telemetry — Start=0
-    // stops them at boot (the privacy.sexy / Sophia Script technique)
-    private const string AutologgersPath = @"SYSTEM\CurrentControlSet\Control\WMI\Autologger";
-    private static readonly string[] TelemetryAutologgers = {
-        "AutoLogger-Diagtrack-Listener", "Diagtrack-Listener", "SQMLogger",
-        "DataMarket", "AppModel", "CloudExperienceHostOobe", "DiagLog",
-        "LwtNetLog", "TileStore", "UBPM", "WiFiSession",
-    };
-
-    /// <summary>Stop boot-time ETW autologger sessions that only feed telemetry.
-    /// Only touches keys that already exist (doesn't create them).</summary>
-    public static void DisableTelemetryAutologgers()
+    /// <summary>Demote a service to demand-start. Opens — never creates —
+    /// the service key, so vendor services absent from the machine don't
+    /// get phantom <c>Services\X</c> entries written for them.</summary>
+    private static void DemoteService(string name)
     {
-        var disabled = 0;
-        foreach (var name in TelemetryAutologgers)
+        try
         {
-            try
-            {
-                using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(
-                    $"{AutologgersPath}\\{name}", writable: true);
-                if (key == null)
-                    continue; // autologger not present on this machine
-                key.SetValue("Start", 0, Microsoft.Win32.RegistryValueKind.DWord);
-                disabled++;
-            }
-            catch (Exception ex)
-            {
-                GuardLogger.Warn($"Autologger {name}: {ex.Message}");
-            }
+            using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(
+                $@"SYSTEM\CurrentControlSet\Services\{name}", writable: true);
+            key?.SetValue("Start", 3, Microsoft.Win32.RegistryValueKind.DWord);
         }
-        GuardLogger.Info($"Disabled {disabled} telemetry autologgers (Start=0)");
+        catch { }
     }
 
-    public static void ApplyAll(PreventionLayers layers)
+    // HKLM subkey where the Default-profile template hive is temporarily mounted
+    private const string DefaultHiveMount = @"BloatwareGuard_DefaultProfile";
+
+    // Matches real user profile SIDs (S-1-5-21-<machine>-<rid>), not .DEFAULT,
+    // S-1-5-18/19/20 (service accounts) or *_Classes virtual hives.
+    private static readonly Regex UserSidPattern =
+        new(@"^S-1-5-21-\d+-\d+-\d+-\d+$", RegexOptions.Compiled);
+
+    public static void ApplyAll(PreventionLayers layers,
+                                List<string> blacklist, List<string> whitelist)
     {
+        if (layers.BackupRegistry)
+            BackupRegistryKeys();
+
         if (layers.DisableConsumerExperiences)
             DisableConsumerExperiences();
 
@@ -804,48 +929,202 @@ public static class RegistryGuard
         if (layers.BlockProvisioning)
             BlockProvisioning();
 
-        if (layers.DisableAiFeatures)
-            DisableAiFeatures();
+        if (layers.DisableCopilot)
+            DisableCopilot();
+
+        if (layers.DisableRecall)
+            DisableRecall();
+
+        if (layers.DisableSearchSuggestions)
+            DisableSearchSuggestions();
 
         if (layers.DisableWidgets)
             DisableWidgets();
 
-        // HKLM policy for Start-search web suggestions (Bing)
-        if (layers.DisableSearchSuggestions)
-            DisableSearchSuggestions();
-
-        if (layers.DisableTelemetryPolicies)
-            DisableTelemetryPolicies();
-
-        if (layers.HardenEdgePolicies)
-            HardenEdgePolicies();
+        if (layers.DisableTelemetry)
+            DisableTelemetry();
 
         if (layers.DisableGameDvr)
+            DisableGameDvr();
+
+        if (layers.DisableDeliveryOptimization)
+            DisableDeliveryOptimization();
+
+        if (layers.DisableOneDrive)
+            DisableOneDrive();
+
+        if (layers.DisableChatTaskbar)
+            DisableChatTaskbar();
+
+        if (layers.DisableEdgeBloat)
+            DisableEdgeBloat();
+
+        if (layers.DisableStartupBloat)
+            DisableStartupBloat(blacklist, whitelist);
+
+        if (layers.DisableErrorReporting)
+            DisableErrorReporting();
+
+        if (layers.DisableEdgeUpdateBloat)
+            DisableEdgeUpdateBloat();
+
+        if (layers.BlockOemDriverUpdates)
+            BlockOemDriverUpdates();
+
+        if (layers.DisableAppPermissions)
+            DisableAppPermissions();
+
+        if (layers.DisableXboxServices)
+            DisableXboxServices();
+
+        if (layers.DisablePrintSpooler)
+            DisablePrintSpooler();
+
+        if (layers.BlockOemWpbtExecution)
+            BlockOemWpbtExecution();
+
+        if (layers.DisableReservedStorage)
+            DisableReservedStorage();
+
+        if (layers.DisableCloudClipboard)
+            DisableCloudClipboard();
+
+        if (layers.DisableRemoteAssistance)
+            DisableRemoteAssistance();
+
+        if (layers.BlockInsiderPreview)
+            BlockInsiderPreview();
+
+        if (layers.DisableMiscBloatServices)
+            DisableMiscBloatServices();
+
+        if (layers.DisableSpotlight)
+            DisableSpotlight();
+
+        if (layers.DisableAutoplay)
+            DisableAutoplay();
+
+        if (layers.NoForcedReboot)
+            NoForcedReboot();
+
+        if (layers.HideStartRecommendations)
+            HideStartRecommendations();
+    }
+
+    /// <summary>
+    /// Run <paramref name="apply"/> against every writable user hive: each loaded
+    /// interactive profile under HKEY_USERS, the default-profile template (so future
+    /// users inherit the settings), and HKCU. A service running as SYSTEM writes only
+    /// to the SYSTEM hive without this — the per-user settings never reach real users.
+    /// </summary>
+    private static void ForEachUserHive(Action<RegistryKey> apply)
+    {
+        var applied = 0;
+
+        foreach (var sid in Registry.Users.GetSubKeyNames())
         {
+            if (!UserSidPattern.IsMatch(sid))
+                continue;
             try
             {
-                using var gdvr = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(GameDvrPolicyPath);
-                gdvr?.SetValue("AllowGameDVR", 0, Microsoft.Win32.RegistryValueKind.DWord);
-                GuardLogger.Info("Applied: AllowGameDVR = 0");
+                using var hive = Registry.Users.OpenSubKey(sid, writable: true);
+                if (hive == null)
+                    continue;
+                apply(hive);
+                applied++;
             }
             catch (Exception ex)
             {
-                GuardLogger.Warn($"GameDVR policy: {ex.Message}");
+                GuardLogger.Warn($"Registry: could not write hive {sid}: {ex.Message}");
             }
         }
 
-        if (layers.DisableTelemetryAutologgers)
-            DisableTelemetryAutologgers();
+        // Default-profile template — new user accounts copy this NTUSER.DAT.
+        // Not part of HKEY_USERS until manually mounted.
+        var defaultDat = GetDefaultProfileDat();
+        if (defaultDat != null)
+        {
+            try
+            {
+                RunRegSilent($"load \"HKLM\\{DefaultHiveMount}\" \"{defaultDat}\"");
+                try
+                {
+                    using var hive = Registry.LocalMachine.OpenSubKey(DefaultHiveMount, writable: true);
+                    if (hive != null)
+                    {
+                        apply(hive);
+                        applied++;
+                    }
+                }
+                finally
+                {
+                    RunRegSilent($"unload \"HKLM\\{DefaultHiveMount}\"");
+                }
+            }
+            catch (Exception ex)
+            {
+                GuardLogger.Warn($"Registry: default profile hive skipped: {ex.Message}");
+            }
+        }
 
-        // Hosts-file telemetry block — called unconditionally: the helper no-ops
-        // when disabled and no block exists; toggling off removes the block.
-        Win32BloatGuard.SetTelemetryHostsBlock(layers.BlockTelemetryEndpoints);
+        // HKCU covers the launching user even when hive enumeration missed them
+        try
+        {
+            apply(Registry.CurrentUser);
+            applied++;
+        }
+        catch { }
 
-        // Per-user policies — must hit every loaded hive, not just HKCU
-        if (layers.HardenContentDelivery || layers.DisableSearchSuggestions
-            || layers.DisableAiFeatures || layers.DisableTelemetryPolicies
-            || layers.DisableGameDvr)
-            ApplyPerUserPolicies(layers);
+        if (applied == 0)
+            GuardLogger.Warn("Registry: no writable user hive found");
+    }
+
+    /// <summary>Default profile template path (usually C:\Users\Default\NTUSER.DAT).</summary>
+    private static string? GetDefaultProfileDat()
+    {
+        try
+        {
+            using var pl = Registry.LocalMachine.OpenSubKey(
+                @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList");
+            var dir = pl?.GetValue("Default") as string;
+            if (string.IsNullOrEmpty(dir))
+                dir = @"C:\Users\Default";
+            dir = Environment.ExpandEnvironmentVariables(dir);
+            var dat = Path.Combine(dir, "NTUSER.DAT");
+            return File.Exists(dat) ? dat : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Set a DWORD inside a mounted user hive root.</summary>
+    private static void SetHiveDword(RegistryKey hiveRoot, string path, string name, int value)
+    {
+        using var key = hiveRoot.CreateSubKey(path);
+        key?.SetValue(name, value, RegistryValueKind.DWord);
+    }
+
+    /// <summary>Apply the same DWORD under <paramref name="path"/> in every user hive.</summary>
+    private static void SetUserDwordAllHives(string path, string name, int value)
+    {
+        ForEachUserHive(hive => SetHiveDword(hive, path, name, value));
+    }
+
+    private static void RunRegSilent(string arguments)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = "reg.exe",
+            Arguments = arguments,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        using var proc = Process.Start(psi);
+        proc?.WaitForExit(15000);
     }
 
     /// <summary>Turn off Microsoft consumer experiences (suggested apps)</summary>
@@ -894,23 +1173,53 @@ public static class RegistryGuard
         }
     }
 
-    /// <summary>Block provisioning packages from re-registering</summary>
+    /// <summary>Block provisioning packages from re-registering + all consumer
+    /// suggestion surfaces, applied to EVERY user hive (a SYSTEM service's HKCU
+    /// is the SYSTEM profile — useless without multi-hive writes).</summary>
     public static void BlockProvisioning()
     {
         try
         {
-            // Disable silent app install
             using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(CloudContentPath);
             key?.SetValue("DisableConsumerAccountContent", 1, Microsoft.Win32.RegistryValueKind.DWord);
 
-            // Also set per-user
-            using var cuKey = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(
-                @"SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager");
-            cuKey?.SetValue("SilentInstalledAppsEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
-            cuKey?.SetValue("SystemPaneSuggestionsEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
-            cuKey?.SetValue("SubscribedContent-338389Enabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // ContentDeliveryManager — silent installs + every SubscribedContent surface
+            // (key set mirrors Win11Debloat Disable_Windows_Suggestions.reg)
+            var cdmZeros = new[]
+            {
+                "SilentInstalledAppsEnabled",       // silent app installs
+                "SystemPaneSuggestionsEnabled",     // system pane suggestions
+                "SoftLandingEnabled",               // soft landing tips
+                "SubscribedContent-310093Enabled",  // Windows welcome experience
+                "SubscribedContent-338387Enabled",  // lock-screen spotlight ads
+                "SubscribedContent-338388Enabled",  // Start suggestions
+                "SubscribedContent-338389Enabled",  // tips while using Windows
+                "SubscribedContent-338393Enabled",  // Settings suggestions
+                "SubscribedContent-353694Enabled",  // Settings suggestions (2)
+                "SubscribedContent-353696Enabled",  // Settings suggestions (3)
+                "SubscribedContent-353698Enabled",  // Settings suggestions (4)
+                "RotatingLockScreenEnabled",        // lock-screen spotlight
+                "RotatingLockScreenOverlayEnabled", // lock-screen overlay ads
+                "PreInstalledAppsEnabled",          // OEM app seeding
+                "PreInstalledAppsEverEnabled",      // OEM app seeding (sticky)
+                "OemPreInstalledAppsEnabled",       // OEM app seeding (OEM channel)
+                "RemediationRequired",              // CDM "remediation" re-offers
+            };
+            ForEachUserHive(hive =>
+            {
+                using var cdm = hive.CreateSubKey(UserCdmPath);
+                foreach (var name in cdmZeros)
+                    cdm?.SetValue(name, 0, RegistryValueKind.DWord);
 
-            GuardLogger.Info("Applied: BlockProvisioning (silent installs + suggestions disabled)");
+                SetHiveDword(hive, UserExplorerAdvancedPath, "Start_IrisRecommendations", 0);
+                SetHiveDword(hive, UserExplorerAdvancedPath, "ShowSyncProviderNotifications", 0);
+                SetHiveDword(hive, UserProfileEngagementPath, "ScoobeSystemSettingEnabled", 0);
+                SetHiveDword(hive, UserAccountNotificationsPath, "EnableAccountNotifications", 0);
+                SetHiveDword(hive, UserSuggestedToastPath, "Enabled", 0);
+                SetHiveDword(hive, UserMobilityPath, "OptedIn", 0);
+            });
+
+            GuardLogger.Info("Applied: BlockProvisioning (silent installs + all suggestion surfaces, all hives)");
         }
         catch (Exception ex)
         {
@@ -918,54 +1227,94 @@ public static class RegistryGuard
         }
     }
 
-    /// <summary>Policy-disable Copilot, Recall data analysis and Click to Do (HKLM).</summary>
-    public static void DisableAiFeatures()
+    /// <summary>Disable Windows Copilot via policy — HKLM + every user hive.
+    /// The Copilot app itself is removed via the Blacklist.</summary>
+    public static void DisableCopilot()
     {
         try
         {
-            using var copilot = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(CopilotPolicyPath);
-            copilot?.SetValue("TurnOffWindowsCopilot", 1, Microsoft.Win32.RegistryValueKind.DWord);
-
-            using var ai = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(WindowsAiPolicyPath);
-            ai?.SetValue("DisableAIDataAnalysis", 1, Microsoft.Win32.RegistryValueKind.DWord);
-            ai?.SetValue("AllowRecallEnablement", 0, Microsoft.Win32.RegistryValueKind.DWord);
-            ai?.SetValue("DisableClickToDo", 1, Microsoft.Win32.RegistryValueKind.DWord);
-
-            GuardLogger.Info("Applied: TurnOffWindowsCopilot + DisableAIDataAnalysis + DisableClickToDo");
+            using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(WindowsCopilotPath);
+            key?.SetValue("TurnOffWindowsCopilot", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            SetUserDwordAllHives(UserCopilotPath, "TurnOffWindowsCopilot", 1);
+            GuardLogger.Info("Applied: DisableCopilot (TurnOffWindowsCopilot = 1, HKLM + user hives)");
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable AI features: {ex.Message}");
+            GuardLogger.Error($"Failed to disable Copilot: {ex.Message}");
         }
     }
 
-    /// <summary>Policy-disable the Widgets / News-and-Interests board (HKLM).</summary>
-    public static void DisableWidgets()
+    /// <summary>Disable Recall / Windows AI data analysis (24H2+, Copilot+ PCs) and
+    /// the "Click to Do" AI actions. Policy keys block snapshot capture; the optional
+    /// Recall feature is also removed best-effort, and the AI fabric service is
+    /// demoted from auto-start to demand-start.</summary>
+    public static void DisableRecall()
     {
         try
         {
-            using var dsh = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(DshPolicyPath);
-            dsh?.SetValue("AllowNewsAndInterests", 0, Microsoft.Win32.RegistryValueKind.DWord);
-            // PolicyManager default — the feed stays off even if the policy is cleared
-            using var pm = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(NewsInterestsPolicyManagerPath);
-            pm?.SetValue("value", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(WindowsAiPath);
+            key?.SetValue("DisableAIDataAnalysis", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("TurnOffSavingSnapshots", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("AllowRecallEnablement", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("DisableClickToDo", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            ForEachUserHive(hive =>
+            {
+                SetHiveDword(hive, UserWindowsAiPath, "DisableAIDataAnalysis", 1);
+                SetHiveDword(hive, UserWindowsAiPath, "DisableClickToDo", 1);
+            });
 
-            GuardLogger.Info("Applied: AllowNewsAndInterests = 0");
+            // AI fabric service: 2=auto, 3=demand. Absent without NPU/Copilot+ hardware.
+            try
+            {
+                using var svc = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(AiFabricServicePath, writable: true);
+                svc?.SetValue("Start", 3, Microsoft.Win32.RegistryValueKind.DWord);
+
+            }
+            catch { }
+
+            // Remove the optional feature entirely where present — absent on most
+            // hardware, so failure is expected and logged only at Warn.
+            var psi = new ProcessStartInfo
+            {
+                FileName = "powershell.exe",
+                Arguments = "-NoProfile -ExecutionPolicy Bypass -Command \"Disable-WindowsOptionalFeature -Online -FeatureName 'Recall' -NoRestart -ErrorAction SilentlyContinue | Out-Null\"",
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            using var proc = Process.Start(psi);
+            proc?.WaitForExit(120000);
+
+            GuardLogger.Info("Applied: DisableRecall (WindowsAI policies + Click to Do off, Recall feature removal attempted, WSAIFabricSvc=demand)");
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable widgets: {ex.Message}");
+            GuardLogger.Error($"Failed to disable Recall: {ex.Message}");
         }
     }
 
-    /// <summary>Disable Bing/web suggestions inside Start-menu search (HKLM).</summary>
+    /// <summary>Disable Bing web results + suggestions in Start/Search — every user
+    /// hive — plus the machine-wide Cortana-in-search policy.</summary>
     public static void DisableSearchSuggestions()
     {
         try
         {
-            using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(ExplorerPolicyPath);
-            key?.SetValue("DisableSearchBoxSuggestions", 1, Microsoft.Win32.RegistryValueKind.DWord);
-            GuardLogger.Info("Applied: DisableSearchBoxSuggestions = 1");
+            using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(WindowsSearchPath);
+            key?.SetValue("AllowCortana", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("CortanaConsent", 0, Microsoft.Win32.RegistryValueKind.DWord);
+
+            ForEachUserHive(hive =>
+            {
+                SetHiveDword(hive, UserExplorerPoliciesPath, "DisableSearchBoxSuggestions", 1);
+                SetHiveDword(hive, UserSearchPath, "BingSearchEnabled", 0);
+                SetHiveDword(hive, UserSearchPath, "CortanaConsent", 0);
+                // SearchSettings: kill the dynamic search box + cloud search
+                // integrations that power web results in Start
+                SetHiveDword(hive, UserSearchSettingsPath, "IsDynamicSearchBoxEnabled", 0);
+                SetHiveDword(hive, UserSearchSettingsPath, "IsAADCloudSearchEnabled", 0);
+                SetHiveDword(hive, UserSearchSettingsPath, "IsMSACloudSearchEnabled", 0);
+            });
+            GuardLogger.Info("Applied: DisableSearchSuggestions (Bing/search suggestions + Cortana + cloud search off, all hives)");
         }
         catch (Exception ex)
         {
@@ -973,222 +1322,841 @@ public static class RegistryGuard
         }
     }
 
-    /// <summary>Telemetry/privacy group policies (HKLM): diagnostic data level,
-    /// activity feed/Timeline upload, advertising ID, cross-device clipboard,
-    /// feedback nagging, location scripting. Documented ADMX policy paths.</summary>
-    public static void DisableTelemetryPolicies()
+    /// <summary>Disable the Widgets board (news &amp; interests feed) via policy +
+    /// hide the taskbar button in every user hive.</summary>
+    public static void DisableWidgets()
     {
-        var applied = 0;
-        foreach (var (path, name, value) in TelemetryPolicyWrites)
+        try
         {
-            try
-            {
-                using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(path);
-                key?.SetValue(name, value, Microsoft.Win32.RegistryValueKind.DWord);
-                if (key != null)
-                    applied++;
-            }
-            catch (Exception ex)
-            {
-                GuardLogger.Warn($"Telemetry policy {name}: {ex.Message}");
-            }
+            using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(WidgetsDshPath);
+            key?.SetValue("AllowNewsAndInterests", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            using var feeds = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(WindowsFeedsPath);
+            feeds?.SetValue("EnableFeeds", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            SetUserDwordAllHives(UserExplorerAdvancedPath, "TaskbarDa", 0);
+            GuardLogger.Info("Applied: DisableWidgets (AllowNewsAndInterests = 0, TaskbarDa = 0)");
         }
-        GuardLogger.Info($"Applied: telemetry/privacy policies ({applied} HKLM values)");
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to disable widgets: {ex.Message}");
+        }
     }
 
-    /// <summary>Policy-disable Edge annoyances: sidebar, startup boost, Spotlight
-    /// backgrounds/promos, personalization reporting, shopping assistant (HKLM).</summary>
-    public static void HardenEdgePolicies()
+    /// <summary>Disable Windows telemetry at every documented surface:
+    /// AllowTelemetry policy, DiagTrack (Connected User Experiences) service,
+    /// advertising ID, tailored experiences, online speech recognition, inking/typing
+    /// collection, feedback-nag frequency, app-launch tracking, activity history
+    /// upload, and Edge diagnostic data. Key set mirrors Win11Debloat
+    /// Disable_Telemetry.reg.</summary>
+    public static void DisableTelemetry()
+    {
+        try
+        {
+            using var dc = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(DataCollectionPath);
+            dc?.SetValue("AllowTelemetry", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            using var sys = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(SystemPolicyPath);
+            sys?.SetValue("PublishUserActivities", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            sys?.SetValue("UploadUserActivities", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            sys?.SetValue("EnableActivityFeed", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            using var edge = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(EdgePolicyPath);
+            edge?.SetValue("PersonalizationReportingEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            edge?.SetValue("DiagnosticData", 0, Microsoft.Win32.RegistryValueKind.DWord);
+
+            ForEachUserHive(hive =>
+            {
+                SetHiveDword(hive, UserAdvertisingInfoPath, "Enabled", 0);
+                SetHiveDword(hive, UserPrivacyPath, "TailoredExperiencesWithDiagnosticDataEnabled", 0);
+                SetHiveDword(hive, UserOnlineSpeechPath, "HasAccepted", 0);
+                SetHiveDword(hive, UserTipcPath, "Enabled", 0);
+                SetHiveDword(hive, UserInputPersonalizationPath, "RestrictImplicitInkCollection", 1);
+                SetHiveDword(hive, UserInputPersonalizationPath, "RestrictImplicitTextCollection", 1);
+                SetHiveDword(hive, UserInputStorePath, "HarvestContacts", 0);
+                SetHiveDword(hive, UserPersonalizationPath, "AcceptedPrivacyPolicy", 0);
+                SetHiveDword(hive, UserExplorerAdvancedPath, "Start_TrackProgs", 0);
+                SetHiveDword(hive, UserSiufPath, "NumberOfSIUFInPeriod", 0);
+            });
+
+            // "Connected User Experiences and Telemetry" (DiagTrack) — the actual
+            // telemetry uploader; absent on some SKUs, failures are non-fatal.
+            RunToolSilent("sc.exe", "stop DiagTrack");
+            RunToolSilent("sc.exe", "config DiagTrack start= disabled");
+            // RetailDemo data-collection service (present on most images)
+            RunToolSilent("sc.exe", "stop RetailDemo");
+            RunToolSilent("sc.exe", "config RetailDemo start= disabled");
+            // ETW AutoLogger that feeds DiagTrack — Start=0 kills the boot-time trace
+            try
+            {
+                using var autolog = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SYSTEM\CurrentControlSet\Control\WMI\AutoLogger\AutoLogger-Diagtrack-Listener");
+                autolog?.SetValue("Start", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            catch { }
+            // Ink Workspace suggestion surface (ads inside the pen menu)
+            try
+            {
+                using var ink = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\WindowsInkWorkspace");
+                ink?.SetValue("AllowWindowsInkWorkspace", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            catch { }
+            // Defender SpyNet — no sample uploads to Microsoft
+            try
+            {
+                using var spynet = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows Defender\Spynet");
+                if (spynet != null)
+                {
+                    spynet.SetValue("SpynetReporting", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                    spynet.SetValue("SubmitSamplesConsent", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                }
+            }
+            catch { }
+            // Microsoft feature experimentation (A/B flighting) off
+            try
+            {
+                using var exp = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Microsoft\PolicyManager\current\device\System");
+                exp?.SetValue("AllowExperimentation", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            catch { }
+            // Cap diagnostic log/dump collection and enhanced analytics
+            try
+            {
+                using var dcl = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(DataCollectionPath);
+                if (dcl != null)
+                {
+                    dcl.SetValue("LimitDiagnosticLogCollection", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                    dcl.SetValue("LimitDumpCollection", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                    dcl.SetValue("LimitEnhancedDiagnosticDataWindowsAnalytics", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                }
+            }
+            catch { }
+            // Malicious Software Removal Tool infection reports off
+            try
+            {
+                using var mrt = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\MRT");
+                mrt?.SetValue("DontReportInfectionInformation", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            catch { }
+            // Speech model downloads off (voice data pipeline)
+            try
+            {
+                using var speech = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Microsoft\Speech_OneCore\Preferences");
+                speech?.SetValue("ModelDownloadAllowed", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            catch { }
+            // "Sync your settings" off — stops settings roaming to MS accounts
+            try
+            {
+                using var sync = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\SettingSync");
+                sync?.SetValue("DisableSettingSync", 2, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            catch { }
+            // "Share across devices" (Connected Devices Platform) user consent off
+            SetUserDwordAllHives(
+                @"Software\Microsoft\Windows\CurrentVersion\CDP",
+                "CdpSessionUserAuthzPolicy", 0);
+            SetUserDwordAllHives(
+                @"Software\Microsoft\Windows\CurrentVersion\CDP",
+                "RomeSdkChannelUserAuthzPolicy", 0);
+            SetUserDwordAllHives(
+                @"Software\Microsoft\Windows\CurrentVersion\CDP\SettingsPage",
+                "RomeSdkChannelUserAuthzPolicy", 0);
+
+            GuardLogger.Info("Applied: DisableTelemetry (AllowTelemetry=0, DiagTrack off, privacy surfaces set)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to disable telemetry: {ex.Message}");
+        }
+    }
+
+    /// <summary>Disable GameDVR / Game Bar background capture — recording buffer
+    /// costs GPU cycles even when never used.</summary>
+    public static void DisableGameDvr()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(GameDvrPolicyPath);
+            key?.SetValue("AllowGameDVR", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            ForEachUserHive(hive =>
+            {
+                SetHiveDword(hive, UserGameConfigStorePath, "GameDVR_Enabled", 0);
+                SetHiveDword(hive, UserGameDvrPath, "AppCaptureEnabled", 0);
+            });
+            GuardLogger.Info("Applied: DisableGameDvr (AllowGameDVR=0, GameDVR_Enabled=0, AppCaptureEnabled=0)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to disable GameDVR: {ex.Message}");
+        }
+    }
+
+    /// <summary>Disable Delivery Optimization P2P update sharing — the machine
+    /// stops uploading update payloads to other PCs on the network/internet.</summary>
+    public static void DisableDeliveryOptimization()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(DoPolicyPath);
+            key?.SetValue("DODownloadMode", 0, Microsoft.Win32.RegistryValueKind.DWord);
+
+            SetUserDwordAllHives(UserDeliveryOptimizationPath, "DownloadMode", 0);
+            // The Delivery Optimization service reads the NETWORK SERVICE hive
+            // (S-1-5-20) — write it explicitly too.
+            try
+            {
+                using var net = Registry.Users.CreateSubKey(
+                    @"S-1-5-20\" + UserDeliveryOptimizationPath);
+                net?.SetValue("DownloadMode", 0, RegistryValueKind.DWord);
+            }
+            catch { }
+
+            GuardLogger.Info("Applied: DisableDeliveryOptimization (DODownloadMode=0)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to disable delivery optimization: {ex.Message}");
+        }
+    }
+
+    /// <summary>Disable OneDrive sync (policy) + hide its Explorer navigation pin.
+    /// Opt-in layer — active file sync is affected, so the config default is off.</summary>
+    public static void DisableOneDrive()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(OneDrivePolicyPath);
+            key?.SetValue("DisableFileSyncNGSC", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            // Hide the OneDrive pin in Explorer's navigation pane for every user
+            SetUserDwordAllHives(UserOneDriveClsidPath, "System.IsPinnedToNameSpaceTree", 0);
+            GuardLogger.Info("Applied: DisableOneDrive (DisableFileSyncNGSC=1, nav pin hidden)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to disable OneDrive: {ex.Message}");
+        }
+    }
+
+    /// <summary>Hide the Teams Chat taskbar button (Win11: TaskbarDa-like TaskbarMn;
+    /// Win10 leftover: HideSCAMeetNow policy).</summary>
+    public static void DisableChatTaskbar()
+    {
+        try
+        {
+            SetUserDwordAllHives(UserExplorerAdvancedPath, "TaskbarMn", 0);
+            SetUserDwordAllHives(UserExplorerPoliciesBasePath, "HideSCAMeetNow", 1);
+            GuardLogger.Info("Applied: DisableChatTaskbar (TaskbarMn=0, HideSCAMeetNow=1)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to disable chat taskbar: {ex.Message}");
+        }
+    }
+
+    /// <summary>Edge residual bloat: sidebar, startup boost, prelaunch, first-run
+    /// experience — all documented Edge policy values.</summary>
+    public static void DisableEdgeBloat()
     {
         try
         {
             using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(EdgePolicyPath);
-            var applied = 0;
-            if (key != null)
-            {
-                foreach (var (name, value) in EdgePolicies)
-                {
-                    key.SetValue(name, value, Microsoft.Win32.RegistryValueKind.DWord);
-                    applied++;
-                }
-            }
-            GuardLogger.Info($"Applied: Edge hardening policies ({applied} values)");
+            key?.SetValue("HubsSidebarEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("StartupBoostEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("AllowPrelaunch", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("HideFirstRunExperience", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            // Shopping assistant, content recommendations, error-page web
+            // service calls and user feedback — all upload/suggestion surfaces
+            key?.SetValue("EdgeShoppingAssistantEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("ShowRecommendationsEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("ResolveNavigationErrorsUseWebService", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("AlternateErrorPagesEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("UserFeedbackAllowed", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            GuardLogger.Info("Applied: DisableEdgeBloat (sidebar/startup-boost/prelaunch/first-run/shopping/recommendations off)");
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to harden Edge policies: {ex.Message}");
+            GuardLogger.Error($"Failed to disable Edge bloat: {ex.Message}");
         }
     }
 
-    /// <summary>Per-user policies applied under every loaded user hive plus the
-    /// Default profile template. A service running as SYSTEM would otherwise write
-    /// them to SYSTEM's own HKCU where they do nothing for interactive users.</summary>
-    private static void ApplyPerUserPolicies(PreventionLayers layers)
+    /// <summary>Layer 22: disable bloatware autostart entries. Writes the
+    /// StartupApproved\Run disabled marker (0x03...) instead of deleting the
+    /// Run value, so the entry stays listed in Task Manager's Startup tab and
+    /// can be re-enabled — same mechanism the UI uses.</summary>
+    public static void DisableStartupBloat(List<string> blacklist, List<string> whitelist)
     {
+        var needles = blacklist
+            .Concat(StartupBloatNames)
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .ToList();
         var applied = 0;
-        foreach (var sid in EnumerateUserSidHives())
+
+        bool IsBloat(string name, string? data)
+        {
+            var haystack = name + " " + data;
+            if (whitelist.Any(w => !string.IsNullOrWhiteSpace(w) &&
+                    haystack.Contains(w, StringComparison.OrdinalIgnoreCase)))
+                return false;
+            return needles.Any(n =>
+                haystack.Contains(n, StringComparison.OrdinalIgnoreCase));
+        }
+
+        void ScanAndMark(RegistryKey root, string runPath, string approvedPath)
         {
             try
             {
-                ApplyUserPolicies(Microsoft.Win32.Registry.Users, sid, layers);
-                applied++;
+                using var runKey = root.OpenSubKey(runPath);
+                if (runKey == null)
+                    return;
+                var targets = runKey.GetValueNames()
+                    .Where(n => IsBloat(n, runKey.GetValue(n) as string))
+                    .ToList();
+                if (targets.Count == 0)
+                    return;
+                using var approved = root.CreateSubKey(approvedPath);
+                if (approved == null)
+                    return;
+                foreach (var name in targets)
+                {
+                    approved.SetValue(name, StartupDisabledMarker, RegistryValueKind.Binary);
+                    applied++;
+                    GuardLogger.Info($"Disabled startup entry: {name}");
+                }
             }
-            catch (Exception ex)
-            {
-                GuardLogger.Warn($"User hive {sid}: {ex.Message}");
-            }
+            catch { }
         }
 
-        // Stamp the Default profile template so FUTURE users get the policies.
-        // reg.exe is required — winreg cannot load/unload hives.
-        // SystemDrive is "C:" — normalize to a rooted path, else Path.Combine
-        // produces the drive-relative "C:Users\..." and the template is missed.
-        var systemDrive = (Environment.GetEnvironmentVariable("SystemDrive") ?? "C:")
-            .TrimEnd('\\') + "\\";
-        var defaultNtuser = Path.Combine(systemDrive, "Users", "Default", "NTUSER.DAT");
-        if (File.Exists(defaultNtuser))
+        try
         {
-            const string tempHive = "BloatwareGuard_Default";
-            if (RunReg($"load HKU\\{tempHive} \"{defaultNtuser}\""))
+            // Machine-wide autostart (64-bit + 32-bit views, Run + RunOnce)
+            ScanAndMark(Registry.LocalMachine, MachineRunPath, StartupApprovedRun);
+            ScanAndMark(Registry.LocalMachine, MachineRunPath32, StartupApprovedRun);
+            ScanAndMark(Registry.LocalMachine, MachineRunOncePath, StartupApprovedRunOnce);
+            // Every user hive + HKCU (Run + RunOnce)
+            ForEachUserHive(hive =>
+            {
+                ScanAndMark(hive, UserRunPath, StartupApprovedRun);
+                ScanAndMark(hive, UserRunOncePath, StartupApprovedRunOnce);
+            });
+            // Startup folders aren't governed by StartupApproved — match the
+            // same needles against filenames and rename to .bgdisabled
+            // (restorable; deleting would lose the restore path)
+            foreach (var dir in new[] {
+                Environment.GetFolderPath(Environment.SpecialFolder.Startup),
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonStartup) })
             {
                 try
                 {
-                    ApplyUserPolicies(Microsoft.Win32.Registry.Users, tempHive, layers);
+                    if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir))
+                        continue;
+                    foreach (var file in Directory.EnumerateFiles(dir))
+                    {
+                        var fname = Path.GetFileName(file);
+                        if (fname.EndsWith(".bgdisabled", StringComparison.OrdinalIgnoreCase) ||
+                            !IsBloat(fname, null))
+                            continue;
+                        File.Move(file, file + ".bgdisabled");
+                        applied++;
+                        GuardLogger.Info($"Disabled startup folder item: {fname}");
+                    }
                 }
-                catch (Exception ex)
-                {
-                    GuardLogger.Warn($"Default profile hive: {ex.Message}");
-                }
-                RunReg($"unload HKU\\{tempHive}");
+                catch { }
             }
+            GuardLogger.Info($"Applied: DisableStartupBloat ({applied} entries)");
         }
-        GuardLogger.Info($"Per-user policies applied to {applied} loaded hive(s) + Default profile");
-    }
-
-    /// <summary>SIDs of loaded real-user hives under HKEY_USERS (S-1-5-21-* only;
-    /// skips .DEFAULT, *_Classes, and service SIDs like S-1-5-18).</summary>
-    private static IEnumerable<string> EnumerateUserSidHives()
-    {
-        string[] names;
-        try { names = Microsoft.Win32.Registry.Users.GetSubKeyNames(); }
-        catch { yield break; }
-        foreach (var n in names)
-            if (n.StartsWith("S-1-5-21-", StringComparison.OrdinalIgnoreCase) &&
-                !n.EndsWith("_Classes", StringComparison.OrdinalIgnoreCase))
-                yield return n;
-    }
-
-    private static void ApplyUserPolicies(Microsoft.Win32.RegistryKey hiveRoot,
-        string subKeyPrefix, PreventionLayers layers)
-    {
-        if (layers.HardenContentDelivery)
+        catch (Exception ex)
         {
-            using var cdm = hiveRoot.CreateSubKey($"{subKeyPrefix}\\{ContentDeliveryPath}");
-            if (cdm != null)
-                foreach (var v in ContentDeliveryValues)
-                    cdm.SetValue(v, 0, Microsoft.Win32.RegistryValueKind.DWord);
-
-            using var adv = hiveRoot.CreateSubKey($"{subKeyPrefix}\\{ExplorerAdvancedPath}");
-            adv?.SetValue("ShowCopilotButton", 0, Microsoft.Win32.RegistryValueKind.DWord);
-            adv?.SetValue("Start_IrisRecommendations", 0, Microsoft.Win32.RegistryValueKind.DWord);
-        }
-        if (layers.DisableSearchSuggestions)
-        {
-            using var explorer = hiveRoot.CreateSubKey($"{subKeyPrefix}\\{ExplorerPolicyPath}");
-            explorer?.SetValue("DisableSearchBoxSuggestions", 1, Microsoft.Win32.RegistryValueKind.DWord);
-        }
-        if (layers.DisableAiFeatures)
-        {
-            using var copilot = hiveRoot.CreateSubKey($"{subKeyPrefix}\\{CopilotPolicyPath}");
-            copilot?.SetValue("TurnOffWindowsCopilot", 1, Microsoft.Win32.RegistryValueKind.DWord);
-        }
-        if (layers.DisableTelemetryPolicies)
-        {
-            foreach (var (path, name, value) in TelemetryUserWrites)
-            {
-                using var key = hiveRoot.CreateSubKey($"{subKeyPrefix}\\{path}");
-                key?.SetValue(name, value, Microsoft.Win32.RegistryValueKind.DWord);
-            }
-        }
-        if (layers.DisableGameDvr)
-        {
-            foreach (var (path, name, value) in GameDvrUserWrites)
-            {
-                using var key = hiveRoot.CreateSubKey($"{subKeyPrefix}\\{path}");
-                key?.SetValue(name, value, Microsoft.Win32.RegistryValueKind.DWord);
-            }
+            GuardLogger.Error($"Failed to disable startup bloat: {ex.Message}");
         }
     }
 
-    private static bool RunReg(string arguments)
+    /// <summary>Layer 23: Windows Error Reporting off — HKLM values + policy +
+    /// per-hive UI/logging suppression. WerSvc already runs on demand.</summary>
+    public static void DisableErrorReporting()
     {
         try
         {
-            var psi = new ProcessStartInfo
+            using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(WerPath);
+            key?.SetValue("Disabled", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("DontSendAdditionalData", 1, Microsoft.Win32.RegistryValueKind.DWord);
+
+            using var policy = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(WerPolicyPath);
+            policy?.SetValue("Disabled", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            policy?.SetValue("AutoApproveOSDumps", 0, Microsoft.Win32.RegistryValueKind.DWord);
+
+            ForEachUserHive(hive =>
             {
-                FileName = "reg.exe",
-                Arguments = arguments,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-            using var proc = Process.Start(psi);
-            return proc != null && proc.WaitForExit(15000) && proc.ExitCode == 0;
+                SetHiveDword(hive, UserWerPath, "Disabled", 1);
+                SetHiveDword(hive, UserWerPath, "DontShowUI", 1);
+                SetHiveDword(hive, UserWerPath, "LoggingDisabled", 1);
+            });
+            GuardLogger.Info("Applied: DisableErrorReporting (WER uploads + UI + logging off)");
         }
-        catch { return false; }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to disable error reporting: {ex.Message}");
+        }
     }
 
-    /// <summary>Create Deprovisioned marker keys for matched families — Windows
-    /// checks this documented path and skips re-provisioning during feature updates.</summary>
-    public static void MarkDeprovisioned(IEnumerable<string> familyNames)
+    /// <summary>Layer 24: demote Edge update services to demand-start and
+    /// disable their scheduled tasks. Demand-start keeps manual Edge updates
+    /// working while killing the always-on updater/elevation surface.</summary>
+    public static void DisableEdgeUpdateBloat()
     {
-        var count = 0;
-        foreach (var family in familyNames)
+        try
         {
-            if (string.IsNullOrEmpty(family))
-                continue;
-            try
+            foreach (var svc in new[] { "edgeupdate", "edgeupdatem", "MicrosoftEdgeElevationService" })
             {
-                using var key = Microsoft.Win32.Registry.LocalMachine
-                    .CreateSubKey($"{DeprovisionedPath}\\{family}");
-                if (key != null)
-                    count++;
+                DemoteService(svc);
             }
-            catch (Exception ex)
+            // Scheduled tasks re-arm the services — disable them too
+            foreach (var task in new[] {
+                "MicrosoftEdgeUpdateTaskMachineCore",
+                "MicrosoftEdgeUpdateTaskMachineUA",
+                "MicrosoftEdgeUpdateBrowserReplacementTask" })
             {
-                GuardLogger.Warn($"Deprovisioned marker failed for {family}: {ex.Message}");
+                RunToolSilent("schtasks.exe", $"/Change /TN \"{task}\" /DISABLE");
             }
+            GuardLogger.Info("Applied: DisableEdgeUpdateBloat (edgeupdate/edgeupdatem/elevation → demand, update tasks off)");
         }
-        if (count > 0)
-            GuardLogger.Info($"Deprovisioned markers written for {count} package families");
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to disable Edge update bloat: {ex.Message}");
+        }
     }
 
-    /// <summary>Windows 11 25H2 policy: remove these Store packages at first sign-in
-    /// of new user profiles. Inert on older builds — unknown policy keys are ignored.</summary>
-    public static void WriteRemoveDefaultStorePackagesPolicy(IEnumerable<string> familyNames)
+    // AppPrivacy policies force-denied (value 2). Camera/microphone/location
+    // excluded on purpose — Teams/Weather etc. legitimately need them.
+    private static readonly string[] AppPrivacyDenies = {
+        "LetAppsRunInBackground", "LetAppsAccessAccountInfo",
+        "LetAppsAccessCallHistory", "LetAppsAccessContacts",
+        "LetAppsAccessEmail", "LetAppsAccessMessaging",
+        "LetAppsAccessMotion", "LetAppsAccessNotifications",
+        "LetAppsAccessPhone", "LetAppsAccessRadios",
+        "LetAppsAccessTasks", "LetAppsAccessTrustedDevices",
+        "LetAppsSyncWithDevices", "LetAppsGetDiagnosticInfo",
+        "LetAppsActivateWithVoice", "LetAppsActivateWithVoiceAboveLock",
+    };
+
+    /// <summary>Layer 26: force-deny conservative AppPrivacy set.</summary>
+    public static void DisableAppPermissions()
     {
-        var count = 0;
-        foreach (var family in familyNames)
+        try
         {
-            if (string.IsNullOrEmpty(family))
-                continue;
-            try
-            {
-                using var key = Microsoft.Win32.Registry.LocalMachine
-                    .CreateSubKey($"{RemoveDefaultPackagesPath}\\{family}");
-                if (key != null)
-                {
-                    key.SetValue("RemovePackage", 1, Microsoft.Win32.RegistryValueKind.DWord);
-                    count++;
-                }
-            }
-            catch (Exception ex)
-            {
-                GuardLogger.Warn($"RemoveDefaultStorePackages failed for {family}: {ex.Message}");
-            }
+            using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(AppPrivacyPath);
+            foreach (var name in AppPrivacyDenies)
+                key?.SetValue(name, 2, Microsoft.Win32.RegistryValueKind.DWord);
+            // HKLM-level ad-ID and device-finder policies (per-hive counterparts
+            // are in DisableTelemetry; these survive profile churn)
+            using var adInfo = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo");
+            adInfo?.SetValue("DisabledByGroupPolicy", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            using var findMy = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Policies\Microsoft\FindMyDevice");
+            findMy?.SetValue("AllowFindMyDevice", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            GuardLogger.Info($"Applied: DisableAppPermissions ({AppPrivacyDenies.Length} force-denied + ad-ID/FindMyDevice policies)");
         }
-        if (count > 0)
-            GuardLogger.Info($"RemoveDefaultStorePackages policy set for {count} package families");
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to disable app permissions: {ex.Message}");
+        }
+    }
+
+    /// <summary>Layer 27: demote Xbox services to demand-start. These sit
+    /// permanently running even without any gaming use; demand-start keeps
+    /// Game Bar / Xbox sign-in functional when actually invoked.</summary>
+    public static void DisableXboxServices()
+    {
+        try
+        {
+            foreach (var svc in new[] { "XblAuthManager", "XblGameSave",
+                                        "XboxNetApiSvc", "XboxGipSvc" })
+            {
+                DemoteService(svc);
+            }
+            GuardLogger.Info("Applied: DisableXboxServices (4 services → demand-start)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to demote Xbox services: {ex.Message}");
+        }
+    }
+
+    /// <summary>Layer 25: block OEM driver payloads delivered via Windows Update —
+    /// a known channel for OEM bloatware re-delivery.</summary>
+    public static void BlockOemDriverUpdates()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(WindowsUpdatePolicyPath);
+            key?.SetValue("ExcludeWUDriversInQualityUpdate", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            // Stop device-metadata (icons + vendor companion apps) downloads —
+            // another OEM silent-delivery channel alongside WU drivers
+            using var meta = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Microsoft\Windows\CurrentVersion\Device Metadata");
+            meta?.SetValue("PreventDeviceMetadataFromNetwork", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            GuardLogger.Info("Applied: BlockOemDriverUpdates (ExcludeWUDriversInQualityUpdate=1)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to block OEM driver updates: {ex.Message}");
+        }
+    }
+
+    // HKLM keys this guard writes to — exported to .reg before first apply so
+    // every change is restorable with a double-click.
+    private static readonly string[] BackupKeyPaths = {
+        @"SOFTWARE\Policies\Microsoft\Windows\CloudContent",
+        @"SOFTWARE\Policies\Microsoft\Windows\Device Metadata",
+        @"SOFTWARE\Policies\Microsoft\Windows\AppCompat",
+        @"SOFTWARE\Policies\Microsoft\Windows\Windows Search",
+        @"SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot",
+        @"SOFTWARE\Policies\Microsoft\Windows\WindowsAI",
+        @"SOFTWARE\Policies\Microsoft\Dsh",
+        @"SOFTWARE\Policies\Microsoft\Windows\Windows Feeds",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
+        @"SOFTWARE\Policies\Microsoft\Windows\System",
+        @"SOFTWARE\Policies\Microsoft\Edge",
+        @"SOFTWARE\Policies\Microsoft\Windows\GameDVR",
+        @"SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization",
+        @"SOFTWARE\Policies\Microsoft\Windows\OneDrive",
+        @"SOFTWARE\Microsoft\Windows\Windows Error Reporting",
+        @"SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting",
+        @"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate",
+        @"SOFTWARE\Policies\Microsoft\Windows\AppPrivacy",
+        @"SOFTWARE\Policies\Microsoft\WindowsInkWorkspace",
+        @"SYSTEM\CurrentControlSet\Control\WMI\AutoLogger\AutoLogger-Diagtrack-Listener",
+        @"SYSTEM\CurrentControlSet\Control\Session Manager",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\ReserveManager",
+        @"SYSTEM\CurrentControlSet\Control\Remote Assistance",
+        @"SOFTWARE\Policies\Microsoft\Windows\PreviewBuilds",
+        @"SOFTWARE\Policies\Microsoft\Windows Defender\Spynet",
+        @"SOFTWARE\Microsoft\PolicyManager\current\device\System",
+        @"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU",
+        @"SOFTWARE\Policies\Microsoft\MRT",
+        @"SOFTWARE\Policies\Microsoft\Windows\Explorer",
+        @"SOFTWARE\Microsoft\Speech_OneCore\Preferences",
+        @"SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo",
+        @"SOFTWARE\Policies\Microsoft\FindMyDevice",
+        @"SOFTWARE\Policies\Microsoft\Windows\SettingSync",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Device Metadata",
+    };
+    private static bool _backupDone;
+
+    /// <summary>Layer 28: reg-export every HKLM key we touch into
+    /// %ProgramData%\BloatwareGuard\backup\ — once per process.</summary>
+    public static void BackupRegistryKeys()
+    {
+        if (_backupDone)
+            return;
+        _backupDone = true;
+        try
+        {
+            var dir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+                "BloatwareGuard", "backup");
+            Directory.CreateDirectory(dir);
+            var stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+            var exported = 0;
+            foreach (var path in BackupKeyPaths)
+            {
+                var file = Path.Combine(dir, $"{stamp}-{exported++}.reg");
+                // reg.exe export fails for non-existent keys — that is expected
+                RunToolSilent("reg.exe", $"export \"HKLM\\{path}\" \"{file}\" /y");
+                if (!File.Exists(file))
+                    File.Delete(file);  // no-op guard — keep dir clean
+            }
+            GuardLogger.Info($"Applied: BackupRegistry ({exported} keys → {dir})");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Warn($"BackupRegistry skipped: {ex.Message}");
+        }
+    }
+
+    /// <summary>Layer 29: opt-in Print Spooler disable — the PrintNightmare
+    /// surface. Off by default since it breaks printing.</summary>
+    public static void DisablePrintSpooler()
+    {
+        try
+        {
+            RunToolSilent("sc.exe", "stop Spooler");
+            RunToolSilent("sc.exe", "config Spooler start= disabled");
+            GuardLogger.Info("Applied: DisablePrintSpooler (Spooler stopped + disabled)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to disable Print Spooler: {ex.Message}");
+        }
+    }
+
+    /// <summary>Layer 30: Windows Platform Binary Table lets OEMs inject an
+    /// executable into the boot chain via firmware (abused e.g. by ASUS Live
+    /// Update). DisableWpbtExecution=1 makes Windows ignore it.</summary>
+    public static void BlockOemWpbtExecution()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SYSTEM\CurrentControlSet\Control\Session Manager");
+            key?.SetValue("DisableWpbtExecution", 1,
+                          Microsoft.Win32.RegistryValueKind.DWord);
+            GuardLogger.Info("Applied: BlockOemWpbtExecution (WPBT disabled)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to block WPBT: {ex.Message}");
+        }
+    }
+
+    /// <summary>Layer 31: turn off Reserved Storage (~7GB set aside for
+    /// updates). Updates then use free space as they did pre-1903 — helps
+    /// small-disk devices.</summary>
+    public static void DisableReservedStorage()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Microsoft\Windows\CurrentVersion\ReserveManager");
+            if (key != null)
+            {
+                key.SetValue("ShippedWithReserves", 0,
+                             Microsoft.Win32.RegistryValueKind.DWord);
+                key.SetValue("MiscPolicyInfo", 2,
+                             Microsoft.Win32.RegistryValueKind.DWord);
+                key.SetValue("PassedPolicy", 0,
+                             Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            GuardLogger.Info("Applied: DisableReservedStorage (ReserveManager)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to disable reserved storage: {ex.Message}");
+        }
+    }
+
+    /// <summary>Layer 32: clipboard history syncs content to Microsoft's
+    /// cloud for cross-device paste — allow local history but not the sync.</summary>
+    public static void DisableCloudClipboard()
+    {
+        try
+        {
+            using var sys = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Policies\Microsoft\Windows\System");
+            sys?.SetValue("AllowCrossDeviceClipboard", 0,
+                          Microsoft.Win32.RegistryValueKind.DWord);
+            SetUserDwordAllHives(@"Software\Microsoft\Clipboard",
+                                 "EnableClipboardHistory", 0);
+            GuardLogger.Info("Applied: DisableCloudClipboard");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to disable cloud clipboard: {ex.Message}");
+        }
+    }
+
+    /// <summary>Layer 33: Remote Assistance inbound offers off.</summary>
+    public static void DisableRemoteAssistance()
+    {
+        try
+        {
+            using var ra = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SYSTEM\CurrentControlSet\Control\Remote Assistance");
+            if (ra != null)
+            {
+                ra.SetValue("fAllowToGetHelp", 0,
+                            Microsoft.Win32.RegistryValueKind.DWord);
+                ra.SetValue("fAllowFullControl", 0,
+                            Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            GuardLogger.Info("Applied: DisableRemoteAssistance");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to disable Remote Assistance: {ex.Message}");
+        }
+    }
+
+    /// <summary>Layer 34: prevent Windows Insider preview enrollment —
+    /// preview builds ship heavier telemetry and instability.</summary>
+    public static void BlockInsiderPreview()
+    {
+        try
+        {
+            using var pb = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Policies\Microsoft\Windows\PreviewBuilds");
+            pb?.SetValue("AllowBuildPreview", 0,
+                         Microsoft.Win32.RegistryValueKind.DWord);
+            using var sh = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Microsoft\WindowsSelfHost\UI\Visibility");
+            sh?.SetValue("HideInsiderPage", 1,
+                         Microsoft.Win32.RegistryValueKind.DWord);
+            GuardLogger.Info("Applied: BlockInsiderPreview");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to block Insider preview: {ex.Message}");
+        }
+    }
+
+    /// <summary>Layer 35: demote misc bloat services to demand-start —
+    /// dmwappushservice (WAP push/MDM channel), MapsBroker (downloaded-map
+    /// broker), WMPNetworkSvc (media sharing), DiagnosticsHub standard
+    /// collector. Demand-start keeps them usable when actually invoked.</summary>
+    public static void DisableMiscBloatServices()
+    {
+        try
+        {
+            // CDPSvc = Nearby Sharing; NvTelemetryContainer / ESRV_* = GPU/Intel
+            // driver telemetry; PushToInstall = Store push-install channel;
+            // SEMgrSvc = NFC/SE payments manager; PhoneSvc = Phone Link
+            // (absent where not applicable — write is a no-op)
+            foreach (var svc in new[] { "dmwappushservice", "MapsBroker",
+                                        "WMPNetworkSvc",
+                                        "diagnosticshub.standardcollector.service",
+                                        "CDPSvc", "NvTelemetryContainer",
+                                        "esrv_svc", "ESRV_SVC_QUEENCREEK",
+                                        "PushToInstall", "SEMgrSvc", "PhoneSvc",
+                                        "SysMain", "TabletInputService",
+                                        "WSearch",              // indexer —
+                                        // resident file scan; demand-start
+                                        // keeps search working
+                                        "AssignedAccessManagerSvc" })
+            {
+                DemoteService(svc);
+            }
+            // Remote Registry: read/write registry over SMB — a real attack
+            // surface with no consumer use case; disable outright (not
+            // demand-start, which still leaves it reachable).
+            RunToolSilent("sc.exe", "stop RemoteRegistry");
+            RunToolSilent("sc.exe", "config RemoteRegistry start= disabled");
+            GuardLogger.Info("Applied: DisableMiscBloatServices (15 services → demand-start, RemoteRegistry disabled)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to demote misc services: {ex.Message}");
+        }
+    }
+
+    /// <summary>Layer 36: Desktop Spotlight is a content-delivery surface
+    /// (wallpaper-embedded promos). Per-hive since wallpapers are per-user.</summary>
+    public static void DisableSpotlight()
+    {
+        try
+        {
+            SetUserDwordAllHives(
+                @"Software\Microsoft\Windows\CurrentVersion\DesktopSpotlight\Settings",
+                "Enabled", 0);
+            SetUserDwordAllHives(
+                @"Software\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers",
+                "BackgroundType", 0);
+            // Per-hive CloudContent policies: block Spotlight features and
+            // the per-user data collection that feeds them
+            SetUserDwordAllHives(
+                @"Software\Policies\Microsoft\Windows\CloudContent",
+                "DisableWindowsSpotlightFeatures", 1);
+            SetUserDwordAllHives(
+                @"Software\Policies\Microsoft\Windows\CloudContent",
+                "DisableSpotlightCollectionOnDesktop", 1);
+            SetUserDwordAllHives(
+                @"Software\Policies\Microsoft\Windows\CloudContent",
+                "DisableSoftLanding", 1);
+            GuardLogger.Info("Applied: DisableSpotlight (DesktopSpotlight + wallpaper type + per-hive CloudContent policies)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to disable Spotlight: {ex.Message}");
+        }
+    }
+
+    /// <summary>Layer 37: disable AutoPlay/AutoRun on all drives —
+    /// NoDriveTypeAutoRun=255, NoAutorun=1. Classic media-execution vector.</summary>
+    public static void DisableAutoplay()
+    {
+        try
+        {
+            using var pol = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer");
+            if (pol != null)
+            {
+                pol.SetValue("NoDriveTypeAutoRun", 255,
+                             Microsoft.Win32.RegistryValueKind.DWord);
+                pol.SetValue("NoAutorun", 1,
+                             Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            SetUserDwordAllHives(
+                @"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer",
+                "NoDriveTypeAutoRun", 255);
+            GuardLogger.Info("Applied: DisableAutoplay (NoDriveTypeAutoRun=255)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to disable AutoPlay: {ex.Message}");
+        }
+    }
+
+    /// <summary>Layer 38: prevent Windows Update rebooting while any user is
+    /// logged on — the notorious forced-restart behavior.</summary>
+    public static void NoForcedReboot()
+    {
+        try
+        {
+            using var au = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU");
+            if (au != null)
+            {
+                au.SetValue("NoAutoRebootWithLoggedOnUsers", 1,
+                            Microsoft.Win32.RegistryValueKind.DWord);
+                au.SetValue("AlwaysAutoRebootAtScheduledTime", 0,
+                            Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            GuardLogger.Info("Applied: NoForcedReboot (WU reboot policy)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to set reboot policy: {ex.Message}");
+        }
+    }
+
+    /// <summary>Layer 39: HideRecommendedSection removes Start's
+    /// "Recommended" section — it surfaces promoted apps, not just files
+    /// (Windows 11 22H2+ policy).</summary>
+    public static void HideStartRecommendations()
+    {
+        try
+        {
+            using var pol = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Policies\Microsoft\Windows\Explorer");
+            pol?.SetValue("HideRecommendedSection", 1,
+                          Microsoft.Win32.RegistryValueKind.DWord);
+            // The section draws from recent-doc tracking — stop collecting it
+            SetUserDwordAllHives(
+                @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
+                "Start_TrackDocs", 0);
+            GuardLogger.Info("Applied: HideStartRecommendations");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to hide Start recommendations: {ex.Message}");
+        }
+    }
+
+    private static void RunToolSilent(string fileName, string arguments)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = fileName,
+            Arguments = arguments,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        using var proc = Process.Start(psi);
+        proc?.WaitForExit(15000);
     }
 }
 
@@ -1199,33 +2167,8 @@ public static class ScheduledTaskGuard
     // Known OEM bloatware task patterns — must be specific enough to avoid matching Microsoft system tasks
     private static readonly string[] OemTaskPatterns = {
         "OEM", "Dell", "HPInc", "HPA", "Lenovo", "ASUS", "Acer", "McAfee", "Norton",
-        "SupportAssist", "Vantage", "Armoury", "Crate", "Reinstall", "Restore", "Bloatware"
-    };
-
-    // Microsoft telemetry/CEIP scheduled tasks — explicit full paths, disabled outright.
-    // Mirrors the telemetry task lists used by Win11Debloat / Sophia Script.
-    private static readonly string[] TelemetryTaskPaths = {
-        @"\Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser",
-        @"\Microsoft\Windows\Application Experience\ProgramDataUpdater",
-        @"\Microsoft\Windows\Application Experience\PcaPatchDbUpdate",
-        @"\Microsoft\Windows\Application Experience\StartupAppTask",
-        @"\Microsoft\Windows\Autochk\Proxy",
-        @"\Microsoft\Windows\Customer Experience Improvement Program\Consolidator",
-        @"\Microsoft\Windows\Customer Experience Improvement Program\KernelCeipTask",
-        @"\Microsoft\Windows\Customer Experience Improvement Program\UsbCeip",
-        @"\Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticDataCollector",
-        @"\Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticResolver",
-        @"\Microsoft\Windows\Feedback\Siuf\DmClient",
-        @"\Microsoft\Windows\Feedback\Siuf\DmClientOnScenarioDownload",
-        @"\Microsoft\Windows\Maps\MapsToastTask",
-        @"\Microsoft\Windows\Maps\MapsUpdateTask",
-        @"\Microsoft\Windows\Power Efficiency Diagnostics\AnalyzeSystem",
-        @"\Microsoft\Windows\Speech\SpeechModelDownloadTask",
-        @"\Microsoft\Windows\DiskFootprint\Diagnostics",
-        @"\Microsoft\Windows\WinErrorReporting\QueueReporting",
-        @"\Microsoft\Windows\Device Information\Device",
-        @"\Microsoft\Windows\Device Information\Device User",
-        @"\Microsoft\Windows\TextInput\TextInputModelDownloadTask",
+        "SupportAssist", "Vantage", "Armoury", "Crate", "CustomerExperienceImprovement",
+        "Customer Experience Improvement", "Reinstall", "Restore", "Bloatware"
     };
 
     // Microsoft system tasks that MUST NEVER be disabled (TaskPath prefixes)
@@ -1272,16 +2215,15 @@ public static class ScheduledTaskGuard
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            // Match TaskPath too — e.g. CEIP tasks live under
-            // \Microsoft\Windows\Customer Experience Improvement Program\ with
-            // innocuous names like "Consolidator" that name-matching alone misses
-            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Get-ScheduledTask | Where-Object {{$_.TaskPath -like '*OEM*' -or $_.TaskName -match '{string.Join("|", OemTaskPatterns.Select(Regex.Escape))}' -or $_.TaskPath -match '{string.Join("|", OemTaskPatterns.Select(Regex.Escape))}'}} | Select-Object TaskName,TaskPath,State | ConvertTo-Json\"",
+            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Get-ScheduledTask | Where-Object {{$_.TaskPath -like '*OEM*' -or $_.TaskName -match '{string.Join("|", OemTaskPatterns.Select(Regex.Escape))}'}} | Select-Object TaskName,TaskPath,State | ConvertTo-Json\"",
             RedirectStandardOutput = true,
             UseShellExecute = false,
             CreateNoWindow = true
         };
 
-        var output = Proc.Capture(psi, 120000).Stdout;
+        using var proc = Process.Start(psi);
+        var output = proc?.StandardOutput.ReadToEnd() ?? "";
+        proc?.WaitForExit();
 
         try
         {
@@ -1326,6 +2268,66 @@ public static class ScheduledTaskGuard
         }
     }
 
+    // Microsoft's own data-collection tasks — exact task names, not patterns, so
+    // nothing else is touched. CompatTelRunner is a notorious CPU/IO hog.
+    private static readonly string[] TelemetryTaskPaths = {
+        @"\Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser",
+        @"\Microsoft\Windows\Application Experience\ProgramDataUpdater",
+        @"\Microsoft\Windows\Application Experience\PcaPatchDbTask",
+        @"\Microsoft\Windows\Application Experience\StartupAppTask",
+        @"\Microsoft\Windows\Autochk\Proxy",
+        @"\Microsoft\Windows\Customer Experience Improvement Program\Consolidator",
+        @"\Microsoft\Windows\Customer Experience Improvement Program\UsbCeip",
+        @"\Microsoft\Windows\Customer Experience Improvement Program\KernelCeipTask",
+        @"\Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticDataCollector",
+        @"\Microsoft\Windows\Feedback\Siuf\DmClient",
+        @"\Microsoft\Windows\Feedback\Siuf\DmClientOnScenarioDownload",
+        @"\Microsoft\Windows\Maps\MapsUpdateTask",
+        @"\Microsoft\Windows\Maps\MapsToastTask",
+        // Office Customer Experience Improvement Program (when Office is
+        // installed; schtasks ignores missing paths)
+        @"\Microsoft\Office\OfficeTelemetryAgentLogOn",
+        @"\Microsoft\Office\OfficeTelemetryAgentLogOn2016",
+        @"\Microsoft\Office\OfficeTelemetryAgentFallBack",
+        @"\Microsoft\Office\OfficeTelemetryAgentFallBack2016",
+        @"\Microsoft\Office\Office 15 Subscription Heartbeat",
+        @"\Microsoft\Office\Office Feature Updates",
+        @"\Microsoft\Office\Office Feature Updates Logon",
+        // Retail demo experience + Insider flighting data collection +
+        // Windows Insider feedback app usage
+        @"\Microsoft\Windows\RetailDemo\RetailDemoCleanupOnContent",
+        @"\Microsoft\Windows\Flighting\FeatureConfig\ReconcileFeatures",
+        @"\Microsoft\Windows\Flighting\FeatureConfig\UsageDataFlushed",
+        @"\Microsoft\Windows\Flighting\FeatureConfig\UsageDataReporting",
+        @"\Microsoft\Windows\Feedback\WipAppUsageClient",
+        // Device Census (hardware/app inventory upload), Family Safety usage
+        // monitor, and the on-demand network-info collection task
+        @"\Microsoft\Windows\Device Information\Device",
+        @"\Microsoft\Windows\Device Information\Device User",
+        @"\Microsoft\Windows\Shell\FamilySafetyMonitor",
+        @"\Microsoft\Windows\NetTrace\GatherNetworkInfo",
+        // Application Impact Telemetry, speech-model downloads,
+        // storage-footprint diagnostics
+        @"\Microsoft\Windows\Application Experience\AitEnableAgent",
+        @"\Microsoft\Windows\Speech\SpeechModelDownloadTask",
+        @"\Microsoft\Windows\DiskFootprint\Diagnostics",
+    };
+
+    /// <summary>Disable the known Microsoft telemetry/CEIP scheduled tasks.</summary>
+    public static void DisableTelemetryTasks()
+    {
+        var disabled = 0;
+        foreach (var fullPath in TelemetryTaskPaths)
+        {
+            var sep = fullPath.LastIndexOf('\\');
+            var path = fullPath[..(sep + 1)];
+            var name = fullPath[(sep + 1)..];
+            DisableTask(name, path);
+            disabled++;
+        }
+        GuardLogger.Info($"Applied: DisableTelemetryTasks ({disabled} tasks)");
+    }
+
     private static void DisableTask(string name, string path)
     {
         var fullPath = path.EndsWith("\\") ? path + name : path + "\\" + name;
@@ -1339,668 +2341,13 @@ public static class ScheduledTaskGuard
             CreateNoWindow = true
         };
 
-        if (Proc.Wait(psi, 15000) == 0)
+        using var proc = Process.Start(psi);
+        proc?.WaitForExit();
+
+        if (proc?.ExitCode == 0)
             GuardLogger.Info($"Disabled scheduled task: {fullPath}");
         else
             GuardLogger.Warn($"Failed to disable task: {fullPath}");
-    }
-
-    /// <summary>Disable known Microsoft telemetry/CEIP scheduled tasks by exact path.
-    /// Missing tasks are logged at info level — they vary by Windows build.</summary>
-    public static void DisableTelemetryTasks()
-    {
-        var disabled = 0;
-        foreach (var taskPath in TelemetryTaskPaths)
-        {
-            var psi = new ProcessStartInfo
-            {
-                FileName = "schtasks.exe",
-                Arguments = $"/Change /TN \"{taskPath}\" /DISABLE",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-
-            var rc = Proc.Wait(psi, 15000);
-            if (rc == 0)
-            {
-                disabled++;
-                GuardLogger.Info($"Disabled telemetry task: {taskPath}");
-            }
-            else
-            {
-                GuardLogger.Info($"Telemetry task not present/timeout (skip): {taskPath}");
-            }
-        }
-        GuardLogger.Info($"Disabled {disabled}/{TelemetryTaskPaths.Length} telemetry scheduled tasks");
-    }
-}
-
-// ─── Win32 / Vendor Bloat ────────────────────────────────────────────────────
-
-public static class Win32BloatGuard
-{
-    // Hardware OEMs — a bare manufacturer name is never enough to act on:
-    // drivers and hardware-integration utilities (touchpad, RGB, audio stack)
-    // must survive. They only match together with a bloat keyword.
-    private static readonly string[] HardwareVendorPatterns = {
-        "Lenovo", "Dell", "Hewlett", "HP Inc", "HPInc",
-        "ASUS", "ASUSTeK", "Acer", "Razer",
-    };
-    // Vendors whose typical OEM-shipped products are bloat/trialware by
-    // definition — a name match alone suffices.
-    private static readonly string[] JunkVendorPatterns = {
-        "McAfee", "Norton", "NortonLifeLock", "Avast", "AVG Software",
-        "WildTangent", "CyberLink", "ExpressVPN", "NordVPN",
-        "Dropbox", "Spotify", "Adobe Creative Cloud", "CCleaner", "Booking.com",
-    };
-    // Words that mark OEM software as nagware/updater rather than hardware support
-    private static readonly string[] BloatKeywords = {
-        "update", "updater", "support", "assist", "telemetry", "diagnostic",
-        "analytic", "nag", "promo", "customer", "optimizer", "helper",
-        "quickset", "registration", "survey", "experience", "trial", "offer", "deals",
-    };
-    private static readonly string[] VendorPatterns =
-        HardwareVendorPatterns.Concat(JunkVendorPatterns).ToArray();
-
-    // Run/RunOnce keys swept for startup bloat — HKLM 64- and 32-bit views.
-    // Policies\Explorer\Run is an often-overlooked autostart hive (also abused
-    // for malware persistence).
-    private static readonly string[] HklmRunKeyPaths = {
-        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run",
-        @"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce",
-        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run",
-        @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Run",
-        @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\RunOnce",
-        @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run",
-    };
-    private static readonly string[] RunKeyPaths = {
-        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run",
-        @"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce",
-        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run",
-    };
-
-    // Active Setup — OEM stub installers that re-run at EVERY user sign-in
-    private static readonly string[] ActiveSetupPaths = {
-        @"SOFTWARE\Microsoft\Active Setup\Installed Components",
-        @"SOFTWARE\WOW6432Node\Microsoft\Active Setup\Installed Components",
-    };
-
-    // Win32 uninstall hives — 64- and 32-bit views
-    private static readonly string[] Win32UninstallPaths = {
-        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
-        @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall",
-    };
-
-    // UninstallString tokens that already make an uninstaller non-interactive
-    private static readonly HashSet<string> SilentUninstallFlags = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "/s", "/silent", "/verysilent", "/quiet", "/qn", "-s", "-silent"
-    };
-
-    // Pure-telemetry endpoints blocked via the hosts file — the Spybot
-    // Anti-Beacon technique. Conservative: no Windows Update/Store/activation.
-    private static readonly string[] TelemetryHosts = {
-        "vortex.data.microsoft.com", "vortex-win.data.microsoft.com",
-        "telecommand.telemetry.microsoft.com", "telecommand.telemetry.microsoft.com.nsatc.net",
-        "oca.telemetry.microsoft.com", "oca.telemetry.microsoft.com.nsatc.net",
-        "sqm.telemetry.microsoft.com", "sqm.telemetry.microsoft.com.nsatc.net",
-        "watson.telemetry.microsoft.com", "watson.telemetry.microsoft.com.nsatc.net",
-        "watson.ppe.telemetry.microsoft.com", "watson.microsoft.com",
-        "reports.wes.df.telemetry.microsoft.com", "wes.df.telemetry.microsoft.com",
-        "services.wes.df.telemetry.microsoft.com", "sqm.df.telemetry.microsoft.com",
-        "settings-win.data.microsoft.com", "settings.data.microsoft.com",
-        "statsfe2.ws.microsoft.com", "redir.metaservices.microsoft.com",
-        "choice.microsoft.com", "choice.microsoft.com.nsatc.net",
-        "telemetry.appex.bing.net", "telemetry.urs.microsoft.com",
-        "feedback.microsoft-hohm.com", "vortex-bn2.metron.live.com.nsatc.net",
-    };
-    private const string HostsBlockBegin = "# >>> BloatwareGuard telemetry block";
-    private const string HostsBlockEnd = "# <<< BloatwareGuard telemetry block";
-
-    // Deprecated-in-Windows capabilities safe to remove (deprecated by Microsoft)
-    private static readonly string[] DeprecatedCapabilities = {
-        "Microsoft.Windows.WordPad",  // deprecated — removed from builds > 26020
-        "App.StepsRecorder",          // deprecated, slated for removal
-    };
-
-    // Telemetry/leftover system services — disabled outright. DiagTrack is the
-    // main telemetry pipeline; the Xbox services are dead once Xbox apps go.
-    private static readonly string[] TelemetryServices = {
-        "DiagTrack",          // Connected User Experiences and Telemetry
-        "dmwappushservice",   // WAP Push Message Routing (telemetry channel)
-        "RetailDemo",         // Retail Demo service
-        "XblAuthManager",     // Xbox Live Auth — dead once Xbox apps are gone
-        "XblGameSave",        // Xbox Live Game Save
-        "XboxNetApiSvc",      // Xbox Live Networking
-        "WMPNetworkSvc",      // Windows Media Player network sharing (legacy)
-    };
-
-    /// <summary>Blacklist OR junk-vendor match suffices; a hardware-OEM match
-    /// additionally requires a bloat keyword so drivers/hardware-integration
-    /// software is never acted on by name alone.</summary>
-    private static bool IsBloat(string text, GuardConfig config)
-    {
-        if (config.Whitelist.Any(w =>
-            !string.IsNullOrEmpty(w) && text.Contains(w, StringComparison.OrdinalIgnoreCase)))
-            return false;
-        if (config.Blacklist.Any(p => !string.IsNullOrWhiteSpace(p) &&
-            text.Contains(p, StringComparison.OrdinalIgnoreCase)))
-            return true;
-        if (JunkVendorPatterns.Any(p => text.Contains(p, StringComparison.OrdinalIgnoreCase)))
-            return true;
-        return HardwareVendorPatterns.Any(p => text.Contains(p, StringComparison.OrdinalIgnoreCase))
-            && BloatKeywords.Any(k => text.Contains(k, StringComparison.OrdinalIgnoreCase));
-    }
-
-    /// <summary>Return a non-interactive uninstall command, or null if the entry
-    /// has none. QuietUninstallString passes through; msiexec strings become
-    /// `/x {GUID} /qn /norestart`; strings already carrying a silent flag pass
-    /// through. Interactive uninstallers are skipped — they'd hang the scan.</summary>
-    public static string? SilentUninstallCommand(string? uninstallStr, string? quietStr)
-    {
-        if (!string.IsNullOrWhiteSpace(quietStr))
-            return quietStr;
-        if (string.IsNullOrWhiteSpace(uninstallStr))
-            return null;
-        var guid = Regex.Match(uninstallStr, @"\{[0-9A-Fa-f-]{36}\}");
-        if (uninstallStr.Contains("msiexec", StringComparison.OrdinalIgnoreCase) && guid.Success)
-            return $"msiexec.exe /x {guid.Value} /qn /norestart";
-        if (uninstallStr.Split(' ', StringSplitOptions.RemoveEmptyEntries)
-                .Any(t => SilentUninstallFlags.Contains(t)))
-            return uninstallStr;
-        return null;
-    }
-
-    /// <summary>Uninstall Win32/desktop bloat (MSI/EXE) — Appx removal can't see
-    /// these. Sweeps the Uninstall registry hives (HKLM 64/32-bit + loaded user
-    /// hives) for DisplayNames matching Blacklist ∪ VendorPatterns.</summary>
-    public static int RemoveWin32Bloatware(GuardConfig config, bool dryRun)
-    {
-        var removed = 0;
-        var hives = new List<(Microsoft.Win32.RegistryKey Root, string Path)>();
-        foreach (var p in Win32UninstallPaths)
-            hives.Add((Microsoft.Win32.Registry.LocalMachine, p));
-        foreach (var sid in EnumerateUserSidHives())
-            hives.Add((Microsoft.Win32.Registry.Users, $"{sid}\\{Win32UninstallPaths[0]}"));
-
-        foreach (var (root, path) in hives)
-        {
-            // Privilege boundary: HKU\<user-sid> is writable by that user — a
-            // local user could plant a matching entry whose UninstallString the
-            // elevated service would execute. HKLM entries only; user-hive
-            // matches are reported, never run.
-            var userHive = Equals(root, Microsoft.Win32.Registry.Users);
-            Microsoft.Win32.RegistryKey? parent;
-            try { parent = root.OpenSubKey(path); }
-            catch { continue; }
-            if (parent == null)
-                continue;
-            string[] subNames;
-            using (parent)
-                subNames = parent.GetSubKeyNames();
-
-            foreach (var sub in subNames)
-            {
-                string display = "", uninstallStr = "", quietStr = "";
-                try
-                {
-                    using var key = root.OpenSubKey($"{path}\\{sub}");
-                    if (key == null)
-                        continue;
-                    display = key.GetValue("DisplayName")?.ToString() ?? "";
-                    uninstallStr = key.GetValue("UninstallString")?.ToString() ?? "";
-                    quietStr = key.GetValue("QuietUninstallString")?.ToString() ?? "";
-                }
-                catch { continue; }
-
-                if (string.IsNullOrEmpty(display) || !IsBloat(display, config))
-                    continue;
-                if (userHive)
-                {
-                    GuardLogger.Info($"Win32 bloat in user hive (report only, not executed): {display}");
-                    continue;
-                }
-                var cmd = SilentUninstallCommand(uninstallStr, quietStr);
-                if (cmd == null)
-                {
-                    GuardLogger.Info($"Win32 bloat — no silent uninstaller (manual): {display}");
-                    continue;
-                }
-                if (dryRun)
-                {
-                    GuardLogger.Info($"[DRY-RUN] Would uninstall (win32): {display}");
-                    removed++;
-                    continue;
-                }
-                if (RunCmd(cmd, 300))
-                {
-                    GuardLogger.Info($"Uninstalled Win32 package: {display}");
-                    RemovalLedger.Record(config, "win32", display);
-                    removed++;
-                }
-                else
-                {
-                    GuardLogger.Warn($"Win32 uninstall failed: {display}");
-                }
-            }
-        }
-        return removed;
-    }
-
-    /// <summary>Delete Run/RunOnce values matching bloat/vendor patterns —
-    /// HKLM (64- and 32-bit views) plus every loaded user hive.</summary>
-    public static void CleanStartupEntries(GuardConfig config, bool dryRun)
-    {
-        var targets = new List<(Microsoft.Win32.RegistryKey Root, string Path)>();
-        foreach (var p in HklmRunKeyPaths)
-            targets.Add((Microsoft.Win32.Registry.LocalMachine, p));
-        foreach (var sid in EnumerateUserSidHives())
-            foreach (var p in RunKeyPaths)
-                targets.Add((Microsoft.Win32.Registry.Users, $"{sid}\\{p}"));
-        foreach (var p in RunKeyPaths)
-            targets.Add((Microsoft.Win32.Registry.CurrentUser, p));
-
-        var deleted = 0;
-        foreach (var (root, path) in targets)
-        {
-            Microsoft.Win32.RegistryKey? key;
-            try { key = root.OpenSubKey(path, writable: true); }
-            catch { continue; }
-            if (key == null)
-                continue;
-            using (key)
-            {
-                foreach (var name in key.GetValueNames())
-                {
-                    string data;
-                    try { data = key.GetValue(name)?.ToString() ?? ""; }
-                    catch { data = ""; }
-                    if (!IsBloat($"{name} {data}", config))
-                        continue;
-                    if (dryRun)
-                    {
-                        GuardLogger.Info($"[DRY-RUN] Would delete startup entry: {path}\\{name}");
-                        deleted++;
-                        continue;
-                    }
-                    try
-                    {
-                        key.DeleteValue(name);
-                        deleted++;
-                        GuardLogger.Info($"Deleted startup entry: {name} ({path})");
-                    }
-                    catch (Exception ex)
-                    {
-                        GuardLogger.Warn($"Startup entry delete failed {name}: {ex.Message}");
-                    }
-                }
-            }
-        }
-        // Active Setup stub installers — re-run at EVERY user sign-in
-        foreach (var path in ActiveSetupPaths)
-        {
-            Microsoft.Win32.RegistryKey? rootKey;
-            try
-            {
-                rootKey = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(path, writable: true);
-            }
-            catch { continue; }
-            if (rootKey == null)
-                continue;
-            using (rootKey)
-            {
-                foreach (var sub in rootKey.GetSubKeyNames())
-                {
-                    bool matched;
-                    try
-                    {
-                        using var sk = rootKey.OpenSubKey(sub);
-                        var blob = sub + " " + (sk?.GetValue(null)?.ToString() ?? "")
-                            + " " + (sk?.GetValue("StubPath")?.ToString() ?? "")
-                            + " " + (sk?.GetValue("LocalizedName")?.ToString() ?? "");
-                        matched = IsBloat(blob, config);
-                    }
-                    catch { matched = false; }
-                    if (!matched)
-                        continue;
-                    if (dryRun)
-                    {
-                        GuardLogger.Info($"[DRY-RUN] Would delete Active Setup stub: {path}\\{sub}");
-                        deleted++;
-                        continue;
-                    }
-                    try
-                    {
-                        rootKey.DeleteSubKey(sub);
-                        deleted++;
-                        GuardLogger.Info($"Deleted Active Setup stub: {sub} ({path})");
-                    }
-                    catch (Exception ex)
-                    {
-                        GuardLogger.Warn($"Active Setup stub delete failed {sub}: {ex.Message}");
-                    }
-                }
-            }
-        }
-
-        if (deleted > 0)
-            GuardLogger.Info($"Startup bloat entries {(dryRun ? "flagged" : "deleted")}: {deleted}");
-    }
-
-    /// <summary>Stop + disable OEM/vendor auto-start services (updaters, nagware).
-    /// Hardware-OEM services additionally require a bloat keyword — drivers and
-    /// hardware-integration services (RGB, audio, power) are never touched.</summary>
-    public static void DisableOemServices(GuardConfig config)
-    {
-        var pattern = string.Join("|", VendorPatterns.Select(Regex.Escape));
-        var psi = new ProcessStartInfo
-        {
-            FileName = "powershell.exe",
-            Arguments = "-NoProfile -ExecutionPolicy Bypass -Command \"Get-Service | " +
-                $"Where-Object {{$_.Name -match '{pattern}' -or $_.DisplayName -match '{pattern}'}} | " +
-                "Select-Object Name,DisplayName,Status,StartType | ConvertTo-Json\"",
-            RedirectStandardOutput = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
-        var output = Proc.Capture(psi, 60000).Stdout;
-        if (string.IsNullOrWhiteSpace(output))
-            return;
-
-        var services = new List<(string Name, string Display, string StartType)>();
-        try
-        {
-            var doc = JsonDocument.Parse(output.Trim());
-            var elements = doc.RootElement.ValueKind == JsonValueKind.Array
-                ? doc.RootElement.EnumerateArray().ToList()
-                : new List<JsonElement> { doc.RootElement };
-            foreach (var el in elements)
-            {
-                // StartType serializes as a number (Disabled = 4)
-                var startType = "";
-                if (el.TryGetProperty("StartType", out var st))
-                    startType = st.ValueKind == JsonValueKind.String
-                        ? st.GetString() ?? "" : st.GetRawText();
-                services.Add((
-                    el.GetProperty("Name").GetString() ?? "",
-                    el.GetProperty("DisplayName").GetString() ?? "",
-                    startType));
-            }
-        }
-        catch (Exception ex)
-        {
-            GuardLogger.Warn($"Service scan parse error: {ex.Message}");
-            return;
-        }
-
-        var disabled = 0;
-        foreach (var (name, display, startType) in services)
-        {
-            if (string.IsNullOrEmpty(name) ||
-                startType.Equals("Disabled", StringComparison.OrdinalIgnoreCase) ||
-                startType == "4")
-                continue;
-            // Hardware vendors also need a bloat keyword — skips e.g. RGB/audio services
-            if (!IsBloat($"{name} {display}", config))
-                continue;
-            RunSc($"stop \"{name}\"");
-            if (RunSc($"config \"{name}\" start= disabled"))
-            {
-                disabled++;
-                GuardLogger.Info($"Disabled OEM service: {name} ({display})");
-            }
-            else
-            {
-                GuardLogger.Warn($"Service disable failed [admin required?]: {name}");
-            }
-        }
-        GuardLogger.Info($"Disabled {disabled} OEM/vendor services");
-    }
-
-    /// <summary>Add/remove a marked hosts-file block that null-routes
-    /// pure-telemetry endpoints. Toggle-off removes the block — fully
-    /// reversible. No-ops when disabled and no block exists.</summary>
-    public static void SetTelemetryHostsBlock(bool enabled)
-    {
-        var hostsPath = Path.Combine(
-            Environment.GetEnvironmentVariable("SystemRoot") ?? @"C:\Windows",
-            @"System32\drivers\etc\hosts");
-        string text;
-        try
-        {
-            // Strict decode — a silently-replaced byte would corrupt unrelated
-            // hosts content on rewrite. Better to skip than to write garbage.
-            text = File.Exists(hostsPath)
-                ? File.ReadAllText(hostsPath, new System.Text.UTF8Encoding(false, true))
-                : "";
-        }
-        catch (Exception ex)
-        {
-            GuardLogger.Warn($"Cannot read hosts file (skipped): {ex.Message}");
-            return;
-        }
-        var original = text;  // single read — a second read could fail on absent file
-
-        var beginIdx = text.IndexOf(HostsBlockBegin, StringComparison.Ordinal);
-        var endIdx = text.IndexOf(HostsBlockEnd, StringComparison.Ordinal);
-        if (beginIdx >= 0 && endIdx >= 0)
-            text = text[..beginIdx].TrimEnd('\n') + "\n" +
-                text[(endIdx + HostsBlockEnd.Length)..].TrimStart('\n');
-        if (enabled)
-        {
-            var block = string.Join("\n", TelemetryHosts.Select(d => $"0.0.0.0 {d}"));
-            text = text.TrimEnd('\n') + $"\n\n{HostsBlockBegin}\n{block}\n{HostsBlockEnd}\n";
-        }
-        if (beginIdx < 0 && !enabled)
-            return; // nothing to do — don't touch the file
-        // Skip the write when the block is already in the desired state.
-        if (File.Exists(hostsPath) && text == original)
-            return;
-        try
-        {
-            File.WriteAllText(hostsPath, text);
-            GuardLogger.Info($"Telemetry hosts block {(enabled ? "applied" : "removed")} ({TelemetryHosts.Length} domains)");
-        }
-        catch (Exception ex)
-        {
-            GuardLogger.Warn($"Cannot write hosts file [admin required]: {ex.Message}");
-        }
-    }
-
-    /// <summary>`winget uninstall --silent` sweep for bloat/vendor matches.
-    /// Catches leftovers that neither Appx nor the Uninstall-hive sweep can
-    /// reach silently. Skips cleanly when winget (App Installer) is absent.</summary>
-    public static int WingetSweep(GuardConfig config, bool dryRun)
-    {
-        if (RunCmdExitCode("winget --version", 15) != 0)
-        {
-            GuardLogger.Info("winget not available — skipping winget sweep");
-            return 0;
-        }
-        var (stdout, rc) = RunCmdCapture(
-            "winget list --accept-source-agreements --disable-interactivity", 180);
-        if (rc != 0 || string.IsNullOrWhiteSpace(stdout))
-            return 0;
-
-        var removed = 0;
-        foreach (var rawLine in stdout.Split('\n'))
-        {
-            var cols = Regex.Split(rawLine.Trim(), @"\s{2,}");
-            if (cols.Length < 2 || cols[0].Length == 0 || cols[1].StartsWith("-"))
-                continue; // header/separator line
-            var name = cols[0];
-            var pkgId = cols[1];
-            // winget ids are simple identifiers — anything else never reaches a shell
-            if (!Regex.IsMatch(pkgId, @"^[A-Za-z0-9_.\-]+$"))
-                continue;
-            if (!IsBloat($"{name} {pkgId}", config))
-                continue;
-            if (dryRun)
-            {
-                GuardLogger.Info($"[DRY-RUN] Would winget-uninstall: {name} ({pkgId})");
-                removed++;
-                continue;
-            }
-            var rc2 = RunCmdExitCode(
-                $"winget uninstall --id \"{pkgId}\" --silent --disable-interactivity --accept-source-agreements", 300);
-            if (rc2 == 0)
-            {
-                GuardLogger.Info($"winget-uninstalled: {name} ({pkgId})");
-                RemovalLedger.Record(config, "winget", name);
-                removed++;
-            }
-            else
-            {
-                GuardLogger.Info($"winget uninstall skipped/failed: {name}");
-            }
-        }
-        return removed;
-    }
-
-    /// <summary>Remove Windows capabilities Microsoft has deprecated (WordPad,
-    /// Steps Recorder) — they persist in the image though nothing uses them.</summary>
-    public static int RemoveDeprecatedCapabilities()
-    {
-        var removed = 0;
-        foreach (var pattern in DeprecatedCapabilities)
-        {
-            var (stdout, rc) = RunPowerShellCapture(
-                $"Get-WindowsCapability -Online -Name '{pattern}*' | " +
-                "Where-Object {$_.State -eq 'Installed'} | Select-Object Name | ConvertTo-Json", 60);
-            if (rc != 0 || string.IsNullOrWhiteSpace(stdout))
-                continue;
-            List<JsonElement> elements;
-            try
-            {
-                var doc = JsonDocument.Parse(stdout.Trim());
-                elements = doc.RootElement.ValueKind == JsonValueKind.Array
-                    ? doc.RootElement.EnumerateArray().ToList()
-                    : new List<JsonElement> { doc.RootElement };
-            }
-            catch { continue; }
-            foreach (var cap in elements)
-            {
-                var name = cap.GetProperty("Name").GetString() ?? "";
-                if (string.IsNullOrEmpty(name))
-                    continue;
-                var rc2 = RunPowerShellCapture(
-                    $"Remove-WindowsCapability -Online -Name '{name}'", 180).Item2;
-                if (rc2 == 0)
-                {
-                    GuardLogger.Info($"Removed deprecated capability: {name}");
-                    removed++;
-                }
-            }
-        }
-        return removed;
-    }
-
-    /// <summary>Stop + disable telemetry/leftover system services (DiagTrack,
-    /// Xbox leftovers, WMP sharing). NCSI active probing stays on — disabling it
-    /// breaks captive-portal detection on public Wi-Fi.</summary>
-    public static int DisableTelemetryServices()
-    {
-        var disabled = 0;
-        foreach (var name in TelemetryServices)
-        {
-            if (RunCmdExitCode($"sc.exe query {name}", 10) != 0)
-                continue; // service not present on this machine
-            RunSc($"stop {name}");
-            if (RunSc($"config {name} start= disabled"))
-            {
-                disabled++;
-                GuardLogger.Info($"Disabled telemetry service: {name}");
-            }
-            else
-            {
-                GuardLogger.Warn($"Service disable failed [admin required?]: {name}");
-            }
-        }
-        GuardLogger.Info($"Disabled {disabled} telemetry/leftover services");
-        return disabled;
-    }
-
-    private static int RunCmdExitCode(string command, int timeoutSec)
-    {
-        var psi = new ProcessStartInfo
-        {
-            FileName = "cmd.exe",
-            Arguments = $"/c \"{command}\"",
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
-        return Proc.Wait(psi, timeoutSec * 1000) ?? -1;
-    }
-
-    private static (string Stdout, int Rc) RunCmdCapture(string command, int timeoutSec)
-    {
-        var psi = new ProcessStartInfo
-        {
-            FileName = "cmd.exe",
-            Arguments = $"/c \"{command}\"",
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
-        var (stdout, _, rc) = Proc.Capture(psi, timeoutSec * 1000);
-        return (stdout.Trim(), rc ?? -1);
-    }
-
-    private static (string Stdout, int Rc) RunPowerShellCapture(string command, int timeoutSec)
-    {
-        var psi = new ProcessStartInfo
-        {
-            FileName = "powershell.exe",
-            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"{command}\"",
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
-        var (stdout, _, rc) = Proc.Capture(psi, timeoutSec * 1000);
-        return (stdout.Trim(), rc ?? -1);
-    }
-
-    private static bool RunSc(string arguments)
-    {
-        var psi = new ProcessStartInfo
-        {
-            FileName = "sc.exe",
-            Arguments = arguments,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
-        return Proc.Wait(psi, 20000) == 0;
-    }
-
-    private static bool RunCmd(string command, int timeoutSec)
-    {
-        var psi = new ProcessStartInfo
-        {
-            FileName = "cmd.exe",
-            Arguments = $"/c \"{command}\"",
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
-        return Proc.Wait(psi, timeoutSec * 1000) == 0;
-    }
-
-    private static IEnumerable<string> EnumerateUserSidHives()
-    {
-        string[] names;
-        try { names = Microsoft.Win32.Registry.Users.GetSubKeyNames(); }
-        catch { yield break; }
-        foreach (var n in names)
-            if (n.StartsWith("S-1-5-21-", StringComparison.OrdinalIgnoreCase) &&
-                !n.EndsWith("_Classes", StringComparison.OrdinalIgnoreCase))
-                yield return n;
     }
 }
 
@@ -2036,24 +2383,17 @@ public class GuardService : BackgroundService
         else
         {
             GuardLogger.Info("Applying registry-based prevention layers...");
-            RegistryGuard.ApplyAll(_config.Prevention);
+            RegistryGuard.ApplyAll(_config.Prevention, _config.Blacklist, _config.Whitelist);
 
             if (_config.Prevention.DisableOemScheduledTasks)
             {
                 GuardLogger.Info("Disabling OEM scheduled tasks...");
                 ScheduledTaskGuard.DisableOemTasks();
             }
-
             if (_config.Prevention.DisableTelemetryTasks)
             {
-                GuardLogger.Info("Disabling telemetry/CEIP scheduled tasks...");
+                GuardLogger.Info("Disabling Microsoft telemetry tasks...");
                 ScheduledTaskGuard.DisableTelemetryTasks();
-            }
-
-            if (_config.Prevention.DisableOemServices)
-            {
-                GuardLogger.Info("Disabling OEM/vendor services...");
-                Win32BloatGuard.DisableOemServices(_config);
             }
         }
 
@@ -2061,6 +2401,7 @@ public class GuardService : BackgroundService
         // absent in the previous scan counts as a (re-)install
         var seenProvisioned = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var seenInstalled = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var seenWin32 = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var firstScan = true;
 
         // Main scan loop
@@ -2072,7 +2413,7 @@ public class GuardService : BackgroundService
 
                 if (_config.Prevention.ReinstallMonitor)
                 {
-                    CheckReinstalls(seenProvisioned, seenInstalled, firstScan, _config.DryRun);
+                    CheckReinstalls(seenProvisioned, seenInstalled, seenWin32, firstScan);
                     firstScan = false;
                 }
             }
@@ -2087,26 +2428,25 @@ public class GuardService : BackgroundService
 
     /// <summary>Detect packages that re-appeared since the last scan and remove them.</summary>
     private void CheckReinstalls(
-        HashSet<string> seenProvisioned, HashSet<string> seenInstalled, bool firstScan, bool dryRun)
+        HashSet<string> seenProvisioned, HashSet<string> seenInstalled,
+        HashSet<string> seenWin32, bool firstScan)
     {
         var currentProvisioned = new HashSet<string>(
-            AppxManager.GetBlacklistedProvisionedPackages(_config.Blacklist, _config.Whitelist)
-                .Select(p => p.PackageName),
+            AppxManager.GetBlacklistedProvisionedPackages(_config.Blacklist, _config.Whitelist),
             StringComparer.OrdinalIgnoreCase);
         var installed = AppxManager.GetBlacklistedPackages(_config.Blacklist, _config.Whitelist);
         var currentInstalled = new HashSet<string>(
             installed.Select(p => p.PackageFamilyName), StringComparer.OrdinalIgnoreCase);
+        // Win32 display names — OEMs re-push these via their updaters, so the
+        // monitor must watch the non-Appx channel too
+        var currentWin32 = Win32Guard.GetBlacklistedPrograms(_config.Blacklist, _config.Whitelist);
 
         if (!firstScan)
         {
             foreach (var pkg in currentProvisioned.Except(seenProvisioned))
             {
                 GuardLogger.Warn($"[MONITOR] RE-INSTALLED detected: {pkg} — removing immediately!");
-                if (dryRun)
-                {
-                    GuardLogger.Info($"[DRY-RUN] Would re-remove provisioned package: {pkg}");
-                }
-                else if (AppxManager.RemoveProvisionedPackage(pkg))
+                if (AppxManager.RemoveProvisionedPackage(pkg))
                     GuardLogger.Info($"[MONITOR] Re-removal complete: {pkg}");
                 else
                     GuardLogger.Warn($"[MONITOR] Re-removal failed: {pkg} [admin required]");
@@ -2118,11 +2458,7 @@ public class GuardService : BackgroundService
             foreach (var family in currentInstalled.Except(seenInstalled))
             {
                 GuardLogger.Warn($"[MONITOR] RE-INSTALLED AppxPackage: {family} — removing!");
-                if (dryRun)
-                {
-                    GuardLogger.Info($"[DRY-RUN] Would re-remove package: {family}");
-                }
-                else if (fullNameByFamily.TryGetValue(family, out var fullName) &&
+                if (fullNameByFamily.TryGetValue(family, out var fullName) &&
                     !string.IsNullOrEmpty(fullName) &&
                     AppxManager.RemoveAppxPackage(fullName))
                 {
@@ -2133,12 +2469,23 @@ public class GuardService : BackgroundService
                     GuardLogger.Warn($"[MONITOR] Re-removal failed: {family}");
                 }
             }
+
+            foreach (var prog in currentWin32.Where(p => !seenWin32.Contains(p.DisplayName)))
+            {
+                GuardLogger.Warn($"[MONITOR] RE-INSTALLED Win32: {prog.DisplayName} — removing!");
+                if (Win32Guard.RemoveProgram(prog.DisplayName, prog.UninstallString, prog.QuietUninstallString))
+                    GuardLogger.Info($"[MONITOR] Re-removal complete: {prog.DisplayName}");
+                else
+                    GuardLogger.Warn($"[MONITOR] Re-removal failed or needs manual removal: {prog.DisplayName}");
+            }
         }
 
         seenProvisioned.Clear();
         seenProvisioned.UnionWith(currentProvisioned);
         seenInstalled.Clear();
         seenInstalled.UnionWith(currentInstalled);
+        seenWin32.Clear();
+        seenWin32.UnionWith(currentWin32.Select(p => p.DisplayName));
     }
 
     public void RunScanPublic(bool dryRun = false) => RunScan(dryRun);
@@ -2152,7 +2499,10 @@ public class GuardService : BackgroundService
         int skipped = 0;
         int systemAppsSkipped = 0;
         int failed = 0;
-        var matchedFamilies = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // 0. Safety net: restore point before destructive changes (self-throttles)
+        if (!dryRun && _config.Prevention.CreateRestorePoint)
+            Win32Guard.CreateRestorePoint();
 
         // 1. Remove installed AppxPackages matching blacklist
         if (_config.Prevention.RemoveAppxPackages)
@@ -2175,8 +2525,6 @@ public class GuardService : BackgroundService
                     skipped++;
                     continue;
                 }
-
-                matchedFamilies.Add(familyName);
 
                 // Use PackageFullName from the query (no second PowerShell call needed)
                 if (string.IsNullOrEmpty(fullName))
@@ -2224,16 +2572,14 @@ public class GuardService : BackgroundService
         if (_config.Prevention.RemoveProvisionedPackages)
         {
             var provisioned = AppxManager.GetBlacklistedProvisionedPackages(_config.Blacklist, _config.Whitelist);
-            foreach (var (pkgName, provFamily) in provisioned)
+            foreach (var pkgName in provisioned)
             {
-                if (IsWhitelisted(pkgName) || IsWhitelisted(provFamily))
+                if (IsWhitelisted(pkgName))
                 {
                     GuardLogger.Info($"Whitelisted provisioned (skip): {pkgName}");
                     skipped++;
                     continue;
                 }
-
-                matchedFamilies.Add(provFamily);
 
                 if (dryRun)
                 {
@@ -2254,76 +2600,51 @@ public class GuardService : BackgroundService
             }
         }
 
-        // When a removal toggle is off, its packages were never enumerated —
-        // but the persistence layers still need the families to protect future
-        // profiles and feature updates.
-        if ((_config.Prevention.MarkDeprovisioned || _config.Prevention.RemoveDefaultStorePackages) &&
-            (!_config.Prevention.RemoveAppxPackages || !_config.Prevention.RemoveProvisionedPackages))
+        // 2.5 Remove optional Windows capabilities (IE mode, Steps Recorder, WordPad)
+        if (_config.Prevention.RemoveOptionalCapabilities)
         {
-            if (!_config.Prevention.RemoveAppxPackages)
-                foreach (var (family, _, _, isFw, _) in
-                         AppxManager.GetBlacklistedPackages(_config.Blacklist, _config.Whitelist))
-                    if (!isFw && !IsWhitelisted(family))
-                        matchedFamilies.Add(family);
-            if (!_config.Prevention.RemoveProvisionedPackages)
-                foreach (var (_, provFamily) in
-                         AppxManager.GetBlacklistedProvisionedPackages(_config.Blacklist, _config.Whitelist))
-                    if (!IsWhitelisted(provFamily))
-                        matchedFamilies.Add(provFamily);
+            if (dryRun)
+                GuardLogger.Info("[DRY-RUN] Would remove optional capabilities (IE/StepsRecorder/WordPad) [requires admin]");
+            else
+                AppxManager.RemoveOptionalCapabilities();
+        }
+
+        // 2.6 Remove Win32 programs matching blacklist — the primary OEM
+        // preinstall channel (McAfee/Norton etc. are Win32, not Appx). MSI gets
+        // silent uninstall; vendors without a quiet uninstaller are logged.
+        if (_config.Prevention.RemoveWin32Programs)
+        {
+            var programs = Win32Guard.GetBlacklistedPrograms(_config.Blacklist, _config.Whitelist);
+            foreach (var (display, uninstall, quiet) in programs)
+            {
+                if (dryRun)
+                {
+                    GuardLogger.Info($"[DRY-RUN] Would uninstall Win32 program: {display} [requires admin]");
+                    removed++;
+                }
+                else if (Win32Guard.RemoveProgram(display, uninstall, quiet))
+                {
+                    GuardLogger.Info($"Removed Win32 program: {display}");
+                    RemovalLedger.Record(_config, "win32", display);
+                    removed++;
+                }
+                else
+                {
+                    GuardLogger.Warn($"Failed to uninstall Win32 program: {display} [admin required or manual]");
+                    failed++;
+                }
+            }
         }
 
         // 3. Re-apply registry settings (they can be reset by Windows Update)
         if (!dryRun)
-            RegistryGuard.ApplyAll(_config.Prevention);
+        {
+            RegistryGuard.ApplyAll(_config.Prevention, _config.Blacklist, _config.Whitelist);
+            if (_config.Prevention.DisableTelemetryTasks)
+                ScheduledTaskGuard.DisableTelemetryTasks();
+        }
         else
             GuardLogger.Info("[DRY-RUN] Would re-apply registry prevention settings");
-
-        // 4. Persist removal: Deprovisioned markers stop feature-update re-installs;
-        //    the 25H2 policy stops provisioning for future user profiles
-        if (!dryRun && matchedFamilies.Count > 0)
-        {
-            if (_config.Prevention.MarkDeprovisioned)
-                RegistryGuard.MarkDeprovisioned(matchedFamilies);
-            if (_config.Prevention.RemoveDefaultStorePackages)
-                RegistryGuard.WriteRemoveDefaultStorePackagesPolicy(matchedFamilies);
-        }
-        else if (dryRun && matchedFamilies.Count > 0)
-        {
-            GuardLogger.Info($"[DRY-RUN] Would mark {matchedFamilies.Count} package families deprovisioned + write removal policy");
-        }
-
-        // 5. Win32 (MSI/EXE) bloat + winget sweep + deprecated capabilities —
-        //    everything Appx removal can't see
-        if (_config.Prevention.RemoveWin32Bloatware)
-            removed += Win32BloatGuard.RemoveWin32Bloatware(_config, dryRun);
-        if (_config.Prevention.WingetSweep)
-            removed += Win32BloatGuard.WingetSweep(_config, dryRun);
-        if (_config.Prevention.RemoveDeprecatedCapabilities)
-        {
-            if (dryRun)
-                GuardLogger.Info("[DRY-RUN] Would remove deprecated Windows capabilities");
-            else
-                Win32BloatGuard.RemoveDeprecatedCapabilities();
-        }
-
-        // 6. Telemetry + OEM auto-start services + Run-key startup entries
-        if (_config.Prevention.DisableTelemetryServices)
-        {
-            if (dryRun)
-                GuardLogger.Info("[DRY-RUN] Would disable telemetry/leftover services");
-            else
-                Win32BloatGuard.DisableTelemetryServices();
-        }
-
-        if (_config.Prevention.DisableOemServices)
-        {
-            if (dryRun)
-                GuardLogger.Info("[DRY-RUN] Would disable OEM/vendor services");
-            else
-                Win32BloatGuard.DisableOemServices(_config);
-        }
-        if (_config.Prevention.CleanStartupEntries)
-            Win32BloatGuard.CleanStartupEntries(_config, dryRun);
 
         GuardLogger.Info($"Scan complete. {(dryRun ? "Would remove" : "Removed")} {removed} packages, skipped {skipped}, system apps skipped {systemAppsSkipped}, failed {failed}.");
     }
@@ -2380,7 +2701,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.8.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.39.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -2433,13 +2754,10 @@ public class Program
 
         if (!dryRun)
         {
-            RegistryGuard.ApplyAll(config.Prevention);
-            if (config.Prevention.DisableOemScheduledTasks)
-                ScheduledTaskGuard.DisableOemTasks();
+            RegistryGuard.ApplyAll(config.Prevention, config.Blacklist, config.Whitelist);
+            ScheduledTaskGuard.DisableOemTasks();
             if (config.Prevention.DisableTelemetryTasks)
                 ScheduledTaskGuard.DisableTelemetryTasks();
-            if (config.Prevention.DisableOemServices)
-                Win32BloatGuard.DisableOemServices(config);
         }
         else
         {
@@ -2468,7 +2786,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.8.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.39.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -2494,15 +2812,26 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
     private static void InstallService()
     {
         var exePath = Process.GetCurrentProcess().MainModule?.FileName ?? "";
+
+        // Idempotent reinstall + description + restart-on-failure in ONE elevated
+        // shell — a single UAC prompt covers every sc.exe call. `&` continues even
+        // if a step legitimately fails (stop/delete on first install).
+        var chain =
+            "sc stop BloatwareGuard & sc delete BloatwareGuard & " +
+            "ping -n 3 127.0.0.1 > nul & " +  // brief wait so SCM finishes deleting
+            $"sc create BloatwareGuard binPath= \"{exePath}\" start= auto DisplayName= \"Bloatware Guard\" & " +
+            "sc description BloatwareGuard \"Blocks and removes pre-installed Windows bloatware\" & " +
+            "sc failure BloatwareGuard reset= 86400 actions= restart/60000/restart/60000/restart/300000";
+
         var psi = new ProcessStartInfo
         {
-            FileName = "sc.exe",
-            Arguments = $"create BloatwareGuard binPath= \"{exePath}\" start= auto DisplayName= \"Bloatware Guard\"",
+            FileName = "cmd.exe",
+            Arguments = $"/c {chain}",
             UseShellExecute = true,
             Verb = "runas"
         };
         Process.Start(psi);
-        GuardLogger.Info("Service installed. Use 'sc start BloatwareGuard' to start.");
+        GuardLogger.Info("Service installed (idempotent, restart-on-failure: 60s/60s/5min). Use 'sc start BloatwareGuard' to start.");
     }
 
     private static void UninstallService()
@@ -2528,8 +2857,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
             UseShellExecute = false,
             CreateNoWindow = true
         };
-        var (stdout, _, _) = Proc.Capture(psi, 15000);
-        Console.WriteLine(stdout);
+        using var proc = Process.Start(psi);
+        Console.WriteLine(proc?.StandardOutput.ReadToEnd());
     }
 
     /// <summary>Re-register staged AppxPackages recorded in the removal ledger.
@@ -2594,7 +2923,9 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
             UseShellExecute = false,
             CreateNoWindow = true
         };
-        return Proc.Wait(psi, 60000) == 0;
+        using var proc = Process.Start(psi);
+        proc?.WaitForExit(60000);
+        return proc?.ExitCode == 0;
     }
 
     /// <summary>
@@ -2604,11 +2935,11 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
     private static int RunSelfTest(GuardConfig config)
     {
         var passed = 0;
-        var total = 12;
+        var total = 6;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.8.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.8.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.39.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.39.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try
@@ -2711,179 +3042,6 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         catch (Exception ex)
         {
             results.Add($"[FAIL] T6: Trim safety — {ex.Message}");
-        }
-
-        // Test 7: New prevention-layer flags exist and default to true
-        try
-        {
-            var flags = new[] { "MarkDeprovisioned", "RemoveDefaultStorePackages",
-                "HardenContentDelivery", "DisableAiFeatures", "DisableWidgets",
-                "DisableSearchSuggestions", "DisableTelemetryTasks",
-                "DisableTelemetryPolicies", "HardenEdgePolicies",
-                "CleanStartupEntries", "DisableOemServices", "RemoveWin32Bloatware",
-                "DisableGameDvr", "BlockTelemetryEndpoints",
-                "WingetSweep", "RemoveDeprecatedCapabilities", "DisableTelemetryServices",
-                "DisableTelemetryAutologgers" };
-            var missing = flags.Where(f =>
-                typeof(PreventionLayers).GetProperty(f) == null).ToList();
-            var defaultsOn = flags.All(f =>
-                typeof(PreventionLayers).GetProperty(f) is { } prop &&
-                prop.GetValue(new PreventionLayers()) is bool b && b);
-            if (missing.Count == 0 && defaultsOn)
-            {
-                results.Add("[PASS] T7: Prevention layers — 18 new flags registered & default-on");
-                GuardLogger.Info("[PASS] T7: New prevention flags present");
-                passed++;
-            }
-            else
-            {
-                results.Add($"[FAIL] T7: Prevention layers — missing/off-by-default: {string.Join(",", missing)}");
-            }
-        }
-        catch (Exception ex)
-        {
-            results.Add($"[FAIL] T7: Prevention layers — {ex.Message}");
-        }
-
-        // Test 8: New prevention-layer methods wired
-        try
-        {
-            bool wired =
-                typeof(RegistryGuard).GetMethod("MarkDeprovisioned") != null &&
-                typeof(RegistryGuard).GetMethod("WriteRemoveDefaultStorePackagesPolicy") != null &&
-                typeof(RegistryGuard).GetMethod("DisableAiFeatures") != null &&
-                typeof(RegistryGuard).GetMethod("DisableWidgets") != null &&
-                typeof(RegistryGuard).GetMethod("DisableSearchSuggestions") != null &&
-                typeof(RegistryGuard).GetMethod("DisableTelemetryPolicies") != null &&
-                typeof(RegistryGuard).GetMethod("HardenEdgePolicies") != null &&
-                typeof(ScheduledTaskGuard).GetMethod("DisableTelemetryTasks") != null &&
-                typeof(Win32BloatGuard).GetMethod("RemoveWin32Bloatware") != null &&
-                typeof(Win32BloatGuard).GetMethod("CleanStartupEntries") != null &&
-                typeof(Win32BloatGuard).GetMethod("DisableOemServices") != null &&
-                typeof(Win32BloatGuard).GetMethod("SetTelemetryHostsBlock") != null &&
-                typeof(Win32BloatGuard).GetMethod("WingetSweep") != null &&
-                typeof(Win32BloatGuard).GetMethod("RemoveDeprecatedCapabilities") != null &&
-                typeof(Win32BloatGuard).GetMethod("DisableTelemetryServices") != null &&
-                typeof(RegistryGuard).GetMethod("DisableTelemetryAutologgers") != null;
-            if (wired)
-            {
-                results.Add("[PASS] T8: New prevention methods — all wired");
-                GuardLogger.Info("[PASS] T8: New prevention methods wired");
-                passed++;
-            }
-            else
-            {
-                results.Add("[FAIL] T8: New prevention methods — a method is missing");
-            }
-        }
-        catch (Exception ex)
-        {
-            results.Add($"[FAIL] T8: New prevention methods — {ex.Message}");
-        }
-
-        // Test 9: Win32 silent-uninstall classifier
-        try
-        {
-            var msi = Win32BloatGuard.SilentUninstallCommand(
-                "MsiExec.exe /I{12345678-1234-1234-1234-123456789012}", "");
-            var quiet = Win32BloatGuard.SilentUninstallCommand("x", "uninst.exe /S");
-            var flagged = Win32BloatGuard.SilentUninstallCommand("\"C:\\app\\uninstall.exe\" /S", "");
-            var interactive = Win32BloatGuard.SilentUninstallCommand("\"C:\\app\\uninstall.exe\"", "");
-            if (msi == "msiexec.exe /x {12345678-1234-1234-1234-123456789012} /qn /norestart" &&
-                quiet == "uninst.exe /S" && flagged != null && interactive == null)
-            {
-                results.Add("[PASS] T9: Win32 silent-uninstall classifier — msiexec/quiet/flagged/interactive all correct");
-                GuardLogger.Info("[PASS] T9: Win32 silent-uninstall classifier");
-                passed++;
-            }
-            else
-            {
-                results.Add($"[FAIL] T9: Win32 classifier — msi={msi ?? "null"} flagged={(flagged == null ? "null" : "ok")} interactive={interactive ?? "null"}");
-            }
-        }
-        catch (Exception ex)
-        {
-            results.Add($"[FAIL] T9: Win32 classifier — {ex.Message}");
-        }
-
-        // Test 10: Vendor/telemetry table sanity
-        try
-        {
-            var vendorCount = typeof(Win32BloatGuard)
-                .GetField("VendorPatterns", System.Reflection.BindingFlags.NonPublic |
-                    System.Reflection.BindingFlags.Static)?.GetValue(null) is string[] v ? v.Length : 0;
-            var taskCount = typeof(ScheduledTaskGuard)
-                .GetField("TelemetryTaskPaths", System.Reflection.BindingFlags.NonPublic |
-                    System.Reflection.BindingFlags.Static)?.GetValue(null) is string[] t ? t.Length : 0;
-            if (vendorCount >= 15 && taskCount >= 10)
-            {
-                results.Add($"[PASS] T10: Vendor/telemetry tables — {vendorCount} vendor patterns, {taskCount} telemetry tasks");
-                passed++;
-            }
-            else
-            {
-                results.Add($"[FAIL] T10: tables too small (vendor={vendorCount}, telemetry={taskCount})");
-            }
-        }
-        catch (Exception ex)
-        {
-            results.Add($"[FAIL] T10: table sanity — {ex.Message}");
-        }
-
-        // Test 11: telemetry hosts list well-formed (domains only, no WU/Store)
-        try
-        {
-            var hosts = typeof(Win32BloatGuard)
-                .GetField("TelemetryHosts", System.Reflection.BindingFlags.NonPublic |
-                    System.Reflection.BindingFlags.Static)?.GetValue(null) as string[];
-            var valid = hosts != null && hosts.Length >= 20 && hosts.All(h =>
-                Regex.IsMatch(h, @"^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$") &&
-                !h.Contains("windowsupdate") && !h.Contains("activation") &&
-                !h.Contains("store"));
-            if (valid)
-            {
-                results.Add($"[PASS] T11: Telemetry hosts list — {hosts!.Length} domains, no update endpoints");
-                passed++;
-            }
-            else
-            {
-                results.Add("[FAIL] T11: Telemetry hosts list invalid or too small");
-            }
-        }
-        catch (Exception ex)
-        {
-            results.Add($"[FAIL] T11: hosts list — {ex.Message}");
-        }
-
-        // Test 12: policy table sanity (telemetry writes ≥12, Edge ≥6, game dvr ≥2)
-        try
-        {
-            var tele = typeof(RegistryGuard)
-                .GetField("TelemetryPolicyWrites", System.Reflection.BindingFlags.NonPublic |
-                    System.Reflection.BindingFlags.Static)?.GetValue(null)
-                as (string, string, int)[];
-            var edge = typeof(RegistryGuard)
-                .GetField("EdgePolicies", System.Reflection.BindingFlags.NonPublic |
-                    System.Reflection.BindingFlags.Static)?.GetValue(null)
-                as (string, int)[];
-            var gdvr = typeof(RegistryGuard)
-                .GetField("GameDvrUserWrites", System.Reflection.BindingFlags.NonPublic |
-                    System.Reflection.BindingFlags.Static)?.GetValue(null)
-                as (string, string, int)[];
-            if (tele != null && tele.Length >= 12 && edge != null && edge.Length >= 6 &&
-                gdvr != null && gdvr.Length >= 2)
-            {
-                results.Add($"[PASS] T12: Policy tables — {tele.Length} telemetry writes, {edge.Length} Edge, {gdvr.Length} GameDVR");
-                passed++;
-            }
-            else
-            {
-                results.Add($"[FAIL] T12: policy tables too small (tele={tele?.Length}, edge={edge?.Length}, gdvr={gdvr?.Length})");
-            }
-        }
-        catch (Exception ex)
-        {
-            results.Add($"[FAIL] T12: policy tables — {ex.Message}");
         }
 
         // Summary

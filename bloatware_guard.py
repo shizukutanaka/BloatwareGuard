@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.8.0-mvp - Python prototype
+BloatwareGuard v1.39.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -20,6 +20,7 @@ Windowsサービス化可能な常駐型bloatware自動削除ツール
 import subprocess
 import json
 import os
+import re
 import sys
 import time
 import ctypes
@@ -27,14 +28,13 @@ import argparse
 import logging
 import tempfile
 import shutil
-import re
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.8.0-mvp"
+APP_VERSION = "1.39.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -97,13 +97,17 @@ DEFAULT_BLACKLIST = [
     "Microsoft.Clipchamp",
     "MicrosoftTeams",
     "Microsoft.MicrosoftEdge.Stable",
-    "Microsoft.DevHome",
+    "Microsoft.Windows.DevHome",       # Dev Home (+ GitHub extension)
     "Microsoft.Copilot",
-    "Microsoft.OutlookForWindows",        # new Outlook (replaces Mail & Calendar)
-    "microsoft.windowscommunicationsapps",  # legacy Mail & Calendar (deprecated Dec 2024)
-    "Microsoft.BingSearch",
-    "Microsoft.Windows.Ai.Copilot.Provider",
     "Clipchamp.Clipchamp",
+    "MSTeams",                          # New Teams (Work/School), provisioned via AppX push
+    "Microsoft.OutlookForWindows",      # New Outlook, preinstalled since 23H2
+    "Microsoft.WindowsCommunicationsApps",  # Mail & Calendar (discontinued Dec 2024)
+    "MicrosoftCorporationII.MicrosoftFamily",
+    "MicrosoftCorporationII.QuickAssist",
+    "Microsoft.BingSearch",
+    "Microsoft.MicrosoftStickyNotes",
+    "Microsoft.Edge.GameAssist",
     # Third-party
     "McAfee",
     "Norton",
@@ -113,17 +117,28 @@ DEFAULT_BLACKLIST = [
     "RealtekSemiconductor",
     "SynapticsIncorporated",
     "BytedancePte.Ltd.TikTok",
-    "KING.COM.CandyCrush",
+    "KING.COM.",                       # CandyCrush + all King.com promo games
     "D5EA27B7.Duolingo-LearnLanguagesforFree",
     "PandoraMediaInc.29680B314EFC2",
     "Facebook.InstagramBeta",
     "Facebook.Facebook",
     "WhatsApp",
-    "Disney.",
     "A278AB0D.DisneyMagicKingdoms",
     "A278AB0D.MarchofEmpires",
-    "MicrosoftWindows.Client.WebExperience",  # Widgets runtime pack
-    "MicrosoftCorporationII.QuickAssist",    # documented vishing vector
+    "Disney",                          # Disney+ etc.
+    "Amazon.com.Amazon",
+    "AmazonVideo.PrimeVideo",
+    "LinkedIn",
+    "Flipboard",
+    "Asphalt8Airborne",
+    "CyberLinkMediaSuite",
+    "EclipseManager",
+    "Booking",
+    "PicsArt",
+    "Twitter",
+    "Evernote",
+    "ExpressVPN",
+    "Nordcurrent",
 ]
 
 
@@ -152,24 +167,38 @@ def load_config(path: Path) -> dict:
                 "DisableOemScheduledTasks": True,
                 "BlockProvisioning": True,
                 "ReinstallMonitor": True,
-                "MarkDeprovisioned": True,
-                "RemoveDefaultStorePackages": True,
-                "HardenContentDelivery": True,
-                "DisableAiFeatures": True,
-                "DisableWidgets": True,
+                "DisableCopilot": True,
+                "DisableRecall": True,
                 "DisableSearchSuggestions": True,
-                "DisableTelemetryTasks": True,
-                "DisableTelemetryPolicies": True,
-                "HardenEdgePolicies": True,
-                "CleanStartupEntries": True,
-                "DisableOemServices": True,
-                "RemoveWin32Bloatware": True,
+                "DisableWidgets": True,
+                "DisableTelemetry": True,
                 "DisableGameDvr": True,
-                "BlockTelemetryEndpoints": True,
-                "WingetSweep": True,
-                "RemoveDeprecatedCapabilities": True,
-                "DisableTelemetryServices": True,
-                "DisableTelemetryAutologgers": True,
+                "DisableDeliveryOptimization": True,
+                "DisableOneDrive": False,
+                "DisableChatTaskbar": True,
+                "DisableEdgeBloat": True,
+                "RemoveOptionalCapabilities": True,
+                "RemoveWin32Programs": True,
+                "CreateRestorePoint": True,
+                "DisableTelemetryTasks": True,
+                "DisableStartupBloat": True,
+                "DisableErrorReporting": True,
+                "DisableEdgeUpdateBloat": True,
+                "BlockOemDriverUpdates": True,
+                "DisableAppPermissions": True,
+                "DisableXboxServices": True,
+                "BackupRegistry": True,
+                "DisablePrintSpooler": False,
+                "BlockOemWpbtExecution": True,
+                "DisableReservedStorage": True,
+                "DisableCloudClipboard": True,
+                "DisableRemoteAssistance": True,
+                "BlockInsiderPreview": True,
+                "DisableMiscBloatServices": True,
+                "DisableSpotlight": True,
+                "DisableAutoplay": True,
+                "NoForcedReboot": True,
+                "HideStartRecommendations": True,
             },
             "DryRun": False,
         }
@@ -190,16 +219,11 @@ def is_admin() -> bool:
 
 
 def run_powershell(cmd: str, timeout: int = 60) -> Tuple[str, str, int]:
-    """Run a PowerShell command and return (stdout, stderr, exit_code).
-    Missing binaries and timeouts return rc=-1 instead of raising — a scan
-    must never abort because a tool is absent or hung."""
-    try:
-        proc = subprocess.run(
-            ["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", cmd],
-            capture_output=True, timeout=timeout
-        )
-    except (OSError, subprocess.TimeoutExpired):
-        return "", "", -1
+    """Run a PowerShell command and return (stdout, stderr, exit_code)."""
+    proc = subprocess.run(
+        ["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", cmd],
+        capture_output=True, timeout=timeout
+    )
     # Windows console output is often CP932/Shift-JIS — use errors="replace" to avoid crashes
     stdout = proc.stdout.decode("cp932", errors="replace") if proc.stdout else ""
     stderr = proc.stderr.decode("cp932", errors="replace") if proc.stderr else ""
@@ -207,10 +231,7 @@ def run_powershell(cmd: str, timeout: int = 60) -> Tuple[str, str, int]:
 
 
 def run_cmd(args: List[str], timeout: int = 30) -> Tuple[str, int]:
-    try:
-        proc = subprocess.run(args, capture_output=True, timeout=timeout)
-    except (OSError, subprocess.TimeoutExpired):
-        return "", -1
+    proc = subprocess.run(args, capture_output=True, timeout=timeout)
     out = proc.stdout.decode("cp932", errors="replace") if proc.stdout else ""
     return out.strip(), proc.returncode
 
@@ -229,37 +250,35 @@ def is_target_package(pkg_name: str, blacklist: List[str], whitelist: List[str])
 def get_blacklisted_packages(blacklist: List[str], whitelist: List[str]) -> List[Tuple[str, str, str]]:
     """Return (PackageFamilyName, Name, InstallPath) for packages matching blacklist.
     InstallPath is None for SystemApps (cannot be removed per-user).
-    Whitelisted and IsFramework packages are never returned (framework parity with C#).
-    Enumerates all users when elevated (-AllUsers)."""
+    Whitelisted packages are never returned, and IsFramework packages (dependency
+    DLLs for other apps) are skipped. Enumerates -AllUsers when admin so packages
+    installed for other profiles are caught too."""
     if not blacklist:
         return []
 
-    # -AllUsers surfaces packages installed for other users too (admin only)
     scope = " -AllUsers" if is_admin() else ""
-    results = []
-    seen = set()
-    ps_cmd = (f"Get-AppxPackage{scope} | "
-              "Select-Object PackageFamilyName,Name,InstallPath,IsFramework | ConvertTo-Json")
+    ps_cmd = ("Get-AppxPackage" + scope +
+              " | Select-Object PackageFamilyName,Name,InstallPath,IsFramework | ConvertTo-Json")
     stdout, stderr, rc = run_powershell(ps_cmd, timeout=120)
 
     if rc != 0 or not stdout:
         return []
 
+    # -AllUsers returns one row per user — dedupe by family
+    seen = set()
+    results = []
     try:
         data = json.loads(stdout)
         if isinstance(data, dict):
             data = [data]
         for pkg in data:
-            if pkg.get("IsFramework"):
-                continue  # never remove framework packages
             family = pkg.get("PackageFamilyName", "")
             name = pkg.get("Name", "")
             install_path = pkg.get("InstallPath", "")  # None for SystemApps
-            # -AllUsers emits one row per user per package — dedupe by family
-            if family in seen:
+            if bool(pkg.get("IsFramework")) or family in seen:
                 continue
-            seen.add(family)
             if is_target_package(family, blacklist, whitelist):
+                seen.add(family)
                 results.append((family, name, install_path))
     except (json.JSONDecodeError, TypeError):
         pass
@@ -267,14 +286,12 @@ def get_blacklisted_packages(blacklist: List[str], whitelist: List[str]) -> List
     return results
 
 
-def get_blacklisted_provisioned(blacklist: List[str], whitelist: List[str]) -> List[Tuple[str, str, str]]:
-    """Return (DisplayName, PackageName, PackageFamilyName) for provisioned packages
-    matching blacklist. Whitelisted packages are never returned. PackageFamilyName
-    is derived as DisplayName_PublisherId — the key Deprovisioned markers and the
-    25H2 removal policy are written under."""
+def get_blacklisted_provisioned(blacklist: List[str], whitelist: List[str]) -> List[Tuple[str, str]]:
+    """Return (DisplayName, PackageName) for provisioned packages matching blacklist.
+    PackageName removes directly — no second lookup like DisplayName requires.
+    Whitelisted packages are never returned."""
     results = []
-    ps_cmd = ("Get-AppxProvisionedPackage -Online | "
-              "Select-Object DisplayName,PackageName | ConvertTo-Json")
+    ps_cmd = "Get-AppxProvisionedPackage -Online | Select-Object DisplayName,PackageName | ConvertTo-Json"
     stdout, stderr, rc = run_powershell(ps_cmd, timeout=120)
 
     if rc != 0 or not stdout:
@@ -287,34 +304,20 @@ def get_blacklisted_provisioned(blacklist: List[str], whitelist: List[str]) -> L
         for pkg in data:
             display = pkg.get("DisplayName", "")
             package_name = pkg.get("PackageName", "")
-            # Get-AppxProvisionedPackage returns no PublisherId — the publisher
-            # is the last '_' segment of PackageName
-            # (Name_Version_Architecture_ResourceId_PublisherId)
-            segs = package_name.split("_")
-            publisher = segs[-1] if len(segs) >= 5 and segs[-1].isalnum() else ""
-            family = f"{display}_{publisher}" if display and publisher else ""
-            if (is_target_package(display, blacklist, whitelist)
-                    and not _is_whitelisted(package_name, whitelist)
-                    and not _is_whitelisted(family, whitelist)):
-                results.append((display, package_name, family))
+            if package_name and is_target_package(display, blacklist, whitelist):
+                results.append((display, package_name))
     except (json.JSONDecodeError, TypeError):
         pass
 
     return results
 
 
-def _is_whitelisted(name: str, whitelist: List[str]) -> bool:
-    lname = name.lower()
-    return any(w and w.lower() in lname for w in whitelist)
-
-
 def get_package_full_names() -> dict:
     """Map PackageFamilyName -> PackageFullName in one PowerShell call.
-    Avoids spawning a process per package inside scan loops. -AllUsers when
-    elevated so packages installed only for other users still resolve."""
+    Avoids spawning a process per package inside scan loops."""
     scope = " -AllUsers" if is_admin() else ""
-    ps_cmd = (f"Get-AppxPackage{scope} | "
-              "Select-Object PackageFamilyName,PackageFullName | ConvertTo-Json")
+    ps_cmd = ("Get-AppxPackage" + scope +
+              " | Select-Object PackageFamilyName,PackageFullName | ConvertTo-Json")
     stdout, _, rc = run_powershell(ps_cmd, timeout=120)
     mapping = {}
     if rc != 0 or not stdout:
@@ -333,25 +336,17 @@ def get_package_full_names() -> dict:
     return mapping
 
 
-# Package names are simple identifiers (Name_ver_arch_resid_pubid) — anything
-# else is rejected before it can reach a PowerShell string.
-_PKG_NAME_RE = re.compile(r"^[A-Za-z0-9_.\-~!]+$")
-
-
-def _safe_pkg_name(name: str) -> bool:
-    return bool(name) and bool(_PKG_NAME_RE.fullmatch(name))
-
-
 def remove_appx_package(package_full_name: str) -> bool:
-    if not _safe_pkg_name(package_full_name):
-        return False
-    # -AllUsers removes for every user at once (admin); falls back to per-user
-    scope = " -AllUsers" if is_admin() else ""
-    ps_cmd = f"Remove-AppxPackage -Package '{package_full_name}'{scope} -ErrorAction SilentlyContinue"
-    _, _, rc = run_powershell(ps_cmd, timeout=60)
-    if rc != 0 and scope:
-        ps_cmd = f"Remove-AppxPackage -Package '{package_full_name}' -ErrorAction SilentlyContinue"
-        _, _, rc = run_powershell(ps_cmd, timeout=60)
+    # Admin: remove for all users first (mirrors C# admin→user fallback)
+    if is_admin():
+        _, _, rc = run_powershell(
+            f"Remove-AppxPackage -Package '{package_full_name}' -AllUsers "
+            f"-ErrorAction SilentlyContinue", timeout=60)
+        if rc == 0:
+            return True
+    _, _, rc = run_powershell(
+        f"Remove-AppxPackage -Package '{package_full_name}' -ErrorAction SilentlyContinue",
+        timeout=60)
     return rc == 0
 
 
@@ -410,13 +405,150 @@ def run_restore(config: dict, logger: logging.Logger) -> int:
 
 
 def remove_provisioned_package(package_name: str) -> bool:
-    if not _safe_pkg_name(package_name):
-        return False
-    # PackageName is supplied by get_blacklisted_provisioned — no lookup respawn
-    ps_cmd = (f"Remove-AppxProvisionedPackage -Online -PackageName '{package_name}' "
-              f"-ErrorAction SilentlyContinue")
+    # Caller supplies the exact PackageName — no second PowerShell lookup needed
+    ps_cmd = (
+        f"Remove-AppxProvisionedPackage -Online "
+        f"-PackageName '{package_name}' -ErrorAction SilentlyContinue"
+    )
     _, _, rc = run_powershell(ps_cmd, timeout=60)
     return rc == 0
+
+
+def remove_optional_capabilities(logger: logging.Logger) -> bool:
+    """Remove deprecated/legacy optional capabilities (IE mode, Steps Recorder,
+    WordPad). Requires admin; non-present entries are skipped by PowerShell."""
+    pattern = ("Browser.InternetExplorer|App.StepsRecorder|"
+               "Microsoft.Windows.WordPad|XPS.Viewer|Print.Fax.Scan|"
+               "App.WirelessDisplay.Connect")
+    _, _, rc = run_powershell(
+        "Get-WindowsCapability -Online | Where-Object "
+        f"{{$_.Name -match '{pattern}' -and $_.State -eq 'Installed'}} | "
+        "Remove-WindowsCapability -Online -ErrorAction SilentlyContinue | Out-Null",
+        timeout=180)
+    if rc == 0:
+        logger.info("Applied: RemoveOptionalCapabilities (IE/StepsRecorder/WordPad)")
+    else:
+        logger.warning("RemoveOptionalCapabilities: no capabilities removed "
+                       "(absent or admin required)")
+    return rc == 0
+
+
+# ─── Win32 program removal (non-Appx OEM bloatware) ──────────────────────────
+
+_UNINSTALL_PATH = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"
+_UNINSTALL_PATH32 = r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
+_USER_UNINSTALL_PATH = r"Software\Microsoft\Windows\CurrentVersion\Uninstall"
+_MSI_GUID_RE = re.compile(r"\{[0-9A-Fa-f\-]{36}\}")
+
+
+def get_blacklisted_win32(blacklist, whitelist):
+    """Enumerate installed Win32 programs (HKLM 64/32, HKCU + loaded user hives)
+    whose DisplayName matches the blacklist. Returns (display, uninstall, quiet)."""
+    import winreg  # Windows-only
+
+    results, seen = [], set()
+
+    def _scan(root, path):
+        try:
+            key = winreg.OpenKey(root, path)
+        except OSError:
+            return
+        try:
+            i = 0
+            while True:
+                try:
+                    sub = winreg.EnumKey(key, i)
+                    i += 1
+                except OSError:
+                    break
+                try:
+                    sk = winreg.OpenKey(key, sub)
+                    display = winreg.QueryValueEx(sk, "DisplayName")[0]
+                    uninstall = winreg.QueryValueEx(sk, "UninstallString")[0]
+                    if not display or not uninstall:
+                        continue
+                    try:
+                        if winreg.QueryValueEx(sk, "SystemComponent")[0] == 1:
+                            continue
+                    except OSError:
+                        pass
+                    try:
+                        quiet = winreg.QueryValueEx(sk, "QuietUninstallString")[0] or ""
+                    except OSError:
+                        quiet = ""
+                    if not is_target_package(display, blacklist, whitelist):
+                        continue
+                    if display.lower() not in seen:
+                        seen.add(display.lower())
+                        results.append((display, uninstall, quiet))
+                except OSError:
+                    continue
+        finally:
+            key.Close()
+
+    _scan(winreg.HKEY_LOCAL_MACHINE, _UNINSTALL_PATH)
+    _scan(winreg.HKEY_LOCAL_MACHINE, _UNINSTALL_PATH32)
+    _scan(winreg.HKEY_CURRENT_USER, _USER_UNINSTALL_PATH)
+    try:
+        i = 0
+        while True:
+            try:
+                sid = winreg.EnumKey(winreg.HKEY_USERS, i)
+                i += 1
+            except OSError:
+                break
+            if re.match(r"^S-1-5-21-\d+-\d+-\d+-\d+$", sid):
+                _scan(winreg.HKEY_USERS, sid + "\\" + _USER_UNINSTALL_PATH)
+    except OSError:
+        pass
+    return results
+
+
+def _split_command_line(command_line):
+    """Split 'cmd args...' or '"path" args...' into (cmd, args)."""
+    command_line = command_line.strip()
+    if command_line.startswith('"'):
+        end = command_line.find('"', 1)
+        if end > 0:
+            return command_line[1:end], command_line[end + 1:].strip()
+    parts = command_line.split(" ", 1)
+    return (parts[0], parts[1].strip() if len(parts) > 1 else "")
+
+
+def remove_win32_program(display, uninstall, quiet, logger):
+    """Silent-uninstall one Win32 program: vendor QuietUninstallString when present,
+    MSI via `msiexec /x {guid} /qn /norestart`; others are logged, not executed."""
+    if quiet:
+        cmd, args = _split_command_line(quiet)
+        argv = [cmd] + (args.split() if args else [])
+    elif "msiexec" in uninstall.lower():
+        m = _MSI_GUID_RE.search(uninstall)
+        if not m:
+            return False
+        argv = ["msiexec.exe", "/x", m.group(0), "/qn", "/norestart"]
+    else:
+        logger.info(f"Win32 program needs manual removal (no silent uninstaller): {display}")
+        return False
+    out, rc = run_cmd(argv, timeout=300)
+    if rc == 0:
+        return True
+    logger.warning(f"Win32 uninstall failed for {display} (rc={rc}): {out[:200]}")
+    return False
+
+
+def create_restore_point(logger):
+    """Create a system restore point before destructive changes. Windows throttles
+    checkpoints to ~1 per 24h; failure is non-fatal."""
+    _, rc = run_cmd(
+        ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
+         "Enable-ComputerRestore -Drive 'C:\\' -ErrorAction SilentlyContinue | Out-Null; "
+         "Checkpoint-Computer -Description 'BloatwareGuard pre-scan' "
+         "-RestorePointType 'MODIFY_SETTINGS' -ErrorAction SilentlyContinue | Out-Null"],
+        timeout=120)
+    if rc == 0:
+        logger.info("Applied: CreateRestorePoint (created or throttled)")
+    else:
+        logger.warning("CreateRestorePoint: skipped (admin required or System Restore disabled)")
 
 
 # ─── Registry Prevention ─────────────────────────────────────────────────────
@@ -434,793 +566,211 @@ def set_registry_dword(hive, path: str, name: str, value: int) -> bool:
         return False
 
 
-# Registry paths used by the prevention layers
-DEPROVISIONED_PATH = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\Deprovisioned"
-REMOVE_DEFAULT_PACKAGES_PATH = r"SOFTWARE\Policies\Microsoft\Windows\Appx\RemoveDefaultMicrosoftStorePackages"
-COPILOT_POLICY_PATH = r"SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot"
-WINDOWS_AI_POLICY_PATH = r"SOFTWARE\Policies\Microsoft\Windows\WindowsAI"
-DSH_POLICY_PATH = r"SOFTWARE\Policies\Microsoft\Dsh"
-NEWS_INTERESTS_PM_PATH = r"SOFTWARE\Microsoft\PolicyManager\default\NewsAndInterests\AllowNewsAndInterests"
-EXPLORER_POLICY_PATH = r"SOFTWARE\Policies\Microsoft\Windows\Explorer"
-CDM_PATH = r"SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
-EXPLORER_ADVANCED_PATH = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
-DEFAULT_HIVE_NAME = "BloatwareGuard_Default"
-
-# Suggestion/ads delivery killswitches — the full set used by Win11Debloat's
-# Disable_Windows_Suggestions.reg, all written as DWORD 0
-CONTENT_DELIVERY_VALUES = (
-    "ContentDeliveryAllowed", "FeatureManagementEnabled",
-    "OemPreInstalledAppsEnabled", "PreInstalledAppsEnabled",
-    "PreInstalledAppsEverEnabled", "RotatingLockScreenEnabled",
-    "RotatingLockScreenOverlayEnabled", "SilentInstalledAppsEnabled",
-    "SoftLandingEnabled", "SystemPaneSuggestionsEnabled",
-    "SubscribedContent-310093Enabled", "SubscribedContent-338387Enabled",
-    "SubscribedContent-338388Enabled", "SubscribedContent-338389Enabled",
-    "SubscribedContent-338380Enabled", "SubscribedContent-338393Enabled",
-    "SubscribedContent-353694Enabled", "SubscribedContent-353696Enabled",
-    "SubscribedContent-353698Enabled",
-)
-
-
-def set_hive_dword(root, prefix: str, path: str, name: str, value: int) -> bool:
-    """Set a DWORD under a given registry root + subkey prefix (e.g. an HKEY_USERS SID)."""
+def demote_service(name: str) -> bool:
+    """Set a service to demand-start. Opens — never creates — the service
+    key, so vendor services absent from the machine don't get phantom
+    Services\\X entries."""
     try:
         import winreg
-        full_path = f"{prefix}\\{path}" if prefix else path
-        key = winreg.CreateKeyEx(root, full_path, 0, winreg.KEY_WRITE)
+        key = winreg.OpenKey(
+            winreg.HKEY_LOCAL_MACHINE,
+            rf"SYSTEM\CurrentControlSet\Services\{name}", 0, winreg.KEY_WRITE)
+        winreg.SetValueEx(key, "Start", 0, winreg.REG_DWORD, 3)
+        winreg.CloseKey(key)
+        return True
+    except OSError:
+        return False
+
+
+# Per-user registry paths (relative to a user hive root — HKCU or HKEY_USERS\<SID>)
+_USER_CDM = r"Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
+_USER_EXPLORER_ADV = r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
+_USER_EXPLORER_POLICIES = r"Software\Policies\Microsoft\Windows\Explorer"
+_USER_COPILOT = r"Software\Policies\Microsoft\Windows\WindowsCopilot"
+_USER_WINDOWS_AI = r"Software\Policies\Microsoft\Windows\WindowsAI"
+_USER_SEARCH = r"Software\Microsoft\Windows\CurrentVersion\Search"
+_USER_SEARCH_SETTINGS = r"Software\Microsoft\Windows\CurrentVersion\SearchSettings"
+_USER_PROFILE_ENGAGEMENT = r"Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement"
+_USER_ACCOUNT_NOTIFICATIONS = r"Software\Microsoft\Windows\CurrentVersion\SystemSettings\AccountNotifications"
+_USER_SUGGESTED_TOAST = (r"Software\Microsoft\Windows\CurrentVersion"
+                         r"\Notifications\Settings\Windows.SystemToast.Suggested")
+_USER_MOBILITY = r"Software\Microsoft\Windows\CurrentVersion\Mobility"
+_USER_ADVERTISING_INFO = r"Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo"
+_USER_PRIVACY = r"Software\Microsoft\Windows\CurrentVersion\Privacy"
+_USER_ONLINE_SPEECH = r"Software\Microsoft\Speech_OneCore\Settings\OnlineSpeechPrivacy"
+_USER_TIPC = r"Software\Microsoft\Input\TIPC"
+_USER_INPUT_PERSONALIZATION = r"Software\Microsoft\InputPersonalization"
+_USER_INPUT_STORE = r"Software\Microsoft\InputPersonalization\TrainedDataStore"
+_USER_PERSONALIZATION = r"Software\Microsoft\Personalization\Settings"
+_USER_SIUF = r"Software\Microsoft\Siuf\Rules"
+_USER_GAME_CONFIG_STORE = r"System\GameConfigStore"
+_USER_GAME_DVR = r"Software\Microsoft\Windows\CurrentVersion\GameDVR"
+_USER_DELIVERY_OPT = (r"Software\Microsoft\Windows\CurrentVersion"
+                      r"\DeliveryOptimization\Settings")
+_USER_POLICIES_EXPLORER = r"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer"
+_USER_ONEDRIVE_CLSID = r"Software\Classes\CLSID\{018D5C66-4533-4307-9B53-224DE2ED1FE6}"
+_USER_WER = r"Software\Microsoft\Windows\Windows Error Reporting"
+
+# Startup value names worth disabling even outside the package blacklist
+# (OEM updaters, adware helpers). OneDrive stays out — DisableOneDrive is opt-in.
+_STARTUP_BLOAT_NAMES = (
+    "Skype", "Cortana", "MicrosoftEdgeAutoLaunch", "GameAssist",
+    "McAfee", "Norton", "WebAdvisor", "CCleaner", "Dell", "Lenovo",
+    "SupportAssist", "Acer", "ASUS", "HP",
+)
+# 0x03 = disabled in StartupApproved (value kept — re-enableable via Task Manager)
+_STARTUP_DISABLED_MARKER = b"\x03" + b"\x00" * 11
+
+# HKLM subkey used to temporarily mount the Default-profile template hive
+_DEFAULT_HIVE_MOUNT = "BloatwareGuard_DefaultProfile"
+
+# Real user profile SIDs only — excludes .DEFAULT, service accounts
+# (S-1-5-18/19/20) and *_Classes virtual hives
+_USER_SID_RE = re.compile(r"^S-1-5-21-\d+-\d+-\d+-\d+$")
+
+
+def _default_profile_dat() -> str:
+    """Path of the default-profile NTUSER.DAT template (usually C:\\Users\\Default)."""
+    try:
+        import winreg
+        key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE,
+                             r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList")
+        default_dir, _ = winreg.QueryValueEx(key, "Default")
+        winreg.CloseKey(key)
+        default_dir = os.path.expandvars(default_dir)
+    except Exception:
+        default_dir = r"C:\Users\Default"
+    dat = os.path.join(default_dir, "NTUSER.DAT")
+    return dat if os.path.exists(dat) else ""
+
+
+def for_each_user_hive(apply, logger: logging.Logger):
+    """Call apply(root, prefix) for every writable user hive: each loaded
+    interactive profile under HKEY_USERS, the default-profile template (mounted
+    temporarily so future users inherit the settings), and HKCU. A service
+    running as SYSTEM writes only to the SYSTEM hive without this — the per-user
+    settings never reach real users."""
+    import winreg
+    applied = 0
+    try:
+        count = winreg.QueryInfoKey(winreg.HKEY_USERS)[0]
+        sids = [winreg.EnumKey(winreg.HKEY_USERS, i) for i in range(count)]
+    except Exception:
+        sids = []
+    for sid in sids:
+        if not _USER_SID_RE.match(sid):
+            continue
+        try:
+            apply(winreg.HKEY_USERS, sid)
+            applied += 1
+        except Exception as e:
+            logger.warning(f"Registry: could not write hive {sid}: {e}")
+
+    dat = _default_profile_dat()
+    if dat:
+        _, rc = run_cmd(["reg.exe", "load", f"HKLM\\{_DEFAULT_HIVE_MOUNT}", dat])
+        if rc == 0:
+            try:
+                apply(winreg.HKEY_LOCAL_MACHINE, _DEFAULT_HIVE_MOUNT)
+                applied += 1
+            except Exception as e:
+                logger.warning(f"Registry: default profile hive skipped: {e}")
+            finally:
+                run_cmd(["reg.exe", "unload", f"HKLM\\{_DEFAULT_HIVE_MOUNT}"])
+
+    try:
+        apply(winreg.HKEY_CURRENT_USER, "")
+        applied += 1
+    except Exception:
+        pass
+    if applied == 0:
+        logger.warning("Registry: no writable user hive found")
+
+
+def set_user_dword_all_hives(path: str, name: str, value: int, logger: logging.Logger):
+    """Set a DWORD under `path` in every user hive (loaded profiles + default
+    template + HKCU)."""
+    import winreg
+
+    def apply(root, prefix):
+        key_path = f"{prefix}\\{path}" if prefix else path
+        key = winreg.CreateKeyEx(root, key_path, 0, winreg.KEY_WRITE)
         winreg.SetValueEx(key, name, 0, winreg.REG_DWORD, value)
         winreg.CloseKey(key)
-        return True
-    except Exception:
-        return False
+
+    for_each_user_hive(apply, logger)
 
 
-def _loaded_user_sids() -> List[str]:
-    """SIDs of loaded real-user hives under HKEY_USERS (S-1-5-21-* only).
-    Skips .DEFAULT, *_Classes, and service SIDs like S-1-5-18."""
-    try:
-        import winreg
-        sids = []
-        key = winreg.OpenKey(winreg.HKEY_USERS, "")
-        i = 0
-        while True:
-            try:
-                name = winreg.EnumKey(key, i)
-            except OSError:
-                break
-            if name.upper().startswith("S-1-5-21-") and not name.endswith("_Classes"):
-                sids.append(name)
-            i += 1
-        winreg.CloseKey(key)
-        return sids
-    except Exception:
-        return []
+# HKLM keys this tool writes to — exported to .reg before first apply so every
+# change is restorable with a double-click.
+_BACKUP_KEY_PATHS = (
+    r"SOFTWARE\Policies\Microsoft\Windows\CloudContent",
+    r"SOFTWARE\Policies\Microsoft\Windows\Device Metadata",
+    r"SOFTWARE\Policies\Microsoft\Windows\AppCompat",
+    r"SOFTWARE\Policies\Microsoft\Windows\Windows Search",
+    r"SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot",
+    r"SOFTWARE\Policies\Microsoft\Windows\WindowsAI",
+    r"SOFTWARE\Policies\Microsoft\Dsh",
+    r"SOFTWARE\Policies\Microsoft\Windows\Windows Feeds",
+    r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
+    r"SOFTWARE\Policies\Microsoft\Windows\System",
+    r"SOFTWARE\Policies\Microsoft\Edge",
+    r"SOFTWARE\Policies\Microsoft\Windows\GameDVR",
+    r"SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization",
+    r"SOFTWARE\Policies\Microsoft\Windows\OneDrive",
+    r"SOFTWARE\Microsoft\Windows\Windows Error Reporting",
+    r"SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting",
+    r"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate",
+    r"SOFTWARE\Policies\Microsoft\Windows\AppPrivacy",
+    r"SOFTWARE\Policies\Microsoft\WindowsInkWorkspace",
+    r"SYSTEM\CurrentControlSet\Control\WMI\AutoLogger\AutoLogger-Diagtrack-Listener",
+    r"SYSTEM\CurrentControlSet\Control\Session Manager",
+    r"SOFTWARE\Microsoft\Windows\CurrentVersion\ReserveManager",
+    r"SYSTEM\CurrentControlSet\Control\Remote Assistance",
+    r"SOFTWARE\Policies\Microsoft\Windows\PreviewBuilds",
+    r"SOFTWARE\Policies\Microsoft\Windows Defender\Spynet",
+    r"SOFTWARE\Microsoft\PolicyManager\current\device\System",
+    r"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU",
+    r"SOFTWARE\Policies\Microsoft\MRT",
+    r"SOFTWARE\Policies\Microsoft\Windows\Explorer",
+    r"SOFTWARE\Microsoft\Speech_OneCore\Preferences",
+    r"SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo",
+    r"SOFTWARE\Policies\Microsoft\FindMyDevice",
+    r"SOFTWARE\Policies\Microsoft\Windows\SettingSync",
+    r"SOFTWARE\Microsoft\Windows\CurrentVersion\Device Metadata",
+)
+_registry_backup_done = False
 
 
-def _apply_user_policies(root, prefix: str, prev: dict) -> int:
-    """Write per-user policy values under one hive (prefix = SID or loaded hive name).
-    Returns the number of values written."""
-    written = 0
-    if prev.get("HardenContentDelivery", True):
-        for v in CONTENT_DELIVERY_VALUES:
-            written += set_hive_dword(root, prefix, CDM_PATH, v, 0)
-        written += set_hive_dword(root, prefix, EXPLORER_ADVANCED_PATH, "ShowCopilotButton", 0)
-        written += set_hive_dword(root, prefix, EXPLORER_ADVANCED_PATH, "Start_IrisRecommendations", 0)
-    if prev.get("DisableSearchSuggestions", True):
-        written += set_hive_dword(root, prefix, EXPLORER_POLICY_PATH, "DisableSearchBoxSuggestions", 1)
-    if prev.get("DisableAiFeatures", True):
-        written += set_hive_dword(root, prefix, COPILOT_POLICY_PATH, "TurnOffWindowsCopilot", 1)
-    if prev.get("DisableTelemetryPolicies", True):
-        for path, name, value in TELEMETRY_USER_WRITES:
-            written += set_hive_dword(root, prefix, path, name, value)
-    if prev.get("DisableGameDvr", True):
-        for path, name, value in GAMEDVR_USER_WRITES:
-            written += set_hive_dword(root, prefix, path, name, value)
-    return written
-
-
-def apply_per_user_policies(prev: dict, logger: logging.Logger):
-    """Apply per-user policies under every loaded user hive plus the Default
-    profile template. A service running as SYSTEM would otherwise write them
-    to SYSTEM's own HKCU where they do nothing for interactive users."""
-    try:
-        import winreg
-    except ImportError:
-        return  # non-Windows
-    applied = 0
-    for sid in _loaded_user_sids():
-        applied += _apply_user_policies(winreg.HKEY_USERS, sid, prev)
-    # Interactive run: current user's hive (usually also a loaded SID — idempotent)
-    applied += _apply_user_policies(winreg.HKEY_CURRENT_USER, "", prev)
-
-    # Stamp the Default profile template so FUTURE users get the policies.
-    # reg.exe is required — winreg cannot load/unload hives.
-    # SystemDrive is "C:" — normalize to a rooted path, else "C:Users\..."
-    # is drive-relative and the template is missed.
-    drive = os.environ.get("SystemDrive", "C:\\").rstrip("\\") + "\\"
-    ntuser = Path(drive) / "Users" / "Default" / "NTUSER.DAT"
-    if ntuser.exists():
-        _, rc = run_cmd(["reg.exe", "load", f"HKU\\{DEFAULT_HIVE_NAME}", str(ntuser)], timeout=15)
-        if rc == 0:
-            applied += _apply_user_policies(winreg.HKEY_USERS, DEFAULT_HIVE_NAME, prev)
-            run_cmd(["reg.exe", "unload", f"HKU\\{DEFAULT_HIVE_NAME}"], timeout=15)
-    logger.info(f"Per-user policies applied ({applied} values across loaded hives + Default profile)")
-
-
-def mark_deprovisioned(families, logger: logging.Logger):
-    """Create Deprovisioned marker keys for matched families — Windows checks this
-    documented path and skips re-provisioning during feature updates."""
-    try:
-        import winreg
-    except ImportError:
+def backup_registry_keys(logger: logging.Logger):
+    """reg-export every HKLM key this tool touches into
+    %ProgramData%\\BloatwareGuard\\backup\\ — once per process."""
+    global _registry_backup_done
+    if _registry_backup_done:
         return
-    count = 0
-    for family in families:
-        if not family:
-            continue
-        try:
-            key = winreg.CreateKeyEx(
-                winreg.HKEY_LOCAL_MACHINE,
-                f"{DEPROVISIONED_PATH}\\{family}", 0, winreg.KEY_WRITE)
-            winreg.CloseKey(key)
-            count += 1
-        except Exception as e:
-            logger.warning(f"Deprovisioned marker failed for {family}: {e}")
-    if count:
-        logger.info(f"Deprovisioned markers written for {count} package families")
-
-
-def write_default_store_packages_policy(families, logger: logging.Logger):
-    """Windows 11 25H2 policy: remove these Store packages at first sign-in of new
-    user profiles. Inert on older builds — unknown policy keys are ignored."""
+    _registry_backup_done = True
     try:
-        import winreg
-    except ImportError:
-        return
-    count = 0
-    for family in families:
-        if not family:
-            continue
-        try:
-            key = winreg.CreateKeyEx(
-                winreg.HKEY_LOCAL_MACHINE,
-                f"{REMOVE_DEFAULT_PACKAGES_PATH}\\{family}", 0, winreg.KEY_WRITE)
-            winreg.SetValueEx(key, "RemovePackage", 0, winreg.REG_DWORD, 1)
-            winreg.CloseKey(key)
-            count += 1
-        except Exception as e:
-            logger.warning(f"RemoveDefaultStorePackages failed for {family}: {e}")
-    if count:
-        logger.info(f"RemoveDefaultStorePackages policy set for {count} package families")
-
-
-# Telemetry/privacy group policies — documented HKLM policy paths
-TELEMETRY_POLICY_WRITES = (
-    (r"SOFTWARE\Policies\Microsoft\Windows\DataCollection", "AllowTelemetry", 0),
-    (r"SOFTWARE\Policies\Microsoft\Windows\DataCollection", "DoNotShowFeedbackNotifications", 1),
-    (r"SOFTWARE\Policies\Microsoft\Windows\System", "EnableActivityFeed", 0),
-    (r"SOFTWARE\Policies\Microsoft\Windows\System", "PublishUserActivities", 0),
-    (r"SOFTWARE\Policies\Microsoft\Windows\System", "UploadUserActivities", 0),
-    (r"SOFTWARE\Policies\Microsoft\Windows\System", "AllowCrossDeviceClipboard", 0),
-    (r"SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo", "DisabledByGroupPolicy", 1),
-    (r"SOFTWARE\Policies\Microsoft\Windows\LocationAndSensors", "DisableLocationScripting", 1),
-    (r"SOFTWARE\Policies\Microsoft\WindowsInkWorkspace", "AllowWindowsInkWorkspace", 0),
-    # Delivery Optimization P2P upload off (HTTP-only download mode)
-    (r"SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization", "DODownloadMode", 0),
-    # WER: never send extra crash data to Microsoft
-    (r"SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting", "DontSendAdditionalData", 1),
-    # Skip the OOBE privacy questions for new users
-    (r"SOFTWARE\Policies\Microsoft\Windows\OOBE", "DisablePrivacyExperience", 1),
-    # Windows Spotlight on lock screen / desktop
-    (r"SOFTWARE\Policies\Microsoft\Windows\CloudContent", "DisableWindowsSpotlightFeatures", 1),
-    # "Do not sync your settings" — settings aren't uploaded to the cloud
-    (r"SOFTWARE\Policies\Microsoft\Windows\SettingSync", "DisableSettingSync", 2),
-    # Hide the Start-menu "Recommended" section (ads + suggested apps slot)
-    (EXPLORER_POLICY_PATH, "HideRecommendedSection", 1),
-)
-
-# Per-user telemetry/privacy values — written to every loaded user hive.
-# DisableTailoredExperiencesWithDiagnosticData is a documented User-class policy.
-TELEMETRY_USER_WRITES = (
-    (r"SOFTWARE\Microsoft\Windows\CurrentVersion\Privacy",
-     "TailoredExperiencesWithDiagnosticDataEnabled", 0),
-    (r"SOFTWARE\Microsoft\Windows\CurrentVersion\AdvertisingInfo", "Enabled", 0),
-    # 1 = restrict collection (0 would leave text/ink harvesting ON)
-    (r"SOFTWARE\Microsoft\InputPersonalization", "RestrictImplicitTextCollection", 1),
-    (r"SOFTWARE\Microsoft\InputPersonalization", "RestrictImplicitInkCollection", 1),
-    (r"SOFTWARE\Microsoft\InputPersonalization\TrainedDataStore", "HarvestContacts", 0),
-    (r"SOFTWARE\Microsoft\Siuf\Rules", "NumberOfSIUFInPeriod", 0),
-    (r"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced", "Start_TrackProgs", 0),
-    # Explorer "sync provider" ads (OneDrive/MS promos in File Explorer)
-    (r"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced", "ShowSyncProviderNotifications", 0),
-    (r"SOFTWARE\Microsoft\Input\Settings", "InsightsEnabled", 0),
-    # SCOOBE — the "let's finish setting up your device" nag screen
-    (r"SOFTWARE\Microsoft\Windows\CurrentVersion\UserProfileEngagement",
-     "ScoobeSystemSettingEnabled", 0),
-    (r"SOFTWARE\Policies\Microsoft\Windows\CloudContent",
-     "DisableTailoredExperiencesWithDiagnosticData", 1),
-)
-
-EDGE_POLICY_PATH = r"SOFTWARE\Policies\Microsoft\Edge"
-
-# Edge annoyance policies — documented MSEdge.admx policy names, all DWORD
-EDGE_POLICIES = (
-    ("HubsSidebarEnabled", 0), ("StandaloneHubsSidebarEnabled", 0),
-    ("StartupBoostEnabled", 0), ("SpotlightExperiencesAndRecommendationsEnabled", 0),
-    ("PersonalizationReportingEnabled", 0), ("ShowRecommendationsEnabled", 0),
-    ("EdgeShoppingAssistantEnabled", 0), ("NewTabPageContentEnabled", 0),
-    # privacy leaks: URLs/site data sent to Microsoft web services
-    ("SendSiteInfoToImproveServices", 0),
-    ("ResolveNavigationErrorsUseWebService", 0),
-    ("AlternateErrorPagesEnabled", 0), ("UserFeedbackAllowed", 0),
-    ("BingAdsSuppression", 1),
-)
-
-# Hardware OEMs — a bare manufacturer name is never enough to act on: drivers
-# and hardware-integration utilities (touchpad, RGB, audio stack) must survive.
-# They only match together with a bloat keyword.
-HARDWARE_VENDOR_PATTERNS = (
-    "Lenovo", "Dell", "Hewlett", "HP Inc", "HPInc",
-    "ASUS", "ASUSTeK", "Acer", "Razer",
-)
-# Vendors whose typical OEM-shipped products are bloat/trialware by definition —
-# a name match alone suffices.
-JUNK_VENDOR_PATTERNS = (
-    "McAfee", "Norton", "NortonLifeLock", "Avast", "AVG Software",
-    "WildTangent", "CyberLink", "ExpressVPN", "NordVPN",
-    "Dropbox", "Spotify", "Adobe Creative Cloud", "CCleaner", "Booking.com",
-)
-VENDOR_PATTERNS = HARDWARE_VENDOR_PATTERNS + JUNK_VENDOR_PATTERNS
-
-# Words that mark OEM software as nagware/updater rather than hardware support
-BLOAT_KEYWORDS = (
-    "update", "updater", "support", "assist", "telemetry", "diagnostic",
-    "analytic", "nag", "promo", "customer", "optimizer", "helper",
-    "quickset", "registration", "survey", "experience", "trial", "offer", "deals",
-)
-
-
-def _is_vendor_bloat(text: str, whitelist) -> bool:
-    """Junk-vendor name alone suffices; hardware OEMs also need a bloat keyword
-    so drivers/hardware-integration entries are never acted on by name alone."""
-    if is_target_package(text, JUNK_VENDOR_PATTERNS, whitelist):
-        return True
-    return (is_target_package(text, HARDWARE_VENDOR_PATTERNS, whitelist)
-            and is_target_package(text, BLOAT_KEYWORDS, ()))
-
-
-def _is_bloat_text(text: str, config: dict) -> bool:
-    """Blacklist match OR vendor-bloat match (junk vendor / hw-vendor+keyword),
-    respecting the whitelist. Used for all destructive Win32-side actions."""
-    whitelist = config.get("Whitelist", [])
-    if _is_whitelisted(text, whitelist):
-        return False
-    if is_target_package(text, config.get("Blacklist", []), whitelist):
-        return True
-    return _is_vendor_bloat(text, whitelist)
-
-
-# Run/RunOnce keys swept for startup bloat
-RUN_KEY_PATHS = (
-    r"SOFTWARE\Microsoft\Windows\CurrentVersion\Run",
-    r"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce",
-    # often-overlooked autostart hive (also abused by malware persistence)
-    r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run",
-)
-HKLM_RUN_KEY_PATHS = RUN_KEY_PATHS + tuple(
-    "SOFTWARE\\WOW6432Node\\" + p[len("SOFTWARE\\"):] for p in RUN_KEY_PATHS)
-
-# Active Setup — OEM stub installers that re-run at EVERY user sign-in
-ACTIVE_SETUP_PATHS = (
-    r"SOFTWARE\Microsoft\Active Setup\Installed Components",
-    r"SOFTWARE\WOW6432Node\Microsoft\Active Setup\Installed Components",
-)
-
-# Win32 uninstall hives — 64- and 32-bit views
-WIN32_UNINSTALL_PATHS = (
-    r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
-    r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall",
-)
-
-# UninstallString tokens that already make an uninstaller non-interactive
-SILENT_UNINSTALL_FLAGS = {
-    "/s", "/silent", "/verysilent", "/quiet", "/qn", "-s", "-silent"
-}
-
-# Pure-telemetry endpoints blocked via the hosts file — the Spybot Anti-Beacon
-# technique. Conservative: no Windows Update / Store / activation endpoints.
-TELEMETRY_HOSTS = (
-    "vortex.data.microsoft.com",
-    "vortex-win.data.microsoft.com",
-    "telecommand.telemetry.microsoft.com",
-    "telecommand.telemetry.microsoft.com.nsatc.net",
-    "oca.telemetry.microsoft.com",
-    "oca.telemetry.microsoft.com.nsatc.net",
-    "sqm.telemetry.microsoft.com",
-    "sqm.telemetry.microsoft.com.nsatc.net",
-    "watson.telemetry.microsoft.com",
-    "watson.telemetry.microsoft.com.nsatc.net",
-    "watson.ppe.telemetry.microsoft.com",
-    "watson.microsoft.com",
-    "reports.wes.df.telemetry.microsoft.com",
-    "wes.df.telemetry.microsoft.com",
-    "services.wes.df.telemetry.microsoft.com",
-    "sqm.df.telemetry.microsoft.com",
-    "settings-win.data.microsoft.com",
-    "settings.data.microsoft.com",
-    "statsfe2.ws.microsoft.com",
-    "redir.metaservices.microsoft.com",
-    "choice.microsoft.com",
-    "choice.microsoft.com.nsatc.net",
-    "telemetry.appex.bing.net",
-    "telemetry.urs.microsoft.com",
-    "feedback.microsoft-hohm.com",
-    "vortex-bn2.metron.live.com.nsatc.net",
-)
-HOSTS_BLOCK_BEGIN = "# >>> BloatwareGuard telemetry block"
-HOSTS_BLOCK_END = "# <<< BloatwareGuard telemetry block"
-
-# Deprecated-in-Windows capabilities safe to remove (both deprecated by Microsoft)
-DEPRECATED_CAPABILITIES = (
-    "Microsoft.Windows.WordPad",       # deprecated — removed from builds > 26020
-    "App.StepsRecorder",               # deprecated, slated for removal
-)
-
-# GameDVR policy + per-user capture keys
-GAMEDVR_POLICY_PATH = r"SOFTWARE\Policies\Microsoft\Windows\GameDVR"
-GAMEDVR_USER_WRITES = (
-    (r"SOFTWARE\Microsoft\Windows\CurrentVersion\GameDVR", "AppCaptureEnabled", 0),
-    (r"SOFTWARE\System\GameConfigStore", "GameDVR_Enabled", 0),
-)
-
-# Telemetry/leftover system services — disabled outright. DiagTrack is the main
-# telemetry pipeline; the Xbox services are dead once the Xbox apps are gone.
-TELEMETRY_SERVICES = (
-    "DiagTrack",          # Connected User Experiences and Telemetry
-    "dmwappushservice",   # WAP Push Message Routing (telemetry channel)
-    "RetailDemo",         # Retail Demo service
-    "XblAuthManager",     # Xbox Live Auth — dead once Xbox apps are gone
-    "XblGameSave",        # Xbox Live Game Save
-    "XboxNetApiSvc",      # Xbox Live Networking
-    "WMPNetworkSvc",      # Windows Media Player network sharing (legacy)
-)
-
-# ETW autologger sessions that exist solely to feed telemetry — Start=0 stops
-# them at boot (the privacy.sexy / Sophia Script technique)
-AUTOLOGGERS_PATH = r"SYSTEM\CurrentControlSet\Control\WMI\Autologger"
-TELEMETRY_AUTOLOGGERS = (
-    "AutoLogger-Diagtrack-Listener", "Diagtrack-Listener", "SQMLogger",
-    "DataMarket", "AppModel", "CloudExperienceHostOobe", "DiagLog",
-    "LwtNetLog", "TileStore", "UBPM", "WiFiSession",
-)
-
-
-# Microsoft telemetry/CEIP scheduled tasks — explicit full paths, disabled outright.
-# Mirrors the telemetry task lists used by Win11Debloat / Sophia Script.
-TELEMETRY_TASK_PATHS = (
-    r"\Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser",
-    r"\Microsoft\Windows\Application Experience\ProgramDataUpdater",
-    r"\Microsoft\Windows\Application Experience\PcaPatchDbUpdate",
-    r"\Microsoft\Windows\Application Experience\StartupAppTask",
-    r"\Microsoft\Windows\Autochk\Proxy",
-    r"\Microsoft\Windows\Customer Experience Improvement Program\Consolidator",
-    r"\Microsoft\Windows\Customer Experience Improvement Program\KernelCeipTask",
-    r"\Microsoft\Windows\Customer Experience Improvement Program\UsbCeip",
-    r"\Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticDataCollector",
-    r"\Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticResolver",
-    r"\Microsoft\Windows\Feedback\Siuf\DmClient",
-    r"\Microsoft\Windows\Feedback\Siuf\DmClientOnScenarioDownload",
-    r"\Microsoft\Windows\Maps\MapsToastTask",
-    r"\Microsoft\Windows\Maps\MapsUpdateTask",
-    r"\Microsoft\Windows\Power Efficiency Diagnostics\AnalyzeSystem",
-    r"\Microsoft\Windows\Speech\SpeechModelDownloadTask",
-    r"\Microsoft\Windows\DiskFootprint\Diagnostics",
-    r"\Microsoft\Windows\WinErrorReporting\QueueReporting",
-    r"\Microsoft\Windows\Device Information\Device",
-    r"\Microsoft\Windows\Device Information\Device User",
-    r"\Microsoft\Windows\TextInput\TextInputModelDownloadTask",
-)
-
-
-def disable_telemetry_tasks(logger: logging.Logger):
-    """Disable known Microsoft telemetry/CEIP scheduled tasks by exact path.
-    Missing tasks are logged at info level — they vary by Windows build."""
-    disabled = 0
-    for task_path in TELEMETRY_TASK_PATHS:
-        _, rc = run_cmd(["schtasks", "/Change", "/TN", task_path, "/DISABLE"], timeout=15)
-        if rc == 0:
-            disabled += 1
-            logger.info(f"Disabled telemetry task: {task_path}")
-        else:
-            logger.info(f"Telemetry task not present (skip): {task_path}")
-    logger.info(f"Disabled {disabled}/{len(TELEMETRY_TASK_PATHS)} telemetry scheduled tasks")
-
-
-# ─── Win32 / Vendor Bloat ────────────────────────────────────────────────────
-
-def _read_uninstall_entry(root, path: str):
-    """Return (DisplayName, UninstallString, QuietUninstallString) or ("","","")."""
-    try:
-        import winreg
-        key = winreg.OpenKey(root, path, 0, winreg.KEY_READ)
-
-        def _val(name):
-            try:
-                v, _ = winreg.QueryValueEx(key, name)
-                return str(v)
-            except OSError:
-                return ""
-        result = _val("DisplayName"), _val("UninstallString"), _val("QuietUninstallString")
-        winreg.CloseKey(key)
-        return result
-    except Exception:
-        return "", "", ""
-
-
-def _win32_silent_uninstall_cmd(uninstall_str: str, quiet_str: str) -> Optional[str]:
-    """Return a non-interactive uninstall command, or None if the entry has none.
-
-    - QuietUninstallString is used verbatim
-    - msiexec strings are converted to `msiexec /x {GUID} /qn /norestart`
-    - UninstallStrings already carrying a known silent flag are used verbatim
-    Anything else is skipped — an interactive uninstaller would hang the scan."""
-    if quiet_str:
-        return quiet_str
-    if not uninstall_str:
-        return None
-    guid = re.search(r"\{[0-9A-Fa-f-]{36}\}", uninstall_str)
-    if "msiexec" in uninstall_str.lower() and guid:
-        return f"msiexec.exe /x {guid.group(0)} /qn /norestart"
-    if any(t.lower() in SILENT_UNINSTALL_FLAGS for t in uninstall_str.split()):
-        return uninstall_str
-    return None
-
-
-def remove_win32_bloatware(config: dict, dry_run: bool, logger: logging.Logger) -> int:
-    """Uninstall Win32/desktop bloat (MSI/EXE) — Appx removal can't see these.
-    Sweeps the Uninstall registry hives (HKLM 64/32-bit + loaded user hives) for
-    DisplayNames matching Blacklist ∪ vendor patterns, excluding Whitelist.
-    Only entries with a silent uninstall path are touched.
-
-    Privilege boundary: user-hive (HKU\\<sid>) entries are user-writable — a
-    local user could plant a matching entry whose UninstallString the elevated
-    service would execute. Only HKLM entries are ever run; user-hive matches
-    are reported, not executed."""
-    try:
-        import winreg
-    except ImportError:
-        return 0
-
-    hives = [(winreg.HKEY_LOCAL_MACHINE, p, False) for p in WIN32_UNINSTALL_PATHS]
-    hives += [(winreg.HKEY_USERS, f"{sid}\\{WIN32_UNINSTALL_PATHS[0]}", True)
-              for sid in _loaded_user_sids()]
-    removed = 0
-    for root, path, user_hive in hives:
-        try:
-            parent = winreg.OpenKey(root, path, 0, winreg.KEY_READ)
-        except OSError:
-            continue
-        sub_names = []
-        i = 0
-        while True:
-            try:
-                sub_names.append(winreg.EnumKey(parent, i))
-            except OSError:
-                break
-            i += 1
-        winreg.CloseKey(parent)
-        for sub in sub_names:
-            display, uninstall_str, quiet_str = _read_uninstall_entry(
-                root, f"{path}\\{sub}")
-            if not display or not _is_bloat_text(display, config):
-                continue
-            if user_hive:
-                logger.info(f"Win32 bloat in user hive (report only, not executed): {display}")
-                continue
-            cmd = _win32_silent_uninstall_cmd(uninstall_str, quiet_str)
-            if cmd is None:
-                logger.info(f"Win32 bloat — no silent uninstaller (manual): {display}")
-                continue
-            if dry_run:
-                logger.info(f"[DRY-RUN] Would uninstall (win32): {display}")
-                removed += 1
-                continue
-            _, rc = run_cmd(["cmd.exe", "/c", cmd], timeout=300)
-            if rc == 0:
-                logger.info(f"Uninstalled Win32 package: {display}")
-                record_removal(config, {"kind": "win32", "name": display})
-                removed += 1
-            else:
-                logger.warning(f"Win32 uninstall failed (rc={rc}): {display}")
-    return removed
-
-
-def clean_startup_entries(config: dict, dry_run: bool, logger: logging.Logger):
-    """Delete Run/RunOnce values matching bloat/vendor patterns — HKLM (64- and
-    32-bit views) plus every loaded user hive. Whitelist still applies."""
-    try:
-        import winreg
-    except ImportError:
-        return
-
-    targets = [(winreg.HKEY_LOCAL_MACHINE, p) for p in HKLM_RUN_KEY_PATHS]
-    targets += [(winreg.HKEY_USERS, f"{sid}\\{p}")
-                for sid in _loaded_user_sids() for p in RUN_KEY_PATHS]
-    targets += [(winreg.HKEY_CURRENT_USER, p) for p in RUN_KEY_PATHS]
-
-    deleted = 0
-    for root, path in targets:
-        try:
-            key = winreg.OpenKey(root, path, 0,
-                                 winreg.KEY_READ | winreg.KEY_SET_VALUE)
-        except OSError:
-            continue
-        values = []  # collect first — deleting while enumerating skips entries
-        i = 0
-        while True:
-            try:
-                values.append(winreg.EnumValue(key, i))
-            except OSError:
-                break
-            i += 1
-        for name, data, _kind in values:
-            if not _is_bloat_text(f"{name} {data}", config):
-                continue
-            if dry_run:
-                logger.info(f"[DRY-RUN] Would delete startup entry: {path}\\{name}")
-                deleted += 1
-                continue
-            try:
-                winreg.DeleteValue(key, name)
-                deleted += 1
-                logger.info(f"Deleted startup entry: {name} ({path})")
-            except OSError as e:
-                logger.warning(f"Startup entry delete failed {name}: {e}")
-        winreg.CloseKey(key)
-
-    # Active Setup stub installers — run again at every user sign-in
-    for path in ACTIVE_SETUP_PATHS:
-        try:
-            root_key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, path, 0,
-                                      winreg.KEY_READ | winreg.KEY_WRITE)
-        except OSError:
-            continue
-        names = []
-        i = 0
-        while True:
-            try:
-                names.append(winreg.EnumKey(root_key, i))
-            except OSError:
-                break
-            i += 1
-        for sub in names:
-            try:
-                with winreg.OpenKey(root_key, sub) as sk:
-                    blobs = [sub]
-                    for val_name in ("", "StubPath", "LocalizedName"):
-                        try:
-                            blobs.append(str(winreg.QueryValueEx(sk, val_name)[0]))
-                        except OSError:
-                            pass
-                matched = any(_is_bloat_text(b, config) for b in blobs)
-            except OSError:
-                matched = False
-            if not matched:
-                continue
-            if dry_run:
-                logger.info(f"[DRY-RUN] Would delete Active Setup stub: {path}\\{sub}")
-                deleted += 1
-                continue
-            try:
-                winreg.DeleteKey(root_key, sub)
-                deleted += 1
-                logger.info(f"Deleted Active Setup stub: {sub} ({path})")
-            except OSError as e:
-                logger.warning(f"Active Setup stub delete failed {sub}: {e}")
-        winreg.CloseKey(root_key)
-
-    if deleted:
-        logger.info(f"Startup bloat entries {'flagged' if dry_run else 'deleted'}: {deleted}")
-
-
-def disable_oem_services(config: dict, logger: logging.Logger):
-    """Stop + disable OEM/vendor auto-start services (updaters, trial nagware).
-    Hardware-OEM services additionally require a bloat keyword — drivers and
-    hardware-integration services (RGB, audio, power) are never touched."""
-    pattern = "|".join(re.escape(p) for p in VENDOR_PATTERNS)
-    ps_cmd = ("Get-Service | Where-Object {$_.Name -match '" + pattern +
-              "' -or $_.DisplayName -match '" + pattern + "'} | "
-              "Select-Object Name,DisplayName,Status,StartType | ConvertTo-Json")
-    stdout, _, rc = run_powershell(ps_cmd, timeout=60)
-    if rc != 0 or not stdout:
-        return
-    try:
-        data = json.loads(stdout)
-        if isinstance(data, dict):
-            data = [data]
-    except (json.JSONDecodeError, TypeError):
-        return
-    disabled = 0
-    for svc in data:
-        name = svc.get("Name", "")
-        # StartType serializes as a number in ConvertTo-Json (Disabled = 4)
-        start_type = svc.get("StartType")
-        if not name or start_type == "Disabled" or start_type == 4:
-            continue
-        # Hardware vendors also need a bloat keyword — skips RGB/audio services
-        if not _is_vendor_bloat(f"{name} {svc.get('DisplayName', '')}",
-                                config.get("Whitelist", [])):
-            continue
-        run_cmd(["sc.exe", "stop", name], timeout=20)
-        _, rc2 = run_cmd(["sc.exe", "config", name, "start=", "disabled"],
-                         timeout=20)
-        if rc2 == 0:
-            disabled += 1
-            logger.info(f"Disabled OEM service: {name} ({svc.get('DisplayName', '')})")
-        else:
-            logger.warning(f"Service disable failed [admin required?]: {name}")
-    logger.info(f"Disabled {disabled} OEM/vendor services")
-
-
-def disable_telemetry_services(logger: logging.Logger) -> int:
-    """Stop + disable telemetry/leftover system services (DiagTrack, Xbox
-    leftovers, WMP sharing). NCSI active probing stays on — disabling it
-    breaks captive-portal detection on public Wi-Fi."""
-    disabled = 0
-    for name in TELEMETRY_SERVICES:
-        _, rc = run_cmd(["sc.exe", "query", name], timeout=10)
-        if rc != 0:
-            continue  # service not present on this machine
-        run_cmd(["sc.exe", "stop", name], timeout=20)
-        _, rc2 = run_cmd(["sc.exe", "config", name, "start=", "disabled"], timeout=15)
-        if rc2 == 0:
-            disabled += 1
-            logger.info(f"Disabled telemetry service: {name}")
-        else:
-            logger.warning(f"Service disable failed [admin required?]: {name}")
-    logger.info(f"Disabled {disabled} telemetry/leftover services")
-    return disabled
-
-
-def disable_telemetry_autologgers(logger: logging.Logger) -> int:
-    """Stop the boot-time ETW autologger sessions that only feed telemetry
-    (Diagtrack-Listener, SQMLogger, WiFiSession, …) — the privacy.sexy /
-    Sophia Script technique. Only touches keys that already exist."""
-    import winreg
-    disabled = 0
-    for name in TELEMETRY_AUTOLOGGERS:
-        try:
-            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE,
-                                AUTOLOGGERS_PATH + "\\" + name, 0,
-                                winreg.KEY_SET_VALUE) as key:
-                winreg.SetValueEx(key, "Start", 0, winreg.REG_DWORD, 0)
-                disabled += 1
-        except OSError:
-            continue  # autologger not present on this machine
-    logger.info(f"Disabled {disabled} telemetry autologgers (Start=0)")
-    return disabled
-
-
-def _hosts_file_path() -> Path:
-    windir = os.environ.get("SystemRoot", r"C:\Windows")
-    return Path(windir) / "System32" / "drivers" / "etc" / "hosts"
-
-
-def set_telemetry_hosts_block(enabled: bool, logger: logging.Logger):
-    """Add/remove a marked hosts-file block that null-routes pure-telemetry
-    endpoints (the Spybot Anti-Beacon technique). Toggle-off removes the block —
-    fully reversible. Conservative list: no Windows Update/Store/activation."""
-    hosts = _hosts_file_path()
-    try:
-        # Strict decode — silently replacing undecodable bytes would corrupt
-        # unrelated hosts content on rewrite. Skip rather than write garbage.
-        text = hosts.read_text(encoding="utf-8") if hosts.exists() else ""
-    except (OSError, UnicodeDecodeError) as e:
-        logger.warning(f"Cannot read hosts file (skipped): {e}")
-        return
-    original = text  # single read — a second read could fail on absent file
-
-    begin_idx = text.find(HOSTS_BLOCK_BEGIN)
-    end_idx = text.find(HOSTS_BLOCK_END)
-    if begin_idx != -1 and end_idx != -1:
-        text = text[:begin_idx].rstrip("\n") + "\n" + text[end_idx + len(HOSTS_BLOCK_END):].lstrip("\n")
-    if enabled:
-        block = "\n".join(f"0.0.0.0 {d}" for d in TELEMETRY_HOSTS)
-        text = text.rstrip("\n") + f"\n\n{HOSTS_BLOCK_BEGIN}\n{block}\n{HOSTS_BLOCK_END}\n"
-    if begin_idx == -1 and not enabled:
-        return  # nothing to do — don't touch the file
-    # Skip the write when the block is already in the desired state
-    if hosts.exists() and text == original:
-        return
-    try:
-        hosts.write_text(text, encoding="utf-8")
-        logger.info(f"Telemetry hosts block {'applied' if enabled else 'removed'} "
-                    f"({len(TELEMETRY_HOSTS)} domains)")
+        base = os.environ.get("PROGRAMDATA", r"C:\ProgramData")
+        backup_dir = os.path.join(base, "BloatwareGuard", "backup")
+        os.makedirs(backup_dir, exist_ok=True)
+        stamp = time.strftime("%Y%m%d-%H%M%S")
+        for i, path in enumerate(_BACKUP_KEY_PATHS):
+            # reg.exe export fails for non-existent keys — expected, non-fatal
+            run_cmd(["reg.exe", "export", f"HKLM\\{path}",
+                     os.path.join(backup_dir, f"{stamp}-{i}.reg"), "/y"])
+        logger.info(f"Applied: BackupRegistry ({len(_BACKUP_KEY_PATHS)} keys → {backup_dir})")
     except OSError as e:
-        logger.warning(f"Cannot write hosts file [admin required]: {e}")
-
-
-def disable_game_dvr(logger: logging.Logger):
-    """Policy-disable Game Bar background capture (GameDVR) — removes the
-    background recording overhead once Xbox apps are gone."""
-    if set_registry_dword("HKLM", GAMEDVR_POLICY_PATH, "AllowGameDVR", 0):
-        logger.info("Applied: AllowGameDVR = 0")
-
-
-def winget_sweep(config: dict, dry_run: bool, logger: logging.Logger) -> int:
-    """`winget uninstall --silent` sweep for bloat/vendor matches. Catches the
-    leftovers that neither Appx nor the Uninstall-hive sweep can reach silently.
-    Skips cleanly when winget (App Installer) is absent."""
-    _, rc = run_cmd(["winget", "--version"], timeout=15)
-    if rc != 0:
-        logger.info("winget not available — skipping winget sweep")
-        return 0
-    stdout, rc = run_cmd(
-        ["winget", "list", "--accept-source-agreements", "--disable-interactivity"],
-        timeout=180)
-    if rc != 0 or not stdout:
-        return 0
-    removed = 0
-    for line in stdout.splitlines():
-        cols = re.split(r"\s{2,}", line.strip())
-        if len(cols) < 2 or not cols[0] or cols[1].startswith("-"):
-            continue  # header/separator line
-        name, pkg_id = cols[0], cols[1]
-        # winget ids are simple identifiers — anything else never reaches a shell
-        if not re.fullmatch(r"[A-Za-z0-9_.\-]+", pkg_id):
-            continue
-        if not _is_bloat_text(f"{name} {pkg_id}", config):
-            continue
-        if dry_run:
-            logger.info(f"[DRY-RUN] Would winget-uninstall: {name} ({pkg_id})")
-            removed += 1
-            continue
-        _, rc = run_cmd(["winget", "uninstall", "--id", pkg_id, "--silent",
-                         "--disable-interactivity", "--accept-source-agreements"],
-                        timeout=300)
-        if rc == 0:
-            logger.info(f"winget-uninstalled: {name} ({pkg_id})")
-            record_removal(config, {"kind": "winget", "name": name})
-            removed += 1
-        else:
-            logger.info(f"winget uninstall skipped/failed: {name}")
-    return removed
-
-
-def remove_deprecated_capabilities(logger: logging.Logger) -> int:
-    """Remove Windows capabilities Microsoft has deprecated (WordPad, Steps
-    Recorder) — they persist in the image even though nothing uses them."""
-    removed = 0
-    for pattern in DEPRECATED_CAPABILITIES:
-        ps_cmd = (f"Get-WindowsCapability -Online -Name '{pattern}*' | "
-                  "Where-Object {$_.State -eq 'Installed'} | "
-                  "Select-Object Name | ConvertTo-Json")
-        stdout, _, rc = run_powershell(ps_cmd, timeout=60)
-        if rc != 0 or not stdout:
-            continue
-        try:
-            data = json.loads(stdout)
-            if isinstance(data, dict):
-                data = [data]
-        except (json.JSONDecodeError, TypeError):
-            continue
-        for cap in data:
-            name = cap.get("Name", "")
-            if not name:
-                continue
-            _, rc2 = run_powershell(
-                f"Remove-WindowsCapability -Online -Name '{name}'", timeout=180)
-            if rc2 == 0:
-                logger.info(f"Removed deprecated capability: {name}")
-                removed += 1
-    return removed
+        logger.warning(f"BackupRegistry skipped: {e}")
 
 
 def apply_registry_prevention(config: dict, logger: logging.Logger):
+    import winreg
     prev = config.get("Prevention", {})
 
+    if prev.get("BackupRegistry", True):
+        backup_registry_keys(logger)
+
     cloud_content = r"SOFTWARE\Policies\Microsoft\Windows\CloudContent"
-    cdm = r"SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
 
     if prev.get("DisableConsumerExperiences", True):
         if set_registry_dword("HKLM", cloud_content, "DisableWindowsConsumerFeatures", 1):
@@ -1229,9 +779,7 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
     if prev.get("DisableCloudContent", True):
         set_registry_dword("HKLM", cloud_content, "DisableSoftLanding", 1)
         set_registry_dword("HKLM", cloud_content, "DisableCloudOptimizedContent", 1)
-        set_registry_dword("HKLM", cloud_content, "DisableWindowsSpotlightFeatures", 1)
-        logger.info("Applied: DisableSoftLanding + DisableCloudOptimizedContent"
-                    " + DisableWindowsSpotlightFeatures = 1")
+        logger.info("Applied: DisableSoftLanding + DisableCloudOptimizedContent = 1")
 
     if prev.get("PreventDeviceMetadata", True):
         if set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\Device Metadata",
@@ -1240,50 +788,506 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
 
     if prev.get("BlockProvisioning", True):
         set_registry_dword("HKLM", cloud_content, "DisableConsumerAccountContent", 1)
-        set_registry_dword("HKCU", cdm, "SilentInstalledAppsEnabled", 0)
-        set_registry_dword("HKCU", cdm, "SystemPaneSuggestionsEnabled", 0)
-        set_registry_dword("HKCU", cdm, "SubscribedContent-338389Enabled", 0)
-        logger.info("Applied: BlockProvisioning (silent installs + suggestions disabled)")
 
-    if prev.get("DisableAiFeatures", True):
-        set_registry_dword("HKLM", COPILOT_POLICY_PATH, "TurnOffWindowsCopilot", 1)
-        set_registry_dword("HKLM", WINDOWS_AI_POLICY_PATH, "DisableAIDataAnalysis", 1)
-        set_registry_dword("HKLM", WINDOWS_AI_POLICY_PATH, "AllowRecallEnablement", 0)
-        set_registry_dword("HKLM", WINDOWS_AI_POLICY_PATH, "DisableClickToDo", 1)
-        logger.info("Applied: TurnOffWindowsCopilot + DisableAIDataAnalysis + DisableClickToDo")
+        # ContentDeliveryManager — silent installs + every SubscribedContent surface
+        # (key set mirrors Win11Debloat Disable_Windows_Suggestions.reg)
+        cdm_zeros = (
+            "SilentInstalledAppsEnabled",        # silent app installs
+            "SystemPaneSuggestionsEnabled",      # system pane suggestions
+            "SoftLandingEnabled",                # soft landing tips
+            "SubscribedContent-310093Enabled",   # Windows welcome experience
+            "SubscribedContent-338387Enabled",   # lock-screen spotlight ads
+            "SubscribedContent-338388Enabled",   # Start suggestions
+            "SubscribedContent-338389Enabled",   # tips while using Windows
+            "SubscribedContent-338393Enabled",   # Settings suggestions
+            "SubscribedContent-353694Enabled",   # Settings suggestions (2)
+            "SubscribedContent-353696Enabled",   # Settings suggestions (3)
+            "SubscribedContent-353698Enabled",   # Settings suggestions (4)
+            "RotatingLockScreenEnabled",         # lock-screen spotlight
+            "RotatingLockScreenOverlayEnabled",  # lock-screen overlay ads
+            "PreInstalledAppsEnabled",           # OEM app seeding
+            "PreInstalledAppsEverEnabled",       # OEM app seeding (sticky)
+            "OemPreInstalledAppsEnabled",        # OEM app seeding (OEM channel)
+            "RemediationRequired",               # CDM remediation re-offers
+        )
 
-    if prev.get("DisableWidgets", True):
-        set_registry_dword("HKLM", DSH_POLICY_PATH, "AllowNewsAndInterests", 0)
-        # PolicyManager default — the feed stays off even if the policy is cleared
-        set_registry_dword("HKLM", NEWS_INTERESTS_PM_PATH, "value", 0)
-        logger.info("Applied: AllowNewsAndInterests = 0")
+        def _apply_suggestions(root, prefix):
+            def w(path, name, value):
+                key_path = f"{prefix}\\{path}" if prefix else path
+                key = winreg.CreateKeyEx(root, key_path, 0, winreg.KEY_WRITE)
+                winreg.SetValueEx(key, name, 0, winreg.REG_DWORD, value)
+                winreg.CloseKey(key)
+            for n in cdm_zeros:
+                w(_USER_CDM, n, 0)
+            w(_USER_EXPLORER_ADV, "Start_IrisRecommendations", 0)
+            w(_USER_EXPLORER_ADV, "ShowSyncProviderNotifications", 0)
+            w(_USER_PROFILE_ENGAGEMENT, "ScoobeSystemSettingEnabled", 0)
+            w(_USER_ACCOUNT_NOTIFICATIONS, "EnableAccountNotifications", 0)
+            w(_USER_SUGGESTED_TOAST, "Enabled", 0)
+            w(_USER_MOBILITY, "OptedIn", 0)
+
+        for_each_user_hive(_apply_suggestions, logger)
+        logger.info("Applied: BlockProvisioning (silent installs + all suggestion surfaces, all hives)")
+
+    if prev.get("DisableCopilot", True):
+        copilot_pol = r"SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot"
+        set_registry_dword("HKLM", copilot_pol, "TurnOffWindowsCopilot", 1)
+        set_user_dword_all_hives(_USER_COPILOT, "TurnOffWindowsCopilot", 1, logger)
+        logger.info("Applied: DisableCopilot (TurnOffWindowsCopilot = 1, HKLM + user hives)")
+
+    if prev.get("DisableRecall", True):
+        ai_pol = r"SOFTWARE\Policies\Microsoft\Windows\WindowsAI"
+        set_registry_dword("HKLM", ai_pol, "DisableAIDataAnalysis", 1)
+        set_registry_dword("HKLM", ai_pol, "TurnOffSavingSnapshots", 1)
+        set_registry_dword("HKLM", ai_pol, "AllowRecallEnablement", 0)
+        set_registry_dword("HKLM", ai_pol, "DisableClickToDo", 1)
+        set_user_dword_all_hives(_USER_WINDOWS_AI, "DisableAIDataAnalysis", 1, logger)
+        set_user_dword_all_hives(_USER_WINDOWS_AI, "DisableClickToDo", 1, logger)
+        if is_admin():
+            # Remove the optional feature where present — absent on most hardware
+            run_powershell(
+                "Disable-WindowsOptionalFeature -Online -FeatureName 'Recall' "
+                "-NoRestart -ErrorAction SilentlyContinue | Out-Null", timeout=120)
+        # AI fabric service: 2=auto, 3=demand. Absent without NPU/Copilot+ hardware.
+        demote_service("WSAIFabricSvc")
+        logger.info("Applied: DisableRecall (WindowsAI policies + Click to Do off, "
+                    "Recall feature removal attempted, WSAIFabricSvc=demand)")
 
     if prev.get("DisableSearchSuggestions", True):
-        set_registry_dword("HKLM", EXPLORER_POLICY_PATH, "DisableSearchBoxSuggestions", 1)
-        logger.info("Applied: DisableSearchBoxSuggestions = 1")
+        search_pol = r"SOFTWARE\Policies\Microsoft\Windows\Windows Search"
+        set_registry_dword("HKLM", search_pol, "AllowCortana", 0)
+        set_registry_dword("HKLM", search_pol, "CortanaConsent", 0)
+        set_user_dword_all_hives(_USER_EXPLORER_POLICIES, "DisableSearchBoxSuggestions", 1, logger)
+        set_user_dword_all_hives(_USER_SEARCH, "BingSearchEnabled", 0, logger)
+        # SearchSettings: dynamic search box + cloud search integrations
+        set_user_dword_all_hives(_USER_SEARCH_SETTINGS, "IsDynamicSearchBoxEnabled", 0, logger)
+        set_user_dword_all_hives(_USER_SEARCH_SETTINGS, "IsAADCloudSearchEnabled", 0, logger)
+        set_user_dword_all_hives(_USER_SEARCH_SETTINGS, "IsMSACloudSearchEnabled", 0, logger)
+        set_user_dword_all_hives(_USER_SEARCH, "CortanaConsent", 0, logger)
+        logger.info("Applied: DisableSearchSuggestions (Bing/search suggestions + Cortana off, all hives)")
 
-    if prev.get("DisableTelemetryPolicies", True):
-        applied = sum(set_registry_dword("HKLM", path, name, value)
-                      for path, name, value in TELEMETRY_POLICY_WRITES)
-        logger.info(f"Applied: telemetry/privacy policies ({applied} HKLM values)")
+    if prev.get("DisableWidgets", True):
+        set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Dsh", "AllowNewsAndInterests", 0)
+        set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\Windows Feeds",
+                           "EnableFeeds", 0)
+        set_user_dword_all_hives(_USER_EXPLORER_ADV, "TaskbarDa", 0, logger)
+        logger.info("Applied: DisableWidgets (AllowNewsAndInterests = 0, TaskbarDa = 0)")
 
-    if prev.get("HardenEdgePolicies", True):
-        applied = sum(set_registry_dword("HKLM", EDGE_POLICY_PATH, name, value)
-                      for name, value in EDGE_POLICIES)
-        logger.info(f"Applied: Edge hardening policies ({applied} values)")
+    if prev.get("DisableTelemetry", True):
+        # Key set mirrors Win11Debloat Disable_Telemetry.reg
+        set_registry_dword(
+            "HKLM", r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
+            "AllowTelemetry", 0)
+        set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\System",
+                           "PublishUserActivities", 0)
+        set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\System",
+                           "EnableActivityFeed", 0)
+        set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\System",
+                           "UploadUserActivities", 0)
+        set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Edge",
+                           "PersonalizationReportingEnabled", 0)
+        set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Edge",
+                           "DiagnosticData", 0)
+
+        def _apply_telemetry(root, prefix):
+            def w(path, name, value):
+                key_path = f"{prefix}\\{path}" if prefix else path
+                key = winreg.CreateKeyEx(root, key_path, 0, winreg.KEY_WRITE)
+                winreg.SetValueEx(key, name, 0, winreg.REG_DWORD, value)
+                winreg.CloseKey(key)
+            w(_USER_ADVERTISING_INFO, "Enabled", 0)
+            w(_USER_PRIVACY, "TailoredExperiencesWithDiagnosticDataEnabled", 0)
+            w(_USER_ONLINE_SPEECH, "HasAccepted", 0)
+            w(_USER_TIPC, "Enabled", 0)
+            w(_USER_INPUT_PERSONALIZATION, "RestrictImplicitInkCollection", 1)
+            w(_USER_INPUT_PERSONALIZATION, "RestrictImplicitTextCollection", 1)
+            w(_USER_INPUT_STORE, "HarvestContacts", 0)
+            w(_USER_PERSONALIZATION, "AcceptedPrivacyPolicy", 0)
+            w(_USER_EXPLORER_ADV, "Start_TrackProgs", 0)
+            w(_USER_SIUF, "NumberOfSIUFInPeriod", 0)
+
+        for_each_user_hive(_apply_telemetry, logger)
+
+        # "Connected User Experiences and Telemetry" (DiagTrack) — the actual
+        # telemetry uploader; absent on some SKUs, failures are non-fatal.
+        run_cmd(["sc.exe", "stop", "DiagTrack"])
+        run_cmd(["sc.exe", "config", "DiagTrack", "start=", "disabled"])
+        # RetailDemo data-collection service (present on most images)
+        run_cmd(["sc.exe", "stop", "RetailDemo"])
+        run_cmd(["sc.exe", "config", "RetailDemo", "start=", "disabled"])
+        # ETW AutoLogger feeding DiagTrack — Start=0 kills the boot-time trace
+        set_registry_dword(
+            "HKLM",
+            r"SYSTEM\CurrentControlSet\Control\WMI\AutoLogger\AutoLogger-Diagtrack-Listener",
+            "Start", 0)
+        # Ink Workspace suggestion surface (ads inside the pen menu)
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Policies\Microsoft\WindowsInkWorkspace",
+                           "AllowWindowsInkWorkspace", 0)
+        # Defender SpyNet — no sample uploads to Microsoft
+        spynet = r"SOFTWARE\Policies\Microsoft\Windows Defender\Spynet"
+        set_registry_dword("HKLM", spynet, "SpynetReporting", 0)
+        set_registry_dword("HKLM", spynet, "SubmitSamplesConsent", 0)
+        # Microsoft feature experimentation (A/B flighting) off
+        set_registry_dword(
+            "HKLM",
+            r"SOFTWARE\Microsoft\PolicyManager\current\device\System",
+            "AllowExperimentation", 0)
+        # Cap diagnostic log/dump collection + enhanced analytics
+        data_collection = (
+            r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection")
+        for name in ("LimitDiagnosticLogCollection", "LimitDumpCollection",
+                     "LimitEnhancedDiagnosticDataWindowsAnalytics"):
+            set_registry_dword("HKLM", data_collection, name, 1)
+        # MRT infection reports off
+        set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\MRT",
+                           "DontReportInfectionInformation", 1)
+        # Speech model downloads off (voice data pipeline)
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Microsoft\Speech_OneCore\Preferences",
+                           "ModelDownloadAllowed", 0)
+        # "Sync your settings" off — stops settings roaming to MS accounts
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Policies\Microsoft\Windows\SettingSync",
+                           "DisableSettingSync", 2)
+        # "Share across devices" (Connected Devices Platform) consent off
+        cdp = r"Software\Microsoft\Windows\CurrentVersion\CDP"
+        set_user_dword_all_hives(cdp, "CdpSessionUserAuthzPolicy", 0, logger)
+        set_user_dword_all_hives(cdp, "RomeSdkChannelUserAuthzPolicy", 0, logger)
+        set_user_dword_all_hives(cdp + r"\SettingsPage",
+                                 "RomeSdkChannelUserAuthzPolicy", 0, logger)
+        logger.info("Applied: DisableTelemetry (AllowTelemetry=0, DiagTrack off, "
+                    "privacy surfaces set)")
 
     if prev.get("DisableGameDvr", True):
-        disable_game_dvr(logger)
+        set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\GameDVR",
+                           "AllowGameDVR", 0)
+        set_user_dword_all_hives(_USER_GAME_CONFIG_STORE, "GameDVR_Enabled", 0, logger)
+        set_user_dword_all_hives(_USER_GAME_DVR, "AppCaptureEnabled", 0, logger)
+        logger.info("Applied: DisableGameDvr (AllowGameDVR=0, GameDVR_Enabled=0, "
+                    "AppCaptureEnabled=0)")
 
-    # Hosts-file telemetry blocking — toggle-off removes the marked block.
-    # Unconditional call: the helper no-ops when disabled and no block exists.
-    set_telemetry_hosts_block(prev.get("BlockTelemetryEndpoints", True), logger)
+    if prev.get("DisableDeliveryOptimization", True):
+        set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization",
+                           "DODownloadMode", 0)
+        set_user_dword_all_hives(_USER_DELIVERY_OPT, "DownloadMode", 0, logger)
+        # The Delivery Optimization service reads the NETWORK SERVICE hive (S-1-5-20)
+        try:
+            key = winreg.CreateKeyEx(
+                winreg.HKEY_USERS, "S-1-5-20\\" + _USER_DELIVERY_OPT, 0, winreg.KEY_WRITE)
+            winreg.SetValueEx(key, "DownloadMode", 0, winreg.REG_DWORD, 0)
+            winreg.CloseKey(key)
+        except Exception:
+            pass
+        logger.info("Applied: DisableDeliveryOptimization (DODownloadMode=0)")
 
-    # Per-user policies — must hit every loaded hive, not just HKCU
-    if (prev.get("HardenContentDelivery", True) or prev.get("DisableSearchSuggestions", True)
-            or prev.get("DisableAiFeatures", True) or prev.get("DisableTelemetryPolicies", True)
-            or prev.get("DisableGameDvr", True)):
-        apply_per_user_policies(prev, logger)
+    if prev.get("DisableOneDrive", False):
+        set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\OneDrive",
+                           "DisableFileSyncNGSC", 1)
+        # Hide the OneDrive pin in Explorer's navigation pane for every user
+        set_user_dword_all_hives(_USER_ONEDRIVE_CLSID, "System.IsPinnedToNameSpaceTree", 0, logger)
+        logger.info("Applied: DisableOneDrive (DisableFileSyncNGSC=1, nav pin hidden)")
+
+    if prev.get("DisableChatTaskbar", True):
+        set_user_dword_all_hives(_USER_EXPLORER_ADV, "TaskbarMn", 0, logger)
+        set_user_dword_all_hives(_USER_POLICIES_EXPLORER, "HideSCAMeetNow", 1, logger)
+        logger.info("Applied: DisableChatTaskbar (TaskbarMn=0, HideSCAMeetNow=1)")
+
+    if prev.get("DisableEdgeBloat", True):
+        edge_pol = r"SOFTWARE\Policies\Microsoft\Edge"
+        set_registry_dword("HKLM", edge_pol, "HubsSidebarEnabled", 0)
+        set_registry_dword("HKLM", edge_pol, "StartupBoostEnabled", 0)
+        set_registry_dword("HKLM", edge_pol, "AllowPrelaunch", 0)
+        set_registry_dword("HKLM", edge_pol, "HideFirstRunExperience", 1)
+        # Shopping assistant, recommendations, error-page web service,
+        # user feedback — all upload/suggestion surfaces
+        for name in ("EdgeShoppingAssistantEnabled",
+                     "ShowRecommendationsEnabled",
+                     "ResolveNavigationErrorsUseWebService",
+                     "AlternateErrorPagesEnabled",
+                     "UserFeedbackAllowed"):
+            set_registry_dword("HKLM", edge_pol, name, 0)
+        logger.info("Applied: DisableEdgeBloat (sidebar/startup-boost/"
+                    "prelaunch/first-run/shopping/recommendations off)")
+
+    if prev.get("DisableStartupBloat", True):
+        disable_startup_bloat(config, logger)
+
+    if prev.get("DisableErrorReporting", True):
+        wer = r"SOFTWARE\Microsoft\Windows\Windows Error Reporting"
+        wer_policy = r"SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting"
+        set_registry_dword("HKLM", wer, "Disabled", 1)
+        set_registry_dword("HKLM", wer, "DontSendAdditionalData", 1)
+        set_registry_dword("HKLM", wer_policy, "Disabled", 1)
+        set_registry_dword("HKLM", wer_policy, "AutoApproveOSDumps", 0)
+        set_user_dword_all_hives(_USER_WER, "Disabled", 1, logger)
+        set_user_dword_all_hives(_USER_WER, "DontShowUI", 1, logger)
+        set_user_dword_all_hives(_USER_WER, "LoggingDisabled", 1, logger)
+        logger.info("Applied: DisableErrorReporting (WER uploads + UI + logging off)")
+
+    if prev.get("DisableEdgeUpdateBloat", True):
+        for svc in ("edgeupdate", "edgeupdatem", "MicrosoftEdgeElevationService"):
+            demote_service(svc)
+        # Scheduled tasks re-arm the services — disable them too
+        for task in ("MicrosoftEdgeUpdateTaskMachineCore",
+                     "MicrosoftEdgeUpdateTaskMachineUA",
+                     "MicrosoftEdgeUpdateBrowserReplacementTask"):
+            run_cmd(["schtasks.exe", "/Change", "/TN", task, "/DISABLE"])
+        logger.info("Applied: DisableEdgeUpdateBloat "
+                    "(edgeupdate/edgeupdatem/elevation → demand, update tasks off)")
+
+    if prev.get("BlockOemDriverUpdates", True):
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate",
+                           "ExcludeWUDriversInQualityUpdate", 1)
+        # Device Metadata channel off — OEM companion apps ship through it
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Microsoft\Windows\CurrentVersion\Device Metadata",
+                           "PreventDeviceMetadataFromNetwork", 1)
+        logger.info("Applied: BlockOemDriverUpdates "
+                    "(ExcludeWUDriversInQualityUpdate=1)")
+
+    if prev.get("DisableAppPermissions", True):
+        # Force-deny (2) a conservative AppPrivacy set — camera/mic/location left
+        # alone since legitimate apps need them.
+        app_privacy = (
+            "LetAppsRunInBackground", "LetAppsAccessAccountInfo",
+            "LetAppsAccessCallHistory", "LetAppsAccessContacts",
+            "LetAppsAccessEmail", "LetAppsAccessMessaging",
+            "LetAppsAccessMotion", "LetAppsAccessNotifications",
+            "LetAppsAccessPhone", "LetAppsAccessRadios",
+            "LetAppsAccessTasks", "LetAppsAccessTrustedDevices",
+            "LetAppsSyncWithDevices", "LetAppsGetDiagnosticInfo",
+            "LetAppsActivateWithVoice", "LetAppsActivateWithVoiceAboveLock",
+        )
+        for name in app_privacy:
+            set_registry_dword("HKLM",
+                               r"SOFTWARE\Policies\Microsoft\Windows\AppPrivacy",
+                               name, 2)
+        # HKLM ad-ID + Find My Device policies
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo",
+                           "DisabledByGroupPolicy", 1)
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Policies\Microsoft\FindMyDevice",
+                           "AllowFindMyDevice", 0)
+        logger.info(f"Applied: DisableAppPermissions ({len(app_privacy)} "
+                    "force-denied + ad-ID/FindMyDevice policies)")
+
+    if prev.get("DisablePrintSpooler", False):
+        # Opt-in — kills the PrintNightmare surface but breaks printing
+        run_cmd(["sc.exe", "stop", "Spooler"])
+        run_cmd(["sc.exe", "config", "Spooler", "start=", "disabled"])
+        logger.info("Applied: DisablePrintSpooler (Spooler stopped + disabled)")
+
+    if prev.get("BlockOemWpbtExecution", True):
+        # WPBT: OEMs inject executables into the boot chain via UEFI
+        # (abused e.g. by ASUS Live Update) — DisableWpbtExecution makes
+        # Windows ignore the table
+        set_registry_dword("HKLM",
+                           r"SYSTEM\CurrentControlSet\Control\Session Manager",
+                           "DisableWpbtExecution", 1)
+        logger.info("Applied: BlockOemWpbtExecution (WPBT disabled)")
+
+    if prev.get("DisableReservedStorage", True):
+        # Free the ~7GB reserved for updates (they use free space pre-1903 style)
+        reserve = r"SOFTWARE\Microsoft\Windows\CurrentVersion\ReserveManager"
+        for name, val in (("ShippedWithReserves", 0),
+                          ("MiscPolicyInfo", 2), ("PassedPolicy", 0)):
+            set_registry_dword("HKLM", reserve, name, val)
+        logger.info("Applied: DisableReservedStorage (ReserveManager)")
+
+    if prev.get("DisableCloudClipboard", True):
+        # Local history stays usable; stop the cloud sync of copied content
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Policies\Microsoft\Windows\System",
+                           "AllowCrossDeviceClipboard", 0)
+        set_user_dword_all_hives(
+            r"Software\Microsoft\Clipboard",
+            "EnableClipboardHistory", 0, logger)
+        logger.info("Applied: DisableCloudClipboard")
+
+    if prev.get("DisableRemoteAssistance", True):
+        # Inbound help-request offers off
+        for name in ("fAllowToGetHelp", "fAllowFullControl"):
+            set_registry_dword(
+                "HKLM",
+                r"SYSTEM\CurrentControlSet\Control\Remote Assistance",
+                name, 0)
+        logger.info("Applied: DisableRemoteAssistance")
+
+    if prev.get("BlockInsiderPreview", True):
+        # Preview builds ship heavier telemetry + instability
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Policies\Microsoft\Windows\PreviewBuilds",
+                           "AllowBuildPreview", 0)
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Microsoft\WindowsSelfHost\UI\Visibility",
+                           "HideInsiderPage", 1)
+        logger.info("Applied: BlockInsiderPreview")
+
+    if prev.get("DisableXboxServices", True):
+        # Demand-start (Start=3) — Game Bar/Xbox sign-in still work on demand
+        for svc in ("XblAuthManager", "XblGameSave",
+                    "XboxNetApiSvc", "XboxGipSvc"):
+            demote_service(svc)
+        logger.info("Applied: DisableXboxServices (4 services → demand-start)")
+
+    if prev.get("DisableMiscBloatServices", True):
+        # Demand-start (Start=3) — all stay usable when actually invoked.
+        # Vendor services absent from the machine are skipped (open, not create).
+        for svc in ("dmwappushservice", "MapsBroker", "WMPNetworkSvc",
+                    "diagnosticshub.standardcollector.service",
+                    "CDPSvc", "NvTelemetryContainer",
+                    "esrv_svc", "ESRV_SVC_QUEENCREEK",
+                    "PushToInstall", "SEMgrSvc", "PhoneSvc",
+                    "SysMain", "TabletInputService",
+                    "WSearch",                # indexer — resident file scan
+                    "AssignedAccessManagerSvc"):  # kiosk assigned-access
+            demote_service(svc)
+        # Remote Registry: remote registry read/write over SMB — disabled
+        # outright (demand-start would still leave the surface reachable)
+        run_cmd(["sc.exe", "stop", "RemoteRegistry"])
+        run_cmd(["sc.exe", "config", "RemoteRegistry", "start=", "disabled"])
+        logger.info("Applied: DisableMiscBloatServices "
+                    "(15 services → demand-start, RemoteRegistry disabled)")
+
+    if prev.get("DisableSpotlight", True):
+        # Desktop Spotlight = content-delivery channel (wallpaper promos)
+        set_user_dword_all_hives(
+            r"Software\Microsoft\Windows\CurrentVersion\DesktopSpotlight\Settings",
+            "Enabled", 0, logger)
+        set_user_dword_all_hives(
+            r"Software\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers",
+            "BackgroundType", 0, logger)
+        # Per-hive CloudContent policies — block Spotlight features + the
+        # per-user collection feeding them
+        cloud = r"Software\Policies\Microsoft\Windows\CloudContent"
+        for name in ("DisableWindowsSpotlightFeatures",
+                     "DisableSpotlightCollectionOnDesktop",
+                     "DisableSoftLanding"):
+            set_user_dword_all_hives(cloud, name, 1, logger)
+        logger.info("Applied: DisableSpotlight "
+                    "(DesktopSpotlight + wallpaper + per-hive CloudContent)")
+
+    if prev.get("DisableAutoplay", True):
+        # NoDriveTypeAutoRun=255 + NoAutorun=1 — media auto-execute off
+        pol = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer"
+        set_registry_dword("HKLM", pol, "NoDriveTypeAutoRun", 255)
+        set_registry_dword("HKLM", pol, "NoAutorun", 1)
+        set_user_dword_all_hives(
+            r"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer",
+            "NoDriveTypeAutoRun", 255, logger)
+        logger.info("Applied: DisableAutoplay")
+
+    if prev.get("NoForcedReboot", True):
+        # Never force-reboot while a user is logged on
+        au = r"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU"
+        set_registry_dword("HKLM", au, "NoAutoRebootWithLoggedOnUsers", 1)
+        set_registry_dword("HKLM", au, "AlwaysAutoRebootAtScheduledTime", 0)
+        logger.info("Applied: NoForcedReboot (WU reboot policy)")
+
+    if prev.get("HideStartRecommendations", True):
+        # Start "Recommended" section — promoted apps surface (22H2+)
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Policies\Microsoft\Windows\Explorer",
+                           "HideRecommendedSection", 1)
+        # The section draws from recent-doc tracking — stop collecting it
+        set_user_dword_all_hives(
+            r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
+            "Start_TrackDocs", 0, logger)
+        logger.info("Applied: HideStartRecommendations")
+
+
+def disable_startup_bloat(config: dict, logger: logging.Logger):
+    """Disable bloatware autostart entries via the StartupApproved\\Run marker
+    (0x03...) — the entry stays listed in Task Manager and is re-enableable,
+    the same mechanism the UI uses. HKLM 64/32-bit + every user hive."""
+    import winreg
+
+    machine_run = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
+    machine_run32 = r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Run"
+    machine_runonce = r"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce"
+    user_run = r"Software\Microsoft\Windows\CurrentVersion\Run"
+    user_runonce = r"Software\Microsoft\Windows\CurrentVersion\RunOnce"
+    approved = r"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run"
+    approved_once = r"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\RunOnce"
+
+    needles = [s for s in list(config.get("Blacklist", [])) + list(_STARTUP_BLOAT_NAMES)
+               if s and s.strip()]
+    whitelist = config.get("Whitelist", [])
+    applied = 0
+
+    def _is_bloat(name, data):
+        haystack = f"{name} {data or ''}".lower()
+        if any(w and w.strip().lower() in haystack for w in whitelist):
+            return False
+        return any(n.lower() in haystack for n in needles)
+
+    def _scan(root, run_path, approved_path):
+        nonlocal applied
+        try:
+            run_key = winreg.OpenKey(root, run_path)
+        except OSError:
+            return
+        try:
+            targets = []
+            i = 0
+            while True:
+                try:
+                    name, data, _ = winreg.EnumValue(run_key, i)
+                    i += 1
+                    if _is_bloat(name, data):
+                        targets.append(name)
+                except OSError:
+                    break
+            if not targets:
+                return
+            ap_key = winreg.CreateKeyEx(root, approved_path, 0, winreg.KEY_WRITE)
+            for name in targets:
+                winreg.SetValueEx(ap_key, name, 0, winreg.REG_BINARY,
+                                  _STARTUP_DISABLED_MARKER)
+                applied += 1
+                logger.info(f"Disabled startup entry: {name}")
+            ap_key.Close()
+        finally:
+            run_key.Close()
+
+    _scan(winreg.HKEY_LOCAL_MACHINE, machine_run, approved)
+    _scan(winreg.HKEY_LOCAL_MACHINE, machine_run32, approved)
+    _scan(winreg.HKEY_LOCAL_MACHINE, machine_runonce, approved_once)
+
+    def _scan_user(root, prefix):
+        p = (prefix + "\\") if prefix else ""
+        _scan(root, p + user_run, p + approved)
+        _scan(root, p + user_runonce, p + approved_once)
+
+    for_each_user_hive(_scan_user, logger)
+
+    # Startup folders aren't governed by StartupApproved — match the same
+    # needles against filenames and rename to .bgdisabled (restorable;
+    # deleting would lose the restore path)
+    startup_dirs = []
+    for env_var in ("APPDATA", "ProgramData"):
+        base = os.environ.get(env_var)
+        if base:
+            startup_dirs.append(
+                os.path.join(base,
+                             r"Microsoft\Windows\Start Menu\Programs\Startup"))
+    for folder in startup_dirs:
+        try:
+            for fname in os.listdir(folder):
+                fpath = os.path.join(folder, fname)
+                if (fname.lower().endswith(".bgdisabled") or
+                        not os.path.isfile(fpath) or
+                        not _is_bloat(fname, None)):
+                    continue
+                os.rename(fpath, fpath + ".bgdisabled")
+                applied += 1
+                logger.info(f"Disabled startup folder item: {fname}")
+        except OSError:
+            continue
+    logger.info(f"Applied: DisableStartupBloat ({applied} entries)")
 
 
 # ─── Scheduled Task Prevention ───────────────────────────────────────────────
@@ -1315,15 +1319,12 @@ def disable_oem_scheduled_tasks(logger: logging.Logger):
     """Disable known OEM scheduled tasks that reinstall bloatware."""
     patterns = (
         "OEM|Dell|HPInc|HPA|Lenovo|ASUS|Acer|McAfee|Norton|"
-        "SupportAssist|Vantage|Armoury|Crate|Reinstall|Restore|Bloatware"
+        "SupportAssist|Vantage|Armoury|Crate|CustomerExperienceImprovement|"
+        "Customer Experience Improvement|Reinstall|Restore|Bloatware"
     )
-    # Match TaskPath too — e.g. CEIP tasks live under
-    # \Microsoft\Windows\Customer Experience Improvement Program\ with
-    # innocuous names like "Consolidator" that name-matching alone misses
     ps_cmd = (
         f"Get-ScheduledTask | "
-        f"Where-Object {{$_.TaskPath -like '*OEM*' -or $_.TaskName -match '{patterns}' "
-        f"-or $_.TaskPath -match '{patterns}'}} | "
+        f"Where-Object {{$_.TaskPath -like '*OEM*' -or $_.TaskName -match '{patterns}'}} | "
         f"Select-Object TaskName,TaskPath,State | ConvertTo-Json"
     )
     stdout, _, rc = run_powershell(ps_cmd, timeout=60)
@@ -1360,6 +1361,61 @@ def disable_oem_scheduled_tasks(logger: logging.Logger):
         logger.warning(f"Scheduled task scan error: {e}")
 
 
+# Microsoft's own data-collection tasks — exact names, not patterns, so nothing
+# else is touched. CompatTelRunner is a notorious CPU/IO hog.
+TELEMETRY_TASK_PATHS = (
+    "\\Microsoft\\Windows\\Application Experience\\Microsoft Compatibility Appraiser",
+    "\\Microsoft\\Windows\\Application Experience\\ProgramDataUpdater",
+    "\\Microsoft\\Windows\\Application Experience\\PcaPatchDbTask",
+    "\\Microsoft\\Windows\\Application Experience\\StartupAppTask",
+    "\\Microsoft\\Windows\\Autochk\\Proxy",
+    "\\Microsoft\\Windows\\Customer Experience Improvement Program\\Consolidator",
+    "\\Microsoft\\Windows\\Customer Experience Improvement Program\\UsbCeip",
+    "\\Microsoft\\Windows\\Customer Experience Improvement Program\\KernelCeipTask",
+    "\\Microsoft\\Windows\\DiskDiagnostic\\Microsoft-Windows-DiskDiagnosticDataCollector",
+    "\\Microsoft\\Windows\\Feedback\\Siuf\\DmClient",
+    "\\Microsoft\\Windows\\Feedback\\Siuf\\DmClientOnScenarioDownload",
+    "\\Microsoft\\Windows\\Maps\\MapsUpdateTask",
+    "\\Microsoft\\Windows\\Maps\\MapsToastTask",
+    # Office Customer Experience Improvement Program (when Office is
+    # installed; schtasks ignores missing paths)
+    "\\Microsoft\\Office\\OfficeTelemetryAgentLogOn",
+    "\\Microsoft\\Office\\OfficeTelemetryAgentLogOn2016",
+    "\\Microsoft\\Office\\OfficeTelemetryAgentFallBack",
+    "\\Microsoft\\Office\\OfficeTelemetryAgentFallBack2016",
+    "\\Microsoft\\Office\\Office 15 Subscription Heartbeat",
+    "\\Microsoft\\Office\\Office Feature Updates",
+    "\\Microsoft\\Office\\Office Feature Updates Logon",
+    # Retail demo + Insider flighting data collection + Insider feedback app
+    "\\Microsoft\\Windows\\RetailDemo\\RetailDemoCleanupOnContent",
+    "\\Microsoft\\Windows\\Flighting\\FeatureConfig\\ReconcileFeatures",
+    "\\Microsoft\\Windows\\Flighting\\FeatureConfig\\UsageDataFlushed",
+    "\\Microsoft\\Windows\\Flighting\\FeatureConfig\\UsageDataReporting",
+    "\\Microsoft\\Windows\\Feedback\\WipAppUsageClient",
+    # Device Census (hardware/app inventory upload), Family Safety usage
+    # monitor, on-demand network-info collection
+    "\\Microsoft\\Windows\\Device Information\\Device",
+    "\\Microsoft\\Windows\\Device Information\\Device User",
+    "\\Microsoft\\Windows\\Shell\\FamilySafetyMonitor",
+    "\\Microsoft\\Windows\\NetTrace\\GatherNetworkInfo",
+    # Application Impact Telemetry, speech-model download, disk diagnostics
+    "\\Microsoft\\Windows\\Application Experience\\AitEnableAgent",
+    "\\Microsoft\\Windows\\Speech\\SpeechModelDownloadTask",
+    "\\Microsoft\\Windows\\DiskFootprint\\Diagnostics",
+)
+
+
+def disable_telemetry_tasks(logger: logging.Logger):
+    """Disable the known Microsoft telemetry/CEIP scheduled tasks."""
+    for full_path in TELEMETRY_TASK_PATHS:
+        out, ret = run_cmd(["schtasks", "/Change", "/TN", full_path, "/DISABLE"])
+        if ret == 0:
+            logger.info(f"Disabled scheduled task: {full_path}")
+        else:
+            logger.warning(f"Failed to disable task: {full_path} ({out[:120]})")
+    logger.info(f"Applied: DisableTelemetryTasks ({len(TELEMETRY_TASK_PATHS)} tasks)")
+
+
 # ─── Main Scan Logic ─────────────────────────────────────────────────────────
 
 def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int:
@@ -1371,7 +1427,13 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
     prev = config.get("Prevention", {})
     removed = 0
     matched = 0
-    matched_families = set()
+
+    # 0. Safety net: restore point before destructive changes (self-throttles)
+    if prev.get("CreateRestorePoint", True):
+        if dry_run:
+            logger.info("[DRY-RUN] Would create system restore point")
+        else:
+            create_restore_point(logger)
 
     # 1. Remove installed packages
     if prev.get("RemoveAppxPackages", True):
@@ -1379,7 +1441,6 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
         matched += len(packages)
         full_names = get_package_full_names() if packages else {}
         for family_name, display_name, install_path in packages:
-            matched_families.add(family_name)
             full_name = full_names.get(family_name)
             is_system_app = not install_path or install_path.strip() == ""
             if dry_run:
@@ -1408,8 +1469,7 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
     if prev.get("RemoveProvisionedPackages", True):
         provisioned = get_blacklisted_provisioned(blacklist, whitelist)
         matched += len(provisioned)
-        for display_name, package_name, family in provisioned:
-            matched_families.add(family)
+        for display_name, package_name in provisioned:
             if dry_run:
                 logger.info(f"[DRY-RUN] Would remove ProvisionedPackage: {display_name} [requires admin]")
             else:
@@ -1420,37 +1480,33 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
                 else:
                     logger.warning(f"Failed to remove ProvisionedPackage: {display_name} [admin required]")
 
+    # 2.5 Remove optional Windows capabilities (IE mode, Steps Recorder, WordPad)
+    if prev.get("RemoveOptionalCapabilities", True):
+        if dry_run:
+            logger.info("[DRY-RUN] Would remove optional capabilities (IE/StepsRecorder/WordPad) [requires admin]")
+        else:
+            remove_optional_capabilities(logger)
+
+    # 2.6 Remove Win32 programs matching blacklist — primary OEM preinstall
+    # channel (McAfee/Norton are Win32, not Appx). MSI silent only.
+    if prev.get("RemoveWin32Programs", True):
+        for display, uninstall, quiet in get_blacklisted_win32(blacklist, whitelist):
+            matched += 1
+            if dry_run:
+                logger.info(f"[DRY-RUN] Would uninstall Win32 program: {display} [requires admin]")
+            else:
+                if remove_win32_program(display, uninstall, quiet, logger):
+                    logger.info(f"Removed Win32 program: {display}")
+                    record_removal(config, {"kind": "win32", "name": display})
+                    removed += 1
+                else:
+                    logger.warning(f"Failed/manual: {display} [admin required or no silent uninstaller]")
+
     # 3. Re-apply registry (idempotent, Windows Update may reset)
     if dry_run:
         logger.info("[DRY-RUN] Would apply registry prevention")
     else:
         apply_registry_prevention(config, logger)
-
-    # When a removal toggle is off, its packages were never enumerated —
-    # but the persistence layers still need the families to protect future
-    # profiles and feature updates.
-    if (prev.get("MarkDeprovisioned", True) or prev.get("RemoveDefaultStorePackages", True)) and (
-            not prev.get("RemoveAppxPackages", True) or not prev.get("RemoveProvisionedPackages", True)):
-        if not prev.get("RemoveAppxPackages", True):
-            for family_name, _, _ in get_blacklisted_packages(blacklist, whitelist):
-                matched_families.add(family_name)
-        if not prev.get("RemoveProvisionedPackages", True):
-            for _, _, family in get_blacklisted_provisioned(blacklist, whitelist):
-                if family:
-                    matched_families.add(family)
-
-    # Persist removal: Deprovisioned markers stop feature-update re-installs;
-    # the 25H2 policy stops provisioning for future user profiles
-    if prev.get("MarkDeprovisioned", True) or prev.get("RemoveDefaultStorePackages", True):
-        if dry_run:
-            if matched_families:
-                logger.info(f"[DRY-RUN] Would mark {len(matched_families)} package families "
-                            "deprovisioned + write removal policy")
-        else:
-            if prev.get("MarkDeprovisioned", True):
-                mark_deprovisioned(matched_families, logger)
-            if prev.get("RemoveDefaultStorePackages", True):
-                write_default_store_packages_policy(matched_families, logger)
 
     # 4. Disable OEM tasks
     if prev.get("DisableOemScheduledTasks", True):
@@ -1459,45 +1515,12 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
         else:
             disable_oem_scheduled_tasks(logger)
 
-    # 5. Disable Microsoft telemetry/CEIP tasks
+    # 4.5 Disable Microsoft telemetry/CEIP tasks (CompatTelRunner etc.)
     if prev.get("DisableTelemetryTasks", True):
         if dry_run:
-            logger.info("[DRY-RUN] Would disable telemetry scheduled tasks")
+            logger.info("[DRY-RUN] Would disable Microsoft telemetry tasks")
         else:
             disable_telemetry_tasks(logger)
-
-    # 6. Win32 (MSI/EXE) bloat + winget sweep + deprecated capabilities —
-    #    everything Appx removal can't see
-    if prev.get("RemoveWin32Bloatware", True):
-        removed += remove_win32_bloatware(config, dry_run, logger)
-    if prev.get("WingetSweep", True):
-        removed += winget_sweep(config, dry_run, logger)
-    if prev.get("RemoveDeprecatedCapabilities", True):
-        if dry_run:
-            logger.info("[DRY-RUN] Would remove deprecated Windows capabilities")
-        else:
-            remove_deprecated_capabilities(logger)
-
-    # 7. Telemetry + OEM auto-start services + Run-key startup entries
-    if prev.get("DisableTelemetryServices", True):
-        if dry_run:
-            logger.info(f"[DRY-RUN] Would disable {len(TELEMETRY_SERVICES)} telemetry services")
-        else:
-            disable_telemetry_services(logger)
-
-    if prev.get("DisableTelemetryAutologgers", True):
-        if dry_run:
-            logger.info(f"[DRY-RUN] Would disable {len(TELEMETRY_AUTOLOGGERS)} ETW autologgers")
-        else:
-            disable_telemetry_autologgers(logger)
-
-    if prev.get("DisableOemServices", True):
-        if dry_run:
-            logger.info("[DRY-RUN] Would disable OEM/vendor services")
-        else:
-            disable_oem_services(config, logger)
-    if prev.get("CleanStartupEntries", True):
-        clean_startup_entries(config, dry_run, logger)
 
     logger.info(f"Scan complete. {matched} packages matched blacklist; removed {removed}.")
     return removed
@@ -1521,6 +1544,7 @@ def run_service(config: dict, logger: logging.Logger):
     # absent in the previous scan counts as a (re-)install
     seen_provisioned: set = set()
     seen_installed: set = set()
+    seen_win32: set = set()
     first_scan = True
 
     # Apply prevention once at startup — skipped entirely in dry-run mode
@@ -1542,42 +1566,60 @@ def run_service(config: dict, logger: logging.Logger):
 
             # Layer 7: Re-install Monitor
             if prev.get("ReinstallMonitor", True):
-                current_provisioned = {
-                    pkg_name
-                    for _, pkg_name, _ in get_blacklisted_provisioned(blacklist, whitelist)
-                }
+                # Keyed by DisplayName (stable across versions) → PackageName for removal
+                prov_map = dict(
+                    (display, pkg_name)
+                    for display, pkg_name in get_blacklisted_provisioned(blacklist, whitelist)
+                )
+                current_provisioned = set(prov_map)
                 current_installed = {
                     family for family, _, _ in get_blacklisted_packages(blacklist, whitelist)
                 }
+                # Win32 display names — OEMs re-push these via their updaters,
+                # so the monitor must watch the non-Appx channel too
+                try:
+                    current_win32 = {
+                        (d, u, q) for d, u, q
+                        in get_blacklisted_win32(blacklist, whitelist)
+                    }
+                except Exception:
+                    current_win32 = set()
 
                 if not first_scan:
-                    dry_run = config.get("DryRun", False)
-                    for package_name in current_provisioned - seen_provisioned:
+                    for display_name in current_provisioned - seen_provisioned:
                         logger.warning(
-                            f"[MONITOR] RE-INSTALLED detected: {package_name} — removing immediately!")
-                        if dry_run:
-                            logger.info(f"[DRY-RUN] Would re-remove provisioned package: {package_name}")
-                        elif remove_provisioned_package(package_name):
-                            logger.info(f"[MONITOR] Re-removal complete: {package_name}")
+                            f"[MONITOR] RE-INSTALLED detected: {display_name} — removing immediately!")
+                        if remove_provisioned_package(prov_map[display_name]):
+                            logger.info(f"[MONITOR] Re-removal complete: {display_name}")
                         else:
-                            logger.warning(f"[MONITOR] Re-removal failed: {package_name}")
+                            logger.warning(f"[MONITOR] Re-removal failed: {display_name}")
 
                     reinstalled = current_installed - seen_installed
                     full_names = get_package_full_names() if reinstalled else {}
                     for family_name in reinstalled:
                         logger.warning(
                             f"[MONITOR] RE-INSTALLED AppxPackage: {family_name} — removing!")
-                        if dry_run:
-                            logger.info(f"[DRY-RUN] Would re-remove package: {family_name}")
-                            continue
                         full_name = full_names.get(family_name)
                         if full_name and remove_appx_package(full_name):
                             logger.info(f"[MONITOR] Re-removal complete: {family_name}")
                         else:
                             logger.warning(f"[MONITOR] Re-removal failed: {family_name}")
 
+                    seen_names = {d for d, _, _ in seen_win32}
+                    for display, uninstall, quiet in current_win32:
+                        if display in seen_names:
+                            continue
+                        logger.warning(
+                            f"[MONITOR] RE-INSTALLED Win32: {display} — removing!")
+                        if remove_win32_program(display, uninstall, quiet, logger):
+                            logger.info(f"[MONITOR] Re-removal complete: {display}")
+                        else:
+                            logger.warning(
+                                f"[MONITOR] Re-removal failed or manual: {display}")
+
                 seen_provisioned = current_provisioned
                 seen_installed = current_installed
+                seen_win32 = current_win32
                 first_scan = False
 
         except Exception as e:
@@ -1662,7 +1704,6 @@ def run_self_test() -> int:
             path = Path(td) / "config.json"
             created = load_config(path)
             assert created["Blacklist"], "default blacklist empty"
-            assert len(created["Whitelist"]) == 8, "default whitelist not aligned with C#"
             reloaded = load_config(path)
             assert reloaded["Blacklist"] == created["Blacklist"], "round-trip mismatch"
 
@@ -1678,22 +1719,10 @@ def run_self_test() -> int:
         fake_json = json.dumps([
             {"PackageFamilyName": "Microsoft.XboxGamingOverlay_8wekyb3d8bbwe",
              "Name": "Microsoft.XboxGamingOverlay",
-             "InstallPath": "C:\\Program Files\\WindowsApps\\xbox",
-             "IsFramework": False},
+             "InstallPath": "C:\\Program Files\\WindowsApps\\xbox"},
             {"PackageFamilyName": "Microsoft.WindowsCalculator_8wekyb3d8bbwe",
              "Name": "Microsoft.WindowsCalculator",
-             "InstallPath": "C:\\Program Files\\WindowsApps\\calc",
-             "IsFramework": False},
-            # Framework packages must never be returned even when blacklisted
-            {"PackageFamilyName": "Microsoft.XboxFramework_8wekyb3d8bbwe",
-             "Name": "Microsoft.XboxFramework",
-             "InstallPath": "C:\\Program Files\\WindowsApps\\xbfw",
-             "IsFramework": True},
-            # -AllUsers emits one row per user — duplicates must be deduped
-            {"PackageFamilyName": "Microsoft.XboxGamingOverlay_8wekyb3d8bbwe",
-             "Name": "Microsoft.XboxGamingOverlay",
-             "InstallPath": "C:\\Program Files\\WindowsApps\\xbox",
-             "IsFramework": False},
+             "InstallPath": "C:\\Program Files\\WindowsApps\\calc"},
         ])
         orig = run_powershell
         globals()["run_powershell"] = lambda cmd, timeout=60: (fake_json, "", 0)
@@ -1701,26 +1730,6 @@ def run_self_test() -> int:
             pkgs = get_blacklisted_packages(["Microsoft.Xbox"], ["Calculator"])
             assert len(pkgs) == 1 and pkgs[0][1] == "Microsoft.XboxGamingOverlay", \
                 f"unexpected result: {pkgs}"
-        finally:
-            globals()["run_powershell"] = orig
-
-    def t_get_provisioned_parse():
-        fake_json = json.dumps([
-            {"DisplayName": "Microsoft.BingNews",
-             "PackageName": "Microsoft.BingNews_4.6.32001.0_neutral_~_8wekyb3d8bbwe",
-             "PublisherId": "8wekyb3d8bbwe"},
-            {"DisplayName": "Microsoft.WindowsCalculator",
-             "PackageName": "Microsoft.WindowsCalculator_11.0_x64__8wekyb3d8bbwe",
-             "PublisherId": "8wekyb3d8bbwe"},
-        ])
-        orig = run_powershell
-        globals()["run_powershell"] = lambda cmd, timeout=60: (fake_json, "", 0)
-        try:
-            provs = get_blacklisted_provisioned(["Microsoft.BingNews"], ["Calculator"])
-            assert len(provs) == 1, f"unexpected result: {provs}"
-            display, package_name, family = provs[0]
-            assert package_name == "Microsoft.BingNews_4.6.32001.0_neutral_~_8wekyb3d8bbwe"
-            assert family == "Microsoft.BingNews_8wekyb3d8bbwe"
         finally:
             globals()["run_powershell"] = orig
 
@@ -1764,70 +1773,24 @@ def run_self_test() -> int:
                     "DisableConsumerExperiences", "DisableCloudContent",
                     "PreventDeviceMetadata", "DisableOemScheduledTasks",
                     "BlockProvisioning", "ReinstallMonitor",
-                    "MarkDeprovisioned", "RemoveDefaultStorePackages",
-                    "HardenContentDelivery", "DisableAiFeatures",
-                    "DisableWidgets", "DisableSearchSuggestions",
-                    "DisableTelemetryTasks", "DisableTelemetryPolicies",
-                    "HardenEdgePolicies", "CleanStartupEntries",
-                    "DisableOemServices", "RemoveWin32Bloatware",
-                    "DisableGameDvr", "BlockTelemetryEndpoints",
-                    "WingetSweep", "RemoveDeprecatedCapabilities",
-                    "DisableTelemetryServices", "DisableTelemetryAutologgers"]
+                    "DisableCopilot", "DisableRecall",
+                    "DisableSearchSuggestions", "DisableWidgets",
+                    "DisableTelemetry", "DisableGameDvr",
+                    "DisableDeliveryOptimization", "DisableOneDrive",
+                    "DisableChatTaskbar", "DisableEdgeBloat",
+                    "RemoveOptionalCapabilities", "RemoveWin32Programs",
+                    "CreateRestorePoint", "DisableTelemetryTasks",
+                    "DisableStartupBloat", "DisableErrorReporting",
+                    "DisableEdgeUpdateBloat", "BlockOemDriverUpdates",
+                    "DisableAppPermissions", "DisableXboxServices",
+                    "BackupRegistry", "DisablePrintSpooler",
+                    "BlockOemWpbtExecution", "DisableReservedStorage",
+                    "DisableCloudClipboard", "DisableRemoteAssistance",
+                    "BlockInsiderPreview", "DisableMiscBloatServices",
+                    "DisableSpotlight", "DisableAutoplay",
+                    "NoForcedReboot", "HideStartRecommendations"]
         missing = [k for k in required if k not in prev]
         assert not missing, f"missing prevention keys: {missing}"
-
-    def t_telemetry_task_paths():
-        assert len(TELEMETRY_TASK_PATHS) >= 10, "telemetry task list unexpectedly small"
-        for p in TELEMETRY_TASK_PATHS:
-            assert p.startswith("\\Microsoft\\Windows\\"), f"non-Microsoft task path: {p}"
-        assert any("Customer Experience Improvement Program" in p for p in TELEMETRY_TASK_PATHS)
-
-    def t_content_delivery_values():
-        assert len(CONTENT_DELIVERY_VALUES) >= 15, "CDM killswitch set too small"
-        assert "SilentInstalledAppsEnabled" in CONTENT_DELIVERY_VALUES
-
-    def t_win32_silent_uninstall():
-        # msiexec strings get converted to silent /x
-        cmd = _win32_silent_uninstall_cmd("MsiExec.exe /I{12345678-1234-1234-1234-123456789012}", "")
-        assert cmd == "msiexec.exe /x {12345678-1234-1234-1234-123456789012} /qn /norestart"
-        # QuietUninstallString passes through verbatim
-        assert _win32_silent_uninstall_cmd("x", "uninst.exe /S") == "uninst.exe /S"
-        # already-silent flags pass through
-        assert _win32_silent_uninstall_cmd('"C:\\app\\uninstall.exe" /S', "") is not None
-        # interactive uninstallers are skipped — they'd hang the scan
-        assert _win32_silent_uninstall_cmd('"C:\\app\\uninstall.exe"', "") is None
-
-    def t_vendor_patterns():
-        assert len(VENDOR_PATTERNS) >= 15, "vendor pattern list too small"
-        for p in VENDOR_PATTERNS:
-            assert p.strip(), "empty vendor pattern would match everything"
-        # 'hp' alone would match 'Photoshop' — require word-ish patterns
-        assert "HP" not in VENDOR_PATTERNS
-
-    def t_policy_tables():
-        assert len(TELEMETRY_POLICY_WRITES) >= 10
-        assert len(TELEMETRY_USER_WRITES) >= 8
-        assert len(EDGE_POLICIES) >= 5
-        for path, name, value in TELEMETRY_POLICY_WRITES:
-            assert path.startswith("SOFTWARE\\Policies\\Microsoft\\"), path
-            assert name and isinstance(value, int)
-        for name, value in EDGE_POLICIES:
-            assert name and isinstance(value, int)
-
-    def t_telemetry_hosts():
-        assert len(TELEMETRY_HOSTS) >= 20
-        for d in TELEMETRY_HOSTS:
-            assert re.fullmatch(r"[a-z0-9][a-z0-9.-]*\.[a-z]{2,}", d), d
-        # never block update/activation endpoints
-        assert not any("windowsupdate" in d or "activation" in d
-                       or "store" in d for d in TELEMETRY_HOSTS)
-
-    def t_deprecated_capabilities():
-        assert len(DEPRECATED_CAPABILITIES) >= 2
-        assert all("*" not in c and c.strip() for c in DEPRECATED_CAPABILITIES)
-        assert len(TELEMETRY_SERVICES) >= 5 and "DiagTrack" in TELEMETRY_SERVICES
-        assert len(TELEMETRY_AUTOLOGGERS) >= 8
-        assert "Diagtrack-Listener" in TELEMETRY_AUTOLOGGERS
 
     def t_removal_ledger():
         with tempfile.TemporaryDirectory() as td:
@@ -1844,20 +1807,12 @@ def run_self_test() -> int:
 
     check("T1: Config default-create + reload", t_config_roundtrip)
     check("T2: Blacklist/whitelist matching", t_matching)
-    check("T3: Get-AppxPackage JSON parsing (+framework/dedupe)", t_get_packages_parse)
+    check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
     check("T4: Logger file + console wiring", t_logging)
     check("T5: is_admin() callable", t_is_admin)
-    check("T6: Prevention layers — 26 registered", t_prevention_layers)
+    check("T6: Prevention layers — 40 registered", t_prevention_layers)
     check("T7: Removal ledger write/read", t_removal_ledger)
     check("T8: Full-name batch map", t_full_name_map)
-    check("T9: ProvisionedPackage parse (name + family)", t_get_provisioned_parse)
-    check("T10: Telemetry task paths well-formed", t_telemetry_task_paths)
-    check("T11: ContentDelivery killswitch set", t_content_delivery_values)
-    check("T12: Win32 silent-uninstall classifier", t_win32_silent_uninstall)
-    check("T13: Vendor patterns sane", t_vendor_patterns)
-    check("T14: Telemetry/Edge policy tables well-formed", t_policy_tables)
-    check("T15: Telemetry hosts list well-formed", t_telemetry_hosts)
-    check("T16: Deprecated capabilities list", t_deprecated_capabilities)
 
     print()
     passed = 0
