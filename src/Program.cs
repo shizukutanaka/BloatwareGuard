@@ -1435,6 +1435,12 @@ public static class RegistryGuard
             using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(CloudContentPath);
             key?.SetValue("DisableConsumerAccountContent", 1, Microsoft.Win32.RegistryValueKind.DWord);
 
+            // Open-With store nags: "Look for an app in the Store" + the
+            // "new apps can open this file type" toast (HKLM Explorer policies)
+            using var expl = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(ExplorerPoliciesHklmPath);
+            expl?.SetValue("NoUseStoreOpenWith", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            expl?.SetValue("NoNewAppAlert", 1, Microsoft.Win32.RegistryValueKind.DWord);
+
             // ContentDeliveryManager — silent installs + every SubscribedContent surface
             // (key set mirrors Win11Debloat Disable_Windows_Suggestions.reg)
             var cdmZeros = new[]
@@ -1555,6 +1561,8 @@ public static class RegistryGuard
             using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(WindowsSearchPath);
             key?.SetValue("AllowCortana", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("CortanaConsent", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // Location-aware search results leak the device location to Bing
+            key?.SetValue("AllowSearchToUseLocation", 0, Microsoft.Win32.RegistryValueKind.DWord);
 
             ForEachUserHive(hive =>
             {
@@ -2507,6 +2515,8 @@ public static class RegistryGuard
                 @"SOFTWARE\Policies\Microsoft\Windows\Explorer");
             pol?.SetValue("HideRecommendedSection", 1,
                           Microsoft.Win32.RegistryValueKind.DWord);
+            pol?.SetValue("HideRecentlyAddedApps", 1,
+                          Microsoft.Win32.RegistryValueKind.DWord);
             // The section draws from recent-doc tracking — stop collecting it
             SetUserDwordAllHives(
                 @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
@@ -2675,6 +2685,12 @@ public static class ScheduledTaskGuard
         @"\Microsoft\Windows\Device Information\Device",
         @"\Microsoft\Windows\Device Information\Device User",
         @"\Microsoft\Windows\Shell\FamilySafetyMonitor",
+        @"\Microsoft\Windows\Shell\FamilySafetyRefreshTask",
+        // Store push-install login hook + setting-sync uploads (service and
+        // policies already off — kill the schedulers too)
+        @"\Microsoft\Windows\PushToInstall\LoginCheck",
+        @"\Microsoft\Windows\SettingSync\BackgroundUploadTask",
+        @"\Microsoft\Windows\SettingSync\BackupTask",
         @"\Microsoft\Windows\NetTrace\GatherNetworkInfo",
         // Application Impact Telemetry, speech-model downloads,
         // storage-footprint diagnostics
@@ -3197,7 +3213,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.44.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.45.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -3282,7 +3298,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.44.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.45.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -3434,8 +3450,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 6;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.44.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.44.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.45.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.45.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try

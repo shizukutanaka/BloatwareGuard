@@ -2,6 +2,21 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.45.0-mvp: Open-With store nags, search location, sync/push tasks
+
+### Changed
+- `BlockProvisioning`: HKLM `Explorer\NoUseStoreOpenWith` + `NoNewAppAlert` —
+  kills "Look for an app in the Store" and the "new apps can open this file
+  type" toast (both are store-promotion surfaces).
+- `HideStartRecommendations`: `HideRecentlyAddedApps` policy — the Start
+  "Recently added" list is also a promoted-app surface.
+- `DisableSearchSuggestions`: `AllowSearchToUseLocation`=0 — location-aware
+  search results no longer leak device location to Bing.
+- `DisableTelemetryTasks`: +`PushToInstall\LoginCheck` (Store push-install
+  login hook — its service is already demoted), `SettingSync\
+  BackgroundUploadTask` + `BackupTask` (setting-sync uploads; the policy
+  block is already in place).
+
 ## [Unreleased] — v1.44.0-mvp: GameBar nags, PcaSvc, review hardening
 
 ### Changed

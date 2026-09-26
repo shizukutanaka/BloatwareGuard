@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.44.0-mvp - Python prototype
+BloatwareGuard v1.45.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -844,6 +844,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
 
     if prev.get("BlockProvisioning", True):
         set_registry_dword("HKLM", cloud_content, "DisableConsumerAccountContent", 1)
+        # Open-With store nags: "Look for an app in the Store" + the
+        # "new apps can open this file type" toast (HKLM Explorer policies)
+        set_registry_dword("HKLM", _EXPLORER_POLICIES_HKLM, "NoUseStoreOpenWith", 1)
+        set_registry_dword("HKLM", _EXPLORER_POLICIES_HKLM, "NoNewAppAlert", 1)
 
         # ContentDeliveryManager — silent installs + every SubscribedContent surface
         # (key set mirrors Win11Debloat Disable_Windows_Suggestions.reg)
@@ -915,6 +919,8 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         search_pol = r"SOFTWARE\Policies\Microsoft\Windows\Windows Search"
         set_registry_dword("HKLM", search_pol, "AllowCortana", 0)
         set_registry_dword("HKLM", search_pol, "CortanaConsent", 0)
+        # Location-aware search results leak the device location to Bing
+        set_registry_dword("HKLM", search_pol, "AllowSearchToUseLocation", 0)
         set_user_dword_all_hives(_USER_EXPLORER_POLICIES, "DisableSearchBoxSuggestions", 1, logger)
         # HKLM policy too — covers hive-creation edge cases
         set_registry_dword("HKLM", _EXPLORER_POLICIES_HKLM, "DisableSearchBoxSuggestions", 1)
@@ -1313,6 +1319,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_registry_dword("HKLM",
                            r"SOFTWARE\Policies\Microsoft\Windows\Explorer",
                            "HideRecommendedSection", 1)
+        # Start "Recently added" list — same HKLM Explorer policy hive
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Policies\Microsoft\Windows\Explorer",
+                           "HideRecentlyAddedApps", 1)
         # The section draws from recent-doc tracking — stop collecting it
         set_user_dword_all_hives(
             r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
@@ -1777,6 +1787,11 @@ TELEMETRY_TASK_PATHS = (
     "\\Microsoft\\Windows\\Device Information\\Device User",
     "\\Microsoft\\Windows\\Shell\\FamilySafetyMonitor",
     "\\Microsoft\\Windows\\Shell\\FamilySafetyRefreshTask",
+    # Store push-install login hook + setting-sync uploads (service and
+    # policies already off — kill the schedulers too)
+    "\\Microsoft\\Windows\\PushToInstall\\LoginCheck",
+    "\\Microsoft\\Windows\\SettingSync\\BackgroundUploadTask",
+    "\\Microsoft\\Windows\\SettingSync\\BackupTask",
     "\\Microsoft\\Windows\\NetTrace\\GatherNetworkInfo",
     # Application Impact Telemetry, speech-model download, disk diagnostics
     "\\Microsoft\\Windows\\Application Experience\\AitEnableAgent",
