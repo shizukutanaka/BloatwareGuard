@@ -52,7 +52,9 @@
     "Facebook.InstagramBeta",
     "Facebook.Facebook",
     "WhatsApp",
-    "Disney."
+    "Disney.",
+    "MicrosoftWindows.Client.WebExperience",
+    "MicrosoftCorporationII.QuickAssist"
   ],
   "Whitelist": [
     "Microsoft.WindowsStore",

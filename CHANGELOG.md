@@ -4,6 +4,11 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 
 ## [Unreleased] — v1.8.0-mvp hardening
 
+### Added — debloat round 7 (Active Setup sweep + task/blacklist extensions)
+- **Active Setup stubs swept**: `HKLM\SOFTWARE\Microsoft\Active Setup\Installed Components` (64- and 32-bit views) — OEM stub installers that re-run at *every user sign-in* — now matched against blacklist∪vendor patterns (subkey name, StubPath, LocalizedName) and deleted, under `CleanStartupEntries`.
+- **Telemetry task list → 21**: +`DiskFootprint\Diagnostics`, `WinErrorReporting\QueueReporting`, `Device Information\Device` / `Device User`, `TextInput\TextInputModelDownloadTask`.
+- **Blacklist +2**: `MicrosoftWindows.Client.WebExperience` (Widgets runtime pack), `MicrosoftCorporationII.QuickAssist` (documented vishing vector — Storm-1811 abused it for social-engineering remote access).
+
 ### Added — debloat round 6 (ETW autologgers + nag/leak closures)
 - **1 new prevention toggle** (default-on): `DisableTelemetryAutologgers` — `Start=0` on boot-time ETW autologger sessions that exist solely to feed telemetry (`Diagtrack-Listener`, `SQMLogger`, `DataMarket`, `AppModel`, `CloudExperienceHostOobe`, `DiagLog`, `LwtNetLog`, `TileStore`, `UBPM`, `WiFiSession`) under `HKLM\SYSTEM\CurrentControlSet\Control\WMI\Autologger`; only existing keys are touched.
 - **Coverage extensions**: `DisableSettingSync=2` (settings sync to cloud off); `ScoobeSystemSettingEnabled=0` per-hive (kills the "let's finish setting up your device" SCOOBE nag); Edge policies +5 — `SendSiteInfoToImproveServices`, `ResolveNavigationErrorsUseWebService`, `AlternateErrorPagesEnabled`, `UserFeedbackAllowed`, `BingAdsSuppression`.

@@ -60,7 +60,7 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 | Edge の余計な機能 (sidebar/startup boost/Spotlight) | HKLM\Policies\Microsoft\Edge DWORDs | HardenEdgePolicies |
 | Win32 (MSI/EXE) ブロートウェア | Uninstall ハイブ走査 + サイレントアンインストールのみ | RemoveWin32Bloatware |
 | OEM サービス (自動起動) | sc.exe stop + start= disabled | DisableOemServices |
-| スタートアップ登録 (Run/RunOnce) | 全ハイブで該当値を削除 | CleanStartupEntries |
+| スタートアップ登録 (Run/RunOnce/Policies\Explorer\Run/Active Setup) | 全ハイブで該当値・スタブを削除 | CleanStartupEntries |
 | テレメトリ送信先ドメイン | hosts で 0.0.0.0 に固定(26件・マーカー付き可逆) | BlockTelemetryEndpoints |
 | Game Bar 常駐キャプチャ | AllowGameDVR=0 + per-hive capture 値 | DisableGameDvr |
 | winget 管理下の残滓 | winget uninstall --silent --disable-interactivity | WingetSweep |

@@ -122,6 +122,8 @@ DEFAULT_BLACKLIST = [
     "Disney.",
     "A278AB0D.DisneyMagicKingdoms",
     "A278AB0D.MarchofEmpires",
+    "MicrosoftWindows.Client.WebExperience",  # Widgets runtime pack
+    "MicrosoftCorporationII.QuickAssist",    # documented vishing vector
 ]
 
 
@@ -641,6 +643,12 @@ RUN_KEY_PATHS = (
 HKLM_RUN_KEY_PATHS = RUN_KEY_PATHS + tuple(
     "SOFTWARE\\WOW6432Node\\" + p[len("SOFTWARE\\"):] for p in RUN_KEY_PATHS)
 
+# Active Setup — OEM stub installers that re-run at EVERY user sign-in
+ACTIVE_SETUP_PATHS = (
+    r"SOFTWARE\Microsoft\Active Setup\Installed Components",
+    r"SOFTWARE\WOW6432Node\Microsoft\Active Setup\Installed Components",
+)
+
 # Win32 uninstall hives — 64- and 32-bit views
 WIN32_UNINSTALL_PATHS = (
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
@@ -742,6 +750,11 @@ TELEMETRY_TASK_PATHS = (
     r"\Microsoft\Windows\Maps\MapsUpdateTask",
     r"\Microsoft\Windows\Power Efficiency Diagnostics\AnalyzeSystem",
     r"\Microsoft\Windows\Speech\SpeechModelDownloadTask",
+    r"\Microsoft\Windows\DiskFootprint\Diagnostics",
+    r"\Microsoft\Windows\WinErrorReporting\QueueReporting",
+    r"\Microsoft\Windows\Device Information\Device",
+    r"\Microsoft\Windows\Device Information\Device User",
+    r"\Microsoft\Windows\TextInput\TextInputModelDownloadTask",
 )
 
 
@@ -898,6 +911,49 @@ def clean_startup_entries(config: dict, dry_run: bool, logger: logging.Logger):
             except OSError as e:
                 logger.warning(f"Startup entry delete failed {name}: {e}")
         winreg.CloseKey(key)
+
+    # Active Setup stub installers — run again at every user sign-in
+    for path in ACTIVE_SETUP_PATHS:
+        try:
+            root_key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, path, 0,
+                                      winreg.KEY_READ | winreg.KEY_WRITE)
+        except OSError:
+            continue
+        names = []
+        i = 0
+        while True:
+            try:
+                names.append(winreg.EnumKey(root_key, i))
+            except OSError:
+                break
+            i += 1
+        for sub in names:
+            try:
+                with winreg.OpenKey(root_key, sub) as sk:
+                    blobs = [sub]
+                    for val_name in ("", "StubPath", "LocalizedName"):
+                        try:
+                            blobs.append(str(winreg.QueryValueEx(sk, val_name)[0]))
+                        except OSError:
+                            pass
+                matched = any(is_target_package(b, patterns, whitelist)
+                              for b in blobs)
+            except OSError:
+                matched = False
+            if not matched:
+                continue
+            if dry_run:
+                logger.info(f"[DRY-RUN] Would delete Active Setup stub: {path}\\{sub}")
+                deleted += 1
+                continue
+            try:
+                winreg.DeleteKey(root_key, sub)
+                deleted += 1
+                logger.info(f"Deleted Active Setup stub: {sub} ({path})")
+            except OSError as e:
+                logger.warning(f"Active Setup stub delete failed {sub}: {e}")
+        winreg.CloseKey(root_key)
+
     if deleted:
         logger.info(f"Startup bloat entries {'flagged' if dry_run else 'deleted'}: {deleted}")
 

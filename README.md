@@ -69,6 +69,18 @@ screen off, and five Edge web-service leaks (`SendSiteInfoToImproveServices`,
 `ResolveNavigationErrorsUseWebService`, `AlternateErrorPagesEnabled`,
 `UserFeedbackAllowed`, `BingAdsSuppression`).
 
+Round 7 also closed the last autostart vector: **Active Setup**
+(`HKLM\SOFTWARE\Microsoft\Active Setup\Installed Components`, both bitness
+views) — OEM stub installers that re-run at *every user sign-in* — now swept
+with the same blacklist/vendor matching (value-name, StubPath and LocalizedName
+checked; matching subkeys deleted). The telemetry task list grew to 21 exact
+paths (DiskFootprint, WinErrorReporting `QueueReporting`, Device Information,
+TextInput model download). Blacklist +2: `MicrosoftWindows.Client.WebExperience`
+(the Widgets runtime pack — Widgets are already policy-disabled, the pack just
+lingers) and `MicrosoftCorporationII.QuickAssist` (a documented vishing vector —
+Microsoft's own Storm-1811 write-ups detail attackers abusing it for
+social-engineering remote access).
+
 Layer 17 sweeps the `Uninstall` registry hives (HKLM 64- and 32-bit views plus
 every loaded user hive) for `DisplayName` values matching the blacklist plus a
 built-in OEM/vendor list. It only executes **silent** uninstall paths —

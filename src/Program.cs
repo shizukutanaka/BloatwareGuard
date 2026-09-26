@@ -349,6 +349,8 @@ public static class ConfigLoader
                 "Facebook.Facebook",
                 "WhatsApp",
                 "Disney.",
+                "MicrosoftWindows.Client.WebExperience",   // Widgets runtime pack
+                "MicrosoftCorporationII.QuickAssist",       // documented vishing vector
 
                 // OEM utilities (uncomment as needed)
                 // "DellInc.Dell",
@@ -1153,6 +1155,11 @@ public static class ScheduledTaskGuard
         @"\Microsoft\Windows\Maps\MapsUpdateTask",
         @"\Microsoft\Windows\Power Efficiency Diagnostics\AnalyzeSystem",
         @"\Microsoft\Windows\Speech\SpeechModelDownloadTask",
+        @"\Microsoft\Windows\DiskFootprint\Diagnostics",
+        @"\Microsoft\Windows\WinErrorReporting\QueueReporting",
+        @"\Microsoft\Windows\Device Information\Device",
+        @"\Microsoft\Windows\Device Information\Device User",
+        @"\Microsoft\Windows\TextInput\TextInputModelDownloadTask",
     };
 
     // Microsoft system tasks that MUST NEVER be disabled (TaskPath prefixes)
@@ -1340,6 +1347,12 @@ public static class Win32BloatGuard
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run",
+    };
+
+    // Active Setup — OEM stub installers that re-run at EVERY user sign-in
+    private static readonly string[] ActiveSetupPaths = {
+        @"SOFTWARE\Microsoft\Active Setup\Installed Components",
+        @"SOFTWARE\WOW6432Node\Microsoft\Active Setup\Installed Components",
     };
 
     // Win32 uninstall hives — 64- and 32-bit views
@@ -1538,6 +1551,53 @@ public static class Win32BloatGuard
                 }
             }
         }
+        // Active Setup stub installers — re-run at EVERY user sign-in
+        foreach (var path in ActiveSetupPaths)
+        {
+            Microsoft.Win32.RegistryKey? rootKey;
+            try
+            {
+                rootKey = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(path, writable: true);
+            }
+            catch { continue; }
+            if (rootKey == null)
+                continue;
+            using (rootKey)
+            {
+                foreach (var sub in rootKey.GetSubKeyNames())
+                {
+                    bool matched;
+                    try
+                    {
+                        using var sk = rootKey.OpenSubKey(sub);
+                        var blob = sub + " " + (sk?.GetValue(null)?.ToString() ?? "")
+                            + " " + (sk?.GetValue("StubPath")?.ToString() ?? "")
+                            + " " + (sk?.GetValue("LocalizedName")?.ToString() ?? "");
+                        matched = IsBloat(blob, config);
+                    }
+                    catch { matched = false; }
+                    if (!matched)
+                        continue;
+                    if (dryRun)
+                    {
+                        GuardLogger.Info($"[DRY-RUN] Would delete Active Setup stub: {path}\\{sub}");
+                        deleted++;
+                        continue;
+                    }
+                    try
+                    {
+                        rootKey.DeleteSubKey(sub);
+                        deleted++;
+                        GuardLogger.Info($"Deleted Active Setup stub: {sub} ({path})");
+                    }
+                    catch (Exception ex)
+                    {
+                        GuardLogger.Warn($"Active Setup stub delete failed {sub}: {ex.Message}");
+                    }
+                }
+            }
+        }
+
         if (deleted > 0)
             GuardLogger.Info($"Startup bloat entries {(dryRun ? "flagged" : "deleted")}: {deleted}");
     }
