@@ -169,6 +169,11 @@ public class PreventionLayers
     /// <summary>Layer 34: Block Windows Insider preview enrollment —
     /// prevents preview builds (and their heavier telemetry) arriving</summary>
     public bool BlockInsiderPreview { get; set; } = true;
+
+    /// <summary>Layer 35: Demote misc bloat services nobody invokes
+    /// interactively — dmwappushservice (WAP push/MDM), MapsBroker,
+    /// WMPNetworkSvc, DiagnosticsHub — to demand-start</summary>
+    public bool DisableMiscBloatServices { get; set; } = true;
 }
 
 // ─── JSON source-gen context (trim-safe: avoids IL2026 with PublishTrimmed) ──
@@ -953,6 +958,9 @@ public static class RegistryGuard
 
         if (layers.BlockInsiderPreview)
             BlockInsiderPreview();
+
+        if (layers.DisableMiscBloatServices)
+            DisableMiscBloatServices();
     }
 
     /// <summary>
@@ -1337,6 +1345,26 @@ public static class RegistryGuard
                 ink?.SetValue("AllowWindowsInkWorkspace", 0, Microsoft.Win32.RegistryValueKind.DWord);
             }
             catch { }
+            // Defender SpyNet — no sample uploads to Microsoft
+            try
+            {
+                using var spynet = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows Defender\Spynet");
+                if (spynet != null)
+                {
+                    spynet.SetValue("SpynetReporting", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                    spynet.SetValue("SubmitSamplesConsent", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                }
+            }
+            catch { }
+            // Microsoft feature experimentation (A/B flighting) off
+            try
+            {
+                using var exp = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Microsoft\PolicyManager\current\device\System");
+                exp?.SetValue("AllowExperimentation", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            catch { }
 
             GuardLogger.Info("Applied: DisableTelemetry (AllowTelemetry=0, DiagTrack off, privacy surfaces set)");
         }
@@ -1440,7 +1468,14 @@ public static class RegistryGuard
             key?.SetValue("StartupBoostEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("AllowPrelaunch", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("HideFirstRunExperience", 1, Microsoft.Win32.RegistryValueKind.DWord);
-            GuardLogger.Info("Applied: DisableEdgeBloat (sidebar/startup-boost/prelaunch/first-run off)");
+            // Shopping assistant, content recommendations, error-page web
+            // service calls and user feedback — all upload/suggestion surfaces
+            key?.SetValue("EdgeShoppingAssistantEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("ShowRecommendationsEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("ResolveNavigationErrorsUseWebService", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("AlternateErrorPagesEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("UserFeedbackAllowed", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            GuardLogger.Info("Applied: DisableEdgeBloat (sidebar/startup-boost/prelaunch/first-run/shopping/recommendations off)");
         }
         catch (Exception ex)
         {
@@ -1674,6 +1709,8 @@ public static class RegistryGuard
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\ReserveManager",
         @"SYSTEM\CurrentControlSet\Control\Remote Assistance",
         @"SOFTWARE\Policies\Microsoft\Windows\PreviewBuilds",
+        @"SOFTWARE\Policies\Microsoft\Windows Defender\Spynet",
+        @"SOFTWARE\Microsoft\PolicyManager\current\device\System",
     };
     private static bool _backupDone;
 
@@ -1830,6 +1867,34 @@ public static class RegistryGuard
         catch (Exception ex)
         {
             GuardLogger.Error($"Failed to block Insider preview: {ex.Message}");
+        }
+    }
+
+    /// <summary>Layer 35: demote misc bloat services to demand-start —
+    /// dmwappushservice (WAP push/MDM channel), MapsBroker (downloaded-map
+    /// broker), WMPNetworkSvc (media sharing), DiagnosticsHub standard
+    /// collector. Demand-start keeps them usable when actually invoked.</summary>
+    public static void DisableMiscBloatServices()
+    {
+        try
+        {
+            foreach (var svc in new[] { "dmwappushservice", "MapsBroker",
+                                        "WMPNetworkSvc",
+                                        "diagnosticshub.standardcollector.service" })
+            {
+                try
+                {
+                    using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                        $@"SYSTEM\CurrentControlSet\Services\{svc}");
+                    key?.SetValue("Start", 3, Microsoft.Win32.RegistryValueKind.DWord);
+                }
+                catch { }
+            }
+            GuardLogger.Info("Applied: DisableMiscBloatServices (4 services → demand-start)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to demote misc services: {ex.Message}");
         }
     }
 
@@ -2356,7 +2421,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.19.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.20.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -2441,7 +2506,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.19.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.20.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -2593,8 +2658,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 6;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.19.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.19.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.20.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.20.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try

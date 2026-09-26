@@ -2,6 +2,22 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.20.0-mvp: misc services / SpyNet / Edge surfaces
+
+### Added
+- **`DisableMiscBloatServices`** — `dmwappushservice` (WAP push/MDM channel),
+  `MapsBroker`, `WMPNetworkSvc`, `diagnosticshub.standardcollector.service`
+  demoted to demand-start.
+
+### Changed
+- `DisableTelemetry` also sets Defender SpyNet `SpynetReporting=0` +
+  `SubmitSamplesConsent=0` (no sample uploads) and
+  `AllowExperimentation=0` (Microsoft A/B feature flighting off).
+- `DisableEdgeBloat` extended: shopping assistant, content
+  recommendations, navigation-error web service, alternate error pages,
+  user feedback — all off.
+- `BackupRegistry` export set extended to the new keys (26 total).
+
 ## [Unreleased] — v1.19.0-mvp: cloud clipboard / Remote Assistance / Insider block
 
 ### Added

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.19.0-mvp - Python prototype
+BloatwareGuard v1.20.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -34,7 +34,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.19.0-mvp"
+APP_VERSION = "1.20.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -188,6 +188,7 @@ def load_config(path: Path) -> dict:
                 "DisableCloudClipboard": True,
                 "DisableRemoteAssistance": True,
                 "BlockInsiderPreview": True,
+                "DisableMiscBloatServices": True,
             },
             "DryRun": False,
         }
@@ -701,6 +702,8 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\ReserveManager",
     r"SYSTEM\CurrentControlSet\Control\Remote Assistance",
     r"SOFTWARE\Policies\Microsoft\Windows\PreviewBuilds",
+    r"SOFTWARE\Policies\Microsoft\Windows Defender\Spynet",
+    r"SOFTWARE\Microsoft\PolicyManager\current\device\System",
 )
 _registry_backup_done = False
 
@@ -883,6 +886,15 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_registry_dword("HKLM",
                            r"SOFTWARE\Policies\Microsoft\WindowsInkWorkspace",
                            "AllowWindowsInkWorkspace", 0)
+        # Defender SpyNet — no sample uploads to Microsoft
+        spynet = r"SOFTWARE\Policies\Microsoft\Windows Defender\Spynet"
+        set_registry_dword("HKLM", spynet, "SpynetReporting", 0)
+        set_registry_dword("HKLM", spynet, "SubmitSamplesConsent", 0)
+        # Microsoft feature experimentation (A/B flighting) off
+        set_registry_dword(
+            "HKLM",
+            r"SOFTWARE\Microsoft\PolicyManager\current\device\System",
+            "AllowExperimentation", 0)
         logger.info("Applied: DisableTelemetry (AllowTelemetry=0, DiagTrack off, "
                     "privacy surfaces set)")
 
@@ -926,7 +938,16 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_registry_dword("HKLM", edge_pol, "StartupBoostEnabled", 0)
         set_registry_dword("HKLM", edge_pol, "AllowPrelaunch", 0)
         set_registry_dword("HKLM", edge_pol, "HideFirstRunExperience", 1)
-        logger.info("Applied: DisableEdgeBloat (sidebar/startup-boost/prelaunch/first-run off)")
+        # Shopping assistant, recommendations, error-page web service,
+        # user feedback — all upload/suggestion surfaces
+        for name in ("EdgeShoppingAssistantEnabled",
+                     "ShowRecommendationsEnabled",
+                     "ResolveNavigationErrorsUseWebService",
+                     "AlternateErrorPagesEnabled",
+                     "UserFeedbackAllowed"):
+            set_registry_dword("HKLM", edge_pol, name, 0)
+        logger.info("Applied: DisableEdgeBloat (sidebar/startup-boost/"
+                    "prelaunch/first-run/shopping/recommendations off)")
 
     if prev.get("DisableStartupBloat", True):
         disable_startup_bloat(config, logger)
@@ -1054,6 +1075,24 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             except OSError:
                 pass
         logger.info("Applied: DisableXboxServices (4 services → demand-start)")
+
+    if prev.get("DisableMiscBloatServices", True):
+        # Demand-start (Start=3) — WAP push/MDM, map broker, media sharing,
+        # diagnostics hub; all stay usable when actually invoked
+        import winreg as _wr3
+        for svc in ("dmwappushservice", "MapsBroker", "WMPNetworkSvc",
+                    "diagnosticshub.standardcollector.service"):
+            try:
+                k = _wr3.CreateKeyEx(
+                    _wr3.HKEY_LOCAL_MACHINE,
+                    rf"SYSTEM\CurrentControlSet\Services\{svc}", 0,
+                    _wr3.KEY_WRITE)
+                _wr3.SetValueEx(k, "Start", 0, _wr3.REG_DWORD, 3)
+                _wr3.CloseKey(k)
+            except OSError:
+                pass
+        logger.info("Applied: DisableMiscBloatServices "
+                    "(4 services → demand-start)")
 
 
 def disable_startup_bloat(config: dict, logger: logging.Logger):
@@ -1580,7 +1619,7 @@ def run_self_test() -> int:
                     "BackupRegistry", "DisablePrintSpooler",
                     "BlockOemWpbtExecution", "DisableReservedStorage",
                     "DisableCloudClipboard", "DisableRemoteAssistance",
-                    "BlockInsiderPreview"]
+                    "BlockInsiderPreview", "DisableMiscBloatServices"]
         missing = [k for k in required if k not in prev]
         assert not missing, f"missing prevention keys: {missing}"
 
@@ -1602,7 +1641,7 @@ def run_self_test() -> int:
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
     check("T4: Logger file + console wiring", t_logging)
     check("T5: is_admin() callable", t_is_admin)
-    check("T6: Prevention layers — 35 registered", t_prevention_layers)
+    check("T6: Prevention layers — 36 registered", t_prevention_layers)
     check("T7: Removal ledger write/read", t_removal_ledger)
     check("T8: Full-name batch map", t_full_name_map)
 

@@ -49,7 +49,9 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 │    ├─ WPBT (UEFI OEM 注入) 遮断                    │
 │    ├─ Reserved Storage (~7GB) 解放                 │
 │    ├─ クラウドクリップボード同期 / RA 停止         │
-│    └─ Insider Preview 登録遮断 + Office CEIP      │
+│    ├─ Insider Preview 登録遮断 + Office CEIP      │
+│    ├─ Defender SpyNet / 機能実験 / Edge 推奨停止   │
+│    └─ 雑サービス群 (dmwappush 他) → demand 化     │
 ├─────────────────────────────────────────────────────┤
 │  Config: config.json (blacklist + intervals)        │
 │  Log: Windows Event Log + file                      │
@@ -96,6 +98,7 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 | クラウドクリップボード | System policy AllowCrossDeviceClipboard=0 + 全ハイブ EnableClipboardHistory=0 | DisableCloudClipboard |
 | Remote Assistance | Remote Assistance\fAllowToGetHelp=0, fAllowFullControl=0 | DisableRemoteAssistance |
 | Insider Preview | PreviewBuilds\AllowBuildPreview=0 + WindowsSelfHost HideInsiderPage=1 | BlockInsiderPreview |
+| 雑ブロートサービス | dmwappushservice/MapsBroker/WMPNetworkSvc/DiagnosticsHub → Start=3 | DisableMiscBloatServices |
 
 ## ブラックリスト方式
 - config.json の `Blacklist` にパッケージ名の**部分一致**パターンを列挙

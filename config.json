@@ -110,7 +110,8 @@
     "DisableReservedStorage": true,
     "DisableCloudClipboard": true,
     "DisableRemoteAssistance": true,
-    "BlockInsiderPreview": true
+    "BlockInsiderPreview": true,
+    "DisableMiscBloatServices": true
   },
   "DryRun": false
 }

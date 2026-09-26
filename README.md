@@ -1,8 +1,8 @@
-# BloatwareGuard v1.19.0-mvp
+# BloatwareGuard v1.20.0-mvp
 
 ## What It Does
 
-Removes Windows bloatware across **34 prevention layers** in both **Python** and **C#** implementations.
+Removes Windows bloatware across **35 prevention layers** in both **Python** and **C#** implementations.
 Per-user settings are written to **every loaded user hive + the Default profile template**, so they
 also apply correctly when the tool runs as a SYSTEM service and for users created later.
 
@@ -44,6 +44,7 @@ also apply correctly when the tool runs as a SYSTEM service and for users create
 || 32. Cross-device clipboard sync off (copied content stays local) | ✅ | ✅ | HKLM needs admin |
 || 33. Remote Assistance inbound offers off | ✅ | ✅ | HKLM needs admin |
 || 34. Windows Insider preview enrollment blocked | ✅ | ✅ | HKLM needs admin |
+|| 35. Misc bloat services → demand-start (WAP push/MDM, Maps broker, media sharing, diagnostics hub) | ✅ | ✅ | HKLM needs admin |
 
 ---
 
@@ -162,8 +163,8 @@ dotnet publish src/BloatwareGuard.csproj -c Release -r win-x64 --self-contained 
 ## Version
 
 ```bash
-python bloatware_guard.py --version   # BloatwareGuard v1.19.0-mvp
-BloatwareGuard.exe --version          # BloatwareGuard v1.19.0-mvp
+python bloatware_guard.py --version   # BloatwareGuard v1.20.0-mvp
+BloatwareGuard.exe --version          # BloatwareGuard v1.20.0-mvp
 ```
 
 ---
