@@ -2,6 +2,15 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.22.0-mvp: AutoPlay off / WU forced-reboot prevention
+
+### Added
+- **`DisableAutoplay`** — `NoDriveTypeAutoRun=255` + `NoAutorun=1` at HKLM
+  and every user hive: removable-media auto-execute off.
+- **`NoForcedReboot`** — `WindowsUpdate\AU` `NoAutoRebootWithLoggedOnUsers=1`
+  + `AlwaysAutoRebootAtScheduledTime=0`: no more forced restarts while a
+  user is logged on.
+
 ## [Unreleased] — v1.21.0-mvp: Desktop Spotlight / blacklist additions
 
 ### Added

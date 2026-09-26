@@ -118,7 +118,9 @@
     "DisableRemoteAssistance": true,
     "BlockInsiderPreview": true,
     "DisableMiscBloatServices": true,
-    "DisableSpotlight": true
+    "DisableSpotlight": true,
+    "DisableAutoplay": true,
+    "NoForcedReboot": true
   },
   "DryRun": false
 }

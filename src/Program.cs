@@ -178,6 +178,14 @@ public class PreventionLayers
     /// <summary>Layer 36: Desktop Spotlight off — the wallpaper surface is
     /// also a content-delivery channel (promos baked into wallpapers)</summary>
     public bool DisableSpotlight { get; set; } = true;
+
+    /// <summary>Layer 37: AutoPlay/AutoRun off — removable-media auto-execute
+    /// is a classic payload vector</summary>
+    public bool DisableAutoplay { get; set; } = true;
+
+    /// <summary>Layer 38: no forced Windows Update reboot while a user is
+    /// logged on</summary>
+    public bool NoForcedReboot { get; set; } = true;
 }
 
 // ─── JSON source-gen context (trim-safe: avoids IL2026 with PublishTrimmed) ──
@@ -974,6 +982,12 @@ public static class RegistryGuard
 
         if (layers.DisableSpotlight)
             DisableSpotlight();
+
+        if (layers.DisableAutoplay)
+            DisableAutoplay();
+
+        if (layers.NoForcedReboot)
+            NoForcedReboot();
     }
 
     /// <summary>
@@ -1724,6 +1738,7 @@ public static class RegistryGuard
         @"SOFTWARE\Policies\Microsoft\Windows\PreviewBuilds",
         @"SOFTWARE\Policies\Microsoft\Windows Defender\Spynet",
         @"SOFTWARE\Microsoft\PolicyManager\current\device\System",
+        @"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU",
     };
     private static bool _backupDone;
 
@@ -1928,6 +1943,55 @@ public static class RegistryGuard
         catch (Exception ex)
         {
             GuardLogger.Error($"Failed to disable Spotlight: {ex.Message}");
+        }
+    }
+
+    /// <summary>Layer 37: disable AutoPlay/AutoRun on all drives —
+    /// NoDriveTypeAutoRun=255, NoAutorun=1. Classic media-execution vector.</summary>
+    public static void DisableAutoplay()
+    {
+        try
+        {
+            using var pol = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer");
+            if (pol != null)
+            {
+                pol.SetValue("NoDriveTypeAutoRun", 255,
+                             Microsoft.Win32.RegistryValueKind.DWord);
+                pol.SetValue("NoAutorun", 1,
+                             Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            SetUserDwordAllHives(
+                @"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer",
+                "NoDriveTypeAutoRun", 255);
+            GuardLogger.Info("Applied: DisableAutoplay (NoDriveTypeAutoRun=255)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to disable AutoPlay: {ex.Message}");
+        }
+    }
+
+    /// <summary>Layer 38: prevent Windows Update rebooting while any user is
+    /// logged on — the notorious forced-restart behavior.</summary>
+    public static void NoForcedReboot()
+    {
+        try
+        {
+            using var au = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU");
+            if (au != null)
+            {
+                au.SetValue("NoAutoRebootWithLoggedOnUsers", 1,
+                            Microsoft.Win32.RegistryValueKind.DWord);
+                au.SetValue("AlwaysAutoRebootAtScheduledTime", 0,
+                            Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            GuardLogger.Info("Applied: NoForcedReboot (WU reboot policy)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to set reboot policy: {ex.Message}");
         }
     }
 
@@ -2454,7 +2518,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.21.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.22.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -2539,7 +2603,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.21.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.22.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -2691,8 +2755,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 6;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.21.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.21.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.22.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.22.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try
