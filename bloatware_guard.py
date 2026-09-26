@@ -125,7 +125,6 @@ DEFAULT_BLACKLIST = [
     "Facebook.InstagramBeta",
     "Facebook.Facebook",
     "WhatsApp",
-    "A278AB0D.DisneyMagicKingdoms",
     "A278AB0D.MarchofEmpires",
     "Disney",                          # Disney+ etc.
     "Amazon.com.Amazon",

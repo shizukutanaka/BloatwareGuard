@@ -471,7 +471,6 @@ public static class ConfigLoader
                 "SynapticsIncorporated",
                 "BytedancePte.Ltd.TikTok",
                 "KING.COM.",                       // CandyCrush + all King.com promo games
-                "A278AB0D.DisneyMagicKingdoms",
                 "A278AB0D.MarchofEmpires",
                 "D5EA27B7.Duolingo-LearnLanguagesforFree",
                 "PandoraMediaInc.29680B314EFC2",
