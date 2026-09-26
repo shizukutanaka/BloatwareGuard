@@ -149,6 +149,14 @@ public class PreventionLayers
     /// <summary>Layer 29: Disable the Print Spooler — opt-in (default false);
     /// kills the PrintNightmare attack surface on machines that never print</summary>
     public bool DisablePrintSpooler { get; set; }
+
+    /// <summary>Layer 30: Disable WPBT — UEFI tables OEMs use to inject
+    /// executables into Windows at boot (ASUS Live Update abuse vector)</summary>
+    public bool BlockOemWpbtExecution { get; set; } = true;
+
+    /// <summary>Layer 31: Disable Reserved Storage (~7GB) — updates then use
+    /// free disk space like they did pre-1903</summary>
+    public bool DisableReservedStorage { get; set; } = true;
 }
 
 // ─── JSON source-gen context (trim-safe: avoids IL2026 with PublishTrimmed) ──
@@ -918,6 +926,12 @@ public static class RegistryGuard
 
         if (layers.DisablePrintSpooler)
             DisablePrintSpooler();
+
+        if (layers.BlockOemWpbtExecution)
+            BlockOemWpbtExecution();
+
+        if (layers.DisableReservedStorage)
+            DisableReservedStorage();
     }
 
     /// <summary>
@@ -1635,6 +1649,8 @@ public static class RegistryGuard
         @"SOFTWARE\Policies\Microsoft\Windows\AppPrivacy",
         @"SOFTWARE\Policies\Microsoft\WindowsInkWorkspace",
         @"SYSTEM\CurrentControlSet\Control\WMI\AutoLogger\AutoLogger-Diagtrack-Listener",
+        @"SYSTEM\CurrentControlSet\Control\Session Manager",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\ReserveManager",
     };
     private static bool _backupDone;
 
@@ -1682,6 +1698,51 @@ public static class RegistryGuard
         catch (Exception ex)
         {
             GuardLogger.Error($"Failed to disable Print Spooler: {ex.Message}");
+        }
+    }
+
+    /// <summary>Layer 30: Windows Platform Binary Table lets OEMs inject an
+    /// executable into the boot chain via firmware (abused e.g. by ASUS Live
+    /// Update). DisableWpbtExecution=1 makes Windows ignore it.</summary>
+    public static void BlockOemWpbtExecution()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SYSTEM\CurrentControlSet\Control\Session Manager");
+            key?.SetValue("DisableWpbtExecution", 1,
+                          Microsoft.Win32.RegistryValueKind.DWord);
+            GuardLogger.Info("Applied: BlockOemWpbtExecution (WPBT disabled)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to block WPBT: {ex.Message}");
+        }
+    }
+
+    /// <summary>Layer 31: turn off Reserved Storage (~7GB set aside for
+    /// updates). Updates then use free space as they did pre-1903 — helps
+    /// small-disk devices.</summary>
+    public static void DisableReservedStorage()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Microsoft\Windows\CurrentVersion\ReserveManager");
+            if (key != null)
+            {
+                key.SetValue("ShippedWithReserves", 0,
+                             Microsoft.Win32.RegistryValueKind.DWord);
+                key.SetValue("MiscPolicyInfo", 2,
+                             Microsoft.Win32.RegistryValueKind.DWord);
+                key.SetValue("PassedPolicy", 0,
+                             Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            GuardLogger.Info("Applied: DisableReservedStorage (ReserveManager)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to disable reserved storage: {ex.Message}");
         }
     }
 
@@ -2199,7 +2260,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.17.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.18.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -2284,7 +2345,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.17.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.18.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -2436,8 +2497,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 6;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.17.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.17.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.18.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.18.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try

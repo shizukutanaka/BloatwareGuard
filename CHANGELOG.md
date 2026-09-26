@@ -2,6 +2,18 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.18.0-mvp: WPBT block / Reserved Storage release
+
+### Added
+- **`BlockOemWpbtExecution`** — `DisableWpbtExecution=1`. The Windows Platform
+  Binary Table lets OEMs inject executables into the boot chain via firmware
+  (the ASUS Live Update abuse vector) — a documented OEM bloatware
+  persistence channel, now ignored by Windows.
+- **`DisableReservedStorage`** — `ReserveManager` `ShippedWithReserves=0`,
+  `MiscPolicyInfo=2`, `PassedPolicy=0`. Releases the ~7GB Windows sets aside
+  for updates; updates then use free disk space as they did pre-1903 —
+  helps small-disk devices.
+
 ## [Unreleased] — v1.17.0-mvp: registry backup / opt-in Print Spooler
 
 ### Added

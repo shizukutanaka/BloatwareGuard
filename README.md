@@ -1,8 +1,8 @@
-# BloatwareGuard v1.17.0-mvp
+# BloatwareGuard v1.18.0-mvp
 
 ## What It Does
 
-Removes Windows bloatware across **29 prevention layers** in both **Python** and **C#** implementations.
+Removes Windows bloatware across **31 prevention layers** in both **Python** and **C#** implementations.
 Per-user settings are written to **every loaded user hive + the Default profile template**, so they
 also apply correctly when the tool runs as a SYSTEM service and for users created later.
 
@@ -39,6 +39,8 @@ also apply correctly when the tool runs as a SYSTEM service and for users create
 || 27. Xbox services demoted to demand-start | ✅ | ✅ | HKLM needs admin |
 || 28. HKLM keys exported to .reg before changes (restorable) | ✅ | ✅ | — |
 || 29. Print Spooler off (**opt-in**, default off — PrintNightmare surface) | ✅ | ✅ | Requires admin |
+|| 30. WPBT (UEFI OEM binary injection) blocked | ✅ | ✅ | HKLM needs admin |
+|| 31. Reserved Storage (~7GB) released | ✅ | ✅ | HKLM needs admin |
 
 ---
 
@@ -157,8 +159,8 @@ dotnet publish src/BloatwareGuard.csproj -c Release -r win-x64 --self-contained 
 ## Version
 
 ```bash
-python bloatware_guard.py --version   # BloatwareGuard v1.17.0-mvp
-BloatwareGuard.exe --version          # BloatwareGuard v1.17.0-mvp
+python bloatware_guard.py --version   # BloatwareGuard v1.18.0-mvp
+BloatwareGuard.exe --version          # BloatwareGuard v1.18.0-mvp
 ```
 
 ---

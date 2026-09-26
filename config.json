@@ -105,7 +105,9 @@
     "DisableAppPermissions": true,
     "DisableXboxServices": true,
     "BackupRegistry": true,
-    "DisablePrintSpooler": false
+    "DisablePrintSpooler": false,
+    "BlockOemWpbtExecution": true,
+    "DisableReservedStorage": true
   },
   "DryRun": false
 }

@@ -45,7 +45,9 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 │    ├─ Xbox サービス ×4 → demand 化                 │
 │    ├─ AutoLogger-Diagtrack / Ink Workspace 停止    │
 │    ├─ 変更前 .reg エクスポート (backup/)           │
-│    └─ Print Spooler 停止 (opt-in, PrintNightmare)  │
+│    ├─ Print Spooler 停止 (opt-in, PrintNightmare)  │
+│    ├─ WPBT (UEFI OEM 注入) 遮断                    │
+│    └─ Reserved Storage (~7GB) 解放                 │
 ├─────────────────────────────────────────────────────┤
 │  Config: config.json (blacklist + intervals)        │
 │  Log: Windows Event Log + file                      │
@@ -87,6 +89,8 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 | Xbox サービス | XblAuthManager/XblGameSave/XboxNetApiSvc/XboxGipSvc → Start=3 | DisableXboxServices |
 | レジストリバックアップ | reg export → %ProgramData%\BloatwareGuard\backup\*.reg (適用前、1回/プロセス) | BackupRegistry |
 | Print Spooler (opt-in, 既定OFF) | sc stop + config start= disabled | DisablePrintSpooler |
+| WPBT (UEFI OEM バイナリ注入) | Session Manager\DisableWpbtExecution=1 | BlockOemWpbtExecution |
+| Reserved Storage | ReserveManager ShippedWithReserves=0, MiscPolicyInfo=2, PassedPolicy=0 (~7GB 解放) | DisableReservedStorage |
 
 ## ブラックリスト方式
 - config.json の `Blacklist` にパッケージ名の**部分一致**パターンを列挙

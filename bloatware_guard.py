@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.17.0-mvp - Python prototype
+BloatwareGuard v1.18.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -34,7 +34,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.17.0-mvp"
+APP_VERSION = "1.18.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -183,6 +183,8 @@ def load_config(path: Path) -> dict:
                 "DisableXboxServices": True,
                 "BackupRegistry": True,
                 "DisablePrintSpooler": False,
+                "BlockOemWpbtExecution": True,
+                "DisableReservedStorage": True,
             },
             "DryRun": False,
         }
@@ -692,6 +694,8 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Policies\Microsoft\Windows\AppPrivacy",
     r"SOFTWARE\Policies\Microsoft\WindowsInkWorkspace",
     r"SYSTEM\CurrentControlSet\Control\WMI\AutoLogger\AutoLogger-Diagtrack-Listener",
+    r"SYSTEM\CurrentControlSet\Control\Session Manager",
+    r"SOFTWARE\Microsoft\Windows\CurrentVersion\ReserveManager",
 )
 _registry_backup_done = False
 
@@ -984,6 +988,23 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         run_cmd(["sc.exe", "stop", "Spooler"])
         run_cmd(["sc.exe", "config", "Spooler", "start=", "disabled"])
         logger.info("Applied: DisablePrintSpooler (Spooler stopped + disabled)")
+
+    if prev.get("BlockOemWpbtExecution", True):
+        # WPBT: OEMs inject executables into the boot chain via UEFI
+        # (abused e.g. by ASUS Live Update) — DisableWpbtExecution makes
+        # Windows ignore the table
+        set_registry_dword("HKLM",
+                           r"SYSTEM\CurrentControlSet\Control\Session Manager",
+                           "DisableWpbtExecution", 1)
+        logger.info("Applied: BlockOemWpbtExecution (WPBT disabled)")
+
+    if prev.get("DisableReservedStorage", True):
+        # Free the ~7GB reserved for updates (they use free space pre-1903 style)
+        reserve = r"SOFTWARE\Microsoft\Windows\CurrentVersion\ReserveManager"
+        for name, val in (("ShippedWithReserves", 0),
+                          ("MiscPolicyInfo", 2), ("PassedPolicy", 0)):
+            set_registry_dword("HKLM", reserve, name, val)
+        logger.info("Applied: DisableReservedStorage (ReserveManager)")
 
     if prev.get("DisableXboxServices", True):
         # Demand-start (Start=3) — Game Bar/Xbox sign-in still work on demand
@@ -1513,7 +1534,8 @@ def run_self_test() -> int:
                     "DisableStartupBloat", "DisableErrorReporting",
                     "DisableEdgeUpdateBloat", "BlockOemDriverUpdates",
                     "DisableAppPermissions", "DisableXboxServices",
-                    "BackupRegistry", "DisablePrintSpooler"]
+                    "BackupRegistry", "DisablePrintSpooler",
+                    "BlockOemWpbtExecution", "DisableReservedStorage"]
         missing = [k for k in required if k not in prev]
         assert not missing, f"missing prevention keys: {missing}"
 
@@ -1535,7 +1557,7 @@ def run_self_test() -> int:
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
     check("T4: Logger file + console wiring", t_logging)
     check("T5: is_admin() callable", t_is_admin)
-    check("T6: Prevention layers — 30 registered", t_prevention_layers)
+    check("T6: Prevention layers — 32 registered", t_prevention_layers)
     check("T7: Removal ledger write/read", t_removal_ledger)
     check("T8: Full-name batch map", t_full_name_map)
 
