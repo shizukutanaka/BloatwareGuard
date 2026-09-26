@@ -94,7 +94,9 @@
     "DisableOneDrive": false,
     "DisableChatTaskbar": true,
     "DisableEdgeBloat": true,
-    "RemoveOptionalCapabilities": true
+    "RemoveOptionalCapabilities": true,
+    "RemoveWin32Programs": true,
+    "CreateRestorePoint": true
   },
   "DryRun": false
 }

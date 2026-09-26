@@ -32,7 +32,9 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 │    ├─ OneDrive: DisableFileSyncNGSC=1 (opt-in)      │
 │    ├─ TaskbarMn=0 + HideSCAMeetNow=1 (全ハイブ)     │
 │    ├─ Edge: Sidebar/StartupBoost/Prelaunch off      │
-│    └─ Capability 除去 (IE/StepsRecorder/WordPad)    │
+│    ├─ Capability 除去 (IE/StepsRecorder/WordPad)    │
+│    ├─ Win32 除去 (Uninstall キー走査+MSI サイレント)│
+│    └─ 復元ポイント作成 (スキャン前、24h スロットル)  │
 ├─────────────────────────────────────────────────────┤
 │  Config: config.json (blacklist + intervals)        │
 │  Log: Windows Event Log + file                      │
@@ -63,6 +65,8 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 | Teams Chat ボタン | TaskbarMn=0, HideSCAMeetNow=1 (全ハイブ) | DisableChatTaskbar |
 | Edge 常駐・初回 | HubsSidebarEnabled=0, StartupBoostEnabled=0, AllowPrelaunch=0, HideFirstRunExperience=1 | DisableEdgeBloat |
 | オプション機能 (IE/StepsRecorder/WordPad) | Remove-WindowsCapability -Online | RemoveOptionalCapabilities |
+| Win32 ブロートウェア (OEM プレインストール) | HKLM/HKLM(WOW6432)/全ユーザーハイブの Uninstall キー走査 → QuietUninstallString or `msiexec /x {guid} /qn` | RemoveWin32Programs |
+| 復元ポイント | Enable-ComputerRestore + Checkpoint-Computer (MODIFY_SETTINGS、スキャン前、24h スロットル) | CreateRestorePoint |
 
 ## ブラックリスト方式
 - config.json の `Blacklist` にパッケージ名の**部分一致**パターンを列挙

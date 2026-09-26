@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.11.0-mvp - Python prototype
+BloatwareGuard v1.12.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -34,7 +34,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.11.0-mvp"
+APP_VERSION = "1.12.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -172,6 +172,8 @@ def load_config(path: Path) -> dict:
                 "DisableChatTaskbar": True,
                 "DisableEdgeBloat": True,
                 "RemoveOptionalCapabilities": True,
+                "RemoveWin32Programs": True,
+                "CreateRestorePoint": True,
             },
             "DryRun": False,
         }
@@ -402,6 +404,124 @@ def remove_optional_capabilities(logger: logging.Logger) -> bool:
         logger.warning("RemoveOptionalCapabilities: no capabilities removed "
                        "(absent or admin required)")
     return rc == 0
+
+
+# ─── Win32 program removal (non-Appx OEM bloatware) ──────────────────────────
+
+_UNINSTALL_PATH = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"
+_UNINSTALL_PATH32 = r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
+_USER_UNINSTALL_PATH = r"Software\Microsoft\Windows\CurrentVersion\Uninstall"
+_MSI_GUID_RE = re.compile(r"\{[0-9A-Fa-f\-]{36}\}")
+
+
+def get_blacklisted_win32(blacklist, whitelist):
+    """Enumerate installed Win32 programs (HKLM 64/32, HKCU + loaded user hives)
+    whose DisplayName matches the blacklist. Returns (display, uninstall, quiet)."""
+    import winreg  # Windows-only
+
+    results, seen = [], set()
+
+    def _scan(root, path):
+        try:
+            key = winreg.OpenKey(root, path)
+        except OSError:
+            return
+        try:
+            i = 0
+            while True:
+                try:
+                    sub = winreg.EnumKey(key, i)
+                    i += 1
+                except OSError:
+                    break
+                try:
+                    sk = winreg.OpenKey(key, sub)
+                    display = winreg.QueryValueEx(sk, "DisplayName")[0]
+                    uninstall = winreg.QueryValueEx(sk, "UninstallString")[0]
+                    if not display or not uninstall:
+                        continue
+                    try:
+                        if winreg.QueryValueEx(sk, "SystemComponent")[0] == 1:
+                            continue
+                    except OSError:
+                        pass
+                    try:
+                        quiet = winreg.QueryValueEx(sk, "QuietUninstallString")[0] or ""
+                    except OSError:
+                        quiet = ""
+                    if not is_target_package(display, blacklist, whitelist):
+                        continue
+                    if display.lower() not in seen:
+                        seen.add(display.lower())
+                        results.append((display, uninstall, quiet))
+                except OSError:
+                    continue
+        finally:
+            key.Close()
+
+    _scan(winreg.HKEY_LOCAL_MACHINE, _UNINSTALL_PATH)
+    _scan(winreg.HKEY_LOCAL_MACHINE, _UNINSTALL_PATH32)
+    _scan(winreg.HKEY_CURRENT_USER, _USER_UNINSTALL_PATH)
+    try:
+        i = 0
+        while True:
+            try:
+                sid = winreg.EnumKey(winreg.HKEY_USERS, i)
+                i += 1
+            except OSError:
+                break
+            if re.match(r"^S-1-5-21-\d+-\d+-\d+-\d+$", sid):
+                _scan(winreg.HKEY_USERS, sid + "\\" + _USER_UNINSTALL_PATH)
+    except OSError:
+        pass
+    return results
+
+
+def _split_command_line(command_line):
+    """Split 'cmd args...' or '"path" args...' into (cmd, args)."""
+    command_line = command_line.strip()
+    if command_line.startswith('"'):
+        end = command_line.find('"', 1)
+        if end > 0:
+            return command_line[1:end], command_line[end + 1:].strip()
+    parts = command_line.split(" ", 1)
+    return (parts[0], parts[1].strip() if len(parts) > 1 else "")
+
+
+def remove_win32_program(display, uninstall, quiet, logger):
+    """Silent-uninstall one Win32 program: vendor QuietUninstallString when present,
+    MSI via `msiexec /x {guid} /qn /norestart`; others are logged, not executed."""
+    if quiet:
+        cmd, args = _split_command_line(quiet)
+        argv = [cmd] + (args.split() if args else [])
+    elif "msiexec" in uninstall.lower():
+        m = _MSI_GUID_RE.search(uninstall)
+        if not m:
+            return False
+        argv = ["msiexec.exe", "/x", m.group(0), "/qn", "/norestart"]
+    else:
+        logger.info(f"Win32 program needs manual removal (no silent uninstaller): {display}")
+        return False
+    out, rc = run_cmd(argv, timeout=300)
+    if rc == 0:
+        return True
+    logger.warning(f"Win32 uninstall failed for {display} (rc={rc}): {out[:200]}")
+    return False
+
+
+def create_restore_point(logger):
+    """Create a system restore point before destructive changes. Windows throttles
+    checkpoints to ~1 per 24h; failure is non-fatal."""
+    _, rc = run_cmd(
+        ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
+         "Enable-ComputerRestore -Drive 'C:\\' -ErrorAction SilentlyContinue | Out-Null; "
+         "Checkpoint-Computer -Description 'BloatwareGuard pre-scan' "
+         "-RestorePointType 'MODIFY_SETTINGS' -ErrorAction SilentlyContinue | Out-Null"],
+        timeout=120)
+    if rc == 0:
+        logger.info("Applied: CreateRestorePoint (created or throttled)")
+    else:
+        logger.warning("CreateRestorePoint: skipped (admin required or System Restore disabled)")
 
 
 # ─── Registry Prevention ─────────────────────────────────────────────────────
@@ -791,6 +911,13 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
     removed = 0
     matched = 0
 
+    # 0. Safety net: restore point before destructive changes (self-throttles)
+    if prev.get("CreateRestorePoint", True):
+        if dry_run:
+            logger.info("[DRY-RUN] Would create system restore point")
+        else:
+            create_restore_point(logger)
+
     # 1. Remove installed packages
     if prev.get("RemoveAppxPackages", True):
         packages = get_blacklisted_packages(blacklist, whitelist)
@@ -842,6 +969,21 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
             logger.info("[DRY-RUN] Would remove optional capabilities (IE/StepsRecorder/WordPad) [requires admin]")
         else:
             remove_optional_capabilities(logger)
+
+    # 2.6 Remove Win32 programs matching blacklist — primary OEM preinstall
+    # channel (McAfee/Norton are Win32, not Appx). MSI silent only.
+    if prev.get("RemoveWin32Programs", True):
+        for display, uninstall, quiet in get_blacklisted_win32(blacklist, whitelist):
+            matched += 1
+            if dry_run:
+                logger.info(f"[DRY-RUN] Would uninstall Win32 program: {display} [requires admin]")
+            else:
+                if remove_win32_program(display, uninstall, quiet, logger):
+                    logger.info(f"Removed Win32 program: {display}")
+                    record_removal(config, {"kind": "win32", "name": display})
+                    removed += 1
+                else:
+                    logger.warning(f"Failed/manual: {display} [admin required or no silent uninstaller]")
 
     # 3. Re-apply registry (idempotent, Windows Update may reset)
     if dry_run:
@@ -1087,7 +1229,8 @@ def run_self_test() -> int:
                     "DisableTelemetry", "DisableGameDvr",
                     "DisableDeliveryOptimization", "DisableOneDrive",
                     "DisableChatTaskbar", "DisableEdgeBloat",
-                    "RemoveOptionalCapabilities"]
+                    "RemoveOptionalCapabilities", "RemoveWin32Programs",
+                    "CreateRestorePoint"]
         missing = [k for k in required if k not in prev]
         assert not missing, f"missing prevention keys: {missing}"
 
@@ -1109,7 +1252,7 @@ def run_self_test() -> int:
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
     check("T4: Logger file + console wiring", t_logging)
     check("T5: is_admin() callable", t_is_admin)
-    check("T6: Prevention layers — 19 registered", t_prevention_layers)
+    check("T6: Prevention layers — 21 registered", t_prevention_layers)
     check("T7: Removal ledger write/read", t_removal_ledger)
     check("T8: Full-name batch map", t_full_name_map)
 

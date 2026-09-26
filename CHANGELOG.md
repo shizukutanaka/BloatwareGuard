@@ -2,6 +2,22 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.12.0-mvp: Win32 bloatware + restore point
+
+### Added
+- **2 new prevention layers**:
+  - `RemoveWin32Programs` — closes the biggest coverage gap: most OEM preinstalls
+    (McAfee, Norton, vendor trials) are **Win32 programs, not Appx packages**, so the
+    Appx-only pipeline never reached them. Enumerates the `Uninstall` registry keys
+    (HKLM 64-bit + WOW6432Node + HKCU + every loaded `S-1-5-21-*` hive), matches
+    `DisplayName` against the same blacklist/whitelist, then uninstalls via the
+    vendor-supplied `QuietUninstallString` or `msiexec /x {guid} /qn /norestart`.
+    Programs with no silent uninstaller are logged for manual removal — vendor
+    switches are never guessed. Results recorded in the removal ledger (`kind: win32`).
+  - `CreateRestorePoint` — `Enable-ComputerRestore` + `Checkpoint-Computer
+    -RestorePointType MODIFY_SETTINGS` before the first destructive step of every
+    live scan. Windows self-throttles checkpoints to ~1/24h; failure is non-fatal.
+
 ## [Unreleased] — v1.11.0-mvp: OneDrive / Chat / Edge / capabilities
 
 ### Added

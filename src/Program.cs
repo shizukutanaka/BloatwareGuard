@@ -104,6 +104,14 @@ public class PreventionLayers
 
     /// <summary>Layer 18: Remove optional capabilities (IE mode, Steps Recorder, WordPad)</summary>
     public bool RemoveOptionalCapabilities { get; set; } = true;
+
+    /// <summary>Remove Win32 programs (McAfee/Norton OEM preinstalls etc.) whose
+    /// DisplayName matches the blacklist — MSI entries get silent uninstall.
+    /// The primary OEM bloat channel: most preinstalls are Win32, not Appx.</summary>
+    public bool RemoveWin32Programs { get; set; } = true;
+
+    /// <summary>Create a system restore point before the first destructive scan</summary>
+    public bool CreateRestorePoint { get; set; } = true;
 }
 
 // ─── JSON source-gen context (trim-safe: avoids IL2026 with PublishTrimmed) ──
@@ -572,6 +580,158 @@ public static class AppxManager
         if (!string.IsNullOrEmpty(stderr))
             GuardLogger.Warn($"RemoveProvisionedPackage stderr: {stderr.Trim()}");
         return proc?.ExitCode == 0;
+    }
+}
+
+// ─── Win32 program removal (non-Appx OEM bloatware) ─────────────────────────
+
+public static class Win32Guard
+{
+    // Registry Uninstall keys: 64-bit, 32-bit (WOW6432Node), and per-user
+    private const string UninstallPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall";
+    private const string UninstallPath32 = @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall";
+    private const string UserUninstallPath = @"Software\Microsoft\Windows\CurrentVersion\Uninstall";
+
+    // Extracts an MSI product GUID from an UninstallString (MsiExec /I{...})
+    private static readonly Regex MsiGuidPattern =
+        new(@"\{[0-9A-Fa-f\-]{36}\}", RegexOptions.Compiled);
+
+    /// <summary>Enumerate installed Win32 programs matching the blacklist.
+    /// Returns (DisplayName, UninstallString, QuietUninstallString).</summary>
+    public static List<(string DisplayName, string UninstallString, string QuietUninstallString)>
+        GetBlacklistedPrograms(List<string> blacklist, List<string> whitelist)
+    {
+        var results = new List<(string, string, string)>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        void ScanKey(RegistryKey root, string path)
+        {
+            try
+            {
+                using var key = root.OpenSubKey(path);
+                if (key == null)
+                    return;
+                foreach (var sub in key.GetSubKeyNames())
+                {
+                    try
+                    {
+                        using var sk = key.OpenSubKey(sub);
+                        var display = sk?.GetValue("DisplayName") as string;
+                        var uninstall = sk?.GetValue("UninstallString") as string;
+                        if (string.IsNullOrEmpty(display) || string.IsNullOrEmpty(uninstall))
+                            continue;
+                        // SystemComponents and updates are not removable programs
+                        if ((sk?.GetValue("SystemComponent") as int?) == 1)
+                            continue;
+                        var quiet = sk?.GetValue("QuietUninstallString") as string ?? "";
+                        if (!IsWhitelisted(display, whitelist) &&
+                            blacklist.Any(b => !string.IsNullOrWhiteSpace(b) &&
+                                display.Contains(b, StringComparison.OrdinalIgnoreCase)) &&
+                            seen.Add(display))
+                        {
+                            results.Add((display, uninstall, quiet));
+                        }
+                    }
+                    catch { }
+                }
+            }
+            catch { }
+        }
+
+        ScanKey(Registry.LocalMachine, UninstallPath);
+        ScanKey(Registry.LocalMachine, UninstallPath32);
+        ScanKey(Registry.CurrentUser, UserUninstallPath);
+        foreach (var sid in Registry.Users.GetSubKeyNames())
+        {
+            // Loaded user hives only (interactive profiles)
+            if (!Regex.IsMatch(sid, @"^S-1-5-21-\d+-\d+-\d+-\d+$"))
+                continue;
+            ScanKey(Registry.Users, $"{sid}\\{UserUninstallPath}");
+        }
+
+        return results;
+    }
+
+    private static bool IsWhitelisted(string display, List<string> whitelist) =>
+        whitelist.Any(w => !string.IsNullOrWhiteSpace(w) &&
+            display.Contains(w, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Silent-uninstall one program. Uses the vendor-supplied
+    /// QuietUninstallString when present; MSI entries fall back to
+    /// `msiexec /x {guid} /qn /norestart`. Non-silent uninstallers are
+    /// logged for manual removal instead of guessing vendor switches.</summary>
+    public static bool RemoveProgram(string displayName, string uninstallString, string quietUninstallString)
+    {
+        string cmd;
+        string args;
+        if (!string.IsNullOrEmpty(quietUninstallString))
+        {
+            var split = SplitCommandLine(quietUninstallString);
+            cmd = split.cmd; args = split.args;
+        }
+        else if (uninstallString.IndexOf("msiexec", StringComparison.OrdinalIgnoreCase) >= 0)
+        {
+            var m = MsiGuidPattern.Match(uninstallString);
+            if (!m.Success)
+                return false;
+            cmd = "msiexec.exe";
+            args = $"/x {m.Value} /qn /norestart";
+        }
+        else
+        {
+            GuardLogger.Info($"Win32 program needs manual removal (no silent uninstaller): {displayName} — {uninstallString}");
+            return false;
+        }
+
+        var psi = new ProcessStartInfo
+        {
+            FileName = cmd,
+            Arguments = args,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        using var proc = Process.Start(psi);
+        proc?.WaitForExit(300000);  // uninstallers can take minutes
+        return proc?.ExitCode == 0;
+    }
+
+    private static (string cmd, string args) SplitCommandLine(string commandLine)
+    {
+        commandLine = commandLine.Trim();
+        if (commandLine.StartsWith("\""))
+        {
+            var end = commandLine.IndexOf('"', 1);
+            if (end > 0)
+                return (commandLine[1..end], commandLine[(end + 1)..].Trim());
+        }
+        var space = commandLine.IndexOf(' ');
+        return space < 0 ? (commandLine, "") : (commandLine[..space], commandLine[(space + 1)..].Trim());
+    }
+
+    /// <summary>Create a system restore point before destructive changes.
+    /// Checkpoint-Computer self-throttles to one per 24h; failure is non-fatal.</summary>
+    public static void CreateRestorePoint()
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = "powershell.exe",
+            Arguments = "-NoProfile -ExecutionPolicy Bypass -Command " +
+                "\"Enable-ComputerRestore -Drive 'C:\\' -ErrorAction SilentlyContinue | Out-Null; " +
+                "Checkpoint-Computer -Description 'BloatwareGuard pre-scan' " +
+                "-RestorePointType 'MODIFY_SETTINGS' -ErrorAction SilentlyContinue | Out-Null\"",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        using var proc = Process.Start(psi);
+        proc?.WaitForExit(120000);
+        if (proc?.ExitCode == 0)
+            GuardLogger.Info("Applied: CreateRestorePoint (restore point created or throttled)");
+        else
+            GuardLogger.Warn("CreateRestorePoint: skipped (admin required or System Restore disabled)");
     }
 }
 
@@ -1416,6 +1576,10 @@ public class GuardService : BackgroundService
         int systemAppsSkipped = 0;
         int failed = 0;
 
+        // 0. Safety net: restore point before destructive changes (self-throttles)
+        if (!dryRun && _config.Prevention.CreateRestorePoint)
+            Win32Guard.CreateRestorePoint();
+
         // 1. Remove installed AppxPackages matching blacklist
         if (_config.Prevention.RemoveAppxPackages)
         {
@@ -1521,6 +1685,33 @@ public class GuardService : BackgroundService
                 AppxManager.RemoveOptionalCapabilities();
         }
 
+        // 2.6 Remove Win32 programs matching blacklist — the primary OEM
+        // preinstall channel (McAfee/Norton etc. are Win32, not Appx). MSI gets
+        // silent uninstall; vendors without a quiet uninstaller are logged.
+        if (_config.Prevention.RemoveWin32Programs)
+        {
+            var programs = Win32Guard.GetBlacklistedPrograms(_config.Blacklist, _config.Whitelist);
+            foreach (var (display, uninstall, quiet) in programs)
+            {
+                if (dryRun)
+                {
+                    GuardLogger.Info($"[DRY-RUN] Would uninstall Win32 program: {display} [requires admin]");
+                    removed++;
+                }
+                else if (Win32Guard.RemoveProgram(display, uninstall, quiet))
+                {
+                    GuardLogger.Info($"Removed Win32 program: {display}");
+                    RemovalLedger.Record(_config, "win32", display);
+                    removed++;
+                }
+                else
+                {
+                    GuardLogger.Warn($"Failed to uninstall Win32 program: {display} [admin required or manual]");
+                    failed++;
+                }
+            }
+        }
+
         // 3. Re-apply registry settings (they can be reset by Windows Update)
         if (!dryRun)
             RegistryGuard.ApplyAll(_config.Prevention);
@@ -1582,7 +1773,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.11.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.12.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -1665,7 +1856,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.11.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.12.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -1817,8 +2008,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 6;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.11.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.11.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.12.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.12.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try
