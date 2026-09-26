@@ -2,13 +2,33 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
-## [Unreleased] — v1.54.0-mvp: diagnostic service demotion
+## [Unreleased] — v1.54.0-mvp: diagnostic service demotion + post-merge review fixes
 
 ### Changed
 - `DisableMiscBloatServices` 42→45: added `DPS` (Diagnostic Policy Service),
   `diagsvc` (Diagnostic Execution Service) — both Automatic by default,
   demand-start keeps netsh/PowerShell diagnostics working — and `DcpSvc`
   (Data Collection and Publishing Service, diagnostic ingest feeder).
+
+### Fixed
+- Registry backup ordering: one-time and service scans wrote the Deprovisioned
+  markers and `RemoveDefaultStorePackages` policy BEFORE `backup_registry_keys`
+  ran inside the registry-prevention pass, so exports captured post-change
+  values. The backup now runs at scan start (post restore-point); the
+  once-per-process guard keeps it single-shot (both impls, review follow-up).
+- `ApplyRemoveDefaultStorePackages` rewrote `PackageList` each scan with only
+  current matches — families removed in an earlier scan could be re-provisioned
+  for new users. Now merges with the existing list (case-insensitive dedup,
+  both impls).
+- Registry handle leak: `MarkDeprovisioned` opened one key per family per
+  interval without disposing — now `using var`/`Close()` (both impls).
+- Unbounded log growth: a resident service appended to the log forever —
+  now rotates at 1 MB keeping one generation (Python `RotatingFileHandler`,
+  C# `.old` rollover).
+- `deploy_verify.bat` banner still said v1.8.0 — now v1.54.0-mvp.
+- `_BACKUP_KEY_PATHS`/`BackupKeyPaths` now include the Deprovisioned and
+  RemoveDefaultStorePackages keys; self-test T9 also cross-checks the backup
+  path list against Program.cs.
 
 ## [Unreleased] — v1.53.0-mvp: stock-app blacklist audit + parity fixes
 
