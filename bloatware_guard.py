@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.47.0-mvp - Python prototype
+BloatwareGuard v1.48.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -1009,6 +1009,15 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         # kill the data push too)
         set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\Maps",
                            "AutoDownloadAndUpdateMapData", 0)
+        # AppCompat: Application Inventory Telemetry + Program Compatibility
+        # Assistant (PcaSvc is already demoted)
+        appc = r"SOFTWARE\Policies\Microsoft\Windows\AppCompat"
+        set_registry_dword("HKLM", appc, "AITEnable", 0)
+        set_registry_dword("HKLM", appc, "DisablePCA", 1)
+        # Skip the OOBE privacy pages — every policy they gate is denied
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Microsoft\Windows\CurrentVersion\OOBE",
+                           "DisablePrivacyExperience", 1)
         # Microsoft feature experimentation (A/B flighting) off
         set_registry_dword(
             "HKLM",
@@ -1824,6 +1833,10 @@ TELEMETRY_TASK_PATHS = (
     "\\Microsoft\\Windows\\Input\\TouchpadSyncDataAvailable",
     "\\Microsoft\\Windows\\Windows Media Sharing\\UpdateLibrary",
     "\\Microsoft\\Windows\\InstallService\\SmartRetry",
+    # Store broker-infra maintenance + WDI resolution host (the WDI
+    # services are already demoted — kill the task too)
+    "\\Microsoft\\Windows\\BrokerInfrastructure\\BgTaskRegistrationMaintenanceTask",
+    "\\Microsoft\\Windows\\WDI\\ResolutionHost",
     "\\Microsoft\\Windows\\NetTrace\\GatherNetworkInfo",
     # Application Impact Telemetry, speech-model download, disk diagnostics
     "\\Microsoft\\Windows\\Application Experience\\AitEnableAgent",

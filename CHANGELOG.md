@@ -2,6 +2,18 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.48.0-mvp: AppCompat policies, OOBE skip, broker/WDI tasks
+
+### Changed
+- `DisableTelemetry`: `AppCompat\AITEnable`=0 (Application Inventory
+  Telemetry — pairs with the already-disabled AitEnableAgent task) and
+  `DisablePCA`=1 (Program Compatibility Assistant — pairs with the PcaSvc
+  demotion); `OOBE\DisablePrivacyExperience`=1 skips OOBE privacy pages
+  whose settings are all denied by policy anyway.
+- `DisableTelemetryTasks`: +2 — `BrokerInfrastructure\
+  BgTaskRegistrationMaintenanceTask` (Store broker maintenance),
+  `WDI\ResolutionHost` (WDI services are already demoted).
+
 ## [Unreleased] — v1.47.0-mvp: open-with lookups, online tips, input/IME/perf tasks
 
 ### Changed

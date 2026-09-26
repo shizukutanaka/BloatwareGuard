@@ -1719,6 +1719,24 @@ public static class RegistryGuard
                 mrt?.SetValue("DontReportInfectionInformation", 1, Microsoft.Win32.RegistryValueKind.DWord);
             }
             catch { }
+            // AppCompat: Application Inventory Telemetry + the Program
+            // Compatibility Assistant service (PcaSvc is already demoted)
+            try
+            {
+                using var ac = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(AppCompatPath);
+                ac?.SetValue("AITEnable", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                ac?.SetValue("DisablePCA", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            catch { }
+            // Skip the OOBE privacy pages — every policy they gate is already
+            // denied, so the screens only nag
+            try
+            {
+                using var oobe = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Microsoft\Windows\CurrentVersion\OOBE");
+                oobe?.SetValue("DisablePrivacyExperience", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            catch { }
             // Speech model downloads off (voice data pipeline)
             try
             {
@@ -2735,6 +2753,10 @@ public static class ScheduledTaskGuard
         @"\Microsoft\Windows\Input\TouchpadSyncDataAvailable",
         @"\Microsoft\Windows\Windows Media Sharing\UpdateLibrary",
         @"\Microsoft\Windows\InstallService\SmartRetry",
+        // Store broker-infra maintenance + WDI resolution host (the WDI
+        // services are already demoted — kill the task too)
+        @"\Microsoft\Windows\BrokerInfrastructure\BgTaskRegistrationMaintenanceTask",
+        @"\Microsoft\Windows\WDI\ResolutionHost",
         @"\Microsoft\Windows\NetTrace\GatherNetworkInfo",
         // Application Impact Telemetry, speech-model downloads,
         // storage-footprint diagnostics
@@ -3257,7 +3279,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.47.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.48.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -3342,7 +3364,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.47.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.48.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -3494,8 +3516,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 6;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.47.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.47.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.48.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.48.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try
