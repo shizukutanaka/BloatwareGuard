@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.34.0-mvp - Python prototype
+BloatwareGuard v1.35.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -34,7 +34,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.34.0-mvp"
+APP_VERSION = "1.35.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -805,6 +805,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             "SubscribedContent-353698Enabled",   # Settings suggestions (4)
             "RotatingLockScreenEnabled",         # lock-screen spotlight
             "RotatingLockScreenOverlayEnabled",  # lock-screen overlay ads
+            "PreInstalledAppsEnabled",           # OEM app seeding
+            "PreInstalledAppsEverEnabled",       # OEM app seeding (sticky)
+            "OemPreInstalledAppsEnabled",        # OEM app seeding (OEM channel)
+            "RemediationRequired",               # CDM remediation re-offers
         )
 
         def _apply_suggestions(root, prefix):

@@ -2,6 +2,14 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.35.0-mvp: CDM preinstalled-apps flags off
+
+### Changed
+- `BlockProvisioning` CDM zero-list extended: `PreInstalledAppsEnabled`,
+  `PreInstalledAppsEverEnabled`, `OemPreInstalledAppsEnabled`,
+  `RemediationRequired` — the OEM app-seeding flags that let removed
+  bloatware get re-offered after feature updates.
+
 ## [Unreleased] — v1.34.0-mvp: Startup-folder bloat disabled
 
 ### Changed
