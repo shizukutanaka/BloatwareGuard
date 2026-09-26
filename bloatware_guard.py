@@ -2432,6 +2432,8 @@ def main():
     parser.add_argument("--install", action="store_true", help="Install as Windows service")
     parser.add_argument("--uninstall", action="store_true", help="Remove Windows service")
     parser.add_argument("--status", action="store_true", help="Show service status")
+    parser.add_argument("--list-installed", action="store_true",
+                        help="List installed packages matching blacklist (C# parity: list-installed)")
     parser.add_argument("--restore", action="store_true",
                         help="Restore staged packages recorded in the removal ledger")
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG_PATH, help="Config file path")
@@ -2474,6 +2476,16 @@ def main():
 
     if not is_admin():
         logger.warning("Running without admin rights — registry changes and package removal may fail.")
+
+    if args.list_installed:
+        blacklist = config.get("Blacklist", [])
+        whitelist = config.get("Whitelist", [])
+        pkgs = get_blacklisted_packages(blacklist, whitelist)
+        logger.info("Installed packages matching blacklist:")
+        for family, name, _install_path in pkgs:
+            logger.info(f"  {family} ({name})")
+        logger.info("Total: %d package(s) installed.", len(pkgs))
+        return
 
     if args.restore:
         run_restore(config, logger)
