@@ -1694,7 +1694,15 @@ public static class RegistryGuard
             using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(AppPrivacyPath);
             foreach (var name in AppPrivacyDenies)
                 key?.SetValue(name, 2, Microsoft.Win32.RegistryValueKind.DWord);
-            GuardLogger.Info($"Applied: DisableAppPermissions ({AppPrivacyDenies.Length} force-denied)");
+            // HKLM-level ad-ID and device-finder policies (per-hive counterparts
+            // are in DisableTelemetry; these survive profile churn)
+            using var adInfo = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo");
+            adInfo?.SetValue("DisabledByGroupPolicy", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            using var findMy = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Policies\Microsoft\FindMyDevice");
+            findMy?.SetValue("AllowFindMyDevice", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            GuardLogger.Info($"Applied: DisableAppPermissions ({AppPrivacyDenies.Length} force-denied + ad-ID/FindMyDevice policies)");
         }
         catch (Exception ex)
         {
@@ -1777,6 +1785,8 @@ public static class RegistryGuard
         @"SOFTWARE\Policies\Microsoft\MRT",
         @"SOFTWARE\Policies\Microsoft\Windows\Explorer",
         @"SOFTWARE\Microsoft\Speech_OneCore\Preferences",
+        @"SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo",
+        @"SOFTWARE\Policies\Microsoft\FindMyDevice",
     };
     private static bool _backupDone;
 
@@ -2579,7 +2589,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.24.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.25.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -2664,7 +2674,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.24.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.25.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -2816,8 +2826,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 6;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.24.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.24.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.25.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.25.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try

@@ -2,6 +2,15 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.25.0-mvp: ad-ID / Find My Device policies
+
+### Changed
+- `DisableAppPermissions` also sets HKLM policies
+  `AdvertisingInfo\DisabledByGroupPolicy=1` (per-hive ad-ID writes survive
+  profile churn only loosely; this is the machine-level guarantee) and
+  `FindMyDevice\AllowFindMyDevice=0`.
+- `BackupRegistry` export set extended (32 keys).
+
 ## [Unreleased] — v1.24.0-mvp: vendor telemetry services / speech models
 
 ### Changed
