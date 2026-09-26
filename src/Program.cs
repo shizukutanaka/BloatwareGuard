@@ -781,7 +781,7 @@ public static class AppxManager
             {
                 try
                 {
-                    baseKey.CreateSubKey(family);
+                    using var sub = baseKey.CreateSubKey(family);
                     marked++;
                 }
                 catch { }
@@ -806,8 +806,14 @@ public static class AppxManager
                 RemoveDefaultPkgsPath, writable: true);
             if (key == null)
                 return;
+            // Merge with existing entries — a family removed in an earlier
+            // scan must stay listed or new users get it re-provisioned.
+            var prior = key.GetValue("PackageList") as string[] ?? Array.Empty<string>();
+            var merged = prior.Concat(families)
+                .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
             key.SetValue("Enabled", 1, Microsoft.Win32.RegistryValueKind.DWord);
-            key.SetValue("PackageList", families, Microsoft.Win32.RegistryValueKind.MultiString);
+            key.SetValue("PackageList", merged, Microsoft.Win32.RegistryValueKind.MultiString);
+            families = merged;
             GuardLogger.Info($"Applied: RemoveDefaultStorePackages ({families.Length} families listed)");
         }
         catch (Exception ex)
@@ -2286,6 +2292,8 @@ public static class RegistryGuard
         @"SOFTWARE\Policies\Microsoft\FindMyDevice",
         @"SOFTWARE\Policies\Microsoft\Windows\SettingSync",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Device Metadata",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\Deprovisioned",
+        @"SOFTWARE\Policies\Microsoft\Windows\Appx\RemoveDefaultMicrosoftStorePackages",
     };
     private static bool _backupDone;
 

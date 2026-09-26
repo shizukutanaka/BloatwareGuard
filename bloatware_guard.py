@@ -797,6 +797,9 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate",
     r"SOFTWARE\Policies\Microsoft\Windows\AppPrivacy",
     r"SOFTWARE\Policies\Microsoft\WindowsInkWorkspace",
+    r"SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\Deprovisioned",
+    r"SOFTWARE\Policies\Microsoft\Windows\Appx"
+    r"\RemoveDefaultMicrosoftStorePackages",
     r"SYSTEM\CurrentControlSet\Control\WMI\AutoLogger\AutoLogger-Diagtrack-Listener",
     r"SYSTEM\CurrentControlSet\Control\Session Manager",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\ReserveManager",
@@ -1533,7 +1536,9 @@ def mark_deprovisioned(family_names, logger: logging.Logger) -> int:
     try:
         for family in family_names:
             try:
-                winreg.CreateKey(base, family)
+                # CreateKey returns an open handle — close it or the service
+                # loop leaks a native registry handle every interval
+                winreg.CreateKey(base, family).Close()
                 marked += 1
             except OSError:
                 continue
@@ -1549,13 +1554,21 @@ def apply_remove_default_store_packages(family_names, logger: logging.Logger) ->
     import winreg
     try:
         key = winreg.CreateKeyEx(winreg.HKEY_LOCAL_MACHINE,
-                                 _REMOVE_DEFAULT_PKGS_PATH, 0, winreg.KEY_WRITE)
+                                 _REMOVE_DEFAULT_PKGS_PATH, 0,
+                                 winreg.KEY_READ | winreg.KEY_WRITE)
+        # Merge with existing entries — a family removed in an earlier scan
+        # must stay listed or new users get it re-provisioned.
+        try:
+            prior = list(winreg.QueryValueEx(key, "PackageList")[0])
+        except OSError:
+            prior = []
+        merged = list(dict.fromkeys(
+            [f for f in prior + list(family_names)]))
         winreg.SetValueEx(key, "Enabled", 0, winreg.REG_DWORD, 1)
-        winreg.SetValueEx(key, "PackageList", 0, winreg.REG_MULTI_SZ,
-                          list(family_names))
+        winreg.SetValueEx(key, "PackageList", 0, winreg.REG_MULTI_SZ, merged)
         winreg.CloseKey(key)
         logger.info(f"Applied: RemoveDefaultStorePackages "
-                    f"({len(family_names)} families listed)")
+                    f"({len(merged)} families listed)")
         return True
     except Exception as e:
         logger.warning(f"RemoveDefaultStorePackages: {e}")
