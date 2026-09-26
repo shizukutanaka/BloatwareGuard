@@ -167,6 +167,7 @@ def load_config(path: Path) -> dict:
                 "WingetSweep": True,
                 "RemoveDeprecatedCapabilities": True,
                 "DisableTelemetryServices": True,
+                "DisableTelemetryAutologgers": True,
             },
             "DryRun": False,
         }
@@ -579,6 +580,8 @@ TELEMETRY_POLICY_WRITES = (
     (r"SOFTWARE\Policies\Microsoft\Windows\OOBE", "DisablePrivacyExperience", 1),
     # Windows Spotlight on lock screen / desktop
     (r"SOFTWARE\Policies\Microsoft\Windows\CloudContent", "DisableWindowsSpotlightFeatures", 1),
+    # "Do not sync your settings" — settings aren't uploaded to the cloud
+    (r"SOFTWARE\Policies\Microsoft\Windows\SettingSync", "DisableSettingSync", 2),
     # Hide the Start-menu "Recommended" section (ads + suggested apps slot)
     (EXPLORER_POLICY_PATH, "HideRecommendedSection", 1),
 )
@@ -597,6 +600,9 @@ TELEMETRY_USER_WRITES = (
     # Explorer "sync provider" ads (OneDrive/MS promos in File Explorer)
     (r"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced", "ShowSyncProviderNotifications", 0),
     (r"SOFTWARE\Microsoft\Input\Settings", "InsightsEnabled", 0),
+    # SCOOBE — the "let's finish setting up your device" nag screen
+    (r"SOFTWARE\Microsoft\Windows\CurrentVersion\UserProfileEngagement",
+     "ScoobeSystemSettingEnabled", 0),
     (r"SOFTWARE\Policies\Microsoft\Windows\CloudContent",
      "DisableTailoredExperiencesWithDiagnosticData", 1),
 )
@@ -609,6 +615,11 @@ EDGE_POLICIES = (
     ("StartupBoostEnabled", 0), ("SpotlightExperiencesAndRecommendationsEnabled", 0),
     ("PersonalizationReportingEnabled", 0), ("ShowRecommendationsEnabled", 0),
     ("EdgeShoppingAssistantEnabled", 0), ("NewTabPageContentEnabled", 0),
+    # privacy leaks: URLs/site data sent to Microsoft web services
+    ("SendSiteInfoToImproveServices", 0),
+    ("ResolveNavigationErrorsUseWebService", 0),
+    ("AlternateErrorPagesEnabled", 0), ("UserFeedbackAllowed", 0),
+    ("BingAdsSuppression", 1),
 )
 
 # OEM/vendor name substrings — used for Win32 uninstallers, auto-start services,
@@ -701,6 +712,15 @@ TELEMETRY_SERVICES = (
 
 # NCSI active probing phones home to msftconnecttest.com on every reconnect
 NCSI_PATH = r"SYSTEM\CurrentControlSet\Services\NlaSvc\Parameters\Internet"
+
+# ETW autologger sessions that exist solely to feed telemetry — Start=0 stops
+# them at boot (the privacy.sexy / Sophia Script technique)
+AUTOLOGGERS_PATH = r"SYSTEM\CurrentControlSet\Control\WMI\Autologger"
+TELEMETRY_AUTOLOGGERS = (
+    "AutoLogger-Diagtrack-Listener", "Diagtrack-Listener", "SQMLogger",
+    "DataMarket", "AppModel", "CloudExperienceHostOobe", "DiagLog",
+    "LwtNetLog", "TileStore", "UBPM", "WiFiSession",
+)
 
 
 # Microsoft telemetry/CEIP scheduled tasks — explicit full paths, disabled outright.
@@ -934,6 +954,25 @@ def disable_telemetry_services(logger: logging.Logger) -> int:
     if set_registry_dword("HKLM", NCSI_PATH, "EnableActiveProbing", 0):
         logger.info("Applied: NCSI EnableActiveProbing = 0")
     logger.info(f"Disabled {disabled} telemetry/leftover services")
+    return disabled
+
+
+def disable_telemetry_autologgers(logger: logging.Logger) -> int:
+    """Stop the boot-time ETW autologger sessions that only feed telemetry
+    (Diagtrack-Listener, SQMLogger, WiFiSession, …) — the privacy.sexy /
+    Sophia Script technique. Only touches keys that already exist."""
+    import winreg
+    disabled = 0
+    for name in TELEMETRY_AUTOLOGGERS:
+        try:
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE,
+                                AUTOLOGGERS_PATH + "\\" + name, 0,
+                                winreg.KEY_SET_VALUE) as key:
+                winreg.SetValueEx(key, "Start", 0, winreg.REG_DWORD, 0)
+                disabled += 1
+        except OSError:
+            continue  # autologger not present on this machine
+    logger.info(f"Disabled {disabled} telemetry autologgers (Start=0)")
     return disabled
 
 
@@ -1303,6 +1342,12 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
         else:
             disable_telemetry_services(logger)
 
+    if prev.get("DisableTelemetryAutologgers", True):
+        if dry_run:
+            logger.info(f"[DRY-RUN] Would disable {len(TELEMETRY_AUTOLOGGERS)} ETW autologgers")
+        else:
+            disable_telemetry_autologgers(logger)
+
     if prev.get("DisableOemServices", True):
         if dry_run:
             logger.info("[DRY-RUN] Would disable OEM/vendor services")
@@ -1578,7 +1623,7 @@ def run_self_test() -> int:
                     "DisableOemServices", "RemoveWin32Bloatware",
                     "DisableGameDvr", "BlockTelemetryEndpoints",
                     "WingetSweep", "RemoveDeprecatedCapabilities",
-                    "DisableTelemetryServices"]
+                    "DisableTelemetryServices", "DisableTelemetryAutologgers"]
         missing = [k for k in required if k not in prev]
         assert not missing, f"missing prevention keys: {missing}"
 
@@ -1632,6 +1677,8 @@ def run_self_test() -> int:
         assert len(DEPRECATED_CAPABILITIES) >= 2
         assert all("*" not in c and c.strip() for c in DEPRECATED_CAPABILITIES)
         assert len(TELEMETRY_SERVICES) >= 5 and "DiagTrack" in TELEMETRY_SERVICES
+        assert len(TELEMETRY_AUTOLOGGERS) >= 8
+        assert "Diagtrack-Listener" in TELEMETRY_AUTOLOGGERS
 
     def t_removal_ledger():
         with tempfile.TemporaryDirectory() as td:
@@ -1651,7 +1698,7 @@ def run_self_test() -> int:
     check("T3: Get-AppxPackage JSON parsing (+framework/dedupe)", t_get_packages_parse)
     check("T4: Logger file + console wiring", t_logging)
     check("T5: is_admin() callable", t_is_admin)
-    check("T6: Prevention layers — 25 registered", t_prevention_layers)
+    check("T6: Prevention layers — 26 registered", t_prevention_layers)
     check("T7: Removal ledger write/read", t_removal_ledger)
     check("T8: Full-name batch map", t_full_name_map)
     check("T9: ProvisionedPackage parse (name + family)", t_get_provisioned_parse)

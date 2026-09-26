@@ -66,6 +66,7 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 | winget 管理下の残滓 | winget uninstall --silent --disable-interactivity | WingetSweep |
 | MS 非推奨 capability (WordPad等) | Remove-WindowsCapability -Online | RemoveDeprecatedCapabilities |
 | テレメトリ/残留システムサービス | DiagTrack/dmwappushservice/Xbox系等を stop+disabled + NCSI EnableActiveProbing=0 | DisableTelemetryServices |
+| ETW テレメトリ Autologger | WMI\Autologger 配下の Start=0 (Diagtrack-Listener/SQMLogger等) | DisableTelemetryAutologgers |
 
 ## ブラックリスト方式
 - config.json の `Blacklist` にパッケージ名の**部分一致**パターンを列挙

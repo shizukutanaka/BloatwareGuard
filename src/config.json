@@ -89,7 +89,8 @@
     "BlockTelemetryEndpoints": true,
     "WingetSweep": true,
     "RemoveDeprecatedCapabilities": true,
-    "DisableTelemetryServices": true
+    "DisableTelemetryServices": true,
+    "DisableTelemetryAutologgers": true
   },
   "DryRun": false
 }

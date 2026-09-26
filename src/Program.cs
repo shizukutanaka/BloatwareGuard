@@ -129,6 +129,10 @@ public class PreventionLayers
     /// <summary>Stop + disable telemetry/leftover system services (DiagTrack,
     /// dmwappushservice, Xbox leftovers, WMP sharing) + NCSI active probing</summary>
     public bool DisableTelemetryServices { get; set; } = true;
+
+    /// <summary>Start=0 on boot-time ETW autologger sessions that only feed
+    /// telemetry (Diagtrack-Listener, SQMLogger, WiFiSession, …)</summary>
+    public bool DisableTelemetryAutologgers { get; set; } = true;
 }
 
 // ─── JSON source-gen context (trim-safe: avoids IL2026 with PublishTrimmed) ──
@@ -628,6 +632,8 @@ public static class RegistryGuard
         (@"SOFTWARE\Policies\Microsoft\Windows\OOBE", "DisablePrivacyExperience", 1),
         // Windows Spotlight on lock screen / desktop
         (@"SOFTWARE\Policies\Microsoft\Windows\CloudContent", "DisableWindowsSpotlightFeatures", 1),
+        // "Do not sync your settings" — settings aren't uploaded to the cloud
+        (@"SOFTWARE\Policies\Microsoft\Windows\SettingSync", "DisableSettingSync", 2),
         // Hide the Start-menu "Recommended" section (ads + suggested apps slot)
         (ExplorerPolicyPath, "HideRecommendedSection", 1),
     };
@@ -645,6 +651,8 @@ public static class RegistryGuard
         // Explorer "sync provider" ads (OneDrive/MS promos in File Explorer)
         (ExplorerAdvancedPath, "ShowSyncProviderNotifications", 0),
         (@"SOFTWARE\Microsoft\Input\Settings", "InsightsEnabled", 0),
+        // SCOOBE — the "let's finish setting up your device" nag screen
+        (@"SOFTWARE\Microsoft\Windows\CurrentVersion\UserProfileEngagement", "ScoobeSystemSettingEnabled", 0),
         (@"SOFTWARE\Policies\Microsoft\Windows\CloudContent", "DisableTailoredExperiencesWithDiagnosticData", 1),
     };
 
@@ -661,6 +669,11 @@ public static class RegistryGuard
         ("StartupBoostEnabled", 0), ("SpotlightExperiencesAndRecommendationsEnabled", 0),
         ("PersonalizationReportingEnabled", 0), ("ShowRecommendationsEnabled", 0),
         ("EdgeShoppingAssistantEnabled", 0), ("NewTabPageContentEnabled", 0),
+        // privacy leaks: URLs/site data sent to Microsoft web services
+        ("SendSiteInfoToImproveServices", 0),
+        ("ResolveNavigationErrorsUseWebService", 0),
+        ("AlternateErrorPagesEnabled", 0), ("UserFeedbackAllowed", 0),
+        ("BingAdsSuppression", 1),
     };
 
     // Suggestion/ads delivery killswitches — the full set used by Win11Debloat's
@@ -677,6 +690,39 @@ public static class RegistryGuard
         "SubscribedContent-353694Enabled", "SubscribedContent-353696Enabled",
         "SubscribedContent-353698Enabled",
     };
+
+    // ETW autologger sessions that exist solely to feed telemetry — Start=0
+    // stops them at boot (the privacy.sexy / Sophia Script technique)
+    private const string AutologgersPath = @"SYSTEM\CurrentControlSet\Control\WMI\Autologger";
+    private static readonly string[] TelemetryAutologgers = {
+        "AutoLogger-Diagtrack-Listener", "Diagtrack-Listener", "SQMLogger",
+        "DataMarket", "AppModel", "CloudExperienceHostOobe", "DiagLog",
+        "LwtNetLog", "TileStore", "UBPM", "WiFiSession",
+    };
+
+    /// <summary>Stop boot-time ETW autologger sessions that only feed telemetry.
+    /// Only touches keys that already exist (doesn't create them).</summary>
+    public static void DisableTelemetryAutologgers()
+    {
+        var disabled = 0;
+        foreach (var name in TelemetryAutologgers)
+        {
+            try
+            {
+                using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(
+                    $"{AutologgersPath}\\{name}", writable: true);
+                if (key == null)
+                    continue; // autologger not present on this machine
+                key.SetValue("Start", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                disabled++;
+            }
+            catch (Exception ex)
+            {
+                GuardLogger.Warn($"Autologger {name}: {ex.Message}");
+            }
+        }
+        GuardLogger.Info($"Disabled {disabled} telemetry autologgers (Start=0)");
+    }
 
     public static void ApplyAll(PreventionLayers layers)
     {
@@ -721,6 +767,9 @@ public static class RegistryGuard
                 GuardLogger.Warn($"GameDVR policy: {ex.Message}");
             }
         }
+
+        if (layers.DisableTelemetryAutologgers)
+            DisableTelemetryAutologgers();
 
         // Hosts-file telemetry block — called unconditionally: the helper no-ops
         // when disabled and no block exists; toggling off removes the block.
@@ -2556,7 +2605,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
                 "DisableTelemetryPolicies", "HardenEdgePolicies",
                 "CleanStartupEntries", "DisableOemServices", "RemoveWin32Bloatware",
                 "DisableGameDvr", "BlockTelemetryEndpoints",
-                "WingetSweep", "RemoveDeprecatedCapabilities", "DisableTelemetryServices" };
+                "WingetSweep", "RemoveDeprecatedCapabilities", "DisableTelemetryServices",
+                "DisableTelemetryAutologgers" };
             var missing = flags.Where(f =>
                 typeof(PreventionLayers).GetProperty(f) == null).ToList();
             var defaultsOn = flags.All(f =>
@@ -2564,7 +2614,7 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
                 prop.GetValue(new PreventionLayers()) is bool b && b);
             if (missing.Count == 0 && defaultsOn)
             {
-                results.Add("[PASS] T7: Prevention layers — 17 new flags registered & default-on");
+                results.Add("[PASS] T7: Prevention layers — 18 new flags registered & default-on");
                 GuardLogger.Info("[PASS] T7: New prevention flags present");
                 passed++;
             }
@@ -2596,7 +2646,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
                 typeof(Win32BloatGuard).GetMethod("SetTelemetryHostsBlock") != null &&
                 typeof(Win32BloatGuard).GetMethod("WingetSweep") != null &&
                 typeof(Win32BloatGuard).GetMethod("RemoveDeprecatedCapabilities") != null &&
-                typeof(Win32BloatGuard).GetMethod("DisableTelemetryServices") != null;
+                typeof(Win32BloatGuard).GetMethod("DisableTelemetryServices") != null &&
+                typeof(RegistryGuard).GetMethod("DisableTelemetryAutologgers") != null;
             if (wired)
             {
                 results.Add("[PASS] T8: New prevention methods — all wired");

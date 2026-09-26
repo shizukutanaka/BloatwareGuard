@@ -4,6 +4,11 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 
 ## [Unreleased] — v1.8.0-mvp hardening
 
+### Added — debloat round 6 (ETW autologgers + nag/leak closures)
+- **1 new prevention toggle** (default-on): `DisableTelemetryAutologgers` — `Start=0` on boot-time ETW autologger sessions that exist solely to feed telemetry (`Diagtrack-Listener`, `SQMLogger`, `DataMarket`, `AppModel`, `CloudExperienceHostOobe`, `DiagLog`, `LwtNetLog`, `TileStore`, `UBPM`, `WiFiSession`) under `HKLM\SYSTEM\CurrentControlSet\Control\WMI\Autologger`; only existing keys are touched.
+- **Coverage extensions**: `DisableSettingSync=2` (settings sync to cloud off); `ScoobeSystemSettingEnabled=0` per-hive (kills the "let's finish setting up your device" SCOOBE nag); Edge policies +5 — `SendSiteInfoToImproveServices`, `ResolveNavigationErrorsUseWebService`, `AlternateErrorPagesEnabled`, `UserFeedbackAllowed`, `BingAdsSuppression`.
+- Self-tests: Python 16 checks, C# 12.
+
 ### Added — debloat round 5 (telemetry services + missed autostart/policy spots)
 - **1 new prevention toggle** (default-on): `DisableTelemetryServices` — `sc stop` + `start= disabled` on `DiagTrack` (Connected User Experiences and Telemetry — the main telemetry pipeline), `dmwappushservice`, `RetailDemo`, Xbox Live leftovers (`XblAuthManager`/`XblGameSave`/`XboxNetApiSvc` — dead once the Xbox apps are gone), and legacy `WMPNetworkSvc`; plus `EnableActiveProbing=0` on NCSI (stops `msftconnecttest.com` connectivity probes).
 - **Coverage extensions**: `Policies\Explorer\Run` added to the startup sweep (overlooked autostart hive, also a known malware-persistence path); `DisableWindowsSpotlightFeatures=1` (lock-screen Spotlight); `AllowWindowsInkWorkspace=0`; `SubscribedContent-338380Enabled` (Settings-app suggestions) in the CDM killswitch set.

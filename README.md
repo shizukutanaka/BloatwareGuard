@@ -2,7 +2,7 @@
 
 ## What It Does
 
-Removes Windows bloatware across **24 prevention layers** in both **Python** and **C#** implementations.
+Removes Windows bloatware across **25 prevention layers** in both **Python** and **C#** implementations.
 
 ### Layers
 
@@ -32,6 +32,7 @@ Removes Windows bloatware across **24 prevention layers** in both **Python** and
 || 22. winget silent-uninstall sweep | ✅ | ✅ | Admin (skips w/o winget) |
 || 23. Deprecated capability removal (WordPad, Steps Recorder) | ✅ | ✅ | Admin |
 || 24. Telemetry/leftover services (DiagTrack, Xbox, WMP) + NCSI | ✅ | ✅ | Admin |
+|| 25. ETW autologger sessions off (Diagtrack-Listener, SQMLogger…) | ✅ | ✅ | Admin |
 
 Layers 20–23 close the loop. `DisableGameDvr` stops Game Bar background
 capture via `AllowGameDVR=0` (HKLM policy) plus per-hive `AppCaptureEnabled`/
@@ -56,6 +57,17 @@ slot), `DODownloadMode=0` (Delivery Optimization P2P upload off), Windows
 Spotlight features, OOBE privacy screen, WER extra data, typing insights,
 Explorer sync-provider promos, Edge New-Tab feed, and the often-overlooked
 `Policies\Explorer\Run` autostart hive in the startup sweep.
+
+**Layer 25** targets the deepest telemetry layer: boot-time **ETW autologger
+sessions** under `HKLM\SYSTEM\CurrentControlSet\Control\WMI\Autologger` —
+`Diagtrack-Listener`, `SQMLogger`, `DataMarket`, `AppModel`,
+`CloudExperienceHostOobe`, `DiagLog`, `LwtNetLog`, `TileStore`, `UBPM`,
+`WiFiSession` get `Start=0` (the privacy.sexy / Sophia Script technique); only
+keys that exist are touched. Round-6 policy additions: SettingSync disabled
+(`DisableSettingSync=2`), the SCOOBE "let's finish setting up your device" nag
+screen off, and five Edge web-service leaks (`SendSiteInfoToImproveServices`,
+`ResolveNavigationErrorsUseWebService`, `AlternateErrorPagesEnabled`,
+`UserFeedbackAllowed`, `BingAdsSuppression`).
 
 Layer 17 sweeps the `Uninstall` registry hives (HKLM 64- and 32-bit views plus
 every loaded user hive) for `DisplayName` values matching the blacklist plus a
