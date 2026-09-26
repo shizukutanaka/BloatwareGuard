@@ -2370,6 +2370,14 @@ def run_self_test() -> int:
             cs_src = cs.read_text(encoding="utf-8", errors="ignore")
             assert f"v{APP_VERSION}" in cs_src, \
                 f"APP_VERSION {APP_VERSION} not found in src/Program.cs"
+            # shared data-list parity: every Python entry must appear in C#
+            # (C# uses @"..." verbatim literals — backslashes appear unescaped)
+            for name, entries in (("TELEMETRY_TASK_PATHS", TELEMETRY_TASK_PATHS),
+                                  ("_EXTRA_AUTOLOGGERS", _EXTRA_AUTOLOGGERS),
+                                  ("_TELEMETRY_HOSTS", _TELEMETRY_HOSTS),
+                                  ("_STARTUP_BLOAT_NAMES", _STARTUP_BLOAT_NAMES)):
+                miss = [e for e in entries if e not in cs_src]
+                assert not miss, f"{name} entries missing from Program.cs: {miss}"
 
     check("T9: defaults ↔ config.json parity", t_defaults_config_parity)
 
