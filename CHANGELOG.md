@@ -2,6 +2,14 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.30.0-mvp: telemetry tasks — RetailDemo/Flighting/feedback
+
+### Changed
+- `DisableTelemetryTasks` extended (20 → 25): RetailDemo cleanup task,
+  three Insider flighting `FeatureConfig` data-collection tasks, and the
+  Windows Insider feedback app-usage client. schtasks still ignores
+  missing paths, so Office/Insider-less images are unaffected.
+
 ## [Unreleased] — v1.29.0-mvp: RemoteRegistry / device-metadata channel
 
 ### Changed

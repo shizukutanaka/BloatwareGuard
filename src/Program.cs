@@ -2245,6 +2245,13 @@ public static class ScheduledTaskGuard
         @"\Microsoft\Office\Office 15 Subscription Heartbeat",
         @"\Microsoft\Office\Office Feature Updates",
         @"\Microsoft\Office\Office Feature Updates Logon",
+        // Retail demo experience + Insider flighting data collection +
+        // Windows Insider feedback app usage
+        @"\Microsoft\Windows\RetailDemo\RetailDemoCleanupOnContent",
+        @"\Microsoft\Windows\Flighting\FeatureConfig\ReconcileFeatures",
+        @"\Microsoft\Windows\Flighting\FeatureConfig\UsageDataFlushed",
+        @"\Microsoft\Windows\Flighting\FeatureConfig\UsageDataReporting",
+        @"\Microsoft\Windows\Feedback\WipAppUsageClient",
     };
 
     /// <summary>Disable the known Microsoft telemetry/CEIP scheduled tasks.</summary>
@@ -2619,7 +2626,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.29.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.30.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -2704,7 +2711,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.29.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.30.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -2856,8 +2863,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 6;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.29.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.29.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.30.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.30.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try
