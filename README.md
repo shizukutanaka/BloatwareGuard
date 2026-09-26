@@ -1,8 +1,8 @@
-# BloatwareGuard v1.14.0-mvp
+# BloatwareGuard v1.15.0-mvp
 
 ## What It Does
 
-Removes Windows bloatware across **25 prevention layers** in both **Python** and **C#** implementations.
+Removes Windows bloatware across **26 prevention layers** in both **Python** and **C#** implementations.
 Per-user settings are written to **every loaded user hive + the Default profile template**, so they
 also apply correctly when the tool runs as a SYSTEM service and for users created later.
 
@@ -35,6 +35,7 @@ also apply correctly when the tool runs as a SYSTEM service and for users create
 || 23. Windows Error Reporting uploads off | ✅ | ✅ | HKLM needs admin |
 || 24. Edge update services → demand-start + update tasks off | ✅ | ✅ | Requires admin |
 || 25. OEM driver payloads excluded from Windows Update | ✅ | ✅ | HKLM needs admin |
+|| 26. App permissions force-denied (conservative set — camera/mic/location left) | ✅ | ✅ | HKLM needs admin |
 
 ---
 
@@ -153,8 +154,8 @@ dotnet publish src/BloatwareGuard.csproj -c Release -r win-x64 --self-contained 
 ## Version
 
 ```bash
-python bloatware_guard.py --version   # BloatwareGuard v1.14.0-mvp
-BloatwareGuard.exe --version          # BloatwareGuard v1.14.0-mvp
+python bloatware_guard.py --version   # BloatwareGuard v1.15.0-mvp
+BloatwareGuard.exe --version          # BloatwareGuard v1.15.0-mvp
 ```
 
 ---

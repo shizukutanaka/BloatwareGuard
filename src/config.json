@@ -101,7 +101,8 @@
     "DisableStartupBloat": true,
     "DisableErrorReporting": true,
     "DisableEdgeUpdateBloat": true,
-    "BlockOemDriverUpdates": true
+    "BlockOemDriverUpdates": true,
+    "DisableAppPermissions": true
   },
   "DryRun": false
 }

@@ -131,6 +131,11 @@ public class PreventionLayers
     /// <summary>Layer 25: Exclude OEM driver payloads from Windows Update
     /// (WU is a channel for OEM bloatware re-delivery)</summary>
     public bool BlockOemDriverUpdates { get; set; } = true;
+
+    /// <summary>Layer 26: Force-deny a conservative AppPrivacy permission set
+    /// (background run, account info, contacts, diagnostics…). Camera, mic and
+    /// location are deliberately left alone — legitimate apps need them.</summary>
+    public bool DisableAppPermissions { get; set; } = true;
 }
 
 // ─── JSON source-gen context (trim-safe: avoids IL2026 with PublishTrimmed) ──
@@ -781,6 +786,8 @@ public static class RegistryGuard
     private const string UserCopilotPath = @"Software\Policies\Microsoft\Windows\WindowsCopilot";
     private const string UserWindowsAiPath = @"Software\Policies\Microsoft\Windows\WindowsAI";
     private const string UserSearchPath = @"Software\Microsoft\Windows\CurrentVersion\Search";
+    private const string UserSearchSettingsPath = @"Software\Microsoft\Windows\CurrentVersion\SearchSettings";
+    private const string AppPrivacyPath = @"SOFTWARE\Policies\Microsoft\Windows\AppPrivacy";
     private const string UserProfileEngagementPath = @"Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement";
     private const string UserAdvertisingInfoPath = @"Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo";
     private const string UserPrivacyPath = @"Software\Microsoft\Windows\CurrentVersion\Privacy";
@@ -886,6 +893,9 @@ public static class RegistryGuard
 
         if (layers.BlockOemDriverUpdates)
             BlockOemDriverUpdates();
+
+        if (layers.DisableAppPermissions)
+            DisableAppPermissions();
     }
 
     /// <summary>
@@ -1180,8 +1190,13 @@ public static class RegistryGuard
                 SetHiveDword(hive, UserExplorerPoliciesPath, "DisableSearchBoxSuggestions", 1);
                 SetHiveDword(hive, UserSearchPath, "BingSearchEnabled", 0);
                 SetHiveDword(hive, UserSearchPath, "CortanaConsent", 0);
+                // SearchSettings: kill the dynamic search box + cloud search
+                // integrations that power web results in Start
+                SetHiveDword(hive, UserSearchSettingsPath, "IsDynamicSearchBoxEnabled", 0);
+                SetHiveDword(hive, UserSearchSettingsPath, "IsAADCloudSearchEnabled", 0);
+                SetHiveDword(hive, UserSearchSettingsPath, "IsMSACloudSearchEnabled", 0);
             });
-            GuardLogger.Info("Applied: DisableSearchSuggestions (Bing/search suggestions + Cortana off, all hives)");
+            GuardLogger.Info("Applied: DisableSearchSuggestions (Bing/search suggestions + Cortana + cloud search off, all hives)");
         }
         catch (Exception ex)
         {
@@ -1246,6 +1261,9 @@ public static class RegistryGuard
             // telemetry uploader; absent on some SKUs, failures are non-fatal.
             RunToolSilent("sc.exe", "stop DiagTrack");
             RunToolSilent("sc.exe", "config DiagTrack start= disabled");
+            // RetailDemo data-collection service (present on most images)
+            RunToolSilent("sc.exe", "stop RetailDemo");
+            RunToolSilent("sc.exe", "config RetailDemo start= disabled");
 
             GuardLogger.Info("Applied: DisableTelemetry (AllowTelemetry=0, DiagTrack off, privacy surfaces set)");
         }
@@ -1482,6 +1500,35 @@ public static class RegistryGuard
         catch (Exception ex)
         {
             GuardLogger.Error($"Failed to disable Edge update bloat: {ex.Message}");
+        }
+    }
+
+    // AppPrivacy policies force-denied (value 2). Camera/microphone/location
+    // excluded on purpose — Teams/Weather etc. legitimately need them.
+    private static readonly string[] AppPrivacyDenies = {
+        "LetAppsRunInBackground", "LetAppsAccessAccountInfo",
+        "LetAppsAccessCallHistory", "LetAppsAccessContacts",
+        "LetAppsAccessEmail", "LetAppsAccessMessaging",
+        "LetAppsAccessMotion", "LetAppsAccessNotifications",
+        "LetAppsAccessPhone", "LetAppsAccessRadios",
+        "LetAppsAccessTasks", "LetAppsAccessTrustedDevices",
+        "LetAppsSyncWithDevices", "LetAppsGetDiagnosticInfo",
+        "LetAppsActivateWithVoice", "LetAppsActivateWithVoiceAboveLock",
+    };
+
+    /// <summary>Layer 26: force-deny conservative AppPrivacy set.</summary>
+    public static void DisableAppPermissions()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(AppPrivacyPath);
+            foreach (var name in AppPrivacyDenies)
+                key?.SetValue(name, 2, Microsoft.Win32.RegistryValueKind.DWord);
+            GuardLogger.Info($"Applied: DisableAppPermissions ({AppPrivacyDenies.Length} force-denied)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to disable app permissions: {ex.Message}");
         }
     }
 
@@ -2015,7 +2062,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.14.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.15.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -2100,7 +2147,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.14.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.15.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -2252,8 +2299,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 6;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.14.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.14.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.15.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.15.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try

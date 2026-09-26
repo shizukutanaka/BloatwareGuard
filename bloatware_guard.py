@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.14.0-mvp - Python prototype
+BloatwareGuard v1.15.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -34,7 +34,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.14.0-mvp"
+APP_VERSION = "1.15.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -179,6 +179,7 @@ def load_config(path: Path) -> dict:
                 "DisableErrorReporting": True,
                 "DisableEdgeUpdateBloat": True,
                 "BlockOemDriverUpdates": True,
+                "DisableAppPermissions": True,
             },
             "DryRun": False,
         }
@@ -551,6 +552,7 @@ _USER_EXPLORER_POLICIES = r"Software\Policies\Microsoft\Windows\Explorer"
 _USER_COPILOT = r"Software\Policies\Microsoft\Windows\WindowsCopilot"
 _USER_WINDOWS_AI = r"Software\Policies\Microsoft\Windows\WindowsAI"
 _USER_SEARCH = r"Software\Microsoft\Windows\CurrentVersion\Search"
+_USER_SEARCH_SETTINGS = r"Software\Microsoft\Windows\CurrentVersion\SearchSettings"
 _USER_PROFILE_ENGAGEMENT = r"Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement"
 _USER_ACCOUNT_NOTIFICATIONS = r"Software\Microsoft\Windows\CurrentVersion\SystemSettings\AccountNotifications"
 _USER_SUGGESTED_TOAST = (r"Software\Microsoft\Windows\CurrentVersion"
@@ -751,6 +753,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_registry_dword("HKLM", search_pol, "CortanaConsent", 0)
         set_user_dword_all_hives(_USER_EXPLORER_POLICIES, "DisableSearchBoxSuggestions", 1, logger)
         set_user_dword_all_hives(_USER_SEARCH, "BingSearchEnabled", 0, logger)
+        # SearchSettings: dynamic search box + cloud search integrations
+        set_user_dword_all_hives(_USER_SEARCH_SETTINGS, "IsDynamicSearchBoxEnabled", 0, logger)
+        set_user_dword_all_hives(_USER_SEARCH_SETTINGS, "IsAADCloudSearchEnabled", 0, logger)
+        set_user_dword_all_hives(_USER_SEARCH_SETTINGS, "IsMSACloudSearchEnabled", 0, logger)
         set_user_dword_all_hives(_USER_SEARCH, "CortanaConsent", 0, logger)
         logger.info("Applied: DisableSearchSuggestions (Bing/search suggestions + Cortana off, all hives)")
 
@@ -800,6 +806,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         # telemetry uploader; absent on some SKUs, failures are non-fatal.
         run_cmd(["sc.exe", "stop", "DiagTrack"])
         run_cmd(["sc.exe", "config", "DiagTrack", "start=", "disabled"])
+        # RetailDemo data-collection service (present on most images)
+        run_cmd(["sc.exe", "stop", "RetailDemo"])
+        run_cmd(["sc.exe", "config", "RetailDemo", "start=", "disabled"])
         logger.info("Applied: DisableTelemetry (AllowTelemetry=0, DiagTrack off, "
                     "privacy surfaces set)")
 
@@ -885,6 +894,25 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                            "ExcludeWUDriversInQualityUpdate", 1)
         logger.info("Applied: BlockOemDriverUpdates "
                     "(ExcludeWUDriversInQualityUpdate=1)")
+
+    if prev.get("DisableAppPermissions", True):
+        # Force-deny (2) a conservative AppPrivacy set — camera/mic/location left
+        # alone since legitimate apps need them.
+        app_privacy = (
+            "LetAppsRunInBackground", "LetAppsAccessAccountInfo",
+            "LetAppsAccessCallHistory", "LetAppsAccessContacts",
+            "LetAppsAccessEmail", "LetAppsAccessMessaging",
+            "LetAppsAccessMotion", "LetAppsAccessNotifications",
+            "LetAppsAccessPhone", "LetAppsAccessRadios",
+            "LetAppsAccessTasks", "LetAppsAccessTrustedDevices",
+            "LetAppsSyncWithDevices", "LetAppsGetDiagnosticInfo",
+            "LetAppsActivateWithVoice", "LetAppsActivateWithVoiceAboveLock",
+        )
+        for name in app_privacy:
+            set_registry_dword("HKLM",
+                               r"SOFTWARE\Policies\Microsoft\Windows\AppPrivacy",
+                               name, 2)
+        logger.info(f"Applied: DisableAppPermissions ({len(app_privacy)} force-denied)")
 
 
 def disable_startup_bloat(config: dict, logger: logging.Logger):
@@ -1397,7 +1425,8 @@ def run_self_test() -> int:
                     "RemoveOptionalCapabilities", "RemoveWin32Programs",
                     "CreateRestorePoint", "DisableTelemetryTasks",
                     "DisableStartupBloat", "DisableErrorReporting",
-                    "DisableEdgeUpdateBloat", "BlockOemDriverUpdates"]
+                    "DisableEdgeUpdateBloat", "BlockOemDriverUpdates",
+                    "DisableAppPermissions"]
         missing = [k for k in required if k not in prev]
         assert not missing, f"missing prevention keys: {missing}"
 
@@ -1419,7 +1448,7 @@ def run_self_test() -> int:
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
     check("T4: Logger file + console wiring", t_logging)
     check("T5: is_admin() callable", t_is_admin)
-    check("T6: Prevention layers — 26 registered", t_prevention_layers)
+    check("T6: Prevention layers — 27 registered", t_prevention_layers)
     check("T7: Removal ledger write/read", t_removal_ledger)
     check("T8: Full-name batch map", t_full_name_map)
 

@@ -2,6 +2,23 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.15.0-mvp: app permissions / cloud search / RetailDemo
+
+### Added
+- **`DisableAppPermissions`** — force-deny (policy value 2) a conservative
+  `SOFTWARE\Policies\Microsoft\Windows\AppPrivacy` set of 16 capabilities:
+  background-run, account info, call history, contacts, email, messaging,
+  motion, notifications, phone, radios, tasks, trusted devices, sync-with-
+  devices, diagnostic info, voice activation (incl. above-lock). Camera,
+  microphone and location are deliberately left alone — Teams/Weather and
+  similar apps legitimately need them.
+
+### Changed
+- `DisableSearchSuggestions` now also clears the dynamic search box and AAD/MSA
+  cloud search (`SearchSettings\IsDynamicSearchBoxEnabled`,
+  `IsAADCloudSearchEnabled`, `IsMSACloudSearchEnabled` — all hives).
+- `DisableTelemetry` also stops + disables the `RetailDemo` service.
+
 ## [Unreleased] — v1.14.0-mvp: Edge update / WU-OEM channel / RunOnce
 
 ### Added
