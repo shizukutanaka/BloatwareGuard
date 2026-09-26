@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.52.0-mvp - Python prototype
+BloatwareGuard v1.53.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -34,7 +34,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.52.0-mvp"
+APP_VERSION = "1.53.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -141,6 +141,20 @@ DEFAULT_BLACKLIST = [
     "Evernote",
     "ExpressVPN",
     "Nordcurrent",
+    # Dead/deprecated stock apps and promo stubs (24H2 image still ships them)
+    "Microsoft.3DViewer",                # 3D Viewer — deprecated, no updates
+    "Microsoft.Microsoft3DViewer",       # Store alias for the same app
+    "Microsoft.Print3D",
+    "Microsoft.Whiteboard",
+    "Microsoft.Wallet",                  # Microsoft Pay UI — service retired
+    "Microsoft.Messaging",               # dead legacy SMS app
+    "Microsoft.OneConnect",              # Mobile Plans (cellular add-on promos)
+    "Microsoft.CommsPhone",              # legacy phone-call component
+    "Microsoft.Appconnector",            # legacy connector, no UI
+    "Microsoft.NetworkSpeedTest",
+    "Microsoft.Office.Sway",
+    "Microsoft.Office.Desktop",          # Office Hub launcher / promo stub
+    "MSTranslatorBeta",
 ]
 
 

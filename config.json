@@ -71,7 +71,19 @@
         "ExpressVPN",
         "Nordcurrent",
         "MicrosoftWindows.Client.WebExperience",
-        "Microsoft.MicrosoftJournal"
+        "Microsoft.MicrosoftJournal",
+        "Microsoft.3DViewer",
+        "Microsoft.Print3D",
+        "Microsoft.Whiteboard",
+        "Microsoft.Wallet",
+        "Microsoft.Messaging",
+        "Microsoft.OneConnect",
+        "Microsoft.CommsPhone",
+        "Microsoft.Appconnector",
+        "Microsoft.NetworkSpeedTest",
+        "Microsoft.Office.Sway",
+        "Microsoft.Office.Desktop",
+        "MSTranslatorBeta"
     ],
     "Whitelist": [
         "Microsoft.WindowsStore",

@@ -2,6 +2,26 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.53.0-mvp: stock-app blacklist audit + parity fixes
+
+### Added
+- Blacklist +13 dead/deprecated stock apps and promo stubs that the 24H2
+  image still ships: 3D Viewer (both ids), Print3D, Whiteboard, Wallet,
+  Messaging, OneConnect, CommsPhone, Appconnector, NetworkSpeedTest, Sway,
+  Office Hub launcher (`Microsoft.Office.Desktop`), MSTranslatorBeta.
+- Self-test T9 extended: asserts every Python shared data-list entry
+  (telemetry tasks, autologgers, hosts, startup names) exists in Program.cs.
+
+### Fixed
+- C# default blacklist was missing `MicrosoftWindows.Client.WebExperience`
+  and `Microsoft.MicrosoftJournal` (Python/config already had them — real
+  parity gap: Widgets host package was never removed by the EXE).
+- `APP_VERSION` in bloatware_guard.py lagged at 1.43 (drift since v1.44);
+  T9 now guards it.
+- README/DESIGN counts refreshed (58 telemetry tasks, 13 autologgers,
+  42 demoted services); DESIGN table gained the `RemoveProvisionedPackages`
+  and `ReinstallMonitor` rows.
+
 ## [Unreleased] — v1.52.0-mvp: telemetry-change nag + explorer-search web off
 
 ### Changed

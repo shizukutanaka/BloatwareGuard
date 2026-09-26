@@ -492,6 +492,17 @@ public static class ConfigLoader
                 "Evernote",
                 "ExpressVPN",
                 "Nordcurrent",
+                // Dead/deprecated stock apps and promo stubs (24H2 still ships them)
+                "Microsoft.3DViewer", "Microsoft.Microsoft3DViewer",
+                "Microsoft.Print3D", "Microsoft.Whiteboard",
+                "Microsoft.Wallet",                 // Microsoft Pay UI — retired
+                "Microsoft.Messaging", "Microsoft.OneConnect",
+                "Microsoft.CommsPhone", "Microsoft.Appconnector",
+                "Microsoft.NetworkSpeedTest", "Microsoft.Office.Sway",
+                "Microsoft.Office.Desktop",         // Office Hub launcher / promo stub
+                "MSTranslatorBeta",
+                "MicrosoftWindows.Client.WebExperience",  // Widgets board host package
+                "Microsoft.MicrosoftJournal",             // Journal note app
 
                 // OEM utilities (uncomment as needed)
                 // "DellInc.Dell",
@@ -3297,7 +3308,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.52.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.53.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -3382,7 +3393,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.52.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.53.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -3534,8 +3545,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 6;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.52.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.52.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.53.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.53.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try
