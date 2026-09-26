@@ -28,7 +28,11 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 │    ├─ Dsh: AllowNewsAndInterests = 0 + TaskbarDa=0  │
 │    ├─ AllowTelemetry=0 + DiagTrack 停止 (全ハイブ)   │
 │    ├─ GameDVR: AllowGameDVR=0 + GameDVR_Enabled=0   │
-│    └─ DeliveryOptimization: DODownloadMode=0        │
+│    ├─ DeliveryOptimization: DODownloadMode=0        │
+│    ├─ OneDrive: DisableFileSyncNGSC=1 (opt-in)      │
+│    ├─ TaskbarMn=0 + HideSCAMeetNow=1 (全ハイブ)     │
+│    ├─ Edge: Sidebar/StartupBoost/Prelaunch off      │
+│    └─ Capability 除去 (IE/StepsRecorder/WordPad)    │
 ├─────────────────────────────────────────────────────┤
 │  Config: config.json (blacklist + intervals)        │
 │  Log: Windows Event Log + file                      │
@@ -55,6 +59,10 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 | GameDVR (バックグラウンド録画) | AllowGameDVR=0 (HKLM), GameDVR_Enabled=0, AppCaptureEnabled=0 (全ハイブ) | DisableGameDvr |
 | Delivery Optimization (P2P 更新共有) | DODownloadMode=0 (HKLM+全ハイブ+S-1-5-20) | DisableDeliveryOptimization |
 | Click to Do (AI アクション) | WindowsAI DisableClickToDo=1 (HKLM+全ハイブ) + WSAIFabricSvc 手動起動化 | DisableRecall |
+| OneDrive (opt-in, 既定OFF) | DisableFileSyncNGSC=1 (HKLM) + CLSID IsPinnedToNameSpaceTree=0 (全ハイブ) | DisableOneDrive |
+| Teams Chat ボタン | TaskbarMn=0, HideSCAMeetNow=1 (全ハイブ) | DisableChatTaskbar |
+| Edge 常駐・初回 | HubsSidebarEnabled=0, StartupBoostEnabled=0, AllowPrelaunch=0, HideFirstRunExperience=1 | DisableEdgeBloat |
+| オプション機能 (IE/StepsRecorder/WordPad) | Remove-WindowsCapability -Online | RemoveOptionalCapabilities |
 
 ## ブラックリスト方式
 - config.json の `Blacklist` にパッケージ名の**部分一致**パターンを列挙

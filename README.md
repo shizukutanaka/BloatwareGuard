@@ -1,8 +1,8 @@
-# BloatwareGuard v1.10.0-mvp
+# BloatwareGuard v1.11.0-mvp
 
 ## What It Does
 
-Removes Windows bloatware across **14 prevention layers** in both **Python** and **C#** implementations.
+Removes Windows bloatware across **18 prevention layers** in both **Python** and **C#** implementations.
 Per-user settings are written to **every loaded user hive + the Default profile template**, so they
 also apply correctly when the tool runs as a SYSTEM service and for users created later.
 
@@ -24,6 +24,10 @@ also apply correctly when the tool runs as a SYSTEM service and for users create
 || 12. Telemetry off (DiagTrack svc, ad ID, feedback nags, activity history) | ✅ | ✅ | HKLM needs admin |
 || 13. GameDVR / Game Bar capture off | ✅ | ✅ | HKLM needs admin |
 || 14. Delivery Optimization P2P sharing off | ✅ | ✅ | HKLM needs admin |
+|| 15. OneDrive sync off + Explorer pin hidden (**opt-in**, default off) | ✅ | ✅ | HKLM needs admin |
+|| 16. Teams Chat taskbar button off | ✅ | ✅ | Own hive only |
+|| 17. Edge sidebar / startup boost / prelaunch / first-run off | ✅ | ✅ | HKLM needs admin |
+|| 18. Optional capabilities removed (IE mode, Steps Recorder, WordPad) | ✅ | ✅ | Requires admin |
 
 ---
 
@@ -142,8 +146,8 @@ dotnet publish src/BloatwareGuard.csproj -c Release -r win-x64 --self-contained 
 ## Version
 
 ```bash
-python bloatware_guard.py --version   # BloatwareGuard v1.10.0-mvp
-BloatwareGuard.exe --version          # BloatwareGuard v1.10.0-mvp
+python bloatware_guard.py --version   # BloatwareGuard v1.11.0-mvp
+BloatwareGuard.exe --version          # BloatwareGuard v1.11.0-mvp
 ```
 
 ---

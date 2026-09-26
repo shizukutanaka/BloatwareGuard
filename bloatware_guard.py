@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.10.0-mvp - Python prototype
+BloatwareGuard v1.11.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -34,7 +34,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.10.0-mvp"
+APP_VERSION = "1.11.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -168,6 +168,10 @@ def load_config(path: Path) -> dict:
                 "DisableTelemetry": True,
                 "DisableGameDvr": True,
                 "DisableDeliveryOptimization": True,
+                "DisableOneDrive": False,
+                "DisableChatTaskbar": True,
+                "DisableEdgeBloat": True,
+                "RemoveOptionalCapabilities": True,
             },
             "DryRun": False,
         }
@@ -383,6 +387,23 @@ def remove_provisioned_package(package_name: str) -> bool:
     return rc == 0
 
 
+def remove_optional_capabilities(logger: logging.Logger) -> bool:
+    """Remove deprecated/legacy optional capabilities (IE mode, Steps Recorder,
+    WordPad). Requires admin; non-present entries are skipped by PowerShell."""
+    pattern = "Browser.InternetExplorer|App.StepsRecorder|Microsoft.Windows.WordPad"
+    _, _, rc = run_powershell(
+        "Get-WindowsCapability -Online | Where-Object "
+        f"{{$_.Name -match '{pattern}' -and $_.State -eq 'Installed'}} | "
+        "Remove-WindowsCapability -Online -ErrorAction SilentlyContinue | Out-Null",
+        timeout=180)
+    if rc == 0:
+        logger.info("Applied: RemoveOptionalCapabilities (IE/StepsRecorder/WordPad)")
+    else:
+        logger.warning("RemoveOptionalCapabilities: no capabilities removed "
+                       "(absent or admin required)")
+    return rc == 0
+
+
 # ─── Registry Prevention ─────────────────────────────────────────────────────
 
 def set_registry_dword(hive, path: str, name: str, value: int) -> bool:
@@ -422,6 +443,8 @@ _USER_GAME_CONFIG_STORE = r"System\GameConfigStore"
 _USER_GAME_DVR = r"Software\Microsoft\Windows\CurrentVersion\GameDVR"
 _USER_DELIVERY_OPT = (r"Software\Microsoft\Windows\CurrentVersion"
                       r"\DeliveryOptimization\Settings")
+_USER_POLICIES_EXPLORER = r"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer"
+_USER_ONEDRIVE_CLSID = r"Software\Classes\CLSID\{018D5C66-4533-4307-9B53-224DE2ED1FE6}"
 
 # HKLM subkey used to temporarily mount the Default-profile template hive
 _DEFAULT_HIVE_MOUNT = "BloatwareGuard_DefaultProfile"
@@ -664,6 +687,26 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             pass
         logger.info("Applied: DisableDeliveryOptimization (DODownloadMode=0)")
 
+    if prev.get("DisableOneDrive", False):
+        set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\OneDrive",
+                           "DisableFileSyncNGSC", 1)
+        # Hide the OneDrive pin in Explorer's navigation pane for every user
+        set_user_dword_all_hives(_USER_ONEDRIVE_CLSID, "System.IsPinnedToNameSpaceTree", 0, logger)
+        logger.info("Applied: DisableOneDrive (DisableFileSyncNGSC=1, nav pin hidden)")
+
+    if prev.get("DisableChatTaskbar", True):
+        set_user_dword_all_hives(_USER_EXPLORER_ADV, "TaskbarMn", 0, logger)
+        set_user_dword_all_hives(_USER_POLICIES_EXPLORER, "HideSCAMeetNow", 1, logger)
+        logger.info("Applied: DisableChatTaskbar (TaskbarMn=0, HideSCAMeetNow=1)")
+
+    if prev.get("DisableEdgeBloat", True):
+        edge_pol = r"SOFTWARE\Policies\Microsoft\Edge"
+        set_registry_dword("HKLM", edge_pol, "HubsSidebarEnabled", 0)
+        set_registry_dword("HKLM", edge_pol, "StartupBoostEnabled", 0)
+        set_registry_dword("HKLM", edge_pol, "AllowPrelaunch", 0)
+        set_registry_dword("HKLM", edge_pol, "HideFirstRunExperience", 1)
+        logger.info("Applied: DisableEdgeBloat (sidebar/startup-boost/prelaunch/first-run off)")
+
 
 # ─── Scheduled Task Prevention ───────────────────────────────────────────────
 
@@ -792,6 +835,13 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
                     removed += 1
                 else:
                     logger.warning(f"Failed to remove ProvisionedPackage: {display_name} [admin required]")
+
+    # 2.5 Remove optional Windows capabilities (IE mode, Steps Recorder, WordPad)
+    if prev.get("RemoveOptionalCapabilities", True):
+        if dry_run:
+            logger.info("[DRY-RUN] Would remove optional capabilities (IE/StepsRecorder/WordPad) [requires admin]")
+        else:
+            remove_optional_capabilities(logger)
 
     # 3. Re-apply registry (idempotent, Windows Update may reset)
     if dry_run:
@@ -1035,7 +1085,9 @@ def run_self_test() -> int:
                     "DisableCopilot", "DisableRecall",
                     "DisableSearchSuggestions", "DisableWidgets",
                     "DisableTelemetry", "DisableGameDvr",
-                    "DisableDeliveryOptimization"]
+                    "DisableDeliveryOptimization", "DisableOneDrive",
+                    "DisableChatTaskbar", "DisableEdgeBloat",
+                    "RemoveOptionalCapabilities"]
         missing = [k for k in required if k not in prev]
         assert not missing, f"missing prevention keys: {missing}"
 
@@ -1057,7 +1109,7 @@ def run_self_test() -> int:
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
     check("T4: Logger file + console wiring", t_logging)
     check("T5: is_admin() callable", t_is_admin)
-    check("T6: Prevention layers — 15 registered", t_prevention_layers)
+    check("T6: Prevention layers — 19 registered", t_prevention_layers)
     check("T7: Removal ledger write/read", t_removal_ledger)
     check("T8: Full-name batch map", t_full_name_map)
 

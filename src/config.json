@@ -90,7 +90,11 @@
     "DisableWidgets": true,
     "DisableTelemetry": true,
     "DisableGameDvr": true,
-    "DisableDeliveryOptimization": true
+    "DisableDeliveryOptimization": true,
+    "DisableOneDrive": false,
+    "DisableChatTaskbar": true,
+    "DisableEdgeBloat": true,
+    "RemoveOptionalCapabilities": true
   },
   "DryRun": false
 }

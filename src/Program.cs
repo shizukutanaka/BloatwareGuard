@@ -91,6 +91,19 @@ public class PreventionLayers
 
     /// <summary>Layer 14: Disable Delivery Optimization P2P update sharing</summary>
     public bool DisableDeliveryOptimization { get; set; } = true;
+
+    /// <summary>Layer 15: Disable OneDrive sync + hide its Explorer pin.
+    /// Opt-in (default false) — affects active file sync.</summary>
+    public bool DisableOneDrive { get; set; }
+
+    /// <summary>Layer 16: Hide the Teams Chat taskbar button</summary>
+    public bool DisableChatTaskbar { get; set; } = true;
+
+    /// <summary>Layer 17: Disable Edge sidebar, startup boost, prelaunch, first-run</summary>
+    public bool DisableEdgeBloat { get; set; } = true;
+
+    /// <summary>Layer 18: Remove optional capabilities (IE mode, Steps Recorder, WordPad)</summary>
+    public bool RemoveOptionalCapabilities { get; set; } = true;
 }
 
 // ─── JSON source-gen context (trim-safe: avoids IL2026 with PublishTrimmed) ──
@@ -415,6 +428,30 @@ public static class AppxManager
         return proc?.ExitCode == 0 ? output : "";
     }
 
+    /// <summary>Remove deprecated/legacy optional Windows capabilities.
+    /// Conservative list: IE compatibility mode (Edge covers IE-mode), Steps
+    /// Recorder (deprecated), WordPad (removed by MS in 24H2 anyway).
+    /// Requires admin; non-admin/non-present entries are skipped by PowerShell.</summary>
+    public static void RemoveOptionalCapabilities()
+    {
+        var pattern = "Browser.InternetExplorer|App.StepsRecorder|Microsoft.Windows.WordPad";
+        var psi = new ProcessStartInfo
+        {
+            FileName = "powershell.exe",
+            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Get-WindowsCapability -Online | Where-Object {{$_.Name -match '{pattern}' -and $_.State -eq 'Installed'}} | Remove-WindowsCapability -Online -ErrorAction SilentlyContinue | Out-Null\"",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        using var proc = Process.Start(psi);
+        proc?.WaitForExit(180000);  // DISM ops can be slow
+        if (proc?.ExitCode == 0)
+            GuardLogger.Info("Applied: RemoveOptionalCapabilities (IE/StepsRecorder/WordPad)");
+        else
+            GuardLogger.Warn("RemoveOptionalCapabilities: no capabilities removed (absent or admin required)");
+    }
+
     /// <summary>Check if a package family name matches any whitelist entry</summary>
     public static bool IsWhitelisted(string packageFamilyName, List<string> whitelist)
     {
@@ -556,6 +593,7 @@ public static class RegistryGuard
     private const string GameDvrPolicyPath = @"SOFTWARE\Policies\Microsoft\Windows\GameDVR";
     private const string DoPolicyPath = @"SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization";
     private const string AiFabricServicePath = @"SYSTEM\CurrentControlSet\Services\WSAIFabricSvc";
+    private const string OneDrivePolicyPath = @"SOFTWARE\Policies\Microsoft\Windows\OneDrive";
 
     // Per-user paths (relative to a user hive root — HKCU or HKEY_USERS\<SID>)
     private const string UserCdmPath = @"Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager";
@@ -576,6 +614,8 @@ public static class RegistryGuard
     private const string UserGameConfigStorePath = @"System\GameConfigStore";
     private const string UserGameDvrPath = @"Software\Microsoft\Windows\CurrentVersion\GameDVR";
     private const string UserDeliveryOptimizationPath = @"Software\Microsoft\Windows\CurrentVersion\DeliveryOptimization\Settings";
+    private const string UserExplorerPoliciesBasePath = @"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer";
+    private const string UserOneDriveClsidPath = @"Software\Classes\CLSID\{018D5C66-4533-4307-9B53-224DE2ED1FE6}";
     private const string UserAccountNotificationsPath = @"Software\Microsoft\Windows\CurrentVersion\SystemSettings\AccountNotifications";
     private const string UserSuggestedToastPath = @"Software\Microsoft\Windows\CurrentVersion\Notifications\Settings\Windows.SystemToast.Suggested";
     private const string UserMobilityPath = @"Software\Microsoft\Windows\CurrentVersion\Mobility";
@@ -622,6 +662,15 @@ public static class RegistryGuard
 
         if (layers.DisableDeliveryOptimization)
             DisableDeliveryOptimization();
+
+        if (layers.DisableOneDrive)
+            DisableOneDrive();
+
+        if (layers.DisableChatTaskbar)
+            DisableChatTaskbar();
+
+        if (layers.DisableEdgeBloat)
+            DisableEdgeBloat();
     }
 
     /// <summary>
@@ -1039,6 +1088,59 @@ public static class RegistryGuard
         }
     }
 
+    /// <summary>Disable OneDrive sync (policy) + hide its Explorer navigation pin.
+    /// Opt-in layer — active file sync is affected, so the config default is off.</summary>
+    public static void DisableOneDrive()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(OneDrivePolicyPath);
+            key?.SetValue("DisableFileSyncNGSC", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            // Hide the OneDrive pin in Explorer's navigation pane for every user
+            SetUserDwordAllHives(UserOneDriveClsidPath, "System.IsPinnedToNameSpaceTree", 0);
+            GuardLogger.Info("Applied: DisableOneDrive (DisableFileSyncNGSC=1, nav pin hidden)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to disable OneDrive: {ex.Message}");
+        }
+    }
+
+    /// <summary>Hide the Teams Chat taskbar button (Win11: TaskbarDa-like TaskbarMn;
+    /// Win10 leftover: HideSCAMeetNow policy).</summary>
+    public static void DisableChatTaskbar()
+    {
+        try
+        {
+            SetUserDwordAllHives(UserExplorerAdvancedPath, "TaskbarMn", 0);
+            SetUserDwordAllHives(UserExplorerPoliciesBasePath, "HideSCAMeetNow", 1);
+            GuardLogger.Info("Applied: DisableChatTaskbar (TaskbarMn=0, HideSCAMeetNow=1)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to disable chat taskbar: {ex.Message}");
+        }
+    }
+
+    /// <summary>Edge residual bloat: sidebar, startup boost, prelaunch, first-run
+    /// experience — all documented Edge policy values.</summary>
+    public static void DisableEdgeBloat()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(EdgePolicyPath);
+            key?.SetValue("HubsSidebarEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("StartupBoostEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("AllowPrelaunch", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("HideFirstRunExperience", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            GuardLogger.Info("Applied: DisableEdgeBloat (sidebar/startup-boost/prelaunch/first-run off)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to disable Edge bloat: {ex.Message}");
+        }
+    }
+
     private static void RunToolSilent(string fileName, string arguments)
     {
         var psi = new ProcessStartInfo
@@ -1410,6 +1512,15 @@ public class GuardService : BackgroundService
             }
         }
 
+        // 2.5 Remove optional Windows capabilities (IE mode, Steps Recorder, WordPad)
+        if (_config.Prevention.RemoveOptionalCapabilities)
+        {
+            if (dryRun)
+                GuardLogger.Info("[DRY-RUN] Would remove optional capabilities (IE/StepsRecorder/WordPad) [requires admin]");
+            else
+                AppxManager.RemoveOptionalCapabilities();
+        }
+
         // 3. Re-apply registry settings (they can be reset by Windows Update)
         if (!dryRun)
             RegistryGuard.ApplyAll(_config.Prevention);
@@ -1471,7 +1582,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.10.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.11.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -1554,7 +1665,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.10.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.11.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -1706,8 +1817,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 6;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.10.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.10.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.11.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.11.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try

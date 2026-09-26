@@ -2,6 +2,21 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.11.0-mvp: OneDrive / Chat / Edge / capabilities
+
+### Added
+- **4 new prevention layers**:
+  - `DisableOneDrive` (**opt-in, default `false`**) — `DisableFileSyncNGSC=1` policy +
+    hides the OneDrive pin in Explorer (`CLSID\{018D5C66-…}` `System.IsPinnedToNameSpaceTree=0`,
+    all hives). Off by default because it affects active file sync.
+  - `DisableChatTaskbar` — hides the Teams Chat taskbar button (`TaskbarMn=0`,
+    `HideSCAMeetNow=1` legacy policy, all hives).
+  - `DisableEdgeBloat` — Edge policies `HubsSidebarEnabled=0`, `StartupBoostEnabled=0`,
+    `AllowPrelaunch=0`, `HideFirstRunExperience=1`.
+  - `RemoveOptionalCapabilities` — `Remove-WindowsCapability` for deprecated capabilities:
+    `Browser.InternetExplorer`, `App.StepsRecorder`, `Microsoft.Windows.WordPad`
+    (conservative list; admin only; skipped when absent).
+
 ## [Unreleased] — v1.10.0-mvp: privacy & telemetry hardening
 
 ### Added
