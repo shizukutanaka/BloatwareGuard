@@ -2,6 +2,54 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.9.0-mvp: Windows 11 24H2 coverage
+
+### Added
+- **Per-user settings now write to every user hive** — loaded `HKEY_USERS\<SID>` profiles + the
+  Default-profile template (`C:\Users\Default\NTUSER.DAT`, mounted via `reg load`) + HKCU. Running as
+  a SYSTEM service previously wrote HKCU → the *SYSTEM* hive, so suggestion/ad settings never reached
+  real users. New profiles created later also inherit them.
+- **4 new prevention layers** (`Prevention` config flags, default on):
+  - `DisableCopilot` — `TurnOffWindowsCopilot=1` policy (HKLM + all user hives)
+  - `DisableRecall` — `WindowsAI` policies `DisableAIDataAnalysis=1`, `TurnOffSavingSnapshots=1`,
+    `AllowRecallEnablement=0` + best-effort `Disable-WindowsOptionalFeature Recall` (24H2 Copilot+ PCs)
+  - `DisableSearchSuggestions` — `DisableSearchBoxSuggestions=1`, `BingSearchEnabled=0`,
+    `CortanaConsent=0` (all hives) — removes Bing web results + suggestions from Start/Search
+  - `DisableWidgets` — `AllowNewsAndInterests=0` + `EnableFeeds=0` policies, `TaskbarDa=0` per user
+- **`BlockProvisioning` expanded** to the full consumer-suggestion surface (mirrors Win11Debloat
+  `Disable_Windows_Suggestions.reg`): all `SubscribedContent-*` keys (incl. Settings suggestions
+  338393/353694/353696/353698, lock-screen 338387), `Start_IrisRecommendations` (Start ads),
+  `ShowSyncProviderNotifications` (Explorer ads), `ScoobeSystemSettingEnabled` ("finish setup" nag),
+  `EnableAccountNotifications`, `Windows.SystemToast.Suggested`, `Mobility\OptedIn`,
+  lock-screen `RotatingLockScreen*`.
+- **Blacklist: 17 new entries for Windows 11 23H2/24H2-era packages** (key set cross-checked against
+  Win11Debloat defaults): `MSTeams` (new Teams — old `MicrosoftTeams` entry did not match),
+  `Microsoft.OutlookForWindows` (preinstalled since 23H2), `Microsoft.WindowsCommunicationsApps`
+  (Mail/Calendar, discontinued), `MicrosoftCorporationII.MicrosoftFamily`, `...QuickAssist`,
+  `Microsoft.BingSearch`, `Microsoft.MicrosoftStickyNotes`, `Microsoft.Edge.GameAssist`,
+  `Disney`, `Amazon.com.Amazon`, `AmazonVideo.PrimeVideo`, `LinkedIn`, `Flipboard`,
+  `Asphalt8Airborne`, `CyberLinkMediaSuite`, `EclipseManager`; `KING.COM.CandyCrush` widened to
+  `KING.COM.` (all King.com promo games).
+- **C# service install**: idempotent reinstall (stop+delete existing), service description, and
+  `sc failure` restart-on-crash policy (60s/60s/5min).
+
+### Fixed
+- **`Microsoft.DevHome` was a dead blacklist entry** — real package is `Microsoft.Windows.DevHome`
+  (substring match can't bridge `Windows.`); corrected, which also catches
+  `Microsoft.Windows.DevHomeGitHubExtension`.
+- **Package enumeration only saw the current user** — `Get-AppxPackage` now runs with `-AllUsers`
+  when elevated (fallback to current-user scope otherwise, dedupe by PackageFullName), matching the
+  removal path that already used `-AllUsers`.
+- **Python lacked the framework-package guard** — `IsFramework` packages (dependency DLLs) are now
+  skipped like C#.
+- **Python provisioned removal did a second PowerShell lookup per package** — `PackageName` is now
+  selected up-front and passed to `Remove-AppxProvisionedPackage` directly (parity with C#).
+- **Python removal never tried `-AllUsers`** — admin runs now remove for all users first, falling
+  back to per-user (parity with C#).
+- **Python-generated `config.json` shipped a 4-entry whitelist** — now the full 8-entry shipped
+  whitelist (ShellExperienceHost, Cortana, SecHealthUI, Apprep.ChxApp included).
+- `GuardLogger` probed `EventLog.SourceExists` (registry hit) on **every** log line — now once.
+
 ## [Unreleased] — v1.8.0-mvp hardening
 
 ### Fixed

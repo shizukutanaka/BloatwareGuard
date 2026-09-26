@@ -1,20 +1,26 @@
-# BloatwareGuard v1.8.0-mvp
+# BloatwareGuard v1.9.0-mvp
 
 ## What It Does
 
-Removes Windows bloatware across **7 prevention layers** in both **Python** and **C#** implementations.
+Removes Windows bloatware across **11 prevention layers** in both **Python** and **C#** implementations.
+Per-user settings are written to **every loaded user hive + the Default profile template**, so they
+also apply correctly when the tool runs as a SYSTEM service and for users created later.
 
 ### Layers
 
 || Layer | Python | C# | Non-Admin |
 ||---|---|---|---|
-|| 1. AppxPackage removal | ✅ | ✅ | Regular→✓, SystemApp→skip |
+|| 1. AppxPackage removal (all users when admin) | ✅ | ✅ | Regular→✓, SystemApp→skip |
 || 2. ProvisionedPackage removal | ✅ | ✅ | Requires admin |
-|| 3. Consumer Experiences | ✅ | ✅ | HKCU write |
-|| 4. Cloud Content | ✅ | ✅ | HKCU write |
+|| 3. Consumer Experiences | ✅ | ✅ | HKLM (admin) |
+|| 4. Cloud Content | ✅ | ✅ | HKLM (admin) |
 || 5. Device Metadata | ✅ | ✅ | HKLM (admin) |
 || 6. OEM Scheduled Tasks | ✅ | ✅ | ✅ Disable works |
 || 7. Re-install Monitor | ✅ | ✅ | ✅ Service mode |
+|| 8. Copilot off (policy, all hives) | ✅ | ✅ | Own hive only |
+|| 9. Recall / Windows AI off (policy + feature removal) | ✅ | ✅ | Own hive only |
+|| 10. Search suggestions / Bing off (all hives) | ✅ | ✅ | Own hive only |
+|| 11. Widgets board off (policy + taskbar button) | ✅ | ✅ | HKLM needs admin |
 
 ---
 
@@ -133,8 +139,8 @@ dotnet publish src/BloatwareGuard.csproj -c Release -r win-x64 --self-contained 
 ## Version
 
 ```bash
-python bloatware_guard.py --version   # BloatwareGuard v1.8.0-mvp
-BloatwareGuard.exe --version          # BloatwareGuard v1.8.0-mvp
+python bloatware_guard.py --version   # BloatwareGuard v1.9.0-mvp
+BloatwareGuard.exe --version          # BloatwareGuard v1.9.0-mvp
 ```
 
 ---

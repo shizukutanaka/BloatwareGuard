@@ -11,6 +11,7 @@ using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Win32;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -68,6 +69,18 @@ public class PreventionLayers
 
     /// <summary>Layer 7: Monitor for re-installed packages and auto-remove</summary>
     public bool ReinstallMonitor { get; set; } = true;
+
+    /// <summary>Layer 8: Disable Windows Copilot via policy (HKLM + every user hive)</summary>
+    public bool DisableCopilot { get; set; } = true;
+
+    /// <summary>Layer 9: Disable Recall/AI data analysis via policy (24H2+) + feature removal</summary>
+    public bool DisableRecall { get; set; } = true;
+
+    /// <summary>Layer 10: Disable Bing web results & suggestions in Start/Search</summary>
+    public bool DisableSearchSuggestions { get; set; } = true;
+
+    /// <summary>Layer 11: Disable Widgets board (news & interests feed)</summary>
+    public bool DisableWidgets { get; set; } = true;
 }
 
 // ─── JSON source-gen context (trim-safe: avoids IL2026 with PublishTrimmed) ──
@@ -108,6 +121,8 @@ public static class GuardLogger
     public static void Warn(string msg) => Write("WARN", msg);
     public static void Error(string msg) => Write("ERROR", msg);
 
+    private static bool _sourceChecked;
+
     private static void Write(string level, string msg)
     {
         var line = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [{level}] {msg}";
@@ -115,7 +130,12 @@ public static class GuardLogger
 
         try
         {
-            EnsureSourceExists();
+            // SourceExists probes the registry — do it once, not per log line
+            if (!_sourceChecked)
+            {
+                _sourceChecked = true;
+                EnsureSourceExists();
+            }
             EventLog.WriteEntry(EventSource, msg,
                 level == "ERROR" ? EventLogEntryType.Error :
                 level == "WARN" ? EventLogEntryType.Warning :
@@ -258,9 +278,17 @@ public static class ConfigLoader
                 "Microsoft.Clipchamp",
                 "MicrosoftTeams",
                 "Microsoft.MicrosoftEdge.Stable",
-                "Microsoft.DevHome",
+                "Microsoft.Windows.DevHome",       // Dev Home (+ GitHub extension)
                 "Microsoft.Copilot",
                 "Clipchamp.Clipchamp",
+                "MSTeams",                          // New Teams (Work/School), provisioned via AppX push
+                "Microsoft.OutlookForWindows",      // New Outlook, preinstalled since 23H2
+                "Microsoft.WindowsCommunicationsApps", // Mail & Calendar (discontinued Dec 2024)
+                "MicrosoftCorporationII.MicrosoftFamily",
+                "MicrosoftCorporationII.QuickAssist",
+                "Microsoft.BingSearch",
+                "Microsoft.MicrosoftStickyNotes",
+                "Microsoft.Edge.GameAssist",
 
                 // Third-party bloatware commonly pre-installed
                 "McAfee",
@@ -271,7 +299,7 @@ public static class ConfigLoader
                 "RealtekSemiconductor",
                 "SynapticsIncorporated",
                 "BytedancePte.Ltd.TikTok",
-                "KING.COM.CandyCrush",
+                "KING.COM.",                       // CandyCrush + all King.com promo games
                 "A278AB0D.DisneyMagicKingdoms",
                 "A278AB0D.MarchofEmpires",
                 "D5EA27B7.Duolingo-LearnLanguagesforFree",
@@ -279,6 +307,14 @@ public static class ConfigLoader
                 "Facebook.InstagramBeta",
                 "Facebook.Facebook",
                 "WhatsApp",
+                "Disney",                          // Disney+ etc.
+                "Amazon.com.Amazon",
+                "AmazonVideo.PrimeVideo",
+                "LinkedIn",
+                "Flipboard",
+                "Asphalt8Airborne",
+                "CyberLinkMediaSuite",
+                "EclipseManager",
 
                 // OEM utilities (uncomment as needed)
                 // "DellInc.Dell",
@@ -318,11 +354,47 @@ public static class AppxManager
             blacklist.Where(b => !string.IsNullOrWhiteSpace(b)).Select(Regex.Escape));
         if (pattern.Length == 0)
             return results;  // empty pattern would -match every package
+
+        // -AllUsers catches packages installed for other profiles (requires admin —
+        // non-admin gets an error, so fall back to the current-user scope).
+        var output = RunPackageQuery(pattern, allUsers: true);
+        if (string.IsNullOrWhiteSpace(output))
+            output = RunPackageQuery(pattern, allUsers: false);
+
+        // -AllUsers returns one row per user — dedupe by PackageFullName
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        try
+        {
+            var doc = JsonDocument.Parse(output.Trim());
+            var elements = doc.RootElement.ValueKind == JsonValueKind.Array
+                ? doc.RootElement.EnumerateArray().ToList()
+                : new List<JsonElement> { doc.RootElement };
+            foreach (var el in elements)
+            {
+                var family = el.GetProperty("PackageFamilyName").GetString() ?? "";
+                var name = el.GetProperty("Name").GetString() ?? "";
+                var fullName = el.GetProperty("PackageFullName").GetString() ?? "";
+                var isFw = el.TryGetProperty("IsFramework", out var fw) && fw.ValueKind == JsonValueKind.True;
+                var installPath = el.TryGetProperty("InstallPath", out var ip) ? ip.GetString() : null;
+                if (!IsWhitelisted(family, whitelist) && seen.Add(fullName))
+                    results.Add((family, name, fullName, isFw, installPath));
+            }
+        }
+        catch { /* no matches or parse error */ }
+
+        return results;
+    }
+
+    private static string RunPackageQuery(string pattern, bool allUsers)
+    {
+        var scope = allUsers ? " -AllUsers" : "";
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Get-AppxPackage | Where-Object {{$_.PackageFamilyName -match '{pattern}'}} | Select-Object PackageFamilyName,Name,PackageFullName,IsFramework,InstallPath | ConvertTo-Json\"",
+            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Get-AppxPackage{scope} | Where-Object {{$_.PackageFamilyName -match '{pattern}'}} | Select-Object PackageFamilyName,Name,PackageFullName,IsFramework,InstallPath | ConvertTo-Json\"",
             RedirectStandardOutput = true,
+            RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true
         };
@@ -330,37 +402,7 @@ public static class AppxManager
         using var proc = Process.Start(psi);
         var output = proc?.StandardOutput.ReadToEnd() ?? "";
         proc?.WaitForExit();
-
-        try
-        {
-            var doc = JsonDocument.Parse(output.Trim());
-            if (doc.RootElement.ValueKind == JsonValueKind.Array)
-            {
-                foreach (var el in doc.RootElement.EnumerateArray())
-                {
-                    var family = el.GetProperty("PackageFamilyName").GetString() ?? "";
-                    var name = el.GetProperty("Name").GetString() ?? "";
-                    var fullName = el.GetProperty("PackageFullName").GetString() ?? "";
-                    var isFw = el.TryGetProperty("IsFramework", out var fw) && fw.ValueKind == JsonValueKind.True;
-                    var installPath = el.TryGetProperty("InstallPath", out var ip) ? ip.GetString() : null;
-                    if (!IsWhitelisted(family, whitelist))
-                        results.Add((family, name, fullName, isFw, installPath));
-                }
-            }
-            else if (doc.RootElement.ValueKind == JsonValueKind.Object)
-            {
-                var family = doc.RootElement.GetProperty("PackageFamilyName").GetString() ?? "";
-                var name = doc.RootElement.GetProperty("Name").GetString() ?? "";
-                var fullName = doc.RootElement.GetProperty("PackageFullName").GetString() ?? "";
-                var isFw = doc.RootElement.TryGetProperty("IsFramework", out var fw) && fw.ValueKind == JsonValueKind.True;
-                var installPath = doc.RootElement.TryGetProperty("InstallPath", out var ip) ? ip.GetString() : null;
-                if (!IsWhitelisted(family, whitelist))
-                    results.Add((family, name, fullName, isFw, installPath));
-            }
-        }
-        catch { /* no matches or parse error */ }
-
-        return results;
+        return proc?.ExitCode == 0 ? output : "";
     }
 
     /// <summary>Check if a package family name matches any whitelist entry</summary>
@@ -494,6 +536,30 @@ public static class RegistryGuard
     private const string DeviceMetadataPath = @"SOFTWARE\Policies\Microsoft\Windows\Device Metadata";
     private const string AppCompatPath = @"SOFTWARE\Policies\Microsoft\Windows\AppCompat";
     private const string WindowsSearchPath = @"SOFTWARE\Policies\Microsoft\Windows\Windows Search";
+    private const string WindowsCopilotPath = @"SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot";
+    private const string WindowsAiPath = @"SOFTWARE\Policies\Microsoft\Windows\WindowsAI";
+    private const string WidgetsDshPath = @"SOFTWARE\Policies\Microsoft\Dsh";
+    private const string WindowsFeedsPath = @"SOFTWARE\Policies\Microsoft\Windows\Windows Feeds";
+
+    // Per-user paths (relative to a user hive root — HKCU or HKEY_USERS\<SID>)
+    private const string UserCdmPath = @"Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager";
+    private const string UserExplorerAdvancedPath = @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced";
+    private const string UserExplorerPoliciesPath = @"Software\Policies\Microsoft\Windows\Explorer";
+    private const string UserCopilotPath = @"Software\Policies\Microsoft\Windows\WindowsCopilot";
+    private const string UserWindowsAiPath = @"Software\Policies\Microsoft\Windows\WindowsAI";
+    private const string UserSearchPath = @"Software\Microsoft\Windows\CurrentVersion\Search";
+    private const string UserProfileEngagementPath = @"Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement";
+    private const string UserAccountNotificationsPath = @"Software\Microsoft\Windows\CurrentVersion\SystemSettings\AccountNotifications";
+    private const string UserSuggestedToastPath = @"Software\Microsoft\Windows\CurrentVersion\Notifications\Settings\Windows.SystemToast.Suggested";
+    private const string UserMobilityPath = @"Software\Microsoft\Windows\CurrentVersion\Mobility";
+
+    // HKLM subkey where the Default-profile template hive is temporarily mounted
+    private const string DefaultHiveMount = @"BloatwareGuard_DefaultProfile";
+
+    // Matches real user profile SIDs (S-1-5-21-<machine>-<rid>), not .DEFAULT,
+    // S-1-5-18/19/20 (service accounts) or *_Classes virtual hives.
+    private static readonly Regex UserSidPattern =
+        new(@"^S-1-5-21-\d+-\d+-\d+-\d+$", RegexOptions.Compiled);
 
     public static void ApplyAll(PreventionLayers layers)
     {
@@ -508,6 +574,134 @@ public static class RegistryGuard
 
         if (layers.BlockProvisioning)
             BlockProvisioning();
+
+        if (layers.DisableCopilot)
+            DisableCopilot();
+
+        if (layers.DisableRecall)
+            DisableRecall();
+
+        if (layers.DisableSearchSuggestions)
+            DisableSearchSuggestions();
+
+        if (layers.DisableWidgets)
+            DisableWidgets();
+    }
+
+    /// <summary>
+    /// Run <paramref name="apply"/> against every writable user hive: each loaded
+    /// interactive profile under HKEY_USERS, the default-profile template (so future
+    /// users inherit the settings), and HKCU. A service running as SYSTEM writes only
+    /// to the SYSTEM hive without this — the per-user settings never reach real users.
+    /// </summary>
+    private static void ForEachUserHive(Action<RegistryKey> apply)
+    {
+        var applied = 0;
+
+        foreach (var sid in Registry.Users.GetSubKeyNames())
+        {
+            if (!UserSidPattern.IsMatch(sid))
+                continue;
+            try
+            {
+                using var hive = Registry.Users.OpenSubKey(sid, writable: true);
+                if (hive == null)
+                    continue;
+                apply(hive);
+                applied++;
+            }
+            catch (Exception ex)
+            {
+                GuardLogger.Warn($"Registry: could not write hive {sid}: {ex.Message}");
+            }
+        }
+
+        // Default-profile template — new user accounts copy this NTUSER.DAT.
+        // Not part of HKEY_USERS until manually mounted.
+        var defaultDat = GetDefaultProfileDat();
+        if (defaultDat != null)
+        {
+            try
+            {
+                RunRegSilent($"load \"HKLM\\{DefaultHiveMount}\" \"{defaultDat}\"");
+                try
+                {
+                    using var hive = Registry.LocalMachine.OpenSubKey(DefaultHiveMount, writable: true);
+                    if (hive != null)
+                    {
+                        apply(hive);
+                        applied++;
+                    }
+                }
+                finally
+                {
+                    RunRegSilent($"unload \"HKLM\\{DefaultHiveMount}\"");
+                }
+            }
+            catch (Exception ex)
+            {
+                GuardLogger.Warn($"Registry: default profile hive skipped: {ex.Message}");
+            }
+        }
+
+        // HKCU covers the launching user even when hive enumeration missed them
+        try
+        {
+            apply(Registry.CurrentUser);
+            applied++;
+        }
+        catch { }
+
+        if (applied == 0)
+            GuardLogger.Warn("Registry: no writable user hive found");
+    }
+
+    /// <summary>Default profile template path (usually C:\Users\Default\NTUSER.DAT).</summary>
+    private static string? GetDefaultProfileDat()
+    {
+        try
+        {
+            using var pl = Registry.LocalMachine.OpenSubKey(
+                @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList");
+            var dir = pl?.GetValue("Default") as string;
+            if (string.IsNullOrEmpty(dir))
+                dir = @"C:\Users\Default";
+            dir = Environment.ExpandEnvironmentVariables(dir);
+            var dat = Path.Combine(dir, "NTUSER.DAT");
+            return File.Exists(dat) ? dat : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Set a DWORD inside a mounted user hive root.</summary>
+    private static void SetHiveDword(RegistryKey hiveRoot, string path, string name, int value)
+    {
+        using var key = hiveRoot.CreateSubKey(path);
+        key?.SetValue(name, value, RegistryValueKind.DWord);
+    }
+
+    /// <summary>Apply the same DWORD under <paramref name="path"/> in every user hive.</summary>
+    private static void SetUserDwordAllHives(string path, string name, int value)
+    {
+        ForEachUserHive(hive => SetHiveDword(hive, path, name, value));
+    }
+
+    private static void RunRegSilent(string arguments)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = "reg.exe",
+            Arguments = arguments,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        using var proc = Process.Start(psi);
+        proc?.WaitForExit(15000);
     }
 
     /// <summary>Turn off Microsoft consumer experiences (suggested apps)</summary>
@@ -556,27 +750,141 @@ public static class RegistryGuard
         }
     }
 
-    /// <summary>Block provisioning packages from re-registering</summary>
+    /// <summary>Block provisioning packages from re-registering + all consumer
+    /// suggestion surfaces, applied to EVERY user hive (a SYSTEM service's HKCU
+    /// is the SYSTEM profile — useless without multi-hive writes).</summary>
     public static void BlockProvisioning()
     {
         try
         {
-            // Disable silent app install
             using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(CloudContentPath);
             key?.SetValue("DisableConsumerAccountContent", 1, Microsoft.Win32.RegistryValueKind.DWord);
 
-            // Also set per-user
-            using var cuKey = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(
-                @"SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager");
-            cuKey?.SetValue("SilentInstalledAppsEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
-            cuKey?.SetValue("SystemPaneSuggestionsEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
-            cuKey?.SetValue("SubscribedContent-338389Enabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // ContentDeliveryManager — silent installs + every SubscribedContent surface
+            // (key set mirrors Win11Debloat Disable_Windows_Suggestions.reg)
+            var cdmZeros = new[]
+            {
+                "SilentInstalledAppsEnabled",       // silent app installs
+                "SystemPaneSuggestionsEnabled",     // system pane suggestions
+                "SoftLandingEnabled",               // soft landing tips
+                "SubscribedContent-310093Enabled",  // Windows welcome experience
+                "SubscribedContent-338387Enabled",  // lock-screen spotlight ads
+                "SubscribedContent-338388Enabled",  // Start suggestions
+                "SubscribedContent-338389Enabled",  // tips while using Windows
+                "SubscribedContent-338393Enabled",  // Settings suggestions
+                "SubscribedContent-353694Enabled",  // Settings suggestions (2)
+                "SubscribedContent-353696Enabled",  // Settings suggestions (3)
+                "SubscribedContent-353698Enabled",  // Settings suggestions (4)
+                "RotatingLockScreenEnabled",        // lock-screen spotlight
+                "RotatingLockScreenOverlayEnabled", // lock-screen overlay ads
+            };
+            ForEachUserHive(hive =>
+            {
+                using var cdm = hive.CreateSubKey(UserCdmPath);
+                foreach (var name in cdmZeros)
+                    cdm?.SetValue(name, 0, RegistryValueKind.DWord);
 
-            GuardLogger.Info("Applied: BlockProvisioning (silent installs + suggestions disabled)");
+                SetHiveDword(hive, UserExplorerAdvancedPath, "Start_IrisRecommendations", 0);
+                SetHiveDword(hive, UserExplorerAdvancedPath, "ShowSyncProviderNotifications", 0);
+                SetHiveDword(hive, UserProfileEngagementPath, "ScoobeSystemSettingEnabled", 0);
+                SetHiveDword(hive, UserAccountNotificationsPath, "EnableAccountNotifications", 0);
+                SetHiveDword(hive, UserSuggestedToastPath, "Enabled", 0);
+                SetHiveDword(hive, UserMobilityPath, "OptedIn", 0);
+            });
+
+            GuardLogger.Info("Applied: BlockProvisioning (silent installs + all suggestion surfaces, all hives)");
         }
         catch (Exception ex)
         {
             GuardLogger.Error($"Failed to block provisioning: {ex.Message}");
+        }
+    }
+
+    /// <summary>Disable Windows Copilot via policy — HKLM + every user hive.
+    /// The Copilot app itself is removed via the Blacklist.</summary>
+    public static void DisableCopilot()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(WindowsCopilotPath);
+            key?.SetValue("TurnOffWindowsCopilot", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            SetUserDwordAllHives(UserCopilotPath, "TurnOffWindowsCopilot", 1);
+            GuardLogger.Info("Applied: DisableCopilot (TurnOffWindowsCopilot = 1, HKLM + user hives)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to disable Copilot: {ex.Message}");
+        }
+    }
+
+    /// <summary>Disable Recall / Windows AI data analysis (24H2+, Copilot+ PCs).
+    /// Policy keys block snapshot capture; the optional feature is also removed best-effort.</summary>
+    public static void DisableRecall()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(WindowsAiPath);
+            key?.SetValue("DisableAIDataAnalysis", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("TurnOffSavingSnapshots", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("AllowRecallEnablement", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            SetUserDwordAllHives(UserWindowsAiPath, "DisableAIDataAnalysis", 1);
+
+            // Remove the optional feature entirely where present — absent on most
+            // hardware, so failure is expected and logged only at Warn.
+            var psi = new ProcessStartInfo
+            {
+                FileName = "powershell.exe",
+                Arguments = "-NoProfile -ExecutionPolicy Bypass -Command \"Disable-WindowsOptionalFeature -Online -FeatureName 'Recall' -NoRestart -ErrorAction SilentlyContinue | Out-Null\"",
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            using var proc = Process.Start(psi);
+            proc?.WaitForExit(120000);
+
+            GuardLogger.Info("Applied: DisableRecall (WindowsAI policies set, Recall feature removal attempted)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to disable Recall: {ex.Message}");
+        }
+    }
+
+    /// <summary>Disable Bing web results + suggestions in Start/Search — every user hive.</summary>
+    public static void DisableSearchSuggestions()
+    {
+        try
+        {
+            ForEachUserHive(hive =>
+            {
+                SetHiveDword(hive, UserExplorerPoliciesPath, "DisableSearchBoxSuggestions", 1);
+                SetHiveDword(hive, UserSearchPath, "BingSearchEnabled", 0);
+                SetHiveDword(hive, UserSearchPath, "CortanaConsent", 0);
+            });
+            GuardLogger.Info("Applied: DisableSearchSuggestions (Bing/search suggestions off, all hives)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to disable search suggestions: {ex.Message}");
+        }
+    }
+
+    /// <summary>Disable the Widgets board (news &amp; interests feed) via policy +
+    /// hide the taskbar button in every user hive.</summary>
+    public static void DisableWidgets()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(WidgetsDshPath);
+            key?.SetValue("AllowNewsAndInterests", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            using var feeds = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(WindowsFeedsPath);
+            feeds?.SetValue("EnableFeeds", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            SetUserDwordAllHives(UserExplorerAdvancedPath, "TaskbarDa", 0);
+            GuardLogger.Info("Applied: DisableWidgets (AllowNewsAndInterests = 0, TaskbarDa = 0)");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to disable widgets: {ex.Message}");
         }
     }
 }
@@ -997,7 +1305,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.8.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.9.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -1080,7 +1388,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.8.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.9.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -1106,15 +1414,26 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
     private static void InstallService()
     {
         var exePath = Process.GetCurrentProcess().MainModule?.FileName ?? "";
+
+        // Idempotent reinstall + description + restart-on-failure in ONE elevated
+        // shell — a single UAC prompt covers every sc.exe call. `&` continues even
+        // if a step legitimately fails (stop/delete on first install).
+        var chain =
+            "sc stop BloatwareGuard & sc delete BloatwareGuard & " +
+            "ping -n 3 127.0.0.1 > nul & " +  // brief wait so SCM finishes deleting
+            $"sc create BloatwareGuard binPath= \"{exePath}\" start= auto DisplayName= \"Bloatware Guard\" & " +
+            "sc description BloatwareGuard \"Blocks and removes pre-installed Windows bloatware\" & " +
+            "sc failure BloatwareGuard reset= 86400 actions= restart/60000/restart/60000/restart/300000";
+
         var psi = new ProcessStartInfo
         {
-            FileName = "sc.exe",
-            Arguments = $"create BloatwareGuard binPath= \"{exePath}\" start= auto DisplayName= \"Bloatware Guard\"",
+            FileName = "cmd.exe",
+            Arguments = $"/c {chain}",
             UseShellExecute = true,
             Verb = "runas"
         };
         Process.Start(psi);
-        GuardLogger.Info("Service installed. Use 'sc start BloatwareGuard' to start.");
+        GuardLogger.Info("Service installed (idempotent, restart-on-failure: 60s/60s/5min). Use 'sc start BloatwareGuard' to start.");
     }
 
     private static void UninstallService()
@@ -1221,8 +1540,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 6;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.8.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.8.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.9.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.9.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try

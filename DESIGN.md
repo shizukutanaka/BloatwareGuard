@@ -21,8 +21,11 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 │    ├─ DisableSoftLanding = 1                        │
 │    ├─ DisableCloudOptimizedContent = 1              │
 │    ├─ PreventDeviceMetadataFromNetwork = 1          │
-│    ├─ SilentInstalledAppsEnabled = 0                │
-│    └─ SystemPaneSuggestionsEnabled = 0              │
+│    ├─ CDM SubscribedContent/* = 0 (all hives)       │
+│    ├─ TurnOffWindowsCopilot = 1 (HKLM+hives)        │
+│    ├─ WindowsAI: DisableAIDataAnalysis = 1 等       │
+│    ├─ DisableSearchBoxSuggestions = 1 (all hives)   │
+│    └─ Dsh: AllowNewsAndInterests = 0 + TaskbarDa=0  │
 ├─────────────────────────────────────────────────────┤
 │  Config: config.json (blacklist + intervals)        │
 │  Log: Windows Event Log + file                      │
@@ -40,6 +43,11 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 | Device Metadata (companion app自動DL) | PreventDeviceMetadataFromNetwork=1 | PreventDeviceMetadata |
 | OEM Scheduled Tasks | schtasks /DISABLE | DisableOemScheduledTasks |
 | Silent App Install | SilentInstalledAppsEnabled=0 | BlockProvisioning |
+| 各種サジェスト/広告面 (Start/設定/ロック画面/トースト) | SubscribedContent-*=0, Start_IrisRecommendations=0, ShowSyncProviderNotifications=0 等 — 全ユーザーハイブ+Defaultテンプレート | BlockProvisioning |
+| Copilot | TurnOffWindowsCopilot=1 (HKLM+全ハイブ) | DisableCopilot |
+| Recall/AI スナップショット | DisableAIDataAnalysis=1, TurnOffSavingSnapshots=1, AllowRecallEnablement=0 + Disable-WindowsOptionalFeature | DisableRecall |
+| Bing/検索サジェスト | DisableSearchBoxSuggestions=1, BingSearchEnabled=0 (全ハイブ) | DisableSearchSuggestions |
+| ウィジェット/ニュース | AllowNewsAndInterests=0, EnableFeeds=0, TaskbarDa=0 | DisableWidgets |
 
 ## ブラックリスト方式
 - config.json の `Blacklist` にパッケージ名の**部分一致**パターンを列挙
