@@ -1386,6 +1386,8 @@ public static class RegistryGuard
             // Settings "Home" page — the Microsoft 365 / account promo card
             using var exp = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(ExplorerPoliciesHklmPath);
             exp?.SetValue("SettingsPageVisibility", "hide:home");
+            // Third-party content suggestions surface (sponsored tiles/ads)
+            key?.SetValue("DisableThirdPartySuggestions", 1, Microsoft.Win32.RegistryValueKind.DWord);
             GuardLogger.Info("Applied: DisableSoftLanding + DisableCloudOptimizedContent = 1 + Settings Home promo hidden");
         }
         catch (Exception ex)
@@ -1708,6 +1710,11 @@ public static class RegistryGuard
                 using var fdb = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Windows\DataCollection");
                 fdb?.SetValue("DoNotShowFeedbackNotifications", 1, Microsoft.Win32.RegistryValueKind.DWord);
+
+                // OneSettings periodic config download (recommendations channel)
+                using var ones = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\OneSettings");
+                ones?.SetValue("DisableOneSettingsFileDownloads", 1, Microsoft.Win32.RegistryValueKind.DWord);
             }
             catch { }
             // "Share across devices" (Connected Devices Platform) user consent off
@@ -1845,6 +1852,14 @@ public static class RegistryGuard
             // Cross-device Collections + Follow feeds
             key?.SetValue("EdgeCollectionsEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("EdgeFollowEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // Edge Drop syncs files to OneDrive; crypto wallet + asset
+            // delivery service are promo/feature-download surfaces
+            key?.SetValue("DropEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("CryptoWalletEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("EdgeAssetDeliveryServiceEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // Promo tabs + desktop web widget (feature/promo surfaces)
+            key?.SetValue("PromotionalTabsEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("WebWidgetAllowed", 0, Microsoft.Win32.RegistryValueKind.DWord);
             GuardLogger.Info("Applied: DisableEdgeBloat (sidebar/startup-boost/prelaunch/first-run/shopping/recommendations/URL-leak surfaces off)");
         }
         catch (Exception ex)
@@ -2118,7 +2133,11 @@ public static class RegistryGuard
             using var meta = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                 @"SOFTWARE\Microsoft\Windows\CurrentVersion\Device Metadata");
             meta?.SetValue("PreventDeviceMetadataFromNetwork", 1, Microsoft.Win32.RegistryValueKind.DWord);
-            GuardLogger.Info("Applied: BlockOemDriverUpdates (ExcludeWUDriversInQualityUpdate=1)");
+            // Never search Windows Update for drivers on new hardware either
+            using var dsrch = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Microsoft\Windows\CurrentVersion\DriverSearching");
+            dsrch?.SetValue("SearchOrderConfig", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            GuardLogger.Info("Applied: BlockOemDriverUpdates (ExcludeWUDriversInQualityUpdate=1, SearchOrderConfig=0)");
         }
         catch (Exception ex)
         {
@@ -3141,7 +3160,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.42.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.43.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -3226,7 +3245,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.42.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.43.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -3378,8 +3397,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 6;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.42.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.42.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.43.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.43.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try

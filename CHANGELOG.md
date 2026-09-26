@@ -2,6 +2,18 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.43.0-mvp: OneSettings, driver search, diagnostics hosts
+
+### Changed
+- `DisableTelemetry`: `DisableOneSettingsFileDownloads=1` — blocks the
+  periodic OneSettings config download Microsoft uses for recommendations.
+- `BlockOemDriverUpdates`: `DriverSearching\SearchOrderConfig=0` — Windows
+  Update is never searched for drivers when new hardware is plugged in.
+- `DisableCloudContent`: `DisableThirdPartySuggestions=1` (sponsored tiles).
+- `DisableEdgeBloat`: `PromotionalTabsEnabled`, `WebWidgetAllowed` off.
+- `DisableMiscBloatServices`: 21 → 23 — `WdiSystemHost`/`WdiServiceHost`
+  (Diagnostic Service Host pair running WDI diagnostics sessions).
+
 ## [Unreleased] — v1.42.0-mvp: service demotion sweep + CEIP/feedback policies
 
 ### Changed

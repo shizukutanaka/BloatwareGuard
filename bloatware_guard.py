@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.42.0-mvp - Python prototype
+BloatwareGuard v1.43.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -34,7 +34,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.42.0-mvp"
+APP_VERSION = "1.43.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -829,6 +829,8 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         # Settings "Home" page — the Microsoft 365 / account promo card
         set_registry_string("HKLM", _EXPLORER_POLICIES_HKLM,
                             "SettingsPageVisibility", "hide:home")
+        # Third-party content suggestions surface (sponsored tiles/ads)
+        set_registry_dword("HKLM", cloud_content, "DisableThirdPartySuggestions", 1)
         logger.info("Applied: DisableSoftLanding + DisableCloudOptimizedContent = 1 "
                     "+ Settings Home promo page hidden")
 
@@ -1017,6 +1019,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                            "CEIPEnable", 0)
         set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\DataCollection",
                            "DoNotShowFeedbackNotifications", 1)
+        # OneSettings periodic config download (recommendations channel)
+        set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\OneSettings",
+                           "DisableOneSettingsFileDownloads", 1)
         # "Share across devices" (Connected Devices Platform) consent off
         cdp = r"Software\Microsoft\Windows\CurrentVersion\CDP"
         set_user_dword_all_hives(cdp, "CdpSessionUserAuthzPolicy", 0, logger)
@@ -1088,6 +1093,14 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword("HKLM", edge_pol, name, 0)
         # 2 = never predict/pre-resolve via Microsoft web service
         set_registry_dword("HKLM", edge_pol, "NetworkPredictionOptions", 2)
+        # Promo tabs + desktop web widget (feature/promo surfaces)
+        set_registry_dword("HKLM", edge_pol, "PromotionalTabsEnabled", 0)
+        set_registry_dword("HKLM", edge_pol, "WebWidgetAllowed", 0)
+        # Drop syncs files to OneDrive; crypto wallet + asset delivery service
+        # are promo/feature-download surfaces
+        for name in ("DropEnabled", "CryptoWalletEnabled",
+                     "EdgeAssetDeliveryServiceEnabled"):
+            set_registry_dword("HKLM", edge_pol, name, 0)
         logger.info("Applied: DisableEdgeBloat (sidebar/startup-boost/"
                     "prelaunch/first-run/shopping/recommendations off)")
 
@@ -1128,6 +1141,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_registry_dword("HKLM",
                            r"SOFTWARE\Microsoft\Windows\CurrentVersion\Device Metadata",
                            "PreventDeviceMetadataFromNetwork", 1)
+        # Never search Windows Update for drivers on new hardware either
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Microsoft\Windows\CurrentVersion\DriverSearching",
+                           "SearchOrderConfig", 0)
         logger.info("Applied: BlockOemDriverUpdates "
                     "(ExcludeWUDriversInQualityUpdate=1)")
 
@@ -1232,14 +1249,16 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                     # Per-user service templates for Mail/People/contacts
                     # sync — dead weight once those apps are removed
                     "CDPUserSvc", "OneSyncSvc", "UnistoreSvc",
-                    "UserDataSvc", "PimIndexMaintenanceSvc"):
+                    "UserDataSvc", "PimIndexMaintenanceSvc",
+                    # Diagnostic Service Host pair — WDI diagnostics sessions
+                    "WdiSystemHost", "WdiServiceHost"):
             demote_service(svc)
         # Remote Registry: remote registry read/write over SMB — disabled
         # outright (demand-start would still leave the surface reachable)
         run_cmd(["sc.exe", "stop", "RemoteRegistry"])
         run_cmd(["sc.exe", "config", "RemoteRegistry", "start=", "disabled"])
         logger.info("Applied: DisableMiscBloatServices "
-                    "(21 services → demand-start, RemoteRegistry disabled)")
+                    "(23 services → demand-start, RemoteRegistry disabled)")
 
     if prev.get("DisableSpotlight", True):
         # Desktop Spotlight = content-delivery channel (wallpaper promos)
