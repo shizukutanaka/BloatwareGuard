@@ -4,6 +4,11 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 
 ## [Unreleased] — v1.8.0-mvp hardening
 
+### Added — debloat round 5 (telemetry services + missed autostart/policy spots)
+- **1 new prevention toggle** (default-on): `DisableTelemetryServices` — `sc stop` + `start= disabled` on `DiagTrack` (Connected User Experiences and Telemetry — the main telemetry pipeline), `dmwappushservice`, `RetailDemo`, Xbox Live leftovers (`XblAuthManager`/`XblGameSave`/`XboxNetApiSvc` — dead once the Xbox apps are gone), and legacy `WMPNetworkSvc`; plus `EnableActiveProbing=0` on NCSI (stops `msftconnecttest.com` connectivity probes).
+- **Coverage extensions**: `Policies\Explorer\Run` added to the startup sweep (overlooked autostart hive, also a known malware-persistence path); `DisableWindowsSpotlightFeatures=1` (lock-screen Spotlight); `AllowWindowsInkWorkspace=0`; `SubscribedContent-338380Enabled` (Settings-app suggestions) in the CDM killswitch set.
+- Self-tests: Python 16 checks, C# 12.
+
 ### Added — debloat round 4 (telemetry kill-chain + winget + deprecated features)
 - **4 more prevention toggles** (all default-on):
   - `BlockTelemetryEndpoints` — null-routes **26 pure-telemetry domains** through a marked hosts-file block (the Spybot Anti-Beacon technique). Conservative list — no Windows Update / Store / activation endpoints — and **fully reversible**: toggling the flag off removes the marked block.

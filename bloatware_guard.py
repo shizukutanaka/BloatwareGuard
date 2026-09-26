@@ -166,6 +166,7 @@ def load_config(path: Path) -> dict:
                 "BlockTelemetryEndpoints": True,
                 "WingetSweep": True,
                 "RemoveDeprecatedCapabilities": True,
+                "DisableTelemetryServices": True,
             },
             "DryRun": False,
         }
@@ -424,8 +425,9 @@ CONTENT_DELIVERY_VALUES = (
     "SoftLandingEnabled", "SystemPaneSuggestionsEnabled",
     "SubscribedContent-310093Enabled", "SubscribedContent-338387Enabled",
     "SubscribedContent-338388Enabled", "SubscribedContent-338389Enabled",
-    "SubscribedContent-338393Enabled", "SubscribedContent-353694Enabled",
-    "SubscribedContent-353696Enabled", "SubscribedContent-353698Enabled",
+    "SubscribedContent-338380Enabled", "SubscribedContent-338393Enabled",
+    "SubscribedContent-353694Enabled", "SubscribedContent-353696Enabled",
+    "SubscribedContent-353698Enabled",
 )
 
 
@@ -568,12 +570,15 @@ TELEMETRY_POLICY_WRITES = (
     (r"SOFTWARE\Policies\Microsoft\Windows\System", "AllowCrossDeviceClipboard", 0),
     (r"SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo", "DisabledByGroupPolicy", 1),
     (r"SOFTWARE\Policies\Microsoft\Windows\LocationAndSensors", "DisableLocationScripting", 1),
+    (r"SOFTWARE\Policies\Microsoft\WindowsInkWorkspace", "AllowWindowsInkWorkspace", 0),
     # Delivery Optimization P2P upload off (HTTP-only download mode)
     (r"SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization", "DODownloadMode", 0),
     # WER: never send extra crash data to Microsoft
     (r"SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting", "DontSendAdditionalData", 1),
     # Skip the OOBE privacy questions for new users
     (r"SOFTWARE\Policies\Microsoft\Windows\OOBE", "DisablePrivacyExperience", 1),
+    # Windows Spotlight on lock screen / desktop
+    (r"SOFTWARE\Policies\Microsoft\Windows\CloudContent", "DisableWindowsSpotlightFeatures", 1),
     # Hide the Start-menu "Recommended" section (ads + suggested apps slot)
     (EXPLORER_POLICY_PATH, "HideRecommendedSection", 1),
 )
@@ -619,6 +624,8 @@ VENDOR_PATTERNS = (
 RUN_KEY_PATHS = (
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Run",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce",
+    # often-overlooked autostart hive (also abused by malware persistence)
+    r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run",
 )
 HKLM_RUN_KEY_PATHS = RUN_KEY_PATHS + tuple(
     "SOFTWARE\\WOW6432Node\\" + p[len("SOFTWARE\\"):] for p in RUN_KEY_PATHS)
@@ -679,6 +686,21 @@ GAMEDVR_USER_WRITES = (
     (r"SOFTWARE\Microsoft\Windows\CurrentVersion\GameDVR", "AppCaptureEnabled", 0),
     (r"SOFTWARE\System\GameConfigStore", "GameDVR_Enabled", 0),
 )
+
+# Telemetry/leftover system services — disabled outright. DiagTrack is the main
+# telemetry pipeline; the Xbox services are dead once the Xbox apps are gone.
+TELEMETRY_SERVICES = (
+    "DiagTrack",          # Connected User Experiences and Telemetry
+    "dmwappushservice",   # WAP Push Message Routing (telemetry channel)
+    "RetailDemo",         # Retail Demo service
+    "XblAuthManager",     # Xbox Live Auth — dead once Xbox apps are gone
+    "XblGameSave",        # Xbox Live Game Save
+    "XboxNetApiSvc",      # Xbox Live Networking
+    "WMPNetworkSvc",      # Windows Media Player network sharing (legacy)
+)
+
+# NCSI active probing phones home to msftconnecttest.com on every reconnect
+NCSI_PATH = r"SYSTEM\CurrentControlSet\Services\NlaSvc\Parameters\Internet"
 
 
 # Microsoft telemetry/CEIP scheduled tasks — explicit full paths, disabled outright.
@@ -893,6 +915,28 @@ def disable_oem_services(logger: logging.Logger):
     logger.info(f"Disabled {disabled} OEM/vendor services")
 
 
+def disable_telemetry_services(logger: logging.Logger) -> int:
+    """Stop + disable telemetry/leftover system services (DiagTrack, Xbox
+    leftovers, WMP sharing) and kill NCSI active-probing connectivity checks."""
+    disabled = 0
+    for name in TELEMETRY_SERVICES:
+        _, rc = run_cmd(["sc.exe", "query", name], timeout=10)
+        if rc != 0:
+            continue  # service not present on this machine
+        run_cmd(["sc.exe", "stop", name], timeout=20)
+        _, rc2 = run_cmd(["sc.exe", "config", name, "start=", "disabled"], timeout=15)
+        if rc2 == 0:
+            disabled += 1
+            logger.info(f"Disabled telemetry service: {name}")
+        else:
+            logger.warning(f"Service disable failed [admin required?]: {name}")
+    # NCSI active probing — stops msftconnecttest.com connectivity checks
+    if set_registry_dword("HKLM", NCSI_PATH, "EnableActiveProbing", 0):
+        logger.info("Applied: NCSI EnableActiveProbing = 0")
+    logger.info(f"Disabled {disabled} telemetry/leftover services")
+    return disabled
+
+
 def _hosts_file_path() -> Path:
     windir = os.environ.get("SystemRoot", r"C:\Windows")
     return Path(windir) / "System32" / "drivers" / "etc" / "hosts"
@@ -1016,7 +1060,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
     if prev.get("DisableCloudContent", True):
         set_registry_dword("HKLM", cloud_content, "DisableSoftLanding", 1)
         set_registry_dword("HKLM", cloud_content, "DisableCloudOptimizedContent", 1)
-        logger.info("Applied: DisableSoftLanding + DisableCloudOptimizedContent = 1")
+        set_registry_dword("HKLM", cloud_content, "DisableWindowsSpotlightFeatures", 1)
+        logger.info("Applied: DisableSoftLanding + DisableCloudOptimizedContent"
+                    " + DisableWindowsSpotlightFeatures = 1")
 
     if prev.get("PreventDeviceMetadata", True):
         if set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\Device Metadata",
@@ -1250,7 +1296,13 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
         else:
             remove_deprecated_capabilities(logger)
 
-    # 7. OEM auto-start services + Run-key startup entries
+    # 7. Telemetry + OEM auto-start services + Run-key startup entries
+    if prev.get("DisableTelemetryServices", True):
+        if dry_run:
+            logger.info(f"[DRY-RUN] Would disable {len(TELEMETRY_SERVICES)} telemetry services")
+        else:
+            disable_telemetry_services(logger)
+
     if prev.get("DisableOemServices", True):
         if dry_run:
             logger.info("[DRY-RUN] Would disable OEM/vendor services")
@@ -1525,7 +1577,8 @@ def run_self_test() -> int:
                     "HardenEdgePolicies", "CleanStartupEntries",
                     "DisableOemServices", "RemoveWin32Bloatware",
                     "DisableGameDvr", "BlockTelemetryEndpoints",
-                    "WingetSweep", "RemoveDeprecatedCapabilities"]
+                    "WingetSweep", "RemoveDeprecatedCapabilities",
+                    "DisableTelemetryServices"]
         missing = [k for k in required if k not in prev]
         assert not missing, f"missing prevention keys: {missing}"
 
@@ -1578,6 +1631,7 @@ def run_self_test() -> int:
     def t_deprecated_capabilities():
         assert len(DEPRECATED_CAPABILITIES) >= 2
         assert all("*" not in c and c.strip() for c in DEPRECATED_CAPABILITIES)
+        assert len(TELEMETRY_SERVICES) >= 5 and "DiagTrack" in TELEMETRY_SERVICES
 
     def t_removal_ledger():
         with tempfile.TemporaryDirectory() as td:
@@ -1597,7 +1651,7 @@ def run_self_test() -> int:
     check("T3: Get-AppxPackage JSON parsing (+framework/dedupe)", t_get_packages_parse)
     check("T4: Logger file + console wiring", t_logging)
     check("T5: is_admin() callable", t_is_admin)
-    check("T6: Prevention layers — 24 registered", t_prevention_layers)
+    check("T6: Prevention layers — 25 registered", t_prevention_layers)
     check("T7: Removal ledger write/read", t_removal_ledger)
     check("T8: Full-name batch map", t_full_name_map)
     check("T9: ProvisionedPackage parse (name + family)", t_get_provisioned_parse)

@@ -125,6 +125,10 @@ public class PreventionLayers
 
     /// <summary>Remove deprecated Windows capabilities (WordPad, Steps Recorder)</summary>
     public bool RemoveDeprecatedCapabilities { get; set; } = true;
+
+    /// <summary>Stop + disable telemetry/leftover system services (DiagTrack,
+    /// dmwappushservice, Xbox leftovers, WMP sharing) + NCSI active probing</summary>
+    public bool DisableTelemetryServices { get; set; } = true;
 }
 
 // ─── JSON source-gen context (trim-safe: avoids IL2026 with PublishTrimmed) ──
@@ -615,12 +619,15 @@ public static class RegistryGuard
         (@"SOFTWARE\Policies\Microsoft\Windows\System", "AllowCrossDeviceClipboard", 0),
         (@"SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo", "DisabledByGroupPolicy", 1),
         (@"SOFTWARE\Policies\Microsoft\Windows\LocationAndSensors", "DisableLocationScripting", 1),
+        (@"SOFTWARE\Policies\Microsoft\WindowsInkWorkspace", "AllowWindowsInkWorkspace", 0),
         // Delivery Optimization P2P upload off (HTTP-only download mode)
         (@"SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization", "DODownloadMode", 0),
         // WER: never send extra crash data to Microsoft
         (@"SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting", "DontSendAdditionalData", 1),
         // Skip the OOBE privacy questions for new users
         (@"SOFTWARE\Policies\Microsoft\Windows\OOBE", "DisablePrivacyExperience", 1),
+        // Windows Spotlight on lock screen / desktop
+        (@"SOFTWARE\Policies\Microsoft\Windows\CloudContent", "DisableWindowsSpotlightFeatures", 1),
         // Hide the Start-menu "Recommended" section (ads + suggested apps slot)
         (ExplorerPolicyPath, "HideRecommendedSection", 1),
     };
@@ -666,8 +673,9 @@ public static class RegistryGuard
         "SoftLandingEnabled", "SystemPaneSuggestionsEnabled",
         "SubscribedContent-310093Enabled", "SubscribedContent-338387Enabled",
         "SubscribedContent-338388Enabled", "SubscribedContent-338389Enabled",
-        "SubscribedContent-338393Enabled", "SubscribedContent-353694Enabled",
-        "SubscribedContent-353696Enabled", "SubscribedContent-353698Enabled",
+        "SubscribedContent-338380Enabled", "SubscribedContent-338393Enabled",
+        "SubscribedContent-353694Enabled", "SubscribedContent-353696Enabled",
+        "SubscribedContent-353698Enabled",
     };
 
     public static void ApplyAll(PreventionLayers layers)
@@ -1268,16 +1276,21 @@ public static class Win32BloatGuard
         "Dropbox", "Spotify", "Adobe Creative Cloud", "CCleaner", "Booking.com",
     };
 
-    // Run/RunOnce keys swept for startup bloat — HKLM 64- and 32-bit views
+    // Run/RunOnce keys swept for startup bloat — HKLM 64- and 32-bit views.
+    // Policies\Explorer\Run is an often-overlooked autostart hive (also abused
+    // for malware persistence).
     private static readonly string[] HklmRunKeyPaths = {
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run",
         @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Run",
         @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\RunOnce",
+        @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run",
     };
     private static readonly string[] RunKeyPaths = {
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run",
     };
 
     // Win32 uninstall hives — 64- and 32-bit views
@@ -1317,6 +1330,21 @@ public static class Win32BloatGuard
         "Microsoft.Windows.WordPad",  // deprecated — removed from builds > 26020
         "App.StepsRecorder",          // deprecated, slated for removal
     };
+
+    // Telemetry/leftover system services — disabled outright. DiagTrack is the
+    // main telemetry pipeline; the Xbox services are dead once Xbox apps go.
+    private static readonly string[] TelemetryServices = {
+        "DiagTrack",          // Connected User Experiences and Telemetry
+        "dmwappushservice",   // WAP Push Message Routing (telemetry channel)
+        "RetailDemo",         // Retail Demo service
+        "XblAuthManager",     // Xbox Live Auth — dead once Xbox apps are gone
+        "XblGameSave",        // Xbox Live Game Save
+        "XboxNetApiSvc",      // Xbox Live Networking
+        "WMPNetworkSvc",      // Windows Media Player network sharing (legacy)
+    };
+
+    // NCSI active probing phones home to msftconnecttest.com on every reconnect
+    private const string NcsiPath = @"SYSTEM\CurrentControlSet\Services\NlaSvc\Parameters\Internet";
 
     private static bool IsBloat(string text, GuardConfig config)
     {
@@ -1662,6 +1690,41 @@ public static class Win32BloatGuard
             }
         }
         return removed;
+    }
+
+    /// <summary>Stop + disable telemetry/leftover system services and kill
+    /// NCSI active-probing connectivity checks (msftconnecttest.com).</summary>
+    public static int DisableTelemetryServices()
+    {
+        var disabled = 0;
+        foreach (var name in TelemetryServices)
+        {
+            if (RunCmdExitCode($"sc.exe query {name}", 10) != 0)
+                continue; // service not present on this machine
+            RunSc($"stop {name}");
+            if (RunSc($"config {name} start= disabled"))
+            {
+                disabled++;
+                GuardLogger.Info($"Disabled telemetry service: {name}");
+            }
+            else
+            {
+                GuardLogger.Warn($"Service disable failed [admin required?]: {name}");
+            }
+        }
+        // NCSI active probing
+        try
+        {
+            using var ncsi = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(NcsiPath);
+            ncsi?.SetValue("EnableActiveProbing", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            GuardLogger.Info("Applied: NCSI EnableActiveProbing = 0");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Warn($"NCSI probing disable: {ex.Message}");
+        }
+        GuardLogger.Info($"Disabled {disabled} telemetry/leftover services");
+        return disabled;
     }
 
     private static int RunCmdExitCode(string command, int timeoutSec)
@@ -2075,7 +2138,15 @@ public class GuardService : BackgroundService
                 Win32BloatGuard.RemoveDeprecatedCapabilities();
         }
 
-        // 6. OEM auto-start services + Run-key startup entries
+        // 6. Telemetry + OEM auto-start services + Run-key startup entries
+        if (_config.Prevention.DisableTelemetryServices)
+        {
+            if (dryRun)
+                GuardLogger.Info("[DRY-RUN] Would disable telemetry/leftover services");
+            else
+                Win32BloatGuard.DisableTelemetryServices();
+        }
+
         if (_config.Prevention.DisableOemServices)
         {
             if (dryRun)
@@ -2485,7 +2556,7 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
                 "DisableTelemetryPolicies", "HardenEdgePolicies",
                 "CleanStartupEntries", "DisableOemServices", "RemoveWin32Bloatware",
                 "DisableGameDvr", "BlockTelemetryEndpoints",
-                "WingetSweep", "RemoveDeprecatedCapabilities" };
+                "WingetSweep", "RemoveDeprecatedCapabilities", "DisableTelemetryServices" };
             var missing = flags.Where(f =>
                 typeof(PreventionLayers).GetProperty(f) == null).ToList();
             var defaultsOn = flags.All(f =>
@@ -2493,7 +2564,7 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
                 prop.GetValue(new PreventionLayers()) is bool b && b);
             if (missing.Count == 0 && defaultsOn)
             {
-                results.Add("[PASS] T7: Prevention layers — 16 new flags registered & default-on");
+                results.Add("[PASS] T7: Prevention layers — 17 new flags registered & default-on");
                 GuardLogger.Info("[PASS] T7: New prevention flags present");
                 passed++;
             }
@@ -2524,7 +2595,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
                 typeof(Win32BloatGuard).GetMethod("DisableOemServices") != null &&
                 typeof(Win32BloatGuard).GetMethod("SetTelemetryHostsBlock") != null &&
                 typeof(Win32BloatGuard).GetMethod("WingetSweep") != null &&
-                typeof(Win32BloatGuard).GetMethod("RemoveDeprecatedCapabilities") != null;
+                typeof(Win32BloatGuard).GetMethod("RemoveDeprecatedCapabilities") != null &&
+                typeof(Win32BloatGuard).GetMethod("DisableTelemetryServices") != null;
             if (wired)
             {
                 results.Add("[PASS] T8: New prevention methods — all wired");

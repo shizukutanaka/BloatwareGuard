@@ -2,7 +2,7 @@
 
 ## What It Does
 
-Removes Windows bloatware across **23 prevention layers** in both **Python** and **C#** implementations.
+Removes Windows bloatware across **24 prevention layers** in both **Python** and **C#** implementations.
 
 ### Layers
 
@@ -31,6 +31,7 @@ Removes Windows bloatware across **23 prevention layers** in both **Python** and
 || 21. Telemetry-domain hosts block (26 domains, reversible) | ✅ | ✅ | Admin |
 || 22. winget silent-uninstall sweep | ✅ | ✅ | Admin (skips w/o winget) |
 || 23. Deprecated capability removal (WordPad, Steps Recorder) | ✅ | ✅ | Admin |
+|| 24. Telemetry/leftover services (DiagTrack, Xbox, WMP) + NCSI | ✅ | ✅ | Admin |
 
 Layers 20–23 close the loop. `DisableGameDvr` stops Game Bar background
 capture via `AllowGameDVR=0` (HKLM policy) plus per-hive `AppCaptureEnabled`/
@@ -43,6 +44,18 @@ the list is conservative (no Windows Update / Store / activation endpoints) and
 silently, skipping cleanly when App Installer is absent.
 `RemoveDeprecatedCapabilities` removes Windows capabilities Microsoft itself
 deprecated (WordPad, Steps Recorder).
+
+Layer 24 kills the telemetry pipeline itself: `DiagTrack` (Connected User
+Experiences and Telemetry), `dmwappushservice` (WAP push telemetry channel),
+`RetailDemo`, the Xbox Live services left dead once the Xbox apps are gone
+(`XblAuthManager`, `XblGameSave`, `XboxNetApiSvc`) and legacy `WMPNetworkSvc`
+all get `sc stop` + `start= disabled` — plus `EnableActiveProbing=0` on NCSI so
+Windows stops phoning `msftconnecttest.com` on every network reconnect.
+Layers 15/19/21 also gained coverage: `HideRecommendedSection` (Start-menu ads
+slot), `DODownloadMode=0` (Delivery Optimization P2P upload off), Windows
+Spotlight features, OOBE privacy screen, WER extra data, typing insights,
+Explorer sync-provider promos, Edge New-Tab feed, and the often-overlooked
+`Policies\Explorer\Run` autostart hive in the startup sweep.
 
 Layer 17 sweeps the `Uninstall` registry hives (HKLM 64- and 32-bit views plus
 every loaded user hive) for `DisplayName` values matching the blacklist plus a

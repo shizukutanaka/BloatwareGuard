@@ -65,6 +65,7 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 | Game Bar 常駐キャプチャ | AllowGameDVR=0 + per-hive capture 値 | DisableGameDvr |
 | winget 管理下の残滓 | winget uninstall --silent --disable-interactivity | WingetSweep |
 | MS 非推奨 capability (WordPad等) | Remove-WindowsCapability -Online | RemoveDeprecatedCapabilities |
+| テレメトリ/残留システムサービス | DiagTrack/dmwappushservice/Xbox系等を stop+disabled + NCSI EnableActiveProbing=0 | DisableTelemetryServices |
 
 ## ブラックリスト方式
 - config.json の `Blacklist` にパッケージ名の**部分一致**パターンを列挙
