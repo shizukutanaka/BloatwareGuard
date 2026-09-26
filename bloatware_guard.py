@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.53.0-mvp - Python prototype
+BloatwareGuard v1.54.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -26,6 +26,7 @@ import time
 import ctypes
 import argparse
 import logging
+import logging.handlers
 import tempfile
 import shutil
 from pathlib import Path
@@ -34,7 +35,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.53.0-mvp"
+APP_VERSION = "1.54.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -52,7 +53,10 @@ def setup_logging(log_file: Path) -> logging.Logger:
                             datefmt="%Y-%m-%d %H:%M:%S")
 
     try:
-        fh = logging.FileHandler(str(log_file), encoding="utf-8")
+        # A resident service appends forever — rotate at 1 MB, keep one backup
+        fh = logging.handlers.RotatingFileHandler(
+            str(log_file), maxBytes=1_000_000, backupCount=1,
+            encoding="utf-8")
         fh.setFormatter(fmt)
         logger.addHandler(fh)
     except PermissionError:
@@ -797,6 +801,9 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate",
     r"SOFTWARE\Policies\Microsoft\Windows\AppPrivacy",
     r"SOFTWARE\Policies\Microsoft\WindowsInkWorkspace",
+    r"SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\Deprovisioned",
+    r"SOFTWARE\Policies\Microsoft\Windows\Appx"
+    r"\RemoveDefaultMicrosoftStorePackages",
     r"SYSTEM\CurrentControlSet\Control\WMI\AutoLogger\AutoLogger-Diagtrack-Listener",
     r"SYSTEM\CurrentControlSet\Control\Session Manager",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\ReserveManager",
@@ -1325,6 +1332,14 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                     "UserDataSvc", "PimIndexMaintenanceSvc",
                     # Diagnostic Service Host pair — WDI diagnostics sessions
                     "WdiSystemHost", "WdiServiceHost",
+                    # Diagnostic Policy Service + Diagnostic Execution Service
+                    # — both Automatic by default; Manual keeps netsh/PowerShell
+                    # diagnostics working on demand while killing the resident
+                    # diagnostic pipeline
+                    "DPS", "diagsvc",
+                    # Data Collection and Publishing Service — feeds the
+                    # diagnostic ingest pipeline
+                    "DcpSvc",
                     "PcaSvc",                # Program Compatibility Assistant
                     # Microsoft Pay (dead), Windows Insider, Mixed Reality,
                     # AllJoyn, smart card triad
@@ -1525,7 +1540,9 @@ def mark_deprovisioned(family_names, logger: logging.Logger) -> int:
     try:
         for family in family_names:
             try:
-                winreg.CreateKey(base, family)
+                # CreateKey returns an open handle — close it or the service
+                # loop leaks a native registry handle every interval
+                winreg.CreateKey(base, family).Close()
                 marked += 1
             except OSError:
                 continue
@@ -1541,13 +1558,21 @@ def apply_remove_default_store_packages(family_names, logger: logging.Logger) ->
     import winreg
     try:
         key = winreg.CreateKeyEx(winreg.HKEY_LOCAL_MACHINE,
-                                 _REMOVE_DEFAULT_PKGS_PATH, 0, winreg.KEY_WRITE)
+                                 _REMOVE_DEFAULT_PKGS_PATH, 0,
+                                 winreg.KEY_READ | winreg.KEY_WRITE)
+        # Merge with existing entries — a family removed in an earlier scan
+        # must stay listed or new users get it re-provisioned.
+        try:
+            prior = list(winreg.QueryValueEx(key, "PackageList")[0])
+        except OSError:
+            prior = []
+        merged = list(dict.fromkeys(
+            [f for f in prior + list(family_names)]))
         winreg.SetValueEx(key, "Enabled", 0, winreg.REG_DWORD, 1)
-        winreg.SetValueEx(key, "PackageList", 0, winreg.REG_MULTI_SZ,
-                          list(family_names))
+        winreg.SetValueEx(key, "PackageList", 0, winreg.REG_MULTI_SZ, merged)
         winreg.CloseKey(key)
         logger.info(f"Applied: RemoveDefaultStorePackages "
-                    f"({len(family_names)} families listed)")
+                    f"({len(merged)} families listed)")
         return True
     except Exception as e:
         logger.warning(f"RemoveDefaultStorePackages: {e}")
@@ -1580,6 +1605,17 @@ _TELEMETRY_HOSTS = (
     "watson.events.data.microsoft.com", "survey.watson.microsoft.com",
     # Office/ARIA telemetry pipe + diagnostics report upload endpoint
     "mobile.pipe.aria.microsoft.com", "diagnostics.support.microsoft.com",
+    # *.events.data.microsoft.com regional/v10c ingest variants (hagezi
+    # dns-blocklists + MS Learn non-Enterprise endpoint doc; same ARIA pipe)
+    "self.events.data.microsoft.com", "v10c.events.data.microsoft.com",
+    "au-v10.events.data.microsoft.com", "eu-v10.events.data.microsoft.com",
+    "jp-v10.events.data.microsoft.com", "us-v10.events.data.microsoft.com",
+    "au-v10c.events.data.microsoft.com", "eu-v10c.events.data.microsoft.com",
+    "jp-v10c.events.data.microsoft.com", "us-v10c.events.data.microsoft.com",
+    # Timeline activity-history sync (ActivityFeedPolicy disabled in policy)
+    "activity.windows.com",
+    # Office diagnostics upload endpoint
+    "api.diagnostics.office.com",
 )
 _HOSTS_BLOCK_BEGIN = "# >>> BloatwareGuard telemetry block"
 _HOSTS_BLOCK_END = "# <<< BloatwareGuard telemetry block"
@@ -1936,6 +1972,15 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
             create_restore_point(logger)
 
     matched_families = set()
+
+    # 0.5 Back up every HKLM key BEFORE any writes — run_scan touches the
+    # deprovision/Store-policy keys before apply_registry_prevention would
+    # back them up; the once-per-process guard makes the later call a no-op
+    if prev.get("BackupRegistry", True):
+        if dry_run:
+            logger.info("[DRY-RUN] Would export registry backup")
+        else:
+            backup_registry_keys(logger)
 
     # 1. Remove installed packages
     if prev.get("RemoveAppxPackages", True):
@@ -2402,7 +2447,8 @@ def run_self_test() -> int:
                                   ("_STARTUP_BLOAT_NAMES", _STARTUP_BLOAT_NAMES),
                                   ("DEFAULT_BLACKLIST", DEFAULT_BLACKLIST),
                                   ("MICROSOFT_SYSTEM_TASK_PREFIXES",
-                                   MICROSOFT_SYSTEM_TASK_PREFIXES)):
+                                   MICROSOFT_SYSTEM_TASK_PREFIXES),
+                                  ("_BACKUP_KEY_PATHS", _BACKUP_KEY_PATHS)):
                 miss = [e for e in entries if e not in cs_src]
                 assert not miss, f"{name} entries missing from Program.cs: {miss}"
 

@@ -320,6 +320,15 @@ public static class GuardLogger
         {
             try
             {
+                // A resident service appends forever — rotate at 1 MB,
+                // keeping one prior generation (*.old)
+                var info = new FileInfo(logPath);
+                if (info.Exists && info.Length > 1_000_000)
+                {
+                    var old = logPath + ".old";
+                    File.Delete(old);
+                    File.Move(logPath, old);
+                }
                 File.AppendAllText(logPath, line + Environment.NewLine);
             }
             catch { /* ignore file log errors */ }
@@ -781,7 +790,7 @@ public static class AppxManager
             {
                 try
                 {
-                    baseKey.CreateSubKey(family);
+                    using var sub = baseKey.CreateSubKey(family);
                     marked++;
                 }
                 catch { }
@@ -806,8 +815,14 @@ public static class AppxManager
                 RemoveDefaultPkgsPath, writable: true);
             if (key == null)
                 return;
+            // Merge with existing entries — a family removed in an earlier
+            // scan must stay listed or new users get it re-provisioned.
+            var prior = key.GetValue("PackageList") as string[] ?? Array.Empty<string>();
+            var merged = prior.Concat(families)
+                .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
             key.SetValue("Enabled", 1, Microsoft.Win32.RegistryValueKind.DWord);
-            key.SetValue("PackageList", families, Microsoft.Win32.RegistryValueKind.MultiString);
+            key.SetValue("PackageList", merged, Microsoft.Win32.RegistryValueKind.MultiString);
+            families = merged;
             GuardLogger.Info($"Applied: RemoveDefaultStorePackages ({families.Length} families listed)");
         }
         catch (Exception ex)
@@ -1228,6 +1243,14 @@ public static class RegistryGuard
         "watson.events.data.microsoft.com", "survey.watson.microsoft.com",
         // Office/ARIA telemetry pipe + diagnostics report upload endpoint
         "mobile.pipe.aria.microsoft.com", "diagnostics.support.microsoft.com",
+        // regional/v10c ingest variants on the same ARIA pipe
+        "self.events.data.microsoft.com", "v10c.events.data.microsoft.com",
+        "au-v10.events.data.microsoft.com", "eu-v10.events.data.microsoft.com",
+        "jp-v10.events.data.microsoft.com", "us-v10.events.data.microsoft.com",
+        "au-v10c.events.data.microsoft.com", "eu-v10c.events.data.microsoft.com",
+        "jp-v10c.events.data.microsoft.com", "us-v10c.events.data.microsoft.com",
+        "activity.windows.com",
+        "api.diagnostics.office.com",
     };
     private const string HostsBlockBegin = "# >>> BloatwareGuard telemetry block";
     private const string HostsBlockEnd = "# <<< BloatwareGuard telemetry block";
@@ -2286,6 +2309,8 @@ public static class RegistryGuard
         @"SOFTWARE\Policies\Microsoft\FindMyDevice",
         @"SOFTWARE\Policies\Microsoft\Windows\SettingSync",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Device Metadata",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\Deprovisioned",
+        @"SOFTWARE\Policies\Microsoft\Windows\Appx\RemoveDefaultMicrosoftStorePackages",
     };
     private static bool _backupDone;
 
@@ -2477,6 +2502,13 @@ public static class RegistryGuard
                                         // Diagnostic Service Host pair — WDI
                                         // diagnostics sessions
                                         "WdiSystemHost", "WdiServiceHost",
+                                        // Diagnostic Policy Service + Diagnostic
+                                        // Execution Service — Automatic by
+                                        // default; Manual keeps on-demand
+                                        // diagnostics working
+                                        "DPS", "diagsvc",
+                                        // Data Collection and Publishing Service
+                                        "DcpSvc",
                                         // Program Compatibility Assistant
                                         "PcaSvc",
                                         // Microsoft Pay (dead), Windows
@@ -3072,6 +3104,12 @@ public class GuardService : BackgroundService
         if (!dryRun && _config.Prevention.CreateRestorePoint)
             Win32Guard.CreateRestorePoint();
 
+        // 0.5 Back up every HKLM key BEFORE any writes — this scan touches the
+        // deprovision/Store-policy keys before ApplyAll would back them up;
+        // the once-per-process guard makes the later call a no-op
+        if (!dryRun && _config.Prevention.BackupRegistry)
+            RegistryGuard.BackupRegistryKeys();
+
         // 1. Remove installed AppxPackages matching blacklist
         if (_config.Prevention.RemoveAppxPackages)
         {
@@ -3317,7 +3355,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.53.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.54.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -3402,7 +3440,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.53.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.54.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -3554,8 +3592,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 7;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.53.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.53.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.54.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.54.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try
