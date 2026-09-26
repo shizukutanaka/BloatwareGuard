@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.46.0-mvp - Python prototype
+BloatwareGuard v1.47.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -848,6 +848,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         # "new apps can open this file type" toast (HKLM Explorer policies)
         set_registry_dword("HKLM", _EXPLORER_POLICIES_HKLM, "NoUseStoreOpenWith", 1)
         set_registry_dword("HKLM", _EXPLORER_POLICIES_HKLM, "NoNewAppAlert", 1)
+        # Open-With internet lookup + Settings-app online tips (content fetch)
+        set_registry_dword("HKLM", _EXPLORER_POLICIES_HKLM, "NoInternetOpenWith", 1)
+        set_registry_dword("HKLM", _EXPLORER_POLICIES_HKLM, "AllowOnlineTips", 0)
 
         # ContentDeliveryManager — silent installs + every SubscribedContent surface
         # (key set mirrors Win11Debloat Disable_Windows_Suggestions.reg)
@@ -1002,6 +1005,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         spynet = r"SOFTWARE\Policies\Microsoft\Windows Defender\Spynet"
         set_registry_dword("HKLM", spynet, "SpynetReporting", 0)
         set_registry_dword("HKLM", spynet, "SubmitSamplesConsent", 0)
+        # Offline-maps auto-download channel (MapsBroker service is demoted;
+        # kill the data push too)
+        set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\Maps",
+                           "AutoDownloadAndUpdateMapData", 0)
         # Microsoft feature experimentation (A/B flighting) off
         set_registry_dword(
             "HKLM",
@@ -1809,6 +1816,14 @@ TELEMETRY_TASK_PATHS = (
     "\\Microsoft\\Windows\\Feedback\\Siuf\\DmClient",
     "\\Microsoft\\Windows\\Feedback\\Siuf\\DmClientOnScenarioDownload",
     "\\Microsoft\\Windows\\RetailDemo\\CleanupContent",
+    # CEIP perf-tracking surveyor, IME telemetry sender, input-method sync
+    # uploads, WMP library sharing, Store install-retry hook
+    "\\Microsoft\\Windows\\PerfTrack\\BackgroundConfigSurveyor",
+    "\\Microsoft\\Windows\\IME\\SQM data sender",
+    "\\Microsoft\\Windows\\Input\\LocalUserSyncDataAvailable",
+    "\\Microsoft\\Windows\\Input\\TouchpadSyncDataAvailable",
+    "\\Microsoft\\Windows\\Windows Media Sharing\\UpdateLibrary",
+    "\\Microsoft\\Windows\\InstallService\\SmartRetry",
     "\\Microsoft\\Windows\\NetTrace\\GatherNetworkInfo",
     # Application Impact Telemetry, speech-model download, disk diagnostics
     "\\Microsoft\\Windows\\Application Experience\\AitEnableAgent",

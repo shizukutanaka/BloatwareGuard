@@ -2,6 +2,18 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.47.0-mvp: open-with lookups, online tips, input/IME/perf tasks
+
+### Changed
+- `BlockProvisioning`: `NoInternetOpenWith`=1 + `AllowOnlineTips`=0 (HKLM
+  Explorer) — Open-With web lookup nag and Settings online tips stopped.
+- `DisableTelemetry`: `Maps\AutoDownloadAndUpdateMapData`=0 — offline-map
+  data channel off (the MapsBroker service is already demoted).
+- `DisableTelemetryTasks`: +6 — `PerfTrack\BackgroundConfigSurveyor` (CEIP
+  perf tracking), `IME\SQM data sender`, `Input\LocalUserSyncDataAvailable`,
+  `Input\TouchpadSyncDataAvailable`, `Windows Media Sharing\UpdateLibrary`,
+  `InstallService\SmartRetry` (Store install-retry hook).
+
 ## [Unreleased] — v1.46.0-mvp: service demote sweep 2 + telemetry task additions
 
 ### Changed
