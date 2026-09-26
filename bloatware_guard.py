@@ -2399,7 +2399,10 @@ def run_self_test() -> int:
             for name, entries in (("TELEMETRY_TASK_PATHS", TELEMETRY_TASK_PATHS),
                                   ("_EXTRA_AUTOLOGGERS", _EXTRA_AUTOLOGGERS),
                                   ("_TELEMETRY_HOSTS", _TELEMETRY_HOSTS),
-                                  ("_STARTUP_BLOAT_NAMES", _STARTUP_BLOAT_NAMES)):
+                                  ("_STARTUP_BLOAT_NAMES", _STARTUP_BLOAT_NAMES),
+                                  ("DEFAULT_BLACKLIST", DEFAULT_BLACKLIST),
+                                  ("MICROSOFT_SYSTEM_TASK_PREFIXES",
+                                   MICROSOFT_SYSTEM_TASK_PREFIXES)):
                 miss = [e for e in entries if e not in cs_src]
                 assert not miss, f"{name} entries missing from Program.cs: {miss}"
 
