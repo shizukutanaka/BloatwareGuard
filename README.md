@@ -1,20 +1,54 @@
-# BloatwareGuard v1.8.0-mvp
+# BloatwareGuard v1.39.0-mvp
 
 ## What It Does
 
-Removes Windows bloatware across **7 prevention layers** in both **Python** and **C#** implementations.
+Removes Windows bloatware across **39 prevention layers** in both **Python** and **C#** implementations.
+Per-user settings are written to **every loaded user hive + the Default profile template**, so they
+also apply correctly when the tool runs as a SYSTEM service and for users created later.
 
 ### Layers
 
 || Layer | Python | C# | Non-Admin |
 ||---|---|---|---|
-|| 1. AppxPackage removal | ✅ | ✅ | Regular→✓, SystemApp→skip |
+|| 1. AppxPackage removal (all users when admin) | ✅ | ✅ | Regular→✓, SystemApp→skip |
 || 2. ProvisionedPackage removal | ✅ | ✅ | Requires admin |
-|| 3. Consumer Experiences | ✅ | ✅ | HKCU write |
-|| 4. Cloud Content | ✅ | ✅ | HKCU write |
+|| 3. Consumer Experiences | ✅ | ✅ | HKLM (admin) |
+|| 4. Cloud Content | ✅ | ✅ | HKLM (admin) |
 || 5. Device Metadata | ✅ | ✅ | HKLM (admin) |
 || 6. OEM Scheduled Tasks | ✅ | ✅ | ✅ Disable works |
-|| 7. Re-install Monitor | ✅ | ✅ | ✅ Service mode |
+|| 7. Re-install Monitor (Appx + provisioned + Win32 channels) | ✅ | ✅ | ✅ Service mode |
+|| 8. Copilot off (policy, all hives) | ✅ | ✅ | Own hive only |
+|| 9. Recall / Windows AI off (policy + feature removal) | ✅ | ✅ | Own hive only |
+|| 10. Search suggestions / Bing off (all hives) | ✅ | ✅ | Own hive only |
+|| 11. Widgets board off (policy + taskbar button) | ✅ | ✅ | HKLM needs admin |
+|| 12. Telemetry off (DiagTrack svc, ad ID, feedback nags, activity history) | ✅ | ✅ | HKLM needs admin |
+|| 13. GameDVR / Game Bar capture off | ✅ | ✅ | HKLM needs admin |
+|| 14. Delivery Optimization P2P sharing off | ✅ | ✅ | HKLM needs admin |
+|| 15. OneDrive sync off + Explorer pin hidden (**opt-in**, default off) | ✅ | ✅ | HKLM needs admin |
+|| 16. Teams Chat taskbar button off | ✅ | ✅ | Own hive only |
+|| 17. Edge sidebar / startup boost / prelaunch / first-run off | ✅ | ✅ | HKLM needs admin |
+|| 18. Optional capabilities removed (IE mode, Steps Recorder, WordPad, XPS Viewer, Fax&Scan, Wireless Display) | ✅ | ✅ | Requires admin |
+|| 19. Win32 bloatware uninstalled (McAfee/Norton OEM preinstalls — MSI silent) | ✅ | ✅ | Requires admin |
+|| 20. Restore point before destructive scans (self-throttles 24h) | ✅ | ✅ | Requires admin |
+|| 21. Microsoft telemetry tasks off (32: CompatTelRunner, CEIP, Siuf, Maps, Office CEIP, RetailDemo, Insider flighting, feedback, Device Census, family safety, net-trace, AIT, speech models, disk diagnostics) | ✅ | ✅ | Requires admin |
+|| 22. Bloatware autostart entries disabled (StartupApproved marker + Startup-folder rename — restorable) | ✅ | ✅ | Per-hive, some HKLM |
+|| 23. Windows Error Reporting uploads off | ✅ | ✅ | HKLM needs admin |
+|| 24. Edge update services → demand-start + update tasks off | ✅ | ✅ | Requires admin |
+|| 25. OEM driver payloads excluded from Windows Update | ✅ | ✅ | HKLM needs admin |
+|| 26. App permissions force-denied (conservative set — camera/mic/location left) + ad-ID/FindMyDevice policies | ✅ | ✅ | HKLM needs admin |
+|| 27. Xbox services demoted to demand-start | ✅ | ✅ | HKLM needs admin |
+|| 28. HKLM keys exported to .reg before changes (restorable) | ✅ | ✅ | — |
+|| 29. Print Spooler off (**opt-in**, default off — PrintNightmare surface) | ✅ | ✅ | Requires admin |
+|| 30. WPBT (UEFI OEM binary injection) blocked | ✅ | ✅ | HKLM needs admin |
+|| 31. Reserved Storage (~7GB) released | ✅ | ✅ | HKLM needs admin |
+|| 32. Cross-device clipboard sync off (copied content stays local) | ✅ | ✅ | HKLM needs admin |
+|| 33. Remote Assistance inbound offers off | ✅ | ✅ | HKLM needs admin |
+|| 34. Windows Insider preview enrollment blocked | ✅ | ✅ | HKLM needs admin |
+|| 35. Misc bloat services → demand-start (15: push/MDM, Maps, media sharing, diagnostics, Nearby Sharing, Store push-install, NFC payments, Phone Link, NVIDIA/Intel telemetry, SysMain prefetch, touch keyboard, search indexer, kiosk assigned-access) + RemoteRegistry disabled | ✅ | ✅ | HKLM needs admin |
+|| 36. Desktop Spotlight off (wallpaper promo channel) | ✅ | ✅ | Per-hive |
+|| 37. AutoPlay/AutoRun off (removable-media execution vector) | ✅ | ✅ | HKLM needs admin |
+|| 38. No forced Windows Update reboot while logged on | ✅ | ✅ | HKLM needs admin |
+|| 39. Start "Recommended" section hidden (promoted-apps surface) | ✅ | ✅ | HKLM needs admin |
 
 ---
 
@@ -133,8 +167,8 @@ dotnet publish src/BloatwareGuard.csproj -c Release -r win-x64 --self-contained 
 ## Version
 
 ```bash
-python bloatware_guard.py --version   # BloatwareGuard v1.8.0-mvp
-BloatwareGuard.exe --version          # BloatwareGuard v1.8.0-mvp
+python bloatware_guard.py --version   # BloatwareGuard v1.39.0-mvp
+BloatwareGuard.exe --version          # BloatwareGuard v1.39.0-mvp
 ```
 
 ---
