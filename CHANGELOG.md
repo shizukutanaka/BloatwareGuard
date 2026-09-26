@@ -2,6 +2,16 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.28.0-mvp: no phantom service keys
+
+### Fixed
+- Service demotion (`DisableEdgeUpdateBloat`, `DisableXboxServices`,
+  `DisableMiscBloatServices`, WSAIFabricSvc in `DisableRecall`) used
+  `CreateSubKey`/`CreateKeyEx`, which **created** `Services\<name>` keys
+  for vendor services absent from the machine (e.g. `NvTelemetryContainer`
+  on non-NVIDIA hardware). All now go through an open-only `DemoteService`
+  / `demote_service` helper — missing services are skipped, not created.
+
 ## [Unreleased] — v1.27.0-mvp: shared-experiences consent off
 
 ### Changed

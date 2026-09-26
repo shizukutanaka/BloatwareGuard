@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.27.0-mvp - Python prototype
+BloatwareGuard v1.28.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -34,7 +34,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.27.0-mvp"
+APP_VERSION = "1.28.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -566,6 +566,22 @@ def set_registry_dword(hive, path: str, name: str, value: int) -> bool:
         return False
 
 
+def demote_service(name: str) -> bool:
+    """Set a service to demand-start. Opens — never creates — the service
+    key, so vendor services absent from the machine don't get phantom
+    Services\\X entries."""
+    try:
+        import winreg
+        key = winreg.OpenKey(
+            winreg.HKEY_LOCAL_MACHINE,
+            rf"SYSTEM\CurrentControlSet\Services\{name}", 0, winreg.KEY_WRITE)
+        winreg.SetValueEx(key, "Start", 0, winreg.REG_DWORD, 3)
+        winreg.CloseKey(key)
+        return True
+    except OSError:
+        return False
+
+
 # Per-user registry paths (relative to a user hive root — HKCU or HKEY_USERS\<SID>)
 _USER_CDM = r"Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
 _USER_EXPLORER_ADV = r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
@@ -828,7 +844,7 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "Disable-WindowsOptionalFeature -Online -FeatureName 'Recall' "
                 "-NoRestart -ErrorAction SilentlyContinue | Out-Null", timeout=120)
         # AI fabric service: 2=auto, 3=demand. Absent without NPU/Copilot+ hardware.
-        set_registry_dword("HKLM", r"SYSTEM\CurrentControlSet\Services\WSAIFabricSvc", "Start", 3)
+        demote_service("WSAIFabricSvc")
         logger.info("Applied: DisableRecall (WindowsAI policies + Click to Do off, "
                     "Recall feature removal attempted, WSAIFabricSvc=demand)")
 
@@ -1005,16 +1021,8 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         logger.info("Applied: DisableErrorReporting (WER uploads + UI + logging off)")
 
     if prev.get("DisableEdgeUpdateBloat", True):
-        import winreg as _wr  # local import keeps module importable off-Windows
         for svc in ("edgeupdate", "edgeupdatem", "MicrosoftEdgeElevationService"):
-            try:
-                k = _wr.CreateKeyEx(
-                    _wr.HKEY_LOCAL_MACHINE,
-                    rf"SYSTEM\CurrentControlSet\Services\{svc}", 0, _wr.KEY_WRITE)
-                _wr.SetValueEx(k, "Start", 0, _wr.REG_DWORD, 3)  # demand-start
-                _wr.CloseKey(k)
-            except OSError:
-                pass
+            demote_service(svc)
         # Scheduled tasks re-arm the services — disable them too
         for task in ("MicrosoftEdgeUpdateTaskMachineCore",
                      "MicrosoftEdgeUpdateTaskMachineUA",
@@ -1111,39 +1119,20 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
 
     if prev.get("DisableXboxServices", True):
         # Demand-start (Start=3) — Game Bar/Xbox sign-in still work on demand
-        import winreg as _wr2
         for svc in ("XblAuthManager", "XblGameSave",
                     "XboxNetApiSvc", "XboxGipSvc"):
-            try:
-                k = _wr2.CreateKeyEx(
-                    _wr2.HKEY_LOCAL_MACHINE,
-                    rf"SYSTEM\CurrentControlSet\Services\{svc}", 0, _wr2.KEY_WRITE)
-                _wr2.SetValueEx(k, "Start", 0, _wr2.REG_DWORD, 3)
-                _wr2.CloseKey(k)
-            except OSError:
-                pass
+            demote_service(svc)
         logger.info("Applied: DisableXboxServices (4 services → demand-start)")
 
     if prev.get("DisableMiscBloatServices", True):
-        # Demand-start (Start=3) — WAP push/MDM, map broker, media sharing,
-        # diagnostics hub; all stay usable when actually invoked
-        import winreg as _wr3
-        # CDPSvc = Nearby Sharing; NvTelemetryContainer / ESRV_* = GPU/Intel
-        # driver telemetry (absent without those vendors — write is a no-op)
+        # Demand-start (Start=3) — all stay usable when actually invoked.
+        # Vendor services absent from the machine are skipped (open, not create).
         for svc in ("dmwappushservice", "MapsBroker", "WMPNetworkSvc",
                     "diagnosticshub.standardcollector.service",
                     "CDPSvc", "NvTelemetryContainer",
                     "esrv_svc", "ESRV_SVC_QUEENCREEK",
                     "PushToInstall", "SEMgrSvc", "PhoneSvc"):
-            try:
-                k = _wr3.CreateKeyEx(
-                    _wr3.HKEY_LOCAL_MACHINE,
-                    rf"SYSTEM\CurrentControlSet\Services\{svc}", 0,
-                    _wr3.KEY_WRITE)
-                _wr3.SetValueEx(k, "Start", 0, _wr3.REG_DWORD, 3)
-                _wr3.CloseKey(k)
-            except OSError:
-                pass
+            demote_service(svc)
         logger.info("Applied: DisableMiscBloatServices "
                     "(11 services → demand-start)")
 

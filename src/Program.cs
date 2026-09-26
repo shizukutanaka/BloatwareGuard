@@ -889,6 +889,20 @@ public static class RegistryGuard
     private static readonly byte[] StartupDisabledMarker =
         { 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
+    /// <summary>Demote a service to demand-start. Opens — never creates —
+    /// the service key, so vendor services absent from the machine don't
+    /// get phantom <c>Services\X</c> entries written for them.</summary>
+    private static void DemoteService(string name)
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(
+                $@"SYSTEM\CurrentControlSet\Services\{name}", writable: true);
+            key?.SetValue("Start", 3, Microsoft.Win32.RegistryValueKind.DWord);
+        }
+        catch { }
+    }
+
     // HKLM subkey where the Default-profile template hive is temporarily mounted
     private const string DefaultHiveMount = @"BloatwareGuard_DefaultProfile";
 
@@ -1250,6 +1264,7 @@ public static class RegistryGuard
             {
                 using var svc = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(AiFabricServicePath, writable: true);
                 svc?.SetValue("Start", 3, Microsoft.Win32.RegistryValueKind.DWord);
+
             }
             catch { }
 
@@ -1667,13 +1682,7 @@ public static class RegistryGuard
         {
             foreach (var svc in new[] { "edgeupdate", "edgeupdatem", "MicrosoftEdgeElevationService" })
             {
-                try
-                {
-                    using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
-                        $@"SYSTEM\CurrentControlSet\Services\{svc}");
-                    key?.SetValue("Start", 3, Microsoft.Win32.RegistryValueKind.DWord);
-                }
-                catch { }
+                DemoteService(svc);
             }
             // Scheduled tasks re-arm the services — disable them too
             foreach (var task in new[] {
@@ -1738,13 +1747,7 @@ public static class RegistryGuard
             foreach (var svc in new[] { "XblAuthManager", "XblGameSave",
                                         "XboxNetApiSvc", "XboxGipSvc" })
             {
-                try
-                {
-                    using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
-                        $@"SYSTEM\CurrentControlSet\Services\{svc}");
-                    key?.SetValue("Start", 3, Microsoft.Win32.RegistryValueKind.DWord);
-                }
-                catch { }
+                DemoteService(svc);
             }
             GuardLogger.Info("Applied: DisableXboxServices (4 services → demand-start)");
         }
@@ -1984,13 +1987,7 @@ public static class RegistryGuard
                                         "esrv_svc", "ESRV_SVC_QUEENCREEK",
                                         "PushToInstall", "SEMgrSvc", "PhoneSvc" })
             {
-                try
-                {
-                    using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
-                        $@"SYSTEM\CurrentControlSet\Services\{svc}");
-                    key?.SetValue("Start", 3, Microsoft.Win32.RegistryValueKind.DWord);
-                }
-                catch { }
+                DemoteService(svc);
             }
             GuardLogger.Info("Applied: DisableMiscBloatServices (11 services → demand-start)");
         }
@@ -2611,7 +2608,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.27.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.28.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -2696,7 +2693,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.27.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.28.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -2848,8 +2845,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 6;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.27.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.27.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.28.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.28.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try
