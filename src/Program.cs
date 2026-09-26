@@ -1419,6 +1419,14 @@ public static class RegistryGuard
                 mrt?.SetValue("DontReportInfectionInformation", 1, Microsoft.Win32.RegistryValueKind.DWord);
             }
             catch { }
+            // Speech model downloads off (voice data pipeline)
+            try
+            {
+                using var speech = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Microsoft\Speech_OneCore\Preferences");
+                speech?.SetValue("ModelDownloadAllowed", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            catch { }
 
             GuardLogger.Info("Applied: DisableTelemetry (AllowTelemetry=0, DiagTrack off, privacy surfaces set)");
         }
@@ -1768,6 +1776,7 @@ public static class RegistryGuard
         @"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU",
         @"SOFTWARE\Policies\Microsoft\MRT",
         @"SOFTWARE\Policies\Microsoft\Windows\Explorer",
+        @"SOFTWARE\Microsoft\Speech_OneCore\Preferences",
     };
     private static bool _backupDone;
 
@@ -1935,9 +1944,13 @@ public static class RegistryGuard
     {
         try
         {
+            // CDPSvc = Nearby Sharing; NvTelemetryContainer / ESRV_* = GPU/Intel
+            // driver telemetry (absent without those vendors — write is a no-op)
             foreach (var svc in new[] { "dmwappushservice", "MapsBroker",
                                         "WMPNetworkSvc",
-                                        "diagnosticshub.standardcollector.service" })
+                                        "diagnosticshub.standardcollector.service",
+                                        "CDPSvc", "NvTelemetryContainer",
+                                        "esrv_svc", "ESRV_SVC_QUEENCREEK" })
             {
                 try
                 {
@@ -1947,7 +1960,7 @@ public static class RegistryGuard
                 }
                 catch { }
             }
-            GuardLogger.Info("Applied: DisableMiscBloatServices (4 services → demand-start)");
+            GuardLogger.Info("Applied: DisableMiscBloatServices (8 services → demand-start)");
         }
         catch (Exception ex)
         {
@@ -2566,7 +2579,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.23.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.24.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -2651,7 +2664,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.23.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.24.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -2803,8 +2816,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 6;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.23.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.23.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.24.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.24.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try

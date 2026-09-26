@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.23.0-mvp - Python prototype
+BloatwareGuard v1.24.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -34,7 +34,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.23.0-mvp"
+APP_VERSION = "1.24.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -717,6 +717,7 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU",
     r"SOFTWARE\Policies\Microsoft\MRT",
     r"SOFTWARE\Policies\Microsoft\Windows\Explorer",
+    r"SOFTWARE\Microsoft\Speech_OneCore\Preferences",
 )
 _registry_backup_done = False
 
@@ -917,6 +918,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         # MRT infection reports off
         set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\MRT",
                            "DontReportInfectionInformation", 1)
+        # Speech model downloads off (voice data pipeline)
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Microsoft\Speech_OneCore\Preferences",
+                           "ModelDownloadAllowed", 0)
         logger.info("Applied: DisableTelemetry (AllowTelemetry=0, DiagTrack off, "
                     "privacy surfaces set)")
 
@@ -1102,8 +1107,12 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         # Demand-start (Start=3) — WAP push/MDM, map broker, media sharing,
         # diagnostics hub; all stay usable when actually invoked
         import winreg as _wr3
+        # CDPSvc = Nearby Sharing; NvTelemetryContainer / ESRV_* = GPU/Intel
+        # driver telemetry (absent without those vendors — write is a no-op)
         for svc in ("dmwappushservice", "MapsBroker", "WMPNetworkSvc",
-                    "diagnosticshub.standardcollector.service"):
+                    "diagnosticshub.standardcollector.service",
+                    "CDPSvc", "NvTelemetryContainer",
+                    "esrv_svc", "ESRV_SVC_QUEENCREEK"):
             try:
                 k = _wr3.CreateKeyEx(
                     _wr3.HKEY_LOCAL_MACHINE,
@@ -1114,7 +1123,7 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             except OSError:
                 pass
         logger.info("Applied: DisableMiscBloatServices "
-                    "(4 services → demand-start)")
+                    "(8 services → demand-start)")
 
     if prev.get("DisableSpotlight", True):
         # Desktop Spotlight = content-delivery channel (wallpaper promos)

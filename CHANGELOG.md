@@ -2,6 +2,17 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.24.0-mvp: vendor telemetry services / speech models
+
+### Changed
+- `DisableMiscBloatServices` extended: `CDPSvc` (Nearby Sharing),
+  `NvTelemetryContainer` (NVIDIA driver telemetry), `esrv_svc` /
+  `ESRV_SVC_QUEENCREEK` (Intel driver telemetry — absent on machines
+  without those vendors). Total: 8 services → demand-start.
+- `DisableTelemetry` also sets `Speech_OneCore\ModelDownloadAllowed=0`
+  (voice-model download pipeline off).
+- `BackupRegistry` export set extended (30 keys).
+
 ## [Unreleased] — v1.23.0-mvp: Start recommendations / diagnostic caps
 
 ### Added
