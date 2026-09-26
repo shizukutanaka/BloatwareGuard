@@ -2,6 +2,14 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.36.0-mvp: per-hive Spotlight policies
+
+### Changed
+- `DisableSpotlight` now also applies the per-hive `CloudContent` policy
+  keys — `DisableWindowsSpotlightFeatures`,
+  `DisableSpotlightCollectionOnDesktop`, `DisableSoftLanding` — so the
+  block holds for every user profile, not just the HKLM side.
+
 ## [Unreleased] — v1.35.0-mvp: CDM preinstalled-apps flags off
 
 ### Changed

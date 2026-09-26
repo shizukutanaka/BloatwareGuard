@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.35.0-mvp - Python prototype
+BloatwareGuard v1.36.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -34,7 +34,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.35.0-mvp"
+APP_VERSION = "1.36.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -1157,7 +1157,15 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_user_dword_all_hives(
             r"Software\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers",
             "BackgroundType", 0, logger)
-        logger.info("Applied: DisableSpotlight")
+        # Per-hive CloudContent policies — block Spotlight features + the
+        # per-user collection feeding them
+        cloud = r"Software\Policies\Microsoft\Windows\CloudContent"
+        for name in ("DisableWindowsSpotlightFeatures",
+                     "DisableSpotlightCollectionOnDesktop",
+                     "DisableSoftLanding"):
+            set_user_dword_all_hives(cloud, name, 1, logger)
+        logger.info("Applied: DisableSpotlight "
+                    "(DesktopSpotlight + wallpaper + per-hive CloudContent)")
 
     if prev.get("DisableAutoplay", True):
         # NoDriveTypeAutoRun=255 + NoAutorun=1 — media auto-execute off
