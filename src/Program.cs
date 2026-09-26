@@ -3542,7 +3542,7 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
     private static int RunSelfTest(GuardConfig config)
     {
         var passed = 0;
-        var total = 6;
+        var total = 7;
         var results = new List<string>();
 
         GuardLogger.Info("=== BloatwareGuard v1.53.0-mvp — Self-Test Mode === [no admin required]");
@@ -3649,6 +3649,38 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         catch (Exception ex)
         {
             results.Add($"[FAIL] T6: Trim safety — {ex.Message}");
+        }
+
+        // Test 7: config.json Prevention keys ↔ PreventionLayers properties parity —
+        // a key present in config but absent as a property is silently ignored,
+        // a property absent from config falls back to its default on file-less runs.
+        try
+        {
+            var configPath = Path.Combine(AppContext.BaseDirectory, "config.json");
+            if (!File.Exists(configPath))
+                configPath = Path.Combine(Directory.GetCurrentDirectory(), "config.json");
+            var propNames = typeof(PreventionLayers).GetProperties()
+                .Where(p => p.PropertyType == typeof(bool)).Select(p => p.Name).ToHashSet();
+            using var doc = JsonDocument.Parse(File.ReadAllText(configPath));
+            var cfgKeys = doc.RootElement.GetProperty("Prevention")
+                .EnumerateObject().Select(p => p.Name).ToHashSet();
+            var missingInProps = cfgKeys.Except(propNames).ToList();
+            var missingInConfig = propNames.Except(cfgKeys).ToList();
+            if (missingInProps.Count == 0 && missingInConfig.Count == 0)
+            {
+                results.Add($"[PASS] T7: Prevention key parity — {propNames.Count} keys both sides");
+                GuardLogger.Info($"[PASS] T7: config ↔ PreventionLayers parity ({propNames.Count} keys)");
+                passed++;
+            }
+            else
+            {
+                results.Add($"[FAIL] T7: parity drift — cfg-only:[{string.Join(",", missingInProps)}] props-only:[{string.Join(",", missingInConfig)}]");
+                GuardLogger.Error("[FAIL] T7: Prevention parity drift");
+            }
+        }
+        catch (Exception ex)
+        {
+            results.Add($"[FAIL] T7: Prevention parity — {ex.Message}");
         }
 
         // Summary
