@@ -501,7 +501,7 @@ public static class ConfigLoader
                 "ExpressVPN",
                 "Nordcurrent",
                 // Dead/deprecated stock apps and promo stubs (24H2 still ships them)
-                "Microsoft.3DViewer", "Microsoft.Microsoft3DViewer",
+                "Microsoft.3DViewer",
                 "Microsoft.Print3D", "Microsoft.Whiteboard",
                 "Microsoft.Wallet",                 // Microsoft Pay UI — retired
                 "Microsoft.Messaging", "Microsoft.OneConnect",
@@ -2812,8 +2812,6 @@ public static class ScheduledTaskGuard
         @"\Microsoft\Windows\Application Experience\PcaPatchDbUpdate",
         @"\Microsoft\Windows\Location\Notifications",
         @"\Microsoft\Windows\Location\WindowsActionNotification",
-        @"\Microsoft\Windows\Feedback\Siuf\DmClient",
-        @"\Microsoft\Windows\Feedback\Siuf\DmClientOnScenarioDownload",
         @"\Microsoft\Windows\RetailDemo\CleanupContent",
         // CEIP perf-tracking surveyor, IME telemetry sender, input-method
         // sync uploads, WMP library sharing, Store install-retry hook
@@ -3360,7 +3358,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.54.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.55.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -3445,7 +3443,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.54.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.55.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -3594,11 +3592,11 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
     private static int RunSelfTest(GuardConfig config)
     {
         var passed = 0;
-        var total = 7;
+        var total = 8;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.54.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.54.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.55.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.55.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try
@@ -3733,6 +3731,49 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         catch (Exception ex)
         {
             results.Add($"[FAIL] T7: Prevention parity — {ex.Message}");
+        }
+
+        // Test 8: shared data lists are duplicate-free — a dup silently
+        // inflates counts and adds dead entries (mirrors Python T10).
+        try
+        {
+            var sharedArrays = new (Type holder, string field)[]
+            {
+                (typeof(ScheduledTaskGuard), "TelemetryTaskPaths"),
+                (typeof(RegistryGuard), "TelemetryAutologgers"),
+                (typeof(RegistryGuard), "TelemetryHosts"),
+                (typeof(RegistryGuard), "StartupBloatNames"),
+                (typeof(RegistryGuard), "BackupKeyPaths"),
+                (typeof(ScheduledTaskGuard), "OemTaskPatterns"),
+                (typeof(ScheduledTaskGuard), "MicrosoftSystemPrefixes"),
+            };
+            var dups = new List<string>();
+            foreach (var (holder, field) in sharedArrays)
+            {
+                var fi = holder.GetField(field,
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+                if (fi?.GetValue(null) is not string[] arr) continue;
+                var dup = arr.GroupBy(x => x).Where(g => g.Count() > 1).Select(g => g.Key);
+                dups.AddRange(dup.Select(d => $"{holder.Name}.{field}:{d}"));
+            }
+            var blDup = config.Blacklist.GroupBy(x => x)
+                .Where(g => g.Count() > 1).Select(g => $"Blacklist:{g.Key}");
+            dups.AddRange(blDup);
+            if (dups.Count == 0)
+            {
+                results.Add("[PASS] T8: shared lists are duplicate-free");
+                GuardLogger.Info("[PASS] T8: shared lists duplicate-free");
+                passed++;
+            }
+            else
+            {
+                results.Add($"[FAIL] T8: duplicate entries — {string.Join(",", dups)}");
+                GuardLogger.Error("[FAIL] T8: duplicate entries in shared lists");
+            }
+        }
+        catch (Exception ex)
+        {
+            results.Add($"[FAIL] T8: dup check — {ex.Message}");
         }
 
         // Summary

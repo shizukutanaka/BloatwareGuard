@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.54.0-mvp - Python prototype
+BloatwareGuard v1.55.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -35,7 +35,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.54.0-mvp"
+APP_VERSION = "1.55.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -146,7 +146,6 @@ DEFAULT_BLACKLIST = [
     "Nordcurrent",
     # Dead/deprecated stock apps and promo stubs (24H2 image still ships them)
     "Microsoft.3DViewer",                # 3D Viewer — deprecated, no updates
-    "Microsoft.Microsoft3DViewer",       # Store alias for the same app
     "Microsoft.Print3D",
     "Microsoft.Whiteboard",
     "Microsoft.Wallet",                  # Microsoft Pay UI — service retired
@@ -1906,8 +1905,6 @@ TELEMETRY_TASK_PATHS = (
     "\\Microsoft\\Windows\\Application Experience\\PcaPatchDbUpdate",
     "\\Microsoft\\Windows\\Location\\Notifications",
     "\\Microsoft\\Windows\\Location\\WindowsActionNotification",
-    "\\Microsoft\\Windows\\Feedback\\Siuf\\DmClient",
-    "\\Microsoft\\Windows\\Feedback\\Siuf\\DmClientOnScenarioDownload",
     "\\Microsoft\\Windows\\RetailDemo\\CleanupContent",
     # CEIP perf-tracking surveyor, IME telemetry sender, input-method sync
     # uploads, WMP library sharing, Store install-retry hook
@@ -2453,6 +2450,22 @@ def run_self_test() -> int:
                 assert not miss, f"{name} entries missing from Program.cs: {miss}"
 
     check("T9: defaults <-> config.json parity", t_defaults_config_parity)
+
+    def t_no_duplicate_entries():
+        """Shared lists must be duplicate-free — dups silently inflate counts
+        (a blacklist dup shipped until the doc-vs-list audit caught it)."""
+        for name, entries in (("TELEMETRY_TASK_PATHS", TELEMETRY_TASK_PATHS),
+                              ("_EXTRA_AUTOLOGGERS", _EXTRA_AUTOLOGGERS),
+                              ("_TELEMETRY_HOSTS", _TELEMETRY_HOSTS),
+                              ("_STARTUP_BLOAT_NAMES", _STARTUP_BLOAT_NAMES),
+                              ("DEFAULT_BLACKLIST", DEFAULT_BLACKLIST),
+                              ("MICROSOFT_SYSTEM_TASK_PREFIXES",
+                               MICROSOFT_SYSTEM_TASK_PREFIXES),
+                              ("_BACKUP_KEY_PATHS", _BACKUP_KEY_PATHS)):
+            dupes = {e for e in entries if entries.count(e) > 1}
+            assert not dupes, f"{name} has duplicate entries: {dupes}"
+
+    check("T10: shared lists are duplicate-free", t_no_duplicate_entries)
 
     print()
     passed = 0

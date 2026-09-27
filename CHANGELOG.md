@@ -2,6 +2,23 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.55.0-mvp: list deduplication + self-test guards
+
+### Fixed
+- Duplicate entries in shared lists (both impls): `Microsoft.Microsoft3DViewer`
+  appeared twice in the default blacklist (86 → 85, matching `config.json`)
+  and the Siuf `DmClient`/`DmClientOnScenarioDownload` task pair was listed
+  twice in the telemetry-task list (58 → 56). Dups are harmless at runtime
+  but inflate every count in logs/docs.
+- Doc counts: telemetry hosts now correctly documented as 46 (README/DESIGN
+  said 45 — the v1.54 additions landed without a doc bump).
+
+### Added
+- Self-test duplicate guard — Python T10 and C# T8 assert every shared
+  data list (tasks, autologgers, hosts, startup names, blacklist,
+  system prefixes, backup paths) is duplicate-free, so this class of
+  drift fails CI immediately.
+
 ## [Unreleased] — v1.54.0-mvp: diagnostic service demotion + post-merge review fixes
 
 ### Changed
