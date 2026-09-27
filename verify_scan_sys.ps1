@@ -29,8 +29,8 @@ reg export "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" C:\t
 
 # --- RUN scan (real removal!) ---
 "Running BloatwareGuard scan..." | Out-File -Append $log
-Start-Process -FilePath $exe -ArgumentList "scan" -Wait -RedirectStandardOutput C:\temp\scan_stdout.txt -RedirectStandardError C:\temp\scan_stderr.txt
-"Scan exit code: $LASTEXITCODE" | Out-File -Append $log
+$proc = Start-Process -FilePath $exe -ArgumentList "scan" -Wait -PassThru -RedirectStandardOutput C:\temp\scan_stdout.txt -RedirectStandardError C:\temp\scan_stderr.txt
+"Scan exit code: $($proc.ExitCode)" | Out-File -Append $log
 
 # --- AFTER snapshots ---
 "Taking AFTER snapshots..." | Out-File -Append $log
