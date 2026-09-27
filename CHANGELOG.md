@@ -13,6 +13,10 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   Python while C# merges `OrdinalIgnoreCase` — a family listed under
   different casing could be written twice. Both now dedupe
   case-insensitively, keeping first-seen casing.
+- Python Win32 silent-uninstall split the vendor `QuietUninstallString`
+  args on whitespace, mangling quoted paths (e.g. `/log "C:\dir x\f"`).
+  It now passes the raw command line to CreateProcess, matching the C#
+  `FileName`/`Arguments` split.
 
 ### Changed
 - Misc-bloat demote list extracted from inline loop literals into named

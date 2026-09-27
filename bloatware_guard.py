@@ -263,7 +263,9 @@ def run_powershell(cmd: str, timeout: int = 60) -> Tuple[str, str, int]:
     return stdout.strip(), stderr.strip(), proc.returncode
 
 
-def run_cmd(args: List[str], timeout: int = 30) -> Tuple[str, int]:
+def run_cmd(args, timeout: int = 30) -> Tuple[str, int]:
+    # args may be a list (argv) or a raw command-line string — on Windows a
+    # string is passed verbatim to CreateProcess, preserving vendor quoting.
     try:
         proc = subprocess.run(args, capture_output=True, timeout=timeout)
     except (OSError, subprocess.TimeoutExpired) as e:
@@ -568,7 +570,9 @@ def remove_win32_program(display, uninstall, quiet, logger):
     MSI via `msiexec /x {guid} /qn /norestart`; others are logged, not executed."""
     if quiet:
         cmd, args = _split_command_line(quiet)
-        argv = [cmd] + (args.split() if args else [])
+        # Raw command line — whitespace-splitting args would mangle quoted
+        # paths (C# hands the args string to CreateProcess verbatim).
+        argv = f'"{cmd}" {args}'.rstrip()
     elif "msiexec" in uninstall.lower():
         m = _MSI_GUID_RE.search(uninstall)
         if not m:
