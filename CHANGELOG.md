@@ -46,6 +46,10 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   family → full name; `PackageFullName` is now selected in the same
   enumeration (C# single-query parity), and the reinstall monitor reuses
   that map instead of re-querying.
+- C# re-disabled only telemetry tasks on each scan; OEM tasks were
+  disabled just once at service start, letting OEM updaters re-enable
+  them between scans. `DisableOemTasks` now also runs per scan (Python
+  parity).
 
 ### Changed
 - Misc-bloat demote list extracted from inline loop literals into named

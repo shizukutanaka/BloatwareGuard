@@ -3294,6 +3294,10 @@ public class GuardService : BackgroundService
         if (!dryRun)
         {
             RegistryGuard.ApplyAll(_config.Prevention, _config.Blacklist, _config.Whitelist);
+            // OEM updaters re-enable their tasks between boots — re-disable
+            // every scan, same as the Python scan loop.
+            if (_config.Prevention.DisableOemScheduledTasks)
+                ScheduledTaskGuard.DisableOemTasks();
             if (_config.Prevention.DisableTelemetryTasks)
                 ScheduledTaskGuard.DisableTelemetryTasks();
         }

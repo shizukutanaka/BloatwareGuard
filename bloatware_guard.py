@@ -297,7 +297,14 @@ def is_target_package(pkg_name: str, blacklist: List[str], whitelist: List[str])
     return any(entry and entry.strip() and entry.lower() in name for entry in blacklist)
 
 
-def get_blacklisted_packages(blacklist: List[str], whitelist: List[str]) -> List[Tuple[str, str, str, str]]:
+def get_blacklisted_packages(blacklist: List[str], whitelist: List[str]) -> List[Tuple[str, str, str]]:
+    """Public 3-tuple view (PackageFamilyName, Name, InstallPath) — kept for
+    external callers (CI verification snippet unpacks 3 fields). The scan path
+    uses _enum_blacklisted_packages which also carries PackageFullName."""
+    return [(f, n, p) for f, n, p, _full in _enum_blacklisted_packages(blacklist, whitelist)]
+
+
+def _enum_blacklisted_packages(blacklist: List[str], whitelist: List[str]) -> List[Tuple[str, str, str, str]]:
     """Return (PackageFamilyName, Name, InstallPath, PackageFullName) for
     packages matching blacklist. InstallPath is None for SystemApps (cannot be
     removed per-user); PackageFullName comes from the same query — no second
@@ -1988,7 +1995,7 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
 
     # 1. Remove installed packages
     if prev.get("RemoveAppxPackages", True):
-        packages = get_blacklisted_packages(blacklist, whitelist)
+        packages = _enum_blacklisted_packages(blacklist, whitelist)
         matched += len(packages)
         for family_name, display_name, install_path, full_name in packages:
             matched_families.add(family_name)
@@ -2064,7 +2071,7 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
     if prev.get("MarkDeprovisioned", True) or prev.get("RemoveDefaultStorePackages", True):
         if not (prev.get("RemoveAppxPackages", True)
                 and prev.get("RemoveProvisionedPackages", True)):
-            for family_name, _, _, _ in get_blacklisted_packages(blacklist, whitelist):
+            for family_name, _, _, _ in _enum_blacklisted_packages(blacklist, whitelist):
                 matched_families.add(family_name)
             for display_name, package_name in get_blacklisted_provisioned(
                     blacklist, whitelist):
@@ -2174,7 +2181,7 @@ def run_service(config: dict, logger: logging.Logger):
                 installed_map = {
                     family: full_name
                     for family, _, _, full_name
-                    in get_blacklisted_packages(blacklist, whitelist)
+                    in _enum_blacklisted_packages(blacklist, whitelist)
                 }
                 current_installed = set(installed_map)
                 # Win32 display names — OEMs re-push these via their updaters,
@@ -2349,7 +2356,7 @@ def run_self_test() -> int:
         orig = run_powershell
         globals()["run_powershell"] = lambda cmd, timeout=60: (fake_json, "", 0)
         try:
-            pkgs = get_blacklisted_packages(["Xbox"], [])
+            pkgs = _enum_blacklisted_packages(["Xbox"], [])
             assert pkgs and pkgs[0][3] == \
                 "Microsoft.XboxGamingOverlay_1.0_x64__8wekyb3d8bbwe"
         finally:
@@ -2567,7 +2574,7 @@ def main():
         whitelist = config.get("Whitelist", [])
         pkgs = get_blacklisted_packages(blacklist, whitelist)
         logger.info("Installed packages matching blacklist:")
-        for family, name, _install_path, _full_name in pkgs:
+        for family, name, _install_path in pkgs:
             logger.info(f"  {family} ({name})")
         logger.info("Total: %d package(s) installed.", len(pkgs))
         return
