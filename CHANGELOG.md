@@ -27,6 +27,8 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 - C# `uninstall` issued only `sc delete` — a running service stays
   marked-for-delete until reboot. Now stops the service first, matching
   the Python `sc stop` → `sc delete` order.
+- C# `restore` printed an empty name for ledger entries missing `name`;
+  it now falls back to `family` then `?` like the Python restore.
 
 ### Changed
 - Misc-bloat demote list extracted from inline loop literals into named

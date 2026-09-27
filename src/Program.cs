@@ -3548,6 +3548,9 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
 
             entry.TryGetValue("kind", out var kind);
             entry.TryGetValue("name", out var name);
+            entry.TryGetValue("family", out var family);
+            var display = !string.IsNullOrEmpty(name) ? name
+                : (!string.IsNullOrEmpty(family) ? family : "?");
 
             if (kind == "appx" && !string.IsNullOrEmpty(name))
             {
@@ -3565,7 +3568,7 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
             else
             {
                 GuardLogger.Info(
-                    $"Manual restore needed: {name} (provisioned — reinstall via Microsoft Store or Settings)");
+                    $"Manual restore needed: {display} (provisioned — reinstall via Microsoft Store or Settings)");
                 manual++;
             }
         }
