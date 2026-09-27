@@ -21,7 +21,9 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   120s (was 60s vs C# `Proc.Capture(120000)`); every `schtasks /Change`
   call now waits 15s (was the 30s default vs C# `Proc.Wait(15000)`);
   `Remove-AppxProvisionedPackage` now waits 120s (was 60s vs C# 120000 —
-  provisioned removal is a servicing op that can exceed a minute).
+  provisioned removal is a servicing op that can exceed a minute); all
+  `sc.exe` stop/config and `reg.exe` load/unload/export calls now wait
+  15s (was the 30s default vs C# `RunToolSilent`/`RunRegSilent` 15000).
 
 ### Changed
 - Misc-bloat demote list extracted from inline loop literals into named

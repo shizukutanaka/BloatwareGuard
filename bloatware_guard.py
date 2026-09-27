@@ -750,7 +750,7 @@ def for_each_user_hive(apply, logger: logging.Logger):
 
     dat = _default_profile_dat()
     if dat:
-        _, rc = run_cmd(["reg.exe", "load", f"HKLM\\{_DEFAULT_HIVE_MOUNT}", dat])
+        _, rc = run_cmd(["reg.exe", "load", f"HKLM\\{_DEFAULT_HIVE_MOUNT}", dat], timeout=15)
         if rc == 0:
             try:
                 apply(winreg.HKEY_LOCAL_MACHINE, _DEFAULT_HIVE_MOUNT)
@@ -758,7 +758,7 @@ def for_each_user_hive(apply, logger: logging.Logger):
             except Exception as e:
                 logger.warning(f"Registry: default profile hive skipped: {e}")
             finally:
-                run_cmd(["reg.exe", "unload", f"HKLM\\{_DEFAULT_HIVE_MOUNT}"])
+                run_cmd(["reg.exe", "unload", f"HKLM\\{_DEFAULT_HIVE_MOUNT}"], timeout=15)
 
     try:
         apply(winreg.HKEY_CURRENT_USER, "")
@@ -878,7 +878,8 @@ def backup_registry_keys(logger: logging.Logger):
         for i, path in enumerate(_BACKUP_KEY_PATHS):
             # reg.exe export fails for non-existent keys — expected, non-fatal
             run_cmd(["reg.exe", "export", f"HKLM\\{path}",
-                     os.path.join(backup_dir, f"{stamp}-{i}.reg"), "/y"])
+                     os.path.join(backup_dir, f"{stamp}-{i}.reg"), "/y"],
+                    timeout=15)
         logger.info(f"Applied: BackupRegistry ({len(_BACKUP_KEY_PATHS)} keys -> {backup_dir})")
     except OSError as e:
         logger.warning(f"BackupRegistry skipped: {e}")
@@ -1063,11 +1064,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
 
         # "Connected User Experiences and Telemetry" (DiagTrack) — the actual
         # telemetry uploader; absent on some SKUs, failures are non-fatal.
-        run_cmd(["sc.exe", "stop", "DiagTrack"])
-        run_cmd(["sc.exe", "config", "DiagTrack", "start=", "disabled"])
+        run_cmd(["sc.exe", "stop", "DiagTrack"], timeout=15)
+        run_cmd(["sc.exe", "config", "DiagTrack", "start=", "disabled"], timeout=15)
         # RetailDemo data-collection service (present on most images)
-        run_cmd(["sc.exe", "stop", "RetailDemo"])
-        run_cmd(["sc.exe", "config", "RetailDemo", "start=", "disabled"])
+        run_cmd(["sc.exe", "stop", "RetailDemo"], timeout=15)
+        run_cmd(["sc.exe", "config", "RetailDemo", "start=", "disabled"], timeout=15)
         # ETW AutoLogger feeding DiagTrack — Start=0 kills the boot-time trace
         set_registry_dword(
             "HKLM",
@@ -1297,8 +1298,8 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
 
     if prev.get("DisablePrintSpooler", False):
         # Opt-in — kills the PrintNightmare surface but breaks printing
-        run_cmd(["sc.exe", "stop", "Spooler"])
-        run_cmd(["sc.exe", "config", "Spooler", "start=", "disabled"])
+        run_cmd(["sc.exe", "stop", "Spooler"], timeout=15)
+        run_cmd(["sc.exe", "config", "Spooler", "start=", "disabled"], timeout=15)
         logger.info("Applied: DisablePrintSpooler (Spooler stopped + disabled)")
 
     if prev.get("BlockOemWpbtExecution", True):
@@ -1361,8 +1362,8 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             demote_service(svc)
         # Remote Registry: remote registry read/write over SMB — disabled
         # outright (demand-start would still leave the surface reachable)
-        run_cmd(["sc.exe", "stop", "RemoteRegistry"])
-        run_cmd(["sc.exe", "config", "RemoteRegistry", "start=", "disabled"])
+        run_cmd(["sc.exe", "stop", "RemoteRegistry"], timeout=15)
+        run_cmd(["sc.exe", "config", "RemoteRegistry", "start=", "disabled"], timeout=15)
         logger.info("Applied: DisableMiscBloatServices "
                     "(44 services -> demand-start, RemoteRegistry disabled)")
 
