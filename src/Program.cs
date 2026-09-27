@@ -2834,6 +2834,8 @@ public static class ScheduledTaskGuard
     // nothing else is touched. CompatTelRunner is a notorious CPU/IO hog.
     private static readonly string[] TelemetryTaskPaths = {
         @"\Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser",
+        // "Exp" variant shipped on newer builds — same telemetry role
+        @"\Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser Exp",
         @"\Microsoft\Windows\Application Experience\ProgramDataUpdater",
         @"\Microsoft\Windows\Application Experience\PcaPatchDbTask",
         @"\Microsoft\Windows\Application Experience\StartupAppTask",

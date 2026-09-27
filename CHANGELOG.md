@@ -84,6 +84,9 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   CI verification snippet's 3-field unpack; the public API is back to
   `(family, name, install_path)` while the scan path uses the 4-field
   `_enum_blacklisted_packages` for the single-query full-name map.
+- Added missing telemetry task `Microsoft Compatibility Appraiser Exp`
+  (newer-build variant of CompatTelRunner — listed by Win11Debloat);
+  telemetry-task list now 57, README count updated.
 
 ### Changed
 - Misc-bloat demote list extracted from inline loop literals into named
