@@ -26,6 +26,17 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   now rotates at 1 MB keeping one generation (Python `RotatingFileHandler`,
   C# `.old` rollover).
 - `deploy_verify.bat` banner still said v1.8.0 — now v1.54.0-mvp.
+- Windows console encoding crash: Python `print()`/logger output containing
+  `↔`/`→` (self-test names, "Applied:" lines) raised `UnicodeEncodeError` on
+  cp1252/cp932 consoles — caught by CI `test-scan`. Output strings are now
+  ASCII-only and `main()` reconfigures stdout/stderr to UTF-8 with
+  `errors="replace"` so no character can take the tool down. C# now sets
+  `Console.OutputEncoding = UTF8` (mirrors the Python hardening; .NET never
+  crashed but rendered `?` mojibake).
+- `verify_scan.ps1` invoked a hardcoded `C:\Users\HP\...` script path —
+  now `$PSScriptRoot`-relative; `verify_scan_sys.ps1` logged a scan exit
+  code that `Start-Process -Wait` never set — now `-PassThru`/`ExitCode`.
+- C# `DisableMiscBloatServices` log claimed 42 services (actual: 45).
 - `_BACKUP_KEY_PATHS`/`BackupKeyPaths` now include the Deprovisioned and
   RemoveDefaultStorePackages keys; self-test T9 also cross-checks the backup
   path list against Program.cs.

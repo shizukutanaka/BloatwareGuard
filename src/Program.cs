@@ -2532,7 +2532,7 @@ public static class RegistryGuard
             // demand-start, which still leaves it reachable).
             RunToolSilent("sc.exe", "stop RemoteRegistry");
             RunToolSilent("sc.exe", "config RemoteRegistry start= disabled");
-            GuardLogger.Info("Applied: DisableMiscBloatServices (42 services → demand-start, RemoteRegistry disabled)");
+            GuardLogger.Info("Applied: DisableMiscBloatServices (45 services → demand-start, RemoteRegistry disabled)");
         }
         catch (Exception ex)
         {
@@ -3319,6 +3319,11 @@ public class Program
 {
     public static void Main(string[] args)
     {
+        // Windows consoles default to a legacy code page (cp1252/cp932) —
+        // force UTF-8 so non-ASCII log glyphs don't render as '?'. Unlike
+        // Python the .NET console never throws on unencodable chars, so this
+        // is cosmetic; kept to match the Python console hardening.
+        try { Console.OutputEncoding = new System.Text.UTF8Encoding(false); } catch { /* no console in service mode */ }
         var configPath = Path.Combine(AppContext.BaseDirectory, "config.json");
         var config = ConfigLoader.Load(configPath);
 

@@ -147,8 +147,8 @@ Always preserves: `WindowsStore`, `Calculator`, `Notepad`, `Microsoft.VCLibs`, `
 
 || File | Description |
 ||---|---||
-|| `bloatware_guard.py` | Python implementation (primary) |
-|| `src/Program.cs` | C#/.NET 8 implementation |
+|| `bloatware_guard.py` | Python implementation (reference / non-admin dry-run) |
+|| `src/Program.cs` | C#/.NET 8 implementation (canonical — self-contained service EXE) |
 || `src/BloatwareGuard.csproj` | C# project (self-contained win-x64) |
 || `config.json` | Blacklist + whitelist config |
 || `deploy_verify.bat` | Admin deployment + verification script |

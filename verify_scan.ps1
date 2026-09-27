@@ -20,7 +20,7 @@ $installed_before | Select PackageFamilyName | Export-Csv -NoType C:\temp\appx_b
 
 # 4. Run the actual scan (real removal!)
 Write-Host "`nRunning BloatwareGuard scan..." -ForegroundColor Green
-python C:\Users\HP\bloatware-guard\bloatware_guard.py --scan
+python (Join-Path $PSScriptRoot "bloatware_guard.py") --scan
 
 # 5. AFTER snapshots
 Write-Host "Taking AFTER snapshots..." -ForegroundColor Yellow
