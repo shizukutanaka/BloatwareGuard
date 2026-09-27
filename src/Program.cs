@@ -643,10 +643,12 @@ public static class AppxManager
         if (pattern.Length == 0)
             return results;  // empty pattern would -match every package
 
+        // Match DisplayName (the stable product name the blacklist was written
+        // against — Python parity) and return PackageName for removal.
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Get-AppxProvisionedPackage -Online | Where-Object {{$_.PackageName -match '{pattern}'}} | Select-Object PackageName | ConvertTo-Json\"",
+            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Get-AppxProvisionedPackage -Online | Where-Object {{$_.DisplayName -match '{pattern}'}} | Select-Object DisplayName,PackageName | ConvertTo-Json\"",
             RedirectStandardOutput = true,
             UseShellExecute = false,
             CreateNoWindow = true
@@ -656,21 +658,23 @@ public static class AppxManager
 
         try
         {
+            void AddIfNotWhitelisted(JsonElement el)
+            {
+                var pkg = el.GetProperty("PackageName").GetString() ?? "";
+                var display = el.GetProperty("DisplayName").GetString() ?? "";
+                if (!string.IsNullOrEmpty(pkg) && !IsWhitelisted(display, whitelist))
+                    results.Add(pkg);
+            }
+
             var doc = JsonDocument.Parse(output.Trim());
             if (doc.RootElement.ValueKind == JsonValueKind.Array)
             {
                 foreach (var el in doc.RootElement.EnumerateArray())
-                {
-                    var pkg = el.GetProperty("PackageName").GetString() ?? "";
-                    if (!IsWhitelisted(pkg, whitelist))
-                        results.Add(pkg);
-                }
+                    AddIfNotWhitelisted(el);
             }
             else if (doc.RootElement.ValueKind == JsonValueKind.Object)
             {
-                var pkg = doc.RootElement.GetProperty("PackageName").GetString() ?? "";
-                if (!IsWhitelisted(pkg, whitelist))
-                    results.Add(pkg);
+                AddIfNotWhitelisted(doc.RootElement);
             }
         }
         catch { }

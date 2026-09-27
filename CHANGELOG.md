@@ -35,6 +35,13 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 - C# generated-config `LogFilePath` pointed next to the exe; it now
   defaults to `ProgramData\BloatwareGuard\bloatware-guard.log` like the
   Python side writes.
+- C# provisioned-package matching ran the blacklist against `PackageName`
+  (whose version/arch/publisher suffixes could over-match); it now
+  matches `DisplayName` — the stable product name the blacklist is
+  written against — same as Python, while still returning `PackageName`
+  for removal.
+- `verify_scan.ps1` exported registry snapshots into `C:\temp` without
+  creating it (the SYSTEM variant already did); add the same guard.
 
 ### Changed
 - Misc-bloat demote list extracted from inline loop literals into named
