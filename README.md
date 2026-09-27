@@ -1,4 +1,4 @@
-# BloatwareGuard v1.54.0-mvp
+# BloatwareGuard v1.55.0-mvp
 
 ## What It Does
 
@@ -51,7 +51,7 @@ also apply correctly when the tool runs as a SYSTEM service and for users create
 || 39. Start "Recommended" section hidden (promoted-apps surface) | ✅ | ✅ | HKLM needs admin |
 || 40. Deprovisioned markers for blacklisted families (feature-update re-provision blocked) | ✅ | ✅ | HKLM needs admin |
 || 41. 25H2 RemoveDefaultMicrosoftStorePackages policy (OS removes listed apps at first sign-in of new users) | ✅ | ✅ | HKLM needs admin; unknown ids ignored on older builds |
-|| 42. Telemetry endpoints null-routed via marked hosts block (45 domains, reversible) | ✅ | ✅ | Requires admin |
+|| 42. Telemetry endpoints null-routed via marked hosts block (46 domains, reversible) | ✅ | ✅ | Requires admin |
 || 43. winget uninstall sweep for blacklist entries that are valid package ids | ✅ | ✅ | Skips when winget absent |
 || 44. Telemetry ETW AutoLoggers off (SQMLogger, WiFiSession, Diagtrack-Listener, 13 sessions) | ✅ | ✅ | HKLM needs admin |
 
@@ -172,8 +172,8 @@ dotnet publish src/BloatwareGuard.csproj -c Release -r win-x64 --self-contained 
 ## Version
 
 ```bash
-python bloatware_guard.py --version   # BloatwareGuard v1.54.0-mvp
-BloatwareGuard.exe --version          # BloatwareGuard v1.54.0-mvp
+python bloatware_guard.py --version   # BloatwareGuard v1.55.0-mvp
+BloatwareGuard.exe --version          # BloatwareGuard v1.55.0-mvp
 ```
 
 ---
