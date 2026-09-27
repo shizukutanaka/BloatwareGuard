@@ -247,6 +247,18 @@ def is_admin() -> bool:
         return False
 
 
+def _relaunch_elevated(flag: str) -> None:
+    """Re-run this script with `flag` elevated via UAC (C# `Verb="runas"`
+    parity: install/uninstall self-elevate instead of failing outright)."""
+    params = f'"{Path(__file__).resolve()}" {flag}'
+    rc = ctypes.windll.shell32.ShellExecuteW(
+        None, "runas", str(Path(sys.executable).resolve()), params, None, 1)
+    if rc <= 32:
+        print(f"ERROR: elevation declined or failed (ShellExecute rc={rc}).")
+        sys.exit(1)
+    print(f"Elevation requested — '{flag}' is running in an elevated window.")
+
+
 def run_powershell(cmd: str, timeout: int = 60) -> Tuple[str, str, int]:
     """Run a PowerShell command and return (stdout, stderr, exit_code).
     Missing binaries/hangs return rc=-1 instead of propagating."""
@@ -2548,15 +2560,15 @@ def main():
 
     if args.install:
         if not is_admin():
-            print("ERROR: Administrator rights required. Run as admin.")
-            sys.exit(1)
+            _relaunch_elevated("--install")
+            return
         install_service()
         return
 
     if args.uninstall:
         if not is_admin():
-            print("ERROR: Administrator rights required.")
-            sys.exit(1)
+            _relaunch_elevated("--uninstall")
+            return
         uninstall_service()
         return
 

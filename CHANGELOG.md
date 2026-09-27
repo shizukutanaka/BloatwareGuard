@@ -29,6 +29,9 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   the Python `sc stop` → `sc delete` order.
 - C# `restore` printed an empty name for ledger entries missing `name`;
   it now falls back to `family` then `?` like the Python restore.
+- Python `--install`/`--uninstall` used to exit with an error when not
+  elevated; they now re-launch themselves via UAC (`runas`), matching
+  the C# self-elevating `install`/`uninstall`.
 
 ### Changed
 - Misc-bloat demote list extracted from inline loop literals into named
