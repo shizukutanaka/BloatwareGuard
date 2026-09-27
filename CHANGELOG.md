@@ -2,6 +2,23 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.56.0-mvp: service-list dedup + case-variant guards
+
+### Fixed
+- Case-variant duplicate `SensrSvc`/`sensrsvc` in the misc-bloat demote
+  list (same Windows service; `SensorService` is a distinct service and
+  stays). Demote count corrected 45 → 44 in code logs and README (both
+  impls).
+
+### Changed
+- Misc-bloat demote list extracted from inline loop literals into named
+  constants (`_MISC_DEMOTE_SERVICES` / `MiscBloatServices`) so it is now
+  covered by the T9 cross-check (Python↔C# presence) and the T10/T8
+  duplicate guards.
+- T10/T8 extended with case-insensitive duplicate detection across all
+  shared lists plus `config.Blacklist` — future case-variant dups fail
+  the self-test instead of silently shipping.
+
 ## [Unreleased] — v1.55.0-mvp: list deduplication + self-test guards
 
 ### Fixed

@@ -2474,56 +2474,51 @@ public static class RegistryGuard
     /// dmwappushservice (WAP push/MDM channel), MapsBroker (downloaded-map
     /// broker), WMPNetworkSvc (media sharing), DiagnosticsHub standard
     /// collector. Demand-start keeps them usable when actually invoked.</summary>
+    // CDPSvc = Nearby Sharing; NvTelemetryContainer / ESRV_* = GPU/Intel
+    // driver telemetry; PushToInstall = Store push-install channel;
+    // SEMgrSvc = NFC/SE payments manager; PhoneSvc = Phone Link
+    // (absent where not applicable — write is a no-op)
+    private static readonly string[] MiscBloatServices = {
+        "dmwappushservice", "MapsBroker", "WMPNetworkSvc",
+        "diagnosticshub.standardcollector.service",
+        "CDPSvc", "NvTelemetryContainer",
+        "esrv_svc", "ESRV_SVC_QUEENCREEK",
+        "PushToInstall", "SEMgrSvc", "PhoneSvc",
+        "SysMain", "TabletInputService",
+        "WSearch",                   // indexer — resident file scan; demand-start keeps search working
+        "AssignedAccessManagerSvc",  // kiosk assigned-access
+        "DusmSvc",                   // data-usage metering
+        // Per-user service templates for Mail/People/contacts sync — dead
+        // weight once those apps are removed
+        "CDPUserSvc", "OneSyncSvc", "UnistoreSvc",
+        "UserDataSvc", "PimIndexMaintenanceSvc",
+        // Diagnostic Service Host pair — WDI diagnostics sessions
+        "WdiSystemHost", "WdiServiceHost",
+        // Diagnostic Policy Service + Diagnostic Execution Service —
+        // Automatic by default; Manual keeps on-demand diagnostics working
+        "DPS", "diagsvc",
+        // Data Collection and Publishing Service — feeds the diagnostic
+        // ingest pipeline
+        "DcpSvc",
+        // Program Compatibility Assistant
+        "PcaSvc",
+        // Microsoft Pay (dead), Windows Insider, Mixed Reality, AllJoyn,
+        // smart card triad
+        "WalletService", "wisvc",
+        "SharedRealitySvc", "perceptionsimulation", "Spectrum",
+        "AJRouter", "SCardSvr", "ScDeviceEnum", "CertPropSvc",
+        // Location tracking + sensor monitoring stack
+        "lfsvc", "SensorService", "sensrsvc",
+        // SNMP traps (dead), recommended-troubleshooting runner,
+        // cellular WWAN (demand-start keeps LTE working)
+        "SNMPTRAP", "TroubleshootingSvc", "WwanSvc", "WwanAuthSvc",
+    };
+
     public static void DisableMiscBloatServices()
     {
         try
         {
-            // CDPSvc = Nearby Sharing; NvTelemetryContainer / ESRV_* = GPU/Intel
-            // driver telemetry; PushToInstall = Store push-install channel;
-            // SEMgrSvc = NFC/SE payments manager; PhoneSvc = Phone Link
-            // (absent where not applicable — write is a no-op)
-            foreach (var svc in new[] { "dmwappushservice", "MapsBroker",
-                                        "WMPNetworkSvc",
-                                        "diagnosticshub.standardcollector.service",
-                                        "CDPSvc", "NvTelemetryContainer",
-                                        "esrv_svc", "ESRV_SVC_QUEENCREEK",
-                                        "PushToInstall", "SEMgrSvc", "PhoneSvc",
-                                        "SysMain", "TabletInputService",
-                                        "WSearch",              // indexer —
-                                        // resident file scan; demand-start
-                                        // keeps search working
-                                        "AssignedAccessManagerSvc",
-                                        "DusmSvc",             // data-usage metering
-                                        // Per-user service templates for
-                                        // Mail/People/contacts sync — dead
-                                        // weight once those apps are removed
-                                        "CDPUserSvc", "OneSyncSvc", "UnistoreSvc",
-                                        "UserDataSvc", "PimIndexMaintenanceSvc",
-                                        // Diagnostic Service Host pair — WDI
-                                        // diagnostics sessions
-                                        "WdiSystemHost", "WdiServiceHost",
-                                        // Diagnostic Policy Service + Diagnostic
-                                        // Execution Service — Automatic by
-                                        // default; Manual keeps on-demand
-                                        // diagnostics working
-                                        "DPS", "diagsvc",
-                                        // Data Collection and Publishing Service
-                                        "DcpSvc",
-                                        // Program Compatibility Assistant
-                                        "PcaSvc",
-                                        // Microsoft Pay (dead), Windows
-                                        // Insider, Mixed Reality, AllJoyn,
-                                        // smart card triad
-                                        "WalletService", "wisvc",
-                                        "SharedRealitySvc", "perceptionsimulation",
-                                        "Spectrum", "AJRouter", "SCardSvr",
-                                        "ScDeviceEnum", "CertPropSvc",
-                                        // Location tracking + sensor monitoring stack
-                                        "lfsvc", "SensorService", "SensrSvc", "sensrsvc",
-                                        // SNMP traps (dead), recommended-troubleshooting
-                                        // runner, cellular WWAN (demand-start keeps LTE)
-                                        "SNMPTRAP", "TroubleshootingSvc", "WwanSvc",
-                                        "WwanAuthSvc" })
+            foreach (var svc in MiscBloatServices)
             {
                 DemoteService(svc);
             }
@@ -2532,7 +2527,7 @@ public static class RegistryGuard
             // demand-start, which still leaves it reachable).
             RunToolSilent("sc.exe", "stop RemoteRegistry");
             RunToolSilent("sc.exe", "config RemoteRegistry start= disabled");
-            GuardLogger.Info("Applied: DisableMiscBloatServices (45 services → demand-start, RemoteRegistry disabled)");
+            GuardLogger.Info("Applied: DisableMiscBloatServices (44 services → demand-start, RemoteRegistry disabled)");
         }
         catch (Exception ex)
         {
@@ -3358,7 +3353,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.55.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.56.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -3443,7 +3438,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.55.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.56.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -3595,8 +3590,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 8;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.55.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.55.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.56.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.56.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try
@@ -3744,6 +3739,7 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
                 (typeof(RegistryGuard), "TelemetryHosts"),
                 (typeof(RegistryGuard), "StartupBloatNames"),
                 (typeof(RegistryGuard), "BackupKeyPaths"),
+                (typeof(RegistryGuard), "MiscBloatServices"),
                 (typeof(ScheduledTaskGuard), "OemTaskPatterns"),
                 (typeof(ScheduledTaskGuard), "MicrosoftSystemPrefixes"),
             };
@@ -3755,10 +3751,18 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
                 if (fi?.GetValue(null) is not string[] arr) continue;
                 var dup = arr.GroupBy(x => x).Where(g => g.Count() > 1).Select(g => g.Key);
                 dups.AddRange(dup.Select(d => $"{holder.Name}.{field}:{d}"));
+                // Service names are case-insensitive on Windows — catch
+                // case-variant dups too (SensrSvc/sensrsvc shipped as both).
+                var caseDup = arr.GroupBy(x => x.ToLowerInvariant())
+                    .Where(g => g.Count() > 1).Select(g => g.Key);
+                dups.AddRange(caseDup.Select(d => $"{holder.Name}.{field}:case:{d}"));
             }
             var blDup = config.Blacklist.GroupBy(x => x)
                 .Where(g => g.Count() > 1).Select(g => $"Blacklist:{g.Key}");
             dups.AddRange(blDup);
+            var blCaseDup = config.Blacklist.GroupBy(x => x.ToLowerInvariant())
+                .Where(g => g.Count() > 1).Select(g => $"Blacklist:case:{g.Key}");
+            dups.AddRange(blCaseDup);
             if (dups.Count == 0)
             {
                 results.Add("[PASS] T8: shared lists are duplicate-free");

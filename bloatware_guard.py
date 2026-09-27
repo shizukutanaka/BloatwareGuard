@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.55.0-mvp - Python prototype
+BloatwareGuard v1.56.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -35,7 +35,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.55.0-mvp"
+APP_VERSION = "1.56.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -821,6 +821,42 @@ _BACKUP_KEY_PATHS = (
 )
 _registry_backup_done = False
 
+# Demand-start (Start=3) — all stay usable when actually invoked.
+_MISC_DEMOTE_SERVICES = (
+    "dmwappushservice", "MapsBroker", "WMPNetworkSvc",
+    "diagnosticshub.standardcollector.service",
+    "CDPSvc", "NvTelemetryContainer",
+    "esrv_svc", "ESRV_SVC_QUEENCREEK",
+    "PushToInstall", "SEMgrSvc", "PhoneSvc",
+    "SysMain", "TabletInputService",
+    "WSearch",                # indexer — resident file scan
+    "AssignedAccessManagerSvc",  # kiosk assigned-access
+    "DusmSvc",                # data-usage metering
+    # Per-user service templates for Mail/People/contacts sync — dead
+    # weight once those apps are removed
+    "CDPUserSvc", "OneSyncSvc", "UnistoreSvc",
+    "UserDataSvc", "PimIndexMaintenanceSvc",
+    # Diagnostic Service Host pair — WDI diagnostics sessions
+    "WdiSystemHost", "WdiServiceHost",
+    # Diagnostic Policy Service + Diagnostic Execution Service — both
+    # Automatic by default; Manual keeps on-demand diagnostics working
+    "DPS", "diagsvc",
+    # Data Collection and Publishing Service — feeds the diagnostic
+    # ingest pipeline
+    "DcpSvc",
+    "PcaSvc",                 # Program Compatibility Assistant
+    # Microsoft Pay (dead), Windows Insider, Mixed Reality, AllJoyn,
+    # smart card triad
+    "WalletService", "wisvc",
+    "SharedRealitySvc", "perceptionsimulation", "Spectrum",
+    "AJRouter", "SCardSvr", "ScDeviceEnum", "CertPropSvc",
+    # Location tracking + sensor monitoring stack
+    "lfsvc", "SensorService", "sensrsvc",
+    # SNMP traps (dead), recommended-troubleshooting runner, cellular WWAN
+    # (demand-start keeps LTE working)
+    "SNMPTRAP", "TroubleshootingSvc", "WwanSvc", "WwanAuthSvc",
+)
+
 
 def backup_registry_keys(logger: logging.Logger):
     """reg-export every HKLM key this tool touches into
@@ -1316,48 +1352,14 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
     if prev.get("DisableMiscBloatServices", True):
         # Demand-start (Start=3) — all stay usable when actually invoked.
         # Vendor services absent from the machine are skipped (open, not create).
-        for svc in ("dmwappushservice", "MapsBroker", "WMPNetworkSvc",
-                    "diagnosticshub.standardcollector.service",
-                    "CDPSvc", "NvTelemetryContainer",
-                    "esrv_svc", "ESRV_SVC_QUEENCREEK",
-                    "PushToInstall", "SEMgrSvc", "PhoneSvc",
-                    "SysMain", "TabletInputService",
-                    "WSearch",                # indexer — resident file scan
-                    "AssignedAccessManagerSvc",  # kiosk assigned-access
-                    "DusmSvc",                # data-usage metering
-                    # Per-user service templates for Mail/People/contacts
-                    # sync — dead weight once those apps are removed
-                    "CDPUserSvc", "OneSyncSvc", "UnistoreSvc",
-                    "UserDataSvc", "PimIndexMaintenanceSvc",
-                    # Diagnostic Service Host pair — WDI diagnostics sessions
-                    "WdiSystemHost", "WdiServiceHost",
-                    # Diagnostic Policy Service + Diagnostic Execution Service
-                    # — both Automatic by default; Manual keeps netsh/PowerShell
-                    # diagnostics working on demand while killing the resident
-                    # diagnostic pipeline
-                    "DPS", "diagsvc",
-                    # Data Collection and Publishing Service — feeds the
-                    # diagnostic ingest pipeline
-                    "DcpSvc",
-                    "PcaSvc",                # Program Compatibility Assistant
-                    # Microsoft Pay (dead), Windows Insider, Mixed Reality,
-                    # AllJoyn, smart card triad
-                    "WalletService", "wisvc",
-                    "SharedRealitySvc", "perceptionsimulation", "Spectrum",
-                    "AJRouter", "SCardSvr", "ScDeviceEnum", "CertPropSvc",
-                    # Location tracking + sensor monitoring stack
-                    "lfsvc", "SensorService", "SensrSvc", "sensrsvc",
-                    # SNMP traps (dead), recommended-troubleshooting runner,
-                    # cellular WWAN (demand-start keeps LTE working)
-                    "SNMPTRAP", "TroubleshootingSvc", "WwanSvc",
-                    "WwanAuthSvc"):
+        for svc in _MISC_DEMOTE_SERVICES:
             demote_service(svc)
         # Remote Registry: remote registry read/write over SMB — disabled
         # outright (demand-start would still leave the surface reachable)
         run_cmd(["sc.exe", "stop", "RemoteRegistry"])
         run_cmd(["sc.exe", "config", "RemoteRegistry", "start=", "disabled"])
         logger.info("Applied: DisableMiscBloatServices "
-                    "(45 services -> demand-start, RemoteRegistry disabled)")
+                    "(44 services -> demand-start, RemoteRegistry disabled)")
 
     if prev.get("DisableSpotlight", True):
         # Desktop Spotlight = content-delivery channel (wallpaper promos)
@@ -2445,7 +2447,9 @@ def run_self_test() -> int:
                                   ("DEFAULT_BLACKLIST", DEFAULT_BLACKLIST),
                                   ("MICROSOFT_SYSTEM_TASK_PREFIXES",
                                    MICROSOFT_SYSTEM_TASK_PREFIXES),
-                                  ("_BACKUP_KEY_PATHS", _BACKUP_KEY_PATHS)):
+                                  ("_BACKUP_KEY_PATHS", _BACKUP_KEY_PATHS),
+                                  ("_MISC_DEMOTE_SERVICES",
+                                   _MISC_DEMOTE_SERVICES)):
                 miss = [e for e in entries if e not in cs_src]
                 assert not miss, f"{name} entries missing from Program.cs: {miss}"
 
@@ -2461,9 +2465,15 @@ def run_self_test() -> int:
                               ("DEFAULT_BLACKLIST", DEFAULT_BLACKLIST),
                               ("MICROSOFT_SYSTEM_TASK_PREFIXES",
                                MICROSOFT_SYSTEM_TASK_PREFIXES),
-                              ("_BACKUP_KEY_PATHS", _BACKUP_KEY_PATHS)):
+                              ("_BACKUP_KEY_PATHS", _BACKUP_KEY_PATHS),
+                              ("_MISC_DEMOTE_SERVICES", _MISC_DEMOTE_SERVICES)):
             dupes = {e for e in entries if entries.count(e) > 1}
             assert not dupes, f"{name} has duplicate entries: {dupes}"
+            # Service names are case-insensitive on Windows — catch
+            # case-variant dups too (SensrSvc/sensrsvc shipped as both).
+            lower = [e.lower() for e in entries]
+            case_dupes = {e for e in lower if lower.count(e) > 1}
+            assert not case_dupes, f"{name} has case-variant duplicates: {case_dupes}"
 
     check("T10: shared lists are duplicate-free", t_no_duplicate_entries)
 
