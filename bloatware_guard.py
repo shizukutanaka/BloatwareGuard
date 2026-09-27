@@ -839,7 +839,7 @@ def backup_registry_keys(logger: logging.Logger):
             # reg.exe export fails for non-existent keys — expected, non-fatal
             run_cmd(["reg.exe", "export", f"HKLM\\{path}",
                      os.path.join(backup_dir, f"{stamp}-{i}.reg"), "/y"])
-        logger.info(f"Applied: BackupRegistry ({len(_BACKUP_KEY_PATHS)} keys → {backup_dir})")
+        logger.info(f"Applied: BackupRegistry ({len(_BACKUP_KEY_PATHS)} keys -> {backup_dir})")
     except OSError as e:
         logger.warning(f"BackupRegistry skipped: {e}")
 
@@ -1312,7 +1312,7 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         for svc in ("XblAuthManager", "XblGameSave",
                     "XboxNetApiSvc", "XboxGipSvc"):
             demote_service(svc)
-        logger.info("Applied: DisableXboxServices (4 services → demand-start)")
+        logger.info("Applied: DisableXboxServices (4 services -> demand-start)")
 
     if prev.get("DisableMiscBloatServices", True):
         # Demand-start (Start=3) — all stay usable when actually invoked.
@@ -1358,7 +1358,7 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         run_cmd(["sc.exe", "stop", "RemoteRegistry"])
         run_cmd(["sc.exe", "config", "RemoteRegistry", "start=", "disabled"])
         logger.info("Applied: DisableMiscBloatServices "
-                    "(42 services → demand-start, RemoteRegistry disabled)")
+                    "(45 services -> demand-start, RemoteRegistry disabled)")
 
     if prev.get("DisableSpotlight", True):
         # Desktop Spotlight = content-delivery channel (wallpaper promos)
@@ -2452,7 +2452,7 @@ def run_self_test() -> int:
                 miss = [e for e in entries if e not in cs_src]
                 assert not miss, f"{name} entries missing from Program.cs: {miss}"
 
-    check("T9: defaults ↔ config.json parity", t_defaults_config_parity)
+    check("T9: defaults <-> config.json parity", t_defaults_config_parity)
 
     print()
     passed = 0
@@ -2471,6 +2471,14 @@ def run_self_test() -> int:
 # ─── Entry Point ─────────────────────────────────────────────────────────────
 
 def main():
+    # Windows consoles default to cp1252/cp932 — a stray non-ASCII char in a
+    # log line hard-crashes print/logger output. Force UTF-8 + replace so
+    # encoding never takes the tool down.
+    for _s in (sys.stdout, sys.stderr):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
     parser = argparse.ArgumentParser(description="BloatwareGuard - Auto-remove Windows bloatware")
     parser.add_argument("--scan", action="store_true", help="Run one scan and exit")
     parser.add_argument("--dry-run", action="store_true", help="Scan and log planned actions WITHOUT executing removal")
