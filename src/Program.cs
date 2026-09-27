@@ -427,7 +427,10 @@ public static class ConfigLoader
         return new GuardConfig
         {
             ScanIntervalSeconds = 300,
-            LogFilePath = Path.Combine(AppContext.BaseDirectory, "bloatware-guard.log"),
+            // Same default the Python side writes into a generated config.json
+            LogFilePath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+                "BloatwareGuard", "bloatware-guard.log"),
             Blacklist = new List<string>
             {
                 // Microsoft bloatware
@@ -640,10 +643,12 @@ public static class AppxManager
         if (pattern.Length == 0)
             return results;  // empty pattern would -match every package
 
+        // Match DisplayName (the stable product name the blacklist was written
+        // against — Python parity) and return PackageName for removal.
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Get-AppxProvisionedPackage -Online | Where-Object {{$_.PackageName -match '{pattern}'}} | Select-Object PackageName | ConvertTo-Json\"",
+            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Get-AppxProvisionedPackage -Online | Where-Object {{$_.DisplayName -match '{pattern}'}} | Select-Object DisplayName,PackageName | ConvertTo-Json\"",
             RedirectStandardOutput = true,
             UseShellExecute = false,
             CreateNoWindow = true
@@ -653,21 +658,23 @@ public static class AppxManager
 
         try
         {
+            void AddIfNotWhitelisted(JsonElement el)
+            {
+                var pkg = el.GetProperty("PackageName").GetString() ?? "";
+                var display = el.GetProperty("DisplayName").GetString() ?? "";
+                if (!string.IsNullOrEmpty(pkg) && !IsWhitelisted(display, whitelist))
+                    results.Add(pkg);
+            }
+
             var doc = JsonDocument.Parse(output.Trim());
             if (doc.RootElement.ValueKind == JsonValueKind.Array)
             {
                 foreach (var el in doc.RootElement.EnumerateArray())
-                {
-                    var pkg = el.GetProperty("PackageName").GetString() ?? "";
-                    if (!IsWhitelisted(pkg, whitelist))
-                        results.Add(pkg);
-                }
+                    AddIfNotWhitelisted(el);
             }
             else if (doc.RootElement.ValueKind == JsonValueKind.Object)
             {
-                var pkg = doc.RootElement.GetProperty("PackageName").GetString() ?? "";
-                if (!IsWhitelisted(pkg, whitelist))
-                    results.Add(pkg);
+                AddIfNotWhitelisted(doc.RootElement);
             }
         }
         catch { }
@@ -1011,6 +1018,26 @@ public static class RegistryGuard
     private const string UserExplorerPoliciesPath = @"Software\Policies\Microsoft\Windows\Explorer";
     private const string UserCopilotPath = @"Software\Policies\Microsoft\Windows\WindowsCopilot";
     private const string UserWindowsAiPath = @"Software\Policies\Microsoft\Windows\WindowsAI";
+    private const string ShellCopilotPath = @"SOFTWARE\Microsoft\Windows\Shell\Copilot";
+    private const string UserShellCopilotPath = @"Software\Microsoft\Windows\Shell\Copilot";
+    private const string UserVoiceActivationPath = @"Software\Microsoft\Speech_OneCore\Settings\VoiceActivation\UserPreferenceForAllApps";
+    private const string UserClickToDoPath = @"Software\Microsoft\Windows\Shell\ClickToDo";
+    private const string PaintPoliciesPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Paint";
+    private const string NotepadPoliciesPath = @"SOFTWARE\Policies\WindowsNotepad";
+    // Feature-management velocity overrides (community-verified IDs — e.g.
+    // zoicware/RemoveWindowsAI). EnabledState: 0=default, 1=disabled, 2=enabled.
+    private const string VelocityOverridesPath = @"SYSTEM\CurrentControlSet\Control\FeatureManagement\Overrides\8";
+    private static readonly (string Id, int State)[] VelocityCopilotIds =
+    {
+        // Copilot nudges + taskbar + systray
+        ("1546588812", 1), ("203105932", 1), ("2381287564", 1),
+        ("3389499533", 1), ("4027803789", 1),
+    };
+    private static readonly (string Id, int State)[] VelocityAiIds =
+    {
+        // AI Actions in Explorer; 1646260367 hides the entry when no action exists
+        ("1853569164", 1), ("4098520719", 1), ("929719951", 1), ("1646260367", 2),
+    };
     private const string UserSearchPath = @"Software\Microsoft\Windows\CurrentVersion\Search";
     private const string UserSearchSettingsPath = @"Software\Microsoft\Windows\CurrentVersion\SearchSettings";
     private const string AppPrivacyPath = @"SOFTWARE\Policies\Microsoft\Windows\AppPrivacy";
@@ -1545,7 +1572,21 @@ public static class RegistryGuard
             SetUserDwordAllHives(UserCopilotPath, "TurnOffWindowsCopilot", 1);
             // Copilot taskbar button
             SetUserDwordAllHives(UserExplorerAdvancedPath, "ShowCopilotButton", 0);
-            GuardLogger.Info("Applied: DisableCopilot (TurnOffWindowsCopilot = 1, HKLM + user hives)");
+            // Shell eligibility suppression (HKLM + user hives — same pattern
+            // as zoicware/RemoveWindowsAI): app removed via blacklist, shell too
+            using (var shell = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(ShellCopilotPath))
+            {
+                shell?.SetValue("IsCopilotAvailable", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                shell?.CreateSubKey("BingChat")?.SetValue("IsUserEligible", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            SetUserDwordAllHives(UserShellCopilotPath, "IsCopilotAvailable", 0);
+            SetUserDwordAllHives(UserShellCopilotPath + @"\BingChat", "IsUserEligible", 0);
+            // Copilot voice-agent activation off (all user hives)
+            SetUserDwordAllHives(UserVoiceActivationPath, "AgentActivationEnabled", 0);
+            foreach (var (id, state) in VelocityCopilotIds)
+                SetHiveDword(Microsoft.Win32.Registry.LocalMachine,
+                             VelocityOverridesPath + @"\" + id, "EnabledState", state);
+            GuardLogger.Info("Applied: DisableCopilot (policy + shell eligibility + voice agent + nudge/taskbar/systray overrides, HKLM + user hives)");
         }
         catch (Exception ex)
         {
@@ -1566,11 +1607,30 @@ public static class RegistryGuard
             key?.SetValue("TurnOffSavingSnapshots", 1, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("AllowRecallEnablement", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("DisableClickToDo", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            // 25H2 "Agent in Settings" (Settings AI agent)
+            key?.SetValue("DisableSettingsAgent", 1, Microsoft.Win32.RegistryValueKind.DWord);
             ForEachUserHive(hive =>
             {
                 SetHiveDword(hive, UserWindowsAiPath, "DisableAIDataAnalysis", 1);
                 SetHiveDword(hive, UserWindowsAiPath, "DisableClickToDo", 1);
+                SetHiveDword(hive, UserWindowsAiPath, "DisableSettingsAgent", 1);
+                // ClickToDo user preference (policy alone leaves the shell entry)
+                SetHiveDword(hive, UserClickToDoPath, "DisableClickToDo", 1);
             });
+            // Per-app AI features: Paint (image creator/cocreator/fill/erase/
+            // background) and Notepad (Rewrite) — documented policy keys
+            using (var paint = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(PaintPoliciesPath))
+            {
+                foreach (var name in new[] { "DisableImageCreator", "DisableCocreator",
+                                             "DisableGenerativeFill", "DisableGenerativeErase",
+                                             "DisableRemoveBackground" })
+                    paint?.SetValue(name, 1, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            using (var notepad = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(NotepadPoliciesPath))
+                notepad?.SetValue("DisableAIFeatures", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            foreach (var (id, state) in VelocityAiIds)
+                SetHiveDword(Microsoft.Win32.Registry.LocalMachine,
+                             VelocityOverridesPath + @"\" + id, "EnabledState", state);
 
             // AI fabric service: 2=auto, 3=demand. Absent without NPU/Copilot+ hardware.
             try
@@ -1593,7 +1653,7 @@ public static class RegistryGuard
             };
             Proc.Wait(psi, 120000);
 
-            GuardLogger.Info("Applied: DisableRecall (WindowsAI policies + Click to Do off, Recall feature removal attempted, WSAIFabricSvc=demand)");
+            GuardLogger.Info("Applied: DisableRecall (WindowsAI+SettingsAgent policies, Paint/Notepad AI off, Click to Do off, Recall feature removal attempted, WSAIFabricSvc=demand)");
         }
         catch (Exception ex)
         {
@@ -1987,7 +2047,18 @@ public static class RegistryGuard
             // Promo tabs + desktop web widget (feature/promo surfaces)
             key?.SetValue("PromotionalTabsEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("WebWidgetAllowed", 0, Microsoft.Win32.RegistryValueKind.DWord);
-            GuardLogger.Info("Applied: DisableEdgeBloat (sidebar/startup-boost/prelaunch/first-run/shopping/recommendations/URL-leak surfaces off)");
+            // Edge AI surface (zoicware/RemoveWindowsAI policy set): page-
+            // context Copilot, inline compose, history AI search, generated
+            // themes, DevTools AI (2 = disabled), browsing-history sharing
+            foreach (var name in new[] { "CopilotPageContext", "EdgeEntraCopilotPageContext",
+                                         "EdgeHistoryAISearchEnabled", "ComposeInlineEnabled",
+                                         "BuiltInAIAPIsEnabled", "AIGenThemesEnabled",
+                                         "ShareBrowsingHistoryWithCopilotSearchAllowed" })
+                key?.SetValue(name, 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("DevToolsGenAiSettings", 2, Microsoft.Win32.RegistryValueKind.DWord);
+            // 1 = disable the local on-device foundation model used by Edge AI
+            key?.SetValue("GenAILocalFoundationalModelSettings", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            GuardLogger.Info("Applied: DisableEdgeBloat (sidebar/startup-boost/prelaunch/first-run/shopping/recommendations/URL-leak/AI surfaces off)");
         }
         catch (Exception ex)
         {
@@ -2474,56 +2545,51 @@ public static class RegistryGuard
     /// dmwappushservice (WAP push/MDM channel), MapsBroker (downloaded-map
     /// broker), WMPNetworkSvc (media sharing), DiagnosticsHub standard
     /// collector. Demand-start keeps them usable when actually invoked.</summary>
+    // CDPSvc = Nearby Sharing; NvTelemetryContainer / ESRV_* = GPU/Intel
+    // driver telemetry; PushToInstall = Store push-install channel;
+    // SEMgrSvc = NFC/SE payments manager; PhoneSvc = Phone Link
+    // (absent where not applicable — write is a no-op)
+    private static readonly string[] MiscBloatServices = {
+        "dmwappushservice", "MapsBroker", "WMPNetworkSvc",
+        "diagnosticshub.standardcollector.service",
+        "CDPSvc", "NvTelemetryContainer",
+        "esrv_svc", "ESRV_SVC_QUEENCREEK",
+        "PushToInstall", "SEMgrSvc", "PhoneSvc",
+        "SysMain", "TabletInputService",
+        "WSearch",                   // indexer — resident file scan; demand-start keeps search working
+        "AssignedAccessManagerSvc",  // kiosk assigned-access
+        "DusmSvc",                   // data-usage metering
+        // Per-user service templates for Mail/People/contacts sync — dead
+        // weight once those apps are removed
+        "CDPUserSvc", "OneSyncSvc", "UnistoreSvc",
+        "UserDataSvc", "PimIndexMaintenanceSvc",
+        // Diagnostic Service Host pair — WDI diagnostics sessions
+        "WdiSystemHost", "WdiServiceHost",
+        // Diagnostic Policy Service + Diagnostic Execution Service —
+        // Automatic by default; Manual keeps on-demand diagnostics working
+        "DPS", "diagsvc",
+        // Data Collection and Publishing Service — feeds the diagnostic
+        // ingest pipeline
+        "DcpSvc",
+        // Program Compatibility Assistant
+        "PcaSvc",
+        // Microsoft Pay (dead), Windows Insider, Mixed Reality, AllJoyn,
+        // smart card triad
+        "WalletService", "wisvc",
+        "SharedRealitySvc", "perceptionsimulation", "Spectrum",
+        "AJRouter", "SCardSvr", "ScDeviceEnum", "CertPropSvc",
+        // Location tracking + sensor monitoring stack
+        "lfsvc", "SensorService", "sensrsvc",
+        // SNMP traps (dead), recommended-troubleshooting runner,
+        // cellular WWAN (demand-start keeps LTE working)
+        "SNMPTRAP", "TroubleshootingSvc", "WwanSvc", "WwanAuthSvc",
+    };
+
     public static void DisableMiscBloatServices()
     {
         try
         {
-            // CDPSvc = Nearby Sharing; NvTelemetryContainer / ESRV_* = GPU/Intel
-            // driver telemetry; PushToInstall = Store push-install channel;
-            // SEMgrSvc = NFC/SE payments manager; PhoneSvc = Phone Link
-            // (absent where not applicable — write is a no-op)
-            foreach (var svc in new[] { "dmwappushservice", "MapsBroker",
-                                        "WMPNetworkSvc",
-                                        "diagnosticshub.standardcollector.service",
-                                        "CDPSvc", "NvTelemetryContainer",
-                                        "esrv_svc", "ESRV_SVC_QUEENCREEK",
-                                        "PushToInstall", "SEMgrSvc", "PhoneSvc",
-                                        "SysMain", "TabletInputService",
-                                        "WSearch",              // indexer —
-                                        // resident file scan; demand-start
-                                        // keeps search working
-                                        "AssignedAccessManagerSvc",
-                                        "DusmSvc",             // data-usage metering
-                                        // Per-user service templates for
-                                        // Mail/People/contacts sync — dead
-                                        // weight once those apps are removed
-                                        "CDPUserSvc", "OneSyncSvc", "UnistoreSvc",
-                                        "UserDataSvc", "PimIndexMaintenanceSvc",
-                                        // Diagnostic Service Host pair — WDI
-                                        // diagnostics sessions
-                                        "WdiSystemHost", "WdiServiceHost",
-                                        // Diagnostic Policy Service + Diagnostic
-                                        // Execution Service — Automatic by
-                                        // default; Manual keeps on-demand
-                                        // diagnostics working
-                                        "DPS", "diagsvc",
-                                        // Data Collection and Publishing Service
-                                        "DcpSvc",
-                                        // Program Compatibility Assistant
-                                        "PcaSvc",
-                                        // Microsoft Pay (dead), Windows
-                                        // Insider, Mixed Reality, AllJoyn,
-                                        // smart card triad
-                                        "WalletService", "wisvc",
-                                        "SharedRealitySvc", "perceptionsimulation",
-                                        "Spectrum", "AJRouter", "SCardSvr",
-                                        "ScDeviceEnum", "CertPropSvc",
-                                        // Location tracking + sensor monitoring stack
-                                        "lfsvc", "SensorService", "SensrSvc", "sensrsvc",
-                                        // SNMP traps (dead), recommended-troubleshooting
-                                        // runner, cellular WWAN (demand-start keeps LTE)
-                                        "SNMPTRAP", "TroubleshootingSvc", "WwanSvc",
-                                        "WwanAuthSvc" })
+            foreach (var svc in MiscBloatServices)
             {
                 DemoteService(svc);
             }
@@ -2532,7 +2598,7 @@ public static class RegistryGuard
             // demand-start, which still leaves it reachable).
             RunToolSilent("sc.exe", "stop RemoteRegistry");
             RunToolSilent("sc.exe", "config RemoteRegistry start= disabled");
-            GuardLogger.Info("Applied: DisableMiscBloatServices (45 services → demand-start, RemoteRegistry disabled)");
+            GuardLogger.Info("Applied: DisableMiscBloatServices (44 services → demand-start, RemoteRegistry disabled)");
         }
         catch (Exception ex)
         {
@@ -2768,6 +2834,8 @@ public static class ScheduledTaskGuard
     // nothing else is touched. CompatTelRunner is a notorious CPU/IO hog.
     private static readonly string[] TelemetryTaskPaths = {
         @"\Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser",
+        // "Exp" variant shipped on newer builds — same telemetry role
+        @"\Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser Exp",
         @"\Microsoft\Windows\Application Experience\ProgramDataUpdater",
         @"\Microsoft\Windows\Application Experience\PcaPatchDbTask",
         @"\Microsoft\Windows\Application Experience\StartupAppTask",
@@ -3292,6 +3360,10 @@ public class GuardService : BackgroundService
         if (!dryRun)
         {
             RegistryGuard.ApplyAll(_config.Prevention, _config.Blacklist, _config.Whitelist);
+            // OEM updaters re-enable their tasks between boots — re-disable
+            // every scan, same as the Python scan loop.
+            if (_config.Prevention.DisableOemScheduledTasks)
+                ScheduledTaskGuard.DisableOemTasks();
             if (_config.Prevention.DisableTelemetryTasks)
                 ScheduledTaskGuard.DisableTelemetryTasks();
         }
@@ -3322,13 +3394,28 @@ public class Program
         // Python the .NET console never throws on unencodable chars, so this
         // is cosmetic; kept to match the Python console hardening.
         try { Console.OutputEncoding = new System.Text.UTF8Encoding(false); } catch { /* no console in service mode */ }
+        // --config <path> overrides the default config.json location
+        // (Python parity: --config PATH). Scan args before loading.
         var configPath = Path.Combine(AppContext.BaseDirectory, "config.json");
+        for (var i = 0; i + 1 < args.Length; i++)
+        {
+            if (args[i].Equals("--config", StringComparison.OrdinalIgnoreCase) &&
+                !string.IsNullOrWhiteSpace(args[i + 1]))
+                configPath = args[i + 1];
+        }
         var config = ConfigLoader.Load(configPath);
 
+        // First non-flag argument is the command (flags like --config <path>
+        // are consumed above and skipped here).
+        var cmdIndex = 0;
+        while (cmdIndex < args.Length &&
+               args[cmdIndex].Equals("--config", StringComparison.OrdinalIgnoreCase))
+            cmdIndex += 2;
+
         // Handle CLI commands
-        if (args.Length > 0)
+        if (cmdIndex < args.Length)
         {
-            switch (args[0].ToLower())
+            switch (args[cmdIndex].ToLower())
             {
                 case "scan":
                     RunOnce(config, dryRun: false);
@@ -3358,7 +3445,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.55.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.56.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -3370,7 +3457,7 @@ public class Program
                 default:
                     // Unrecognized args must NOT fall through to console mode —
                     // that runs a real scan. Bail out instead.
-                    Console.WriteLine($"Unknown command: {args[0]}");
+                    Console.WriteLine($"Unknown command: {args[cmdIndex]}");
                     ShowHelp();
                     Environment.ExitCode = 1;
                     return;
@@ -3412,7 +3499,8 @@ public class Program
         if (!dryRun)
         {
             RegistryGuard.ApplyAll(config.Prevention, config.Blacklist, config.Whitelist);
-            ScheduledTaskGuard.DisableOemTasks();
+            if (config.Prevention.DisableOemScheduledTasks)
+                ScheduledTaskGuard.DisableOemTasks();
             if (config.Prevention.DisableTelemetryTasks)
                 ScheduledTaskGuard.DisableTelemetryTasks();
         }
@@ -3443,7 +3531,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.55.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.56.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -3456,6 +3544,7 @@ Commands:
   install       Install as Windows Service (requires admin)
   uninstall     Remove Windows Service (requires admin)
   status        Show Windows Service status
+  --config PATH Load config from PATH instead of the exe-adjacent config.json
   --version     Show version
   --self-test   Run internal wiring self-test (no admin required)
   help          Show this help
@@ -3493,6 +3582,16 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
 
     private static void UninstallService()
     {
+        // Stop first — sc delete on a running service only marks it for
+        // deletion; it keeps running until the next stop/reboot (py parity).
+        var stopPsi = new ProcessStartInfo
+        {
+            FileName = "sc.exe",
+            Arguments = "stop BloatwareGuard",
+            UseShellExecute = true,
+            Verb = "runas"
+        };
+        Process.Start(stopPsi);
         var psi = new ProcessStartInfo
         {
             FileName = "sc.exe",
@@ -3543,6 +3642,9 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
 
             entry.TryGetValue("kind", out var kind);
             entry.TryGetValue("name", out var name);
+            entry.TryGetValue("family", out var family);
+            var display = !string.IsNullOrEmpty(name) ? name
+                : (!string.IsNullOrEmpty(family) ? family : "?");
 
             if (kind == "appx" && !string.IsNullOrEmpty(name))
             {
@@ -3560,7 +3662,7 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
             else
             {
                 GuardLogger.Info(
-                    $"Manual restore needed: {name} (provisioned — reinstall via Microsoft Store or Settings)");
+                    $"Manual restore needed: {display} (provisioned — reinstall via Microsoft Store or Settings)");
                 manual++;
             }
         }
@@ -3595,8 +3697,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 8;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.55.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.55.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.56.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.56.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try
@@ -3744,6 +3846,7 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
                 (typeof(RegistryGuard), "TelemetryHosts"),
                 (typeof(RegistryGuard), "StartupBloatNames"),
                 (typeof(RegistryGuard), "BackupKeyPaths"),
+                (typeof(RegistryGuard), "MiscBloatServices"),
                 (typeof(ScheduledTaskGuard), "OemTaskPatterns"),
                 (typeof(ScheduledTaskGuard), "MicrosoftSystemPrefixes"),
             };
@@ -3755,10 +3858,18 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
                 if (fi?.GetValue(null) is not string[] arr) continue;
                 var dup = arr.GroupBy(x => x).Where(g => g.Count() > 1).Select(g => g.Key);
                 dups.AddRange(dup.Select(d => $"{holder.Name}.{field}:{d}"));
+                // Service names are case-insensitive on Windows — catch
+                // case-variant dups too (SensrSvc/sensrsvc shipped as both).
+                var caseDup = arr.GroupBy(x => x.ToLowerInvariant())
+                    .Where(g => g.Count() > 1).Select(g => g.Key);
+                dups.AddRange(caseDup.Select(d => $"{holder.Name}.{field}:case:{d}"));
             }
             var blDup = config.Blacklist.GroupBy(x => x)
                 .Where(g => g.Count() > 1).Select(g => $"Blacklist:{g.Key}");
             dups.AddRange(blDup);
+            var blCaseDup = config.Blacklist.GroupBy(x => x.ToLowerInvariant())
+                .Where(g => g.Count() > 1).Select(g => $"Blacklist:case:{g.Key}");
+            dups.AddRange(blCaseDup);
             if (dups.Count == 0)
             {
                 results.Add("[PASS] T8: shared lists are duplicate-free");

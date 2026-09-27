@@ -2,6 +2,101 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.56.0-mvp: service-list dedup + AI-surface hardening
+
+### Added
+- `DisableCopilot` extended (both impls): shell eligibility suppression
+  (`Shell\Copilot IsCopilotAvailable=0`, `Shell\Copilot\BingChat
+  IsUserEligible=0`; HKLM + all user hives), Copilot voice-agent
+  activation off (`AgentActivationEnabled=0`), and FeatureManagement
+  velocity overrides disabling Copilot nudges/taskbar/systray
+  (IDs 1546588812, 203105932, 2381287564, 3389499533, 4027803789 →
+  `EnabledState=1`) — same set as zoicware/RemoveWindowsAI.
+- `DisableRecall` extended (both impls): 25H2 "Agent in Settings" off
+  (`WindowsAI DisableSettingsAgent=1`, HKLM + user hives), per-app AI
+  policies — Paint (`DisableImageCreator`/`DisableCocreator`/
+  `DisableGenerativeFill`/`DisableGenerativeErase`/
+  `DisableRemoveBackground`) and Notepad (`DisableAIFeatures=1`) —
+  ClickToDo user preference off, and AI-Actions velocity overrides
+  (1853569164/4098520719/929719951 disabled; 1646260367 enabled so the
+  Explorer entry hides itself when no action exists).
+- `DisableEdgeBloat` extended (both impls): Edge AI surface off —
+  `CopilotPageContext`, `EdgeEntraCopilotPageContext`,
+  `EdgeHistoryAISearchEnabled`, `ComposeInlineEnabled`,
+  `BuiltInAIAPIsEnabled`, `AIGenThemesEnabled`,
+  `ShareBrowsingHistoryWithCopilotSearchAllowed` = 0;
+  `DevToolsGenAiSettings=2`; `GenAILocalFoundationalModelSettings=1`
+  (on-device foundation model off).
+- C# CLI `--config PATH` flag (Python parity): loads config from the
+  given path instead of the exe-adjacent `config.json`; flag pairs are
+  skipped when resolving the command argument.
+
+### Fixed
+- Case-variant duplicate `SensrSvc`/`sensrsvc` in the misc-bloat demote
+  list (same Windows service; `SensorService` is a distinct service and
+  stays). Demote count corrected 45 → 44 in code logs and README (both
+  impls).
+- `RemoveDefaultStorePackages` PackageList merge was case-sensitive in
+  Python while C# merges `OrdinalIgnoreCase` — a family listed under
+  different casing could be written twice. Both now dedupe
+  case-insensitively, keeping first-seen casing.
+- Python Win32 silent-uninstall split the vendor `QuietUninstallString`
+  args on whitespace, mangling quoted paths (e.g. `/log "C:\dir x\f"`).
+  It now passes the raw command line to CreateProcess, matching the C#
+  `FileName`/`Arguments` split.
+- Timeout drift (Python vs C#): OEM scheduled-task enumeration now waits
+  120s (was 60s vs C# `Proc.Capture(120000)`); every `schtasks /Change`
+  call now waits 15s (was the 30s default vs C# `Proc.Wait(15000)`);
+  `Remove-AppxProvisionedPackage` now waits 120s (was 60s vs C# 120000 —
+  provisioned removal is a servicing op that can exceed a minute); all
+  `sc.exe` stop/config and `reg.exe` load/unload/export calls now wait
+  15s (was the 30s default vs C# `RunToolSilent`/`RunRegSilent` 15000).
+- C# `uninstall` issued only `sc delete` — a running service stays
+  marked-for-delete until reboot. Now stops the service first, matching
+  the Python `sc stop` → `sc delete` order.
+- C# `restore` printed an empty name for ledger entries missing `name`;
+  it now falls back to `family` then `?` like the Python restore.
+- Python `--install`/`--uninstall` used to exit with an error when not
+  elevated; they now re-launch themselves via UAC (`runas`), matching
+  the C# self-elevating `install`/`uninstall`.
+- C# generated-config `LogFilePath` pointed next to the exe; it now
+  defaults to `ProgramData\BloatwareGuard\bloatware-guard.log` like the
+  Python side writes.
+- C# provisioned-package matching ran the blacklist against `PackageName`
+  (whose version/arch/publisher suffixes could over-match); it now
+  matches `DisplayName` — the stable product name the blacklist is
+  written against — same as Python, while still returning `PackageName`
+  for removal.
+- `verify_scan.ps1` exported registry snapshots into `C:\temp` without
+  creating it (the SYSTEM variant already did); add the same guard.
+- Python ran a second `Get-AppxPackage` query per scan just to map
+  family → full name; `PackageFullName` is now selected in the same
+  enumeration (C# single-query parity), and the reinstall monitor reuses
+  that map instead of re-querying.
+- C# re-disabled only telemetry tasks on each scan; OEM tasks were
+  disabled just once at service start, letting OEM updaters re-enable
+  them between scans. `DisableOemTasks` now also runs per scan (Python
+  parity).
+- C# one-shot `scan`/`dry-run` ran `DisableOemTasks` unconditionally —
+  the `DisableOemScheduledTasks` toggle was ignored outside service
+  mode. Now gated on the toggle like the scan loop.
+- `get_blacklisted_packages` briefly returned 4-tuples, breaking the
+  CI verification snippet's 3-field unpack; the public API is back to
+  `(family, name, install_path)` while the scan path uses the 4-field
+  `_enum_blacklisted_packages` for the single-query full-name map.
+- Added missing telemetry task `Microsoft Compatibility Appraiser Exp`
+  (newer-build variant of CompatTelRunner — listed by Win11Debloat);
+  telemetry-task list now 57, README count updated.
+
+### Changed
+- Misc-bloat demote list extracted from inline loop literals into named
+  constants (`_MISC_DEMOTE_SERVICES` / `MiscBloatServices`) so it is now
+  covered by the T9 cross-check (Python↔C# presence) and the T10/T8
+  duplicate guards.
+- T10/T8 extended with case-insensitive duplicate detection across all
+  shared lists plus `config.Blacklist` — future case-variant dups fail
+  the self-test instead of silently shipping.
+
 ## [Unreleased] — v1.55.0-mvp: list deduplication + self-test guards
 
 ### Fixed

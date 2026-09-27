@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.55.0-mvp - Python prototype
+BloatwareGuard v1.56.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -35,7 +35,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.55.0-mvp"
+APP_VERSION = "1.56.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -247,6 +247,18 @@ def is_admin() -> bool:
         return False
 
 
+def _relaunch_elevated(flag: str) -> None:
+    """Re-run this script with `flag` elevated via UAC (C# `Verb="runas"`
+    parity: install/uninstall self-elevate instead of failing outright)."""
+    params = f'"{Path(__file__).resolve()}" {flag}'
+    rc = ctypes.windll.shell32.ShellExecuteW(
+        None, "runas", str(Path(sys.executable).resolve()), params, None, 1)
+    if rc <= 32:
+        print(f"ERROR: elevation declined or failed (ShellExecute rc={rc}).")
+        sys.exit(1)
+    print(f"Elevation requested — '{flag}' is running in an elevated window.")
+
+
 def run_powershell(cmd: str, timeout: int = 60) -> Tuple[str, str, int]:
     """Run a PowerShell command and return (stdout, stderr, exit_code).
     Missing binaries/hangs return rc=-1 instead of propagating."""
@@ -263,7 +275,9 @@ def run_powershell(cmd: str, timeout: int = 60) -> Tuple[str, str, int]:
     return stdout.strip(), stderr.strip(), proc.returncode
 
 
-def run_cmd(args: List[str], timeout: int = 30) -> Tuple[str, int]:
+def run_cmd(args, timeout: int = 30) -> Tuple[str, int]:
+    # args may be a list (argv) or a raw command-line string — on Windows a
+    # string is passed verbatim to CreateProcess, preserving vendor quoting.
     try:
         proc = subprocess.run(args, capture_output=True, timeout=timeout)
     except (OSError, subprocess.TimeoutExpired) as e:
@@ -284,8 +298,17 @@ def is_target_package(pkg_name: str, blacklist: List[str], whitelist: List[str])
 
 
 def get_blacklisted_packages(blacklist: List[str], whitelist: List[str]) -> List[Tuple[str, str, str]]:
-    """Return (PackageFamilyName, Name, InstallPath) for packages matching blacklist.
-    InstallPath is None for SystemApps (cannot be removed per-user).
+    """Public 3-tuple view (PackageFamilyName, Name, InstallPath) — kept for
+    external callers (CI verification snippet unpacks 3 fields). The scan path
+    uses _enum_blacklisted_packages which also carries PackageFullName."""
+    return [(f, n, p) for f, n, p, _full in _enum_blacklisted_packages(blacklist, whitelist)]
+
+
+def _enum_blacklisted_packages(blacklist: List[str], whitelist: List[str]) -> List[Tuple[str, str, str, str]]:
+    """Return (PackageFamilyName, Name, InstallPath, PackageFullName) for
+    packages matching blacklist. InstallPath is None for SystemApps (cannot be
+    removed per-user); PackageFullName comes from the same query — no second
+    PowerShell call per scan (C# GetBlacklistedPackages parity).
     Whitelisted packages are never returned, and IsFramework packages (dependency
     DLLs for other apps) are skipped. Enumerates -AllUsers when admin so packages
     installed for other profiles are caught too."""
@@ -294,7 +317,7 @@ def get_blacklisted_packages(blacklist: List[str], whitelist: List[str]) -> List
 
     scope = " -AllUsers" if is_admin() else ""
     ps_cmd = ("Get-AppxPackage" + scope +
-              " | Select-Object PackageFamilyName,Name,InstallPath,IsFramework | ConvertTo-Json")
+              " | Select-Object PackageFamilyName,Name,InstallPath,IsFramework,PackageFullName | ConvertTo-Json")
     stdout, stderr, rc = run_powershell(ps_cmd, timeout=120)
 
     if rc != 0 or not stdout:
@@ -311,11 +334,12 @@ def get_blacklisted_packages(blacklist: List[str], whitelist: List[str]) -> List
             family = pkg.get("PackageFamilyName", "")
             name = pkg.get("Name", "")
             install_path = pkg.get("InstallPath", "")  # None for SystemApps
+            full_name = pkg.get("PackageFullName", "")
             if bool(pkg.get("IsFramework")) or family in seen:
                 continue
             if is_target_package(family, blacklist, whitelist):
                 seen.add(family)
-                results.append((family, name, install_path))
+                results.append((family, name, install_path, full_name))
     except (json.JSONDecodeError, TypeError):
         pass
 
@@ -346,30 +370,6 @@ def get_blacklisted_provisioned(blacklist: List[str], whitelist: List[str]) -> L
         pass
 
     return results
-
-
-def get_package_full_names() -> dict:
-    """Map PackageFamilyName -> PackageFullName in one PowerShell call.
-    Avoids spawning a process per package inside scan loops."""
-    scope = " -AllUsers" if is_admin() else ""
-    ps_cmd = ("Get-AppxPackage" + scope +
-              " | Select-Object PackageFamilyName,PackageFullName | ConvertTo-Json")
-    stdout, _, rc = run_powershell(ps_cmd, timeout=120)
-    mapping = {}
-    if rc != 0 or not stdout:
-        return mapping
-    try:
-        data = json.loads(stdout)
-        if isinstance(data, dict):
-            data = [data]
-        for pkg in data:
-            family = pkg.get("PackageFamilyName", "")
-            full = pkg.get("PackageFullName", "")
-            if family:
-                mapping[family] = full
-    except (json.JSONDecodeError, TypeError):
-        pass
-    return mapping
 
 
 def remove_appx_package(package_full_name: str) -> bool:
@@ -450,7 +450,8 @@ def remove_provisioned_package(package_name: str) -> bool:
         f"Remove-AppxProvisionedPackage -Online "
         f"-PackageName '{package_name}' -ErrorAction SilentlyContinue"
     )
-    _, _, rc = run_powershell(ps_cmd, timeout=60)
+    # 120s — provisioned removal is a servicing op (parity: C# 120000ms)
+    _, _, rc = run_powershell(ps_cmd, timeout=120)
     return rc == 0
 
 
@@ -568,7 +569,9 @@ def remove_win32_program(display, uninstall, quiet, logger):
     MSI via `msiexec /x {guid} /qn /norestart`; others are logged, not executed."""
     if quiet:
         cmd, args = _split_command_line(quiet)
-        argv = [cmd] + (args.split() if args else [])
+        # Raw command line — whitespace-splitting args would mangle quoted
+        # paths (C# hands the args string to CreateProcess verbatim).
+        argv = f'"{cmd}" {args}'.rstrip()
     elif "msiexec" in uninstall.lower():
         m = _MSI_GUID_RE.search(uninstall)
         if not m:
@@ -653,6 +656,23 @@ _EXPLORER_POLICIES_HKLM = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\E
 _USER_INTL_PROFILE = r"Control Panel\International\User Profile"
 _USER_COPILOT = r"Software\Policies\Microsoft\Windows\WindowsCopilot"
 _USER_WINDOWS_AI = r"Software\Policies\Microsoft\Windows\WindowsAI"
+_USER_SHELL_COPILOT = r"Software\Microsoft\Windows\Shell\Copilot"
+_USER_SHELL_COPILOT_BINGCHAT = r"Software\Microsoft\Windows\Shell\Copilot\BingChat"
+_USER_VOICE_ACTIVATION = (r"Software\Microsoft\Speech_OneCore\Settings"
+                          + r"\VoiceActivation\UserPreferenceForAllApps")
+_USER_CLICK_TO_DO = r"Software\Microsoft\Windows\Shell\ClickToDo"
+# Feature-management velocity overrides (community-verified IDs — e.g.
+# zoicware/RemoveWindowsAI). EnabledState: 0=default, 1=disabled, 2=enabled.
+_VELOCITY_PATH = r"SYSTEM\CurrentControlSet\Control\FeatureManagement\Overrides\8"
+_VELOCITY_COPILOT_IDS = (
+    # Copilot nudges + taskbar + systray
+    ("1546588812", 1), ("203105932", 1), ("2381287564", 1),
+    ("3389499533", 1), ("4027803789", 1),
+)
+_VELOCITY_AI_IDS = (
+    # AI Actions in Explorer; 1646260367 hides the entry when no action exists
+    ("1853569164", 1), ("4098520719", 1), ("929719951", 1), ("1646260367", 2),
+)
 _USER_SEARCH = r"Software\Microsoft\Windows\CurrentVersion\Search"
 _USER_SEARCH_SETTINGS = r"Software\Microsoft\Windows\CurrentVersion\SearchSettings"
 _USER_PROFILE_ENGAGEMENT = r"Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement"
@@ -745,7 +765,7 @@ def for_each_user_hive(apply, logger: logging.Logger):
 
     dat = _default_profile_dat()
     if dat:
-        _, rc = run_cmd(["reg.exe", "load", f"HKLM\\{_DEFAULT_HIVE_MOUNT}", dat])
+        _, rc = run_cmd(["reg.exe", "load", f"HKLM\\{_DEFAULT_HIVE_MOUNT}", dat], timeout=15)
         if rc == 0:
             try:
                 apply(winreg.HKEY_LOCAL_MACHINE, _DEFAULT_HIVE_MOUNT)
@@ -753,7 +773,7 @@ def for_each_user_hive(apply, logger: logging.Logger):
             except Exception as e:
                 logger.warning(f"Registry: default profile hive skipped: {e}")
             finally:
-                run_cmd(["reg.exe", "unload", f"HKLM\\{_DEFAULT_HIVE_MOUNT}"])
+                run_cmd(["reg.exe", "unload", f"HKLM\\{_DEFAULT_HIVE_MOUNT}"], timeout=15)
 
     try:
         apply(winreg.HKEY_CURRENT_USER, "")
@@ -821,6 +841,42 @@ _BACKUP_KEY_PATHS = (
 )
 _registry_backup_done = False
 
+# Demand-start (Start=3) — all stay usable when actually invoked.
+_MISC_DEMOTE_SERVICES = (
+    "dmwappushservice", "MapsBroker", "WMPNetworkSvc",
+    "diagnosticshub.standardcollector.service",
+    "CDPSvc", "NvTelemetryContainer",
+    "esrv_svc", "ESRV_SVC_QUEENCREEK",
+    "PushToInstall", "SEMgrSvc", "PhoneSvc",
+    "SysMain", "TabletInputService",
+    "WSearch",                # indexer — resident file scan
+    "AssignedAccessManagerSvc",  # kiosk assigned-access
+    "DusmSvc",                # data-usage metering
+    # Per-user service templates for Mail/People/contacts sync — dead
+    # weight once those apps are removed
+    "CDPUserSvc", "OneSyncSvc", "UnistoreSvc",
+    "UserDataSvc", "PimIndexMaintenanceSvc",
+    # Diagnostic Service Host pair — WDI diagnostics sessions
+    "WdiSystemHost", "WdiServiceHost",
+    # Diagnostic Policy Service + Diagnostic Execution Service — both
+    # Automatic by default; Manual keeps on-demand diagnostics working
+    "DPS", "diagsvc",
+    # Data Collection and Publishing Service — feeds the diagnostic
+    # ingest pipeline
+    "DcpSvc",
+    "PcaSvc",                 # Program Compatibility Assistant
+    # Microsoft Pay (dead), Windows Insider, Mixed Reality, AllJoyn,
+    # smart card triad
+    "WalletService", "wisvc",
+    "SharedRealitySvc", "perceptionsimulation", "Spectrum",
+    "AJRouter", "SCardSvr", "ScDeviceEnum", "CertPropSvc",
+    # Location tracking + sensor monitoring stack
+    "lfsvc", "SensorService", "sensrsvc",
+    # SNMP traps (dead), recommended-troubleshooting runner, cellular WWAN
+    # (demand-start keeps LTE working)
+    "SNMPTRAP", "TroubleshootingSvc", "WwanSvc", "WwanAuthSvc",
+)
+
 
 def backup_registry_keys(logger: logging.Logger):
     """reg-export every HKLM key this tool touches into
@@ -837,7 +893,8 @@ def backup_registry_keys(logger: logging.Logger):
         for i, path in enumerate(_BACKUP_KEY_PATHS):
             # reg.exe export fails for non-existent keys — expected, non-fatal
             run_cmd(["reg.exe", "export", f"HKLM\\{path}",
-                     os.path.join(backup_dir, f"{stamp}-{i}.reg"), "/y"])
+                     os.path.join(backup_dir, f"{stamp}-{i}.reg"), "/y"],
+                    timeout=15)
         logger.info(f"Applied: BackupRegistry ({len(_BACKUP_KEY_PATHS)} keys -> {backup_dir})")
     except OSError as e:
         logger.warning(f"BackupRegistry skipped: {e}")
@@ -931,7 +988,20 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_user_dword_all_hives(_USER_COPILOT, "TurnOffWindowsCopilot", 1, logger)
         # Copilot taskbar button
         set_user_dword_all_hives(_USER_EXPLORER_ADV, "ShowCopilotButton", 0, logger)
-        logger.info("Applied: DisableCopilot (TurnOffWindowsCopilot = 1, HKLM + user hives)")
+        # Shell eligibility suppression (HKLM + user hives — same pattern as
+        # zoicware/RemoveWindowsAI): app removed via blacklist, shell too
+        shell_copilot = r"SOFTWARE\Microsoft\Windows\Shell\Copilot"
+        set_registry_dword("HKLM", shell_copilot, "IsCopilotAvailable", 0)
+        set_registry_dword("HKLM", shell_copilot + r"\BingChat", "IsUserEligible", 0)
+        set_user_dword_all_hives(_USER_SHELL_COPILOT, "IsCopilotAvailable", 0, logger)
+        set_user_dword_all_hives(_USER_SHELL_COPILOT_BINGCHAT, "IsUserEligible", 0, logger)
+        # Copilot voice-agent activation off (all user hives)
+        set_user_dword_all_hives(_USER_VOICE_ACTIVATION, "AgentActivationEnabled", 0, logger)
+        for vid, state in _VELOCITY_COPILOT_IDS:
+            set_registry_dword("HKLM", _VELOCITY_PATH + "\\" + vid,
+                               "EnabledState", state)
+        logger.info("Applied: DisableCopilot (policy + shell eligibility + "
+                    "voice agent + nudge/taskbar/systray overrides, HKLM + user hives)")
 
     if prev.get("DisableRecall", True):
         ai_pol = r"SOFTWARE\Policies\Microsoft\Windows\WindowsAI"
@@ -939,8 +1009,25 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_registry_dword("HKLM", ai_pol, "TurnOffSavingSnapshots", 1)
         set_registry_dword("HKLM", ai_pol, "AllowRecallEnablement", 0)
         set_registry_dword("HKLM", ai_pol, "DisableClickToDo", 1)
+        # 25H2 "Agent in Settings" (Settings AI agent)
+        set_registry_dword("HKLM", ai_pol, "DisableSettingsAgent", 1)
         set_user_dword_all_hives(_USER_WINDOWS_AI, "DisableAIDataAnalysis", 1, logger)
         set_user_dword_all_hives(_USER_WINDOWS_AI, "DisableClickToDo", 1, logger)
+        set_user_dword_all_hives(_USER_WINDOWS_AI, "DisableSettingsAgent", 1, logger)
+        # ClickToDo user preference (policy alone still leaves the shell entry)
+        set_user_dword_all_hives(_USER_CLICK_TO_DO, "DisableClickToDo", 1, logger)
+        # Per-app AI features: Paint (image creator/cocreator/fill/erase/
+        # background) and Notepad (Rewrite) — documented policy keys
+        paint_pol = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Paint"
+        for name in ("DisableImageCreator", "DisableCocreator",
+                     "DisableGenerativeFill", "DisableGenerativeErase",
+                     "DisableRemoveBackground"):
+            set_registry_dword("HKLM", paint_pol, name, 1)
+        set_registry_dword("HKLM", r"SOFTWARE\Policies\WindowsNotepad",
+                           "DisableAIFeatures", 1)
+        for vid, state in _VELOCITY_AI_IDS:
+            set_registry_dword("HKLM", _VELOCITY_PATH + "\\" + vid,
+                               "EnabledState", state)
         if is_admin():
             # Remove the optional feature where present — absent on most hardware
             run_powershell(
@@ -948,8 +1035,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "-NoRestart -ErrorAction SilentlyContinue | Out-Null", timeout=120)
         # AI fabric service: 2=auto, 3=demand. Absent without NPU/Copilot+ hardware.
         demote_service("WSAIFabricSvc")
-        logger.info("Applied: DisableRecall (WindowsAI policies + Click to Do off, "
-                    "Recall feature removal attempted, WSAIFabricSvc=demand)")
+        logger.info("Applied: DisableRecall (WindowsAI+SettingsAgent policies, "
+                    "Paint/Notepad AI off, Click to Do off, Recall feature "
+                    "removal attempted, WSAIFabricSvc=demand)")
 
     if prev.get("DisableSearchSuggestions", True):
         search_pol = r"SOFTWARE\Policies\Microsoft\Windows\Windows Search"
@@ -1022,11 +1110,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
 
         # "Connected User Experiences and Telemetry" (DiagTrack) — the actual
         # telemetry uploader; absent on some SKUs, failures are non-fatal.
-        run_cmd(["sc.exe", "stop", "DiagTrack"])
-        run_cmd(["sc.exe", "config", "DiagTrack", "start=", "disabled"])
+        run_cmd(["sc.exe", "stop", "DiagTrack"], timeout=15)
+        run_cmd(["sc.exe", "config", "DiagTrack", "start=", "disabled"], timeout=15)
         # RetailDemo data-collection service (present on most images)
-        run_cmd(["sc.exe", "stop", "RetailDemo"])
-        run_cmd(["sc.exe", "config", "RetailDemo", "start=", "disabled"])
+        run_cmd(["sc.exe", "stop", "RetailDemo"], timeout=15)
+        run_cmd(["sc.exe", "config", "RetailDemo", "start=", "disabled"], timeout=15)
         # ETW AutoLogger feeding DiagTrack — Start=0 kills the boot-time trace
         set_registry_dword(
             "HKLM",
@@ -1138,7 +1226,7 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         # OneDrive's own standalone updaters — stop them alongside the sync
         for t in ("OneDrive Standalone Update Task",
                   "OneDrive Per-Machine Standalone Update Task"):
-            run_cmd(["schtasks", "/Change", "/TN", t, "/Disable"])
+            run_cmd(["schtasks", "/Change", "/TN", t, "/Disable"], timeout=15)
         logger.info("Applied: DisableOneDrive (DisableFileSyncNGSC=1, nav pin hidden, update tasks off)")
 
     if prev.get("DisableChatTaskbar", True):
@@ -1180,8 +1268,19 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         for name in ("DropEnabled", "CryptoWalletEnabled",
                      "EdgeAssetDeliveryServiceEnabled"):
             set_registry_dword("HKLM", edge_pol, name, 0)
+        # Edge AI surface (zoicware/RemoveWindowsAI policy set): page-context
+        # Copilot, inline compose, history AI search, generated themes,
+        # DevTools AI (2 = disabled), browsing-history sharing with Copilot
+        for name in ("CopilotPageContext", "EdgeEntraCopilotPageContext",
+                     "EdgeHistoryAISearchEnabled", "ComposeInlineEnabled",
+                     "BuiltInAIAPIsEnabled", "AIGenThemesEnabled",
+                     "ShareBrowsingHistoryWithCopilotSearchAllowed"):
+            set_registry_dword("HKLM", edge_pol, name, 0)
+        set_registry_dword("HKLM", edge_pol, "DevToolsGenAiSettings", 2)
+        # 1 = disable the local on-device foundation model used by Edge AI
+        set_registry_dword("HKLM", edge_pol, "GenAILocalFoundationalModelSettings", 1)
         logger.info("Applied: DisableEdgeBloat (sidebar/startup-boost/"
-                    "prelaunch/first-run/shopping/recommendations off)")
+                    "prelaunch/first-run/shopping/recommendations/AI off)")
 
     if prev.get("DisableStartupBloat", True):
         disable_startup_bloat(config, logger)
@@ -1208,7 +1307,7 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         for task in ("MicrosoftEdgeUpdateTaskMachineCore",
                      "MicrosoftEdgeUpdateTaskMachineUA",
                      "MicrosoftEdgeUpdateBrowserReplacementTask"):
-            run_cmd(["schtasks.exe", "/Change", "/TN", task, "/DISABLE"])
+            run_cmd(["schtasks.exe", "/Change", "/TN", task, "/DISABLE"], timeout=15)
         logger.info("Applied: DisableEdgeUpdateBloat "
                     "(edgeupdate/edgeupdatem/elevation → demand, update tasks off)")
 
@@ -1256,8 +1355,8 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
 
     if prev.get("DisablePrintSpooler", False):
         # Opt-in — kills the PrintNightmare surface but breaks printing
-        run_cmd(["sc.exe", "stop", "Spooler"])
-        run_cmd(["sc.exe", "config", "Spooler", "start=", "disabled"])
+        run_cmd(["sc.exe", "stop", "Spooler"], timeout=15)
+        run_cmd(["sc.exe", "config", "Spooler", "start=", "disabled"], timeout=15)
         logger.info("Applied: DisablePrintSpooler (Spooler stopped + disabled)")
 
     if prev.get("BlockOemWpbtExecution", True):
@@ -1316,48 +1415,14 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
     if prev.get("DisableMiscBloatServices", True):
         # Demand-start (Start=3) — all stay usable when actually invoked.
         # Vendor services absent from the machine are skipped (open, not create).
-        for svc in ("dmwappushservice", "MapsBroker", "WMPNetworkSvc",
-                    "diagnosticshub.standardcollector.service",
-                    "CDPSvc", "NvTelemetryContainer",
-                    "esrv_svc", "ESRV_SVC_QUEENCREEK",
-                    "PushToInstall", "SEMgrSvc", "PhoneSvc",
-                    "SysMain", "TabletInputService",
-                    "WSearch",                # indexer — resident file scan
-                    "AssignedAccessManagerSvc",  # kiosk assigned-access
-                    "DusmSvc",                # data-usage metering
-                    # Per-user service templates for Mail/People/contacts
-                    # sync — dead weight once those apps are removed
-                    "CDPUserSvc", "OneSyncSvc", "UnistoreSvc",
-                    "UserDataSvc", "PimIndexMaintenanceSvc",
-                    # Diagnostic Service Host pair — WDI diagnostics sessions
-                    "WdiSystemHost", "WdiServiceHost",
-                    # Diagnostic Policy Service + Diagnostic Execution Service
-                    # — both Automatic by default; Manual keeps netsh/PowerShell
-                    # diagnostics working on demand while killing the resident
-                    # diagnostic pipeline
-                    "DPS", "diagsvc",
-                    # Data Collection and Publishing Service — feeds the
-                    # diagnostic ingest pipeline
-                    "DcpSvc",
-                    "PcaSvc",                # Program Compatibility Assistant
-                    # Microsoft Pay (dead), Windows Insider, Mixed Reality,
-                    # AllJoyn, smart card triad
-                    "WalletService", "wisvc",
-                    "SharedRealitySvc", "perceptionsimulation", "Spectrum",
-                    "AJRouter", "SCardSvr", "ScDeviceEnum", "CertPropSvc",
-                    # Location tracking + sensor monitoring stack
-                    "lfsvc", "SensorService", "SensrSvc", "sensrsvc",
-                    # SNMP traps (dead), recommended-troubleshooting runner,
-                    # cellular WWAN (demand-start keeps LTE working)
-                    "SNMPTRAP", "TroubleshootingSvc", "WwanSvc",
-                    "WwanAuthSvc"):
+        for svc in _MISC_DEMOTE_SERVICES:
             demote_service(svc)
         # Remote Registry: remote registry read/write over SMB — disabled
         # outright (demand-start would still leave the surface reachable)
-        run_cmd(["sc.exe", "stop", "RemoteRegistry"])
-        run_cmd(["sc.exe", "config", "RemoteRegistry", "start=", "disabled"])
+        run_cmd(["sc.exe", "stop", "RemoteRegistry"], timeout=15)
+        run_cmd(["sc.exe", "config", "RemoteRegistry", "start=", "disabled"], timeout=15)
         logger.info("Applied: DisableMiscBloatServices "
-                    "(45 services -> demand-start, RemoteRegistry disabled)")
+                    "(44 services -> demand-start, RemoteRegistry disabled)")
 
     if prev.get("DisableSpotlight", True):
         # Desktop Spotlight = content-delivery channel (wallpaper promos)
@@ -1565,8 +1630,14 @@ def apply_remove_default_store_packages(family_names, logger: logging.Logger) ->
             prior = list(winreg.QueryValueEx(key, "PackageList")[0])
         except OSError:
             prior = []
-        merged = list(dict.fromkeys(
-            [f for f in prior + list(family_names)]))
+        # Case-insensitive dedup (family names are case-insensitive in Appx
+        # — C# merges with OrdinalIgnoreCase; keep first-seen casing)
+        seen = set()
+        merged = []
+        for f in list(prior) + list(family_names):
+            if f.lower() not in seen:
+                seen.add(f.lower())
+                merged.append(f)
         winreg.SetValueEx(key, "Enabled", 0, winreg.REG_DWORD, 1)
         winreg.SetValueEx(key, "PackageList", 0, winreg.REG_MULTI_SZ, merged)
         winreg.CloseKey(key)
@@ -1824,7 +1895,9 @@ def disable_oem_scheduled_tasks(logger: logging.Logger):
         f"Where-Object {{$_.TaskPath -like '*OEM*' -or $_.TaskName -match '{patterns}'}} | "
         f"Select-Object TaskName,TaskPath,State | ConvertTo-Json"
     )
-    stdout, _, rc = run_powershell(ps_cmd, timeout=60)
+    # 120s — parity with C# Proc.Capture(120000); large task lists on slow
+    # machines can exceed a minute
+    stdout, _, rc = run_powershell(ps_cmd, timeout=120)
 
     if rc != 0 or not stdout:
         return
@@ -1846,7 +1919,7 @@ def disable_oem_scheduled_tasks(logger: logging.Logger):
                 logger.warning(f"Skipping protected system task: {full_path}")
                 skipped += 1
                 continue
-            out, ret = run_cmd(["schtasks", "/Change", "/TN", full_path, "/DISABLE"])
+            out, ret = run_cmd(["schtasks", "/Change", "/TN", full_path, "/DISABLE"], timeout=15)
             if ret == 0:
                 logger.info(f"Disabled scheduled task: {full_path}")
             else:
@@ -1862,6 +1935,8 @@ def disable_oem_scheduled_tasks(logger: logging.Logger):
 # else is touched. CompatTelRunner is a notorious CPU/IO hog.
 TELEMETRY_TASK_PATHS = (
     "\\Microsoft\\Windows\\Application Experience\\Microsoft Compatibility Appraiser",
+    # "Exp" variant shipped on newer builds — same telemetry role
+    "\\Microsoft\\Windows\\Application Experience\\Microsoft Compatibility Appraiser Exp",
     "\\Microsoft\\Windows\\Application Experience\\ProgramDataUpdater",
     "\\Microsoft\\Windows\\Application Experience\\PcaPatchDbTask",
     "\\Microsoft\\Windows\\Application Experience\\StartupAppTask",
@@ -1941,7 +2016,7 @@ TELEMETRY_TASK_PATHS = (
 def disable_telemetry_tasks(logger: logging.Logger):
     """Disable the known Microsoft telemetry/CEIP scheduled tasks."""
     for full_path in TELEMETRY_TASK_PATHS:
-        out, ret = run_cmd(["schtasks", "/Change", "/TN", full_path, "/DISABLE"])
+        out, ret = run_cmd(["schtasks", "/Change", "/TN", full_path, "/DISABLE"], timeout=15)
         if ret == 0:
             logger.info(f"Disabled scheduled task: {full_path}")
         else:
@@ -1981,12 +2056,10 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
 
     # 1. Remove installed packages
     if prev.get("RemoveAppxPackages", True):
-        packages = get_blacklisted_packages(blacklist, whitelist)
+        packages = _enum_blacklisted_packages(blacklist, whitelist)
         matched += len(packages)
-        full_names = get_package_full_names() if packages else {}
-        for family_name, display_name, install_path in packages:
+        for family_name, display_name, install_path, full_name in packages:
             matched_families.add(family_name)
-            full_name = full_names.get(family_name)
             is_system_app = not install_path or install_path.strip() == ""
             if dry_run:
                 note = "[SystemApp: requires admin]" if is_system_app else ""
@@ -2059,7 +2132,7 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
     if prev.get("MarkDeprovisioned", True) or prev.get("RemoveDefaultStorePackages", True):
         if not (prev.get("RemoveAppxPackages", True)
                 and prev.get("RemoveProvisionedPackages", True)):
-            for family_name, _, _ in get_blacklisted_packages(blacklist, whitelist):
+            for family_name, _, _, _ in _enum_blacklisted_packages(blacklist, whitelist):
                 matched_families.add(family_name)
             for display_name, package_name in get_blacklisted_provisioned(
                     blacklist, whitelist):
@@ -2166,9 +2239,12 @@ def run_service(config: dict, logger: logging.Logger):
                     for display, pkg_name in get_blacklisted_provisioned(blacklist, whitelist)
                 )
                 current_provisioned = set(prov_map)
-                current_installed = {
-                    family for family, _, _ in get_blacklisted_packages(blacklist, whitelist)
+                installed_map = {
+                    family: full_name
+                    for family, _, _, full_name
+                    in _enum_blacklisted_packages(blacklist, whitelist)
                 }
+                current_installed = set(installed_map)
                 # Win32 display names — OEMs re-push these via their updaters,
                 # so the monitor must watch the non-Appx channel too
                 try:
@@ -2191,11 +2267,10 @@ def run_service(config: dict, logger: logging.Logger):
                             logger.warning(f"[MONITOR] Re-removal failed: {display_name}")
 
                     reinstalled = current_installed - seen_installed
-                    full_names = get_package_full_names() if reinstalled else {}
                     for family_name in reinstalled:
                         logger.warning(
                             f"[MONITOR] RE-INSTALLED AppxPackage: {family_name} — removing!")
-                        full_name = full_names.get(family_name)
+                        full_name = installed_map.get(family_name)
                         if config.get("DryRun", False):
                             logger.info(f"[DRY-RUN] Would re-remove AppxPackage: {family_name}")
                         elif full_name and remove_appx_package(full_name):
@@ -2336,13 +2411,14 @@ def run_self_test() -> int:
     def t_full_name_map():
         fake_json = json.dumps([
             {"PackageFamilyName": "Microsoft.XboxGamingOverlay_8wekyb3d8bbwe",
+             "Name": "Microsoft.XboxGamingOverlay",
              "PackageFullName": "Microsoft.XboxGamingOverlay_1.0_x64__8wekyb3d8bbwe"},
         ])
         orig = run_powershell
         globals()["run_powershell"] = lambda cmd, timeout=60: (fake_json, "", 0)
         try:
-            m = get_package_full_names()
-            assert m.get("Microsoft.XboxGamingOverlay_8wekyb3d8bbwe") == \
+            pkgs = _enum_blacklisted_packages(["Xbox"], [])
+            assert pkgs and pkgs[0][3] == \
                 "Microsoft.XboxGamingOverlay_1.0_x64__8wekyb3d8bbwe"
         finally:
             globals()["run_powershell"] = orig
@@ -2445,7 +2521,9 @@ def run_self_test() -> int:
                                   ("DEFAULT_BLACKLIST", DEFAULT_BLACKLIST),
                                   ("MICROSOFT_SYSTEM_TASK_PREFIXES",
                                    MICROSOFT_SYSTEM_TASK_PREFIXES),
-                                  ("_BACKUP_KEY_PATHS", _BACKUP_KEY_PATHS)):
+                                  ("_BACKUP_KEY_PATHS", _BACKUP_KEY_PATHS),
+                                  ("_MISC_DEMOTE_SERVICES",
+                                   _MISC_DEMOTE_SERVICES)):
                 miss = [e for e in entries if e not in cs_src]
                 assert not miss, f"{name} entries missing from Program.cs: {miss}"
 
@@ -2461,9 +2539,15 @@ def run_self_test() -> int:
                               ("DEFAULT_BLACKLIST", DEFAULT_BLACKLIST),
                               ("MICROSOFT_SYSTEM_TASK_PREFIXES",
                                MICROSOFT_SYSTEM_TASK_PREFIXES),
-                              ("_BACKUP_KEY_PATHS", _BACKUP_KEY_PATHS)):
+                              ("_BACKUP_KEY_PATHS", _BACKUP_KEY_PATHS),
+                              ("_MISC_DEMOTE_SERVICES", _MISC_DEMOTE_SERVICES)):
             dupes = {e for e in entries if entries.count(e) > 1}
             assert not dupes, f"{name} has duplicate entries: {dupes}"
+            # Service names are case-insensitive on Windows — catch
+            # case-variant dups too (SensrSvc/sensrsvc shipped as both).
+            lower = [e.lower() for e in entries]
+            case_dupes = {e for e in lower if lower.count(e) > 1}
+            assert not case_dupes, f"{name} has case-variant duplicates: {case_dupes}"
 
     check("T10: shared lists are duplicate-free", t_no_duplicate_entries)
 
@@ -2524,15 +2608,15 @@ def main():
 
     if args.install:
         if not is_admin():
-            print("ERROR: Administrator rights required. Run as admin.")
-            sys.exit(1)
+            _relaunch_elevated("--install")
+            return
         install_service()
         return
 
     if args.uninstall:
         if not is_admin():
-            print("ERROR: Administrator rights required.")
-            sys.exit(1)
+            _relaunch_elevated("--uninstall")
+            return
         uninstall_service()
         return
 

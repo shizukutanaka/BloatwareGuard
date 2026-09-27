@@ -4,6 +4,7 @@
 # Usage: Right-click -> "Run with PowerShell" (as Admin)
 
 Write-Host "=== BloatwareGuard Verification ===" -ForegroundColor Cyan
+if (!(Test-Path C:\temp)) { mkdir C:\temp | Out-Null }
 Write-Host "Taking BEFORE snapshots..." -ForegroundColor Yellow
 
 # 1. Registry snapshot BEFORE
