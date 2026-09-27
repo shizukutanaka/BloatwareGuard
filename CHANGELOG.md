@@ -2,6 +2,14 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.57.0-mvp: startup-surface coverage
+
+### Fixed
+- Startup-bloat scan missed the 32-bit `RunOnce` view
+  (`HKLM\SOFTWARE\WOW6432Node\...\RunOnce`) — 32-bit installers could
+  register autostart entries there untouched. Both impls now mark it
+  with the same StartupApproved\RunOnce 0x03 marker.
+
 ## [Unreleased] — v1.56.0-mvp: service-list dedup + AI-surface hardening
 
 ### Added

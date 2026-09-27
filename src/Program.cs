@@ -1069,6 +1069,7 @@ public static class RegistryGuard
     private const string MachineRunPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
     private const string MachineRunPath32 = @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Run";
     private const string MachineRunOncePath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce";
+    private const string MachineRunOncePath32 = @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\RunOnce";
     private const string UserRunPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string UserRunOncePath = @"Software\Microsoft\Windows\CurrentVersion\RunOnce";
     private const string StartupApprovedRun = @"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run";
@@ -2119,6 +2120,8 @@ public static class RegistryGuard
             ScanAndMark(Registry.LocalMachine, MachineRunPath, StartupApprovedRun);
             ScanAndMark(Registry.LocalMachine, MachineRunPath32, StartupApprovedRun);
             ScanAndMark(Registry.LocalMachine, MachineRunOncePath, StartupApprovedRunOnce);
+            // 32-bit view of RunOnce — same StartupApproved marker semantics
+            ScanAndMark(Registry.LocalMachine, MachineRunOncePath32, StartupApprovedRunOnce);
             // Every user hive + HKCU (Run + RunOnce)
             ForEachUserHive(hive =>
             {
@@ -3445,7 +3448,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.56.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.57.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -3531,7 +3534,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.56.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.57.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -3697,8 +3700,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 8;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.56.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.56.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.57.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.57.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.56.0-mvp - Python prototype
+BloatwareGuard v1.57.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -35,7 +35,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.56.0-mvp"
+APP_VERSION = "1.57.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -1532,6 +1532,10 @@ def disable_startup_bloat(config: dict, logger: logging.Logger):
     _scan(winreg.HKEY_LOCAL_MACHINE, machine_run, approved)
     _scan(winreg.HKEY_LOCAL_MACHINE, machine_run32, approved)
     _scan(winreg.HKEY_LOCAL_MACHINE, machine_runonce, approved_once)
+    # 32-bit view of RunOnce — same StartupApproved marker semantics
+    _scan(winreg.HKEY_LOCAL_MACHINE,
+          r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\RunOnce",
+          approved_once)
 
     def _scan_user(root, prefix):
         p = (prefix + "\\") if prefix else ""
