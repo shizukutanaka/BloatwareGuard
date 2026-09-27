@@ -42,6 +42,10 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   for removal.
 - `verify_scan.ps1` exported registry snapshots into `C:\temp` without
   creating it (the SYSTEM variant already did); add the same guard.
+- Python ran a second `Get-AppxPackage` query per scan just to map
+  family → full name; `PackageFullName` is now selected in the same
+  enumeration (C# single-query parity), and the reinstall monitor reuses
+  that map instead of re-querying.
 
 ### Changed
 - Misc-bloat demote list extracted from inline loop literals into named

@@ -297,9 +297,11 @@ def is_target_package(pkg_name: str, blacklist: List[str], whitelist: List[str])
     return any(entry and entry.strip() and entry.lower() in name for entry in blacklist)
 
 
-def get_blacklisted_packages(blacklist: List[str], whitelist: List[str]) -> List[Tuple[str, str, str]]:
-    """Return (PackageFamilyName, Name, InstallPath) for packages matching blacklist.
-    InstallPath is None for SystemApps (cannot be removed per-user).
+def get_blacklisted_packages(blacklist: List[str], whitelist: List[str]) -> List[Tuple[str, str, str, str]]:
+    """Return (PackageFamilyName, Name, InstallPath, PackageFullName) for
+    packages matching blacklist. InstallPath is None for SystemApps (cannot be
+    removed per-user); PackageFullName comes from the same query — no second
+    PowerShell call per scan (C# GetBlacklistedPackages parity).
     Whitelisted packages are never returned, and IsFramework packages (dependency
     DLLs for other apps) are skipped. Enumerates -AllUsers when admin so packages
     installed for other profiles are caught too."""
@@ -308,7 +310,7 @@ def get_blacklisted_packages(blacklist: List[str], whitelist: List[str]) -> List
 
     scope = " -AllUsers" if is_admin() else ""
     ps_cmd = ("Get-AppxPackage" + scope +
-              " | Select-Object PackageFamilyName,Name,InstallPath,IsFramework | ConvertTo-Json")
+              " | Select-Object PackageFamilyName,Name,InstallPath,IsFramework,PackageFullName | ConvertTo-Json")
     stdout, stderr, rc = run_powershell(ps_cmd, timeout=120)
 
     if rc != 0 or not stdout:
@@ -325,11 +327,12 @@ def get_blacklisted_packages(blacklist: List[str], whitelist: List[str]) -> List
             family = pkg.get("PackageFamilyName", "")
             name = pkg.get("Name", "")
             install_path = pkg.get("InstallPath", "")  # None for SystemApps
+            full_name = pkg.get("PackageFullName", "")
             if bool(pkg.get("IsFramework")) or family in seen:
                 continue
             if is_target_package(family, blacklist, whitelist):
                 seen.add(family)
-                results.append((family, name, install_path))
+                results.append((family, name, install_path, full_name))
     except (json.JSONDecodeError, TypeError):
         pass
 
@@ -360,30 +363,6 @@ def get_blacklisted_provisioned(blacklist: List[str], whitelist: List[str]) -> L
         pass
 
     return results
-
-
-def get_package_full_names() -> dict:
-    """Map PackageFamilyName -> PackageFullName in one PowerShell call.
-    Avoids spawning a process per package inside scan loops."""
-    scope = " -AllUsers" if is_admin() else ""
-    ps_cmd = ("Get-AppxPackage" + scope +
-              " | Select-Object PackageFamilyName,PackageFullName | ConvertTo-Json")
-    stdout, _, rc = run_powershell(ps_cmd, timeout=120)
-    mapping = {}
-    if rc != 0 or not stdout:
-        return mapping
-    try:
-        data = json.loads(stdout)
-        if isinstance(data, dict):
-            data = [data]
-        for pkg in data:
-            family = pkg.get("PackageFamilyName", "")
-            full = pkg.get("PackageFullName", "")
-            if family:
-                mapping[family] = full
-    except (json.JSONDecodeError, TypeError):
-        pass
-    return mapping
 
 
 def remove_appx_package(package_full_name: str) -> bool:
@@ -2011,10 +1990,8 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
     if prev.get("RemoveAppxPackages", True):
         packages = get_blacklisted_packages(blacklist, whitelist)
         matched += len(packages)
-        full_names = get_package_full_names() if packages else {}
-        for family_name, display_name, install_path in packages:
+        for family_name, display_name, install_path, full_name in packages:
             matched_families.add(family_name)
-            full_name = full_names.get(family_name)
             is_system_app = not install_path or install_path.strip() == ""
             if dry_run:
                 note = "[SystemApp: requires admin]" if is_system_app else ""
@@ -2087,7 +2064,7 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
     if prev.get("MarkDeprovisioned", True) or prev.get("RemoveDefaultStorePackages", True):
         if not (prev.get("RemoveAppxPackages", True)
                 and prev.get("RemoveProvisionedPackages", True)):
-            for family_name, _, _ in get_blacklisted_packages(blacklist, whitelist):
+            for family_name, _, _, _ in get_blacklisted_packages(blacklist, whitelist):
                 matched_families.add(family_name)
             for display_name, package_name in get_blacklisted_provisioned(
                     blacklist, whitelist):
@@ -2194,9 +2171,12 @@ def run_service(config: dict, logger: logging.Logger):
                     for display, pkg_name in get_blacklisted_provisioned(blacklist, whitelist)
                 )
                 current_provisioned = set(prov_map)
-                current_installed = {
-                    family for family, _, _ in get_blacklisted_packages(blacklist, whitelist)
+                installed_map = {
+                    family: full_name
+                    for family, _, _, full_name
+                    in get_blacklisted_packages(blacklist, whitelist)
                 }
+                current_installed = set(installed_map)
                 # Win32 display names — OEMs re-push these via their updaters,
                 # so the monitor must watch the non-Appx channel too
                 try:
@@ -2219,11 +2199,10 @@ def run_service(config: dict, logger: logging.Logger):
                             logger.warning(f"[MONITOR] Re-removal failed: {display_name}")
 
                     reinstalled = current_installed - seen_installed
-                    full_names = get_package_full_names() if reinstalled else {}
                     for family_name in reinstalled:
                         logger.warning(
                             f"[MONITOR] RE-INSTALLED AppxPackage: {family_name} — removing!")
-                        full_name = full_names.get(family_name)
+                        full_name = installed_map.get(family_name)
                         if config.get("DryRun", False):
                             logger.info(f"[DRY-RUN] Would re-remove AppxPackage: {family_name}")
                         elif full_name and remove_appx_package(full_name):
@@ -2364,13 +2343,14 @@ def run_self_test() -> int:
     def t_full_name_map():
         fake_json = json.dumps([
             {"PackageFamilyName": "Microsoft.XboxGamingOverlay_8wekyb3d8bbwe",
+             "Name": "Microsoft.XboxGamingOverlay",
              "PackageFullName": "Microsoft.XboxGamingOverlay_1.0_x64__8wekyb3d8bbwe"},
         ])
         orig = run_powershell
         globals()["run_powershell"] = lambda cmd, timeout=60: (fake_json, "", 0)
         try:
-            m = get_package_full_names()
-            assert m.get("Microsoft.XboxGamingOverlay_8wekyb3d8bbwe") == \
+            pkgs = get_blacklisted_packages(["Xbox"], [])
+            assert pkgs and pkgs[0][3] == \
                 "Microsoft.XboxGamingOverlay_1.0_x64__8wekyb3d8bbwe"
         finally:
             globals()["run_powershell"] = orig
@@ -2587,7 +2567,7 @@ def main():
         whitelist = config.get("Whitelist", [])
         pkgs = get_blacklisted_packages(blacklist, whitelist)
         logger.info("Installed packages matching blacklist:")
-        for family, name, _install_path in pkgs:
+        for family, name, _install_path, _full_name in pkgs:
             logger.info(f"  {family} ({name})")
         logger.info("Total: %d package(s) installed.", len(pkgs))
         return
