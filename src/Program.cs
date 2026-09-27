@@ -427,7 +427,10 @@ public static class ConfigLoader
         return new GuardConfig
         {
             ScanIntervalSeconds = 300,
-            LogFilePath = Path.Combine(AppContext.BaseDirectory, "bloatware-guard.log"),
+            // Same default the Python side writes into a generated config.json
+            LogFilePath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+                "BloatwareGuard", "bloatware-guard.log"),
             Blacklist = new List<string>
             {
                 // Microsoft bloatware
