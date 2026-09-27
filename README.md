@@ -2,7 +2,7 @@
 
 ## What It Does
 
-Removes Windows bloatware across **44 prevention layers** in both **Python** and **C#** implementations.
+Removes Windows bloatware across **45 prevention layers** in both **Python** and **C#** implementations.
 Per-user settings are written to **every loaded user hive + the Default profile template**, so they
 also apply correctly when the tool runs as a SYSTEM service and for users created later.
 
@@ -54,6 +54,7 @@ also apply correctly when the tool runs as a SYSTEM service and for users create
 || 42. Telemetry endpoints null-routed via marked hosts block (46 domains, reversible) | ✅ | ✅ | Requires admin |
 || 43. winget uninstall sweep for blacklist entries that are valid package ids | ✅ | ✅ | Skips when winget absent |
 || 44. Telemetry ETW AutoLoggers off (SQMLogger, WiFiSession, Diagtrack-Listener, 13 sessions) | ✅ | ✅ | HKLM needs admin |
+|| 45. Provisioning blocked (CDM silent installs, SubscribedContent surfaces, Open-With store nags, online tips) | ✅ | ✅ | HKLM + per-hive |
 
 ---
 
