@@ -3488,6 +3488,16 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
 
     private static void UninstallService()
     {
+        // Stop first — sc delete on a running service only marks it for
+        // deletion; it keeps running until the next stop/reboot (py parity).
+        var stopPsi = new ProcessStartInfo
+        {
+            FileName = "sc.exe",
+            Arguments = "stop BloatwareGuard",
+            UseShellExecute = true,
+            Verb = "runas"
+        };
+        Process.Start(stopPsi);
         var psi = new ProcessStartInfo
         {
             FileName = "sc.exe",
