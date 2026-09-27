@@ -3328,13 +3328,28 @@ public class Program
         // Python the .NET console never throws on unencodable chars, so this
         // is cosmetic; kept to match the Python console hardening.
         try { Console.OutputEncoding = new System.Text.UTF8Encoding(false); } catch { /* no console in service mode */ }
+        // --config <path> overrides the default config.json location
+        // (Python parity: --config PATH). Scan args before loading.
         var configPath = Path.Combine(AppContext.BaseDirectory, "config.json");
+        for (var i = 0; i + 1 < args.Length; i++)
+        {
+            if (args[i].Equals("--config", StringComparison.OrdinalIgnoreCase) &&
+                !string.IsNullOrWhiteSpace(args[i + 1]))
+                configPath = args[i + 1];
+        }
         var config = ConfigLoader.Load(configPath);
 
+        // First non-flag argument is the command (flags like --config <path>
+        // are consumed above and skipped here).
+        var cmdIndex = 0;
+        while (cmdIndex < args.Length &&
+               args[cmdIndex].Equals("--config", StringComparison.OrdinalIgnoreCase))
+            cmdIndex += 2;
+
         // Handle CLI commands
-        if (args.Length > 0)
+        if (cmdIndex < args.Length)
         {
-            switch (args[0].ToLower())
+            switch (args[cmdIndex].ToLower())
             {
                 case "scan":
                     RunOnce(config, dryRun: false);
@@ -3376,7 +3391,7 @@ public class Program
                 default:
                     // Unrecognized args must NOT fall through to console mode —
                     // that runs a real scan. Bail out instead.
-                    Console.WriteLine($"Unknown command: {args[0]}");
+                    Console.WriteLine($"Unknown command: {args[cmdIndex]}");
                     ShowHelp();
                     Environment.ExitCode = 1;
                     return;
@@ -3418,7 +3433,8 @@ public class Program
         if (!dryRun)
         {
             RegistryGuard.ApplyAll(config.Prevention, config.Blacklist, config.Whitelist);
-            ScheduledTaskGuard.DisableOemTasks();
+            if (config.Prevention.DisableOemScheduledTasks)
+                ScheduledTaskGuard.DisableOemTasks();
             if (config.Prevention.DisableTelemetryTasks)
                 ScheduledTaskGuard.DisableTelemetryTasks();
         }
@@ -3462,6 +3478,7 @@ Commands:
   install       Install as Windows Service (requires admin)
   uninstall     Remove Windows Service (requires admin)
   status        Show Windows Service status
+  --config PATH Load config from PATH instead of the exe-adjacent config.json
   --version     Show version
   --self-test   Run internal wiring self-test (no admin required)
   help          Show this help
