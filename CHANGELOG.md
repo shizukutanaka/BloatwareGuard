@@ -32,6 +32,9 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 - Python `--install`/`--uninstall` used to exit with an error when not
   elevated; they now re-launch themselves via UAC (`runas`), matching
   the C# self-elevating `install`/`uninstall`.
+- C# generated-config `LogFilePath` pointed next to the exe; it now
+  defaults to `ProgramData\BloatwareGuard\bloatware-guard.log` like the
+  Python side writes.
 
 ### Changed
 - Misc-bloat demote list extracted from inline loop literals into named
