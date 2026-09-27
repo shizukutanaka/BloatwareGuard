@@ -1567,8 +1567,14 @@ def apply_remove_default_store_packages(family_names, logger: logging.Logger) ->
             prior = list(winreg.QueryValueEx(key, "PackageList")[0])
         except OSError:
             prior = []
-        merged = list(dict.fromkeys(
-            [f for f in prior + list(family_names)]))
+        # Case-insensitive dedup (family names are case-insensitive in Appx
+        # — C# merges with OrdinalIgnoreCase; keep first-seen casing)
+        seen = set()
+        merged = []
+        for f in list(prior) + list(family_names):
+            if f.lower() not in seen:
+                seen.add(f.lower())
+                merged.append(f)
         winreg.SetValueEx(key, "Enabled", 0, winreg.REG_DWORD, 1)
         winreg.SetValueEx(key, "PackageList", 0, winreg.REG_MULTI_SZ, merged)
         winreg.CloseKey(key)

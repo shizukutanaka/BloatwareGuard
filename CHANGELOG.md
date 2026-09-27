@@ -9,6 +9,10 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   list (same Windows service; `SensorService` is a distinct service and
   stays). Demote count corrected 45 → 44 in code logs and README (both
   impls).
+- `RemoveDefaultStorePackages` PackageList merge was case-sensitive in
+  Python while C# merges `OrdinalIgnoreCase` — a family listed under
+  different casing could be written twice. Both now dedupe
+  case-insensitively, keeping first-seen casing.
 
 ### Changed
 - Misc-bloat demote list extracted from inline loop literals into named
