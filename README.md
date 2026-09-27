@@ -17,8 +17,8 @@ also apply correctly when the tool runs as a SYSTEM service and for users create
 || 5. Device Metadata | ✅ | ✅ | HKLM (admin) |
 || 6. OEM Scheduled Tasks | ✅ | ✅ | ✅ Disable works |
 || 7. Re-install Monitor (Appx + provisioned + Win32 channels) | ✅ | ✅ | ✅ Service mode |
-|| 8. Copilot off (policy, all hives) | ✅ | ✅ | Own hive only |
-|| 9. Recall / Windows AI off (policy + feature removal) | ✅ | ✅ | Own hive only |
+|| 8. Copilot off (policy + shell eligibility + voice agent + nudge/taskbar/systray overrides, all hives) | ✅ | ✅ | Own hive only |
+|| 9. Recall / Windows AI off (policy + feature removal; 25H2 Settings agent, Paint/Notepad AI, AI-actions overrides) | ✅ | ✅ | Own hive only |
 || 10. Search suggestions / Bing off (all hives) | ✅ | ✅ | Own hive only |
 || 11. Widgets board off (policy + taskbar button) | ✅ | ✅ | HKLM needs admin |
 || 12. Telemetry off (DiagTrack svc, ad ID, feedback nags, activity history) | ✅ | ✅ | HKLM needs admin |
@@ -26,7 +26,7 @@ also apply correctly when the tool runs as a SYSTEM service and for users create
 || 14. Delivery Optimization P2P sharing off | ✅ | ✅ | HKLM needs admin |
 || 15. OneDrive sync off + Explorer pin hidden (**opt-in**, default off) | ✅ | ✅ | HKLM needs admin |
 || 16. Teams Chat taskbar button off | ✅ | ✅ | Own hive only |
-|| 17. Edge sidebar / startup boost / prelaunch / first-run off | ✅ | ✅ | HKLM needs admin |
+|| 17. Edge sidebar / startup boost / prelaunch / first-run + AI surface off | ✅ | ✅ | HKLM needs admin |
 || 18. Optional capabilities removed (IE mode, Steps Recorder, WordPad, XPS Viewer, Fax&Scan, Wireless Display) | ✅ | ✅ | Requires admin |
 || 19. Win32 bloatware uninstalled (McAfee/Norton OEM preinstalls — MSI silent) | ✅ | ✅ | Requires admin |
 || 20. Restore point before destructive scans (self-throttles 24h) | ✅ | ✅ | Requires admin |

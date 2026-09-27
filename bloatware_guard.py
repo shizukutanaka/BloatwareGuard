@@ -656,6 +656,23 @@ _EXPLORER_POLICIES_HKLM = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\E
 _USER_INTL_PROFILE = r"Control Panel\International\User Profile"
 _USER_COPILOT = r"Software\Policies\Microsoft\Windows\WindowsCopilot"
 _USER_WINDOWS_AI = r"Software\Policies\Microsoft\Windows\WindowsAI"
+_USER_SHELL_COPILOT = r"Software\Microsoft\Windows\Shell\Copilot"
+_USER_SHELL_COPILOT_BINGCHAT = r"Software\Microsoft\Windows\Shell\Copilot\BingChat"
+_USER_VOICE_ACTIVATION = (r"Software\Microsoft\Speech_OneCore\Settings"
+                          + r"\VoiceActivation\UserPreferenceForAllApps")
+_USER_CLICK_TO_DO = r"Software\Microsoft\Windows\Shell\ClickToDo"
+# Feature-management velocity overrides (community-verified IDs — e.g.
+# zoicware/RemoveWindowsAI). EnabledState: 0=default, 1=disabled, 2=enabled.
+_VELOCITY_PATH = r"SYSTEM\CurrentControlSet\Control\FeatureManagement\Overrides\8"
+_VELOCITY_COPILOT_IDS = (
+    # Copilot nudges + taskbar + systray
+    ("1546588812", 1), ("203105932", 1), ("2381287564", 1),
+    ("3389499533", 1), ("4027803789", 1),
+)
+_VELOCITY_AI_IDS = (
+    # AI Actions in Explorer; 1646260367 hides the entry when no action exists
+    ("1853569164", 1), ("4098520719", 1), ("929719951", 1), ("1646260367", 2),
+)
 _USER_SEARCH = r"Software\Microsoft\Windows\CurrentVersion\Search"
 _USER_SEARCH_SETTINGS = r"Software\Microsoft\Windows\CurrentVersion\SearchSettings"
 _USER_PROFILE_ENGAGEMENT = r"Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement"
@@ -971,7 +988,20 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_user_dword_all_hives(_USER_COPILOT, "TurnOffWindowsCopilot", 1, logger)
         # Copilot taskbar button
         set_user_dword_all_hives(_USER_EXPLORER_ADV, "ShowCopilotButton", 0, logger)
-        logger.info("Applied: DisableCopilot (TurnOffWindowsCopilot = 1, HKLM + user hives)")
+        # Shell eligibility suppression (HKLM + user hives — same pattern as
+        # zoicware/RemoveWindowsAI): app removed via blacklist, shell too
+        shell_copilot = r"SOFTWARE\Microsoft\Windows\Shell\Copilot"
+        set_registry_dword("HKLM", shell_copilot, "IsCopilotAvailable", 0)
+        set_registry_dword("HKLM", shell_copilot + r"\BingChat", "IsUserEligible", 0)
+        set_user_dword_all_hives(_USER_SHELL_COPILOT, "IsCopilotAvailable", 0, logger)
+        set_user_dword_all_hives(_USER_SHELL_COPILOT_BINGCHAT, "IsUserEligible", 0, logger)
+        # Copilot voice-agent activation off (all user hives)
+        set_user_dword_all_hives(_USER_VOICE_ACTIVATION, "AgentActivationEnabled", 0, logger)
+        for vid, state in _VELOCITY_COPILOT_IDS:
+            set_registry_dword("HKLM", _VELOCITY_PATH + "\\" + vid,
+                               "EnabledState", state)
+        logger.info("Applied: DisableCopilot (policy + shell eligibility + "
+                    "voice agent + nudge/taskbar/systray overrides, HKLM + user hives)")
 
     if prev.get("DisableRecall", True):
         ai_pol = r"SOFTWARE\Policies\Microsoft\Windows\WindowsAI"
@@ -979,8 +1009,25 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_registry_dword("HKLM", ai_pol, "TurnOffSavingSnapshots", 1)
         set_registry_dword("HKLM", ai_pol, "AllowRecallEnablement", 0)
         set_registry_dword("HKLM", ai_pol, "DisableClickToDo", 1)
+        # 25H2 "Agent in Settings" (Settings AI agent)
+        set_registry_dword("HKLM", ai_pol, "DisableSettingsAgent", 1)
         set_user_dword_all_hives(_USER_WINDOWS_AI, "DisableAIDataAnalysis", 1, logger)
         set_user_dword_all_hives(_USER_WINDOWS_AI, "DisableClickToDo", 1, logger)
+        set_user_dword_all_hives(_USER_WINDOWS_AI, "DisableSettingsAgent", 1, logger)
+        # ClickToDo user preference (policy alone still leaves the shell entry)
+        set_user_dword_all_hives(_USER_CLICK_TO_DO, "DisableClickToDo", 1, logger)
+        # Per-app AI features: Paint (image creator/cocreator/fill/erase/
+        # background) and Notepad (Rewrite) — documented policy keys
+        paint_pol = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Paint"
+        for name in ("DisableImageCreator", "DisableCocreator",
+                     "DisableGenerativeFill", "DisableGenerativeErase",
+                     "DisableRemoveBackground"):
+            set_registry_dword("HKLM", paint_pol, name, 1)
+        set_registry_dword("HKLM", r"SOFTWARE\Policies\WindowsNotepad",
+                           "DisableAIFeatures", 1)
+        for vid, state in _VELOCITY_AI_IDS:
+            set_registry_dword("HKLM", _VELOCITY_PATH + "\\" + vid,
+                               "EnabledState", state)
         if is_admin():
             # Remove the optional feature where present — absent on most hardware
             run_powershell(
@@ -988,8 +1035,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "-NoRestart -ErrorAction SilentlyContinue | Out-Null", timeout=120)
         # AI fabric service: 2=auto, 3=demand. Absent without NPU/Copilot+ hardware.
         demote_service("WSAIFabricSvc")
-        logger.info("Applied: DisableRecall (WindowsAI policies + Click to Do off, "
-                    "Recall feature removal attempted, WSAIFabricSvc=demand)")
+        logger.info("Applied: DisableRecall (WindowsAI+SettingsAgent policies, "
+                    "Paint/Notepad AI off, Click to Do off, Recall feature "
+                    "removal attempted, WSAIFabricSvc=demand)")
 
     if prev.get("DisableSearchSuggestions", True):
         search_pol = r"SOFTWARE\Policies\Microsoft\Windows\Windows Search"
@@ -1220,8 +1268,19 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         for name in ("DropEnabled", "CryptoWalletEnabled",
                      "EdgeAssetDeliveryServiceEnabled"):
             set_registry_dword("HKLM", edge_pol, name, 0)
+        # Edge AI surface (zoicware/RemoveWindowsAI policy set): page-context
+        # Copilot, inline compose, history AI search, generated themes,
+        # DevTools AI (2 = disabled), browsing-history sharing with Copilot
+        for name in ("CopilotPageContext", "EdgeEntraCopilotPageContext",
+                     "EdgeHistoryAISearchEnabled", "ComposeInlineEnabled",
+                     "BuiltInAIAPIsEnabled", "AIGenThemesEnabled",
+                     "ShareBrowsingHistoryWithCopilotSearchAllowed"):
+            set_registry_dword("HKLM", edge_pol, name, 0)
+        set_registry_dword("HKLM", edge_pol, "DevToolsGenAiSettings", 2)
+        # 1 = disable the local on-device foundation model used by Edge AI
+        set_registry_dword("HKLM", edge_pol, "GenAILocalFoundationalModelSettings", 1)
         logger.info("Applied: DisableEdgeBloat (sidebar/startup-boost/"
-                    "prelaunch/first-run/shopping/recommendations off)")
+                    "prelaunch/first-run/shopping/recommendations/AI off)")
 
     if prev.get("DisableStartupBloat", True):
         disable_startup_bloat(config, logger)

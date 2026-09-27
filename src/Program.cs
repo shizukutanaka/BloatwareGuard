@@ -1018,6 +1018,26 @@ public static class RegistryGuard
     private const string UserExplorerPoliciesPath = @"Software\Policies\Microsoft\Windows\Explorer";
     private const string UserCopilotPath = @"Software\Policies\Microsoft\Windows\WindowsCopilot";
     private const string UserWindowsAiPath = @"Software\Policies\Microsoft\Windows\WindowsAI";
+    private const string ShellCopilotPath = @"SOFTWARE\Microsoft\Windows\Shell\Copilot";
+    private const string UserShellCopilotPath = @"Software\Microsoft\Windows\Shell\Copilot";
+    private const string UserVoiceActivationPath = @"Software\Microsoft\Speech_OneCore\Settings\VoiceActivation\UserPreferenceForAllApps";
+    private const string UserClickToDoPath = @"Software\Microsoft\Windows\Shell\ClickToDo";
+    private const string PaintPoliciesPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Paint";
+    private const string NotepadPoliciesPath = @"SOFTWARE\Policies\WindowsNotepad";
+    // Feature-management velocity overrides (community-verified IDs — e.g.
+    // zoicware/RemoveWindowsAI). EnabledState: 0=default, 1=disabled, 2=enabled.
+    private const string VelocityOverridesPath = @"SYSTEM\CurrentControlSet\Control\FeatureManagement\Overrides\8";
+    private static readonly (string Id, int State)[] VelocityCopilotIds =
+    {
+        // Copilot nudges + taskbar + systray
+        ("1546588812", 1), ("203105932", 1), ("2381287564", 1),
+        ("3389499533", 1), ("4027803789", 1),
+    };
+    private static readonly (string Id, int State)[] VelocityAiIds =
+    {
+        // AI Actions in Explorer; 1646260367 hides the entry when no action exists
+        ("1853569164", 1), ("4098520719", 1), ("929719951", 1), ("1646260367", 2),
+    };
     private const string UserSearchPath = @"Software\Microsoft\Windows\CurrentVersion\Search";
     private const string UserSearchSettingsPath = @"Software\Microsoft\Windows\CurrentVersion\SearchSettings";
     private const string AppPrivacyPath = @"SOFTWARE\Policies\Microsoft\Windows\AppPrivacy";
@@ -1552,7 +1572,21 @@ public static class RegistryGuard
             SetUserDwordAllHives(UserCopilotPath, "TurnOffWindowsCopilot", 1);
             // Copilot taskbar button
             SetUserDwordAllHives(UserExplorerAdvancedPath, "ShowCopilotButton", 0);
-            GuardLogger.Info("Applied: DisableCopilot (TurnOffWindowsCopilot = 1, HKLM + user hives)");
+            // Shell eligibility suppression (HKLM + user hives — same pattern
+            // as zoicware/RemoveWindowsAI): app removed via blacklist, shell too
+            using (var shell = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(ShellCopilotPath))
+            {
+                shell?.SetValue("IsCopilotAvailable", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                shell?.CreateSubKey("BingChat")?.SetValue("IsUserEligible", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            SetUserDwordAllHives(UserShellCopilotPath, "IsCopilotAvailable", 0);
+            SetUserDwordAllHives(UserShellCopilotPath + @"\BingChat", "IsUserEligible", 0);
+            // Copilot voice-agent activation off (all user hives)
+            SetUserDwordAllHives(UserVoiceActivationPath, "AgentActivationEnabled", 0);
+            foreach (var (id, state) in VelocityCopilotIds)
+                SetHiveDword(Microsoft.Win32.Registry.LocalMachine,
+                             VelocityOverridesPath + @"\" + id, "EnabledState", state);
+            GuardLogger.Info("Applied: DisableCopilot (policy + shell eligibility + voice agent + nudge/taskbar/systray overrides, HKLM + user hives)");
         }
         catch (Exception ex)
         {
@@ -1573,11 +1607,30 @@ public static class RegistryGuard
             key?.SetValue("TurnOffSavingSnapshots", 1, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("AllowRecallEnablement", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("DisableClickToDo", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            // 25H2 "Agent in Settings" (Settings AI agent)
+            key?.SetValue("DisableSettingsAgent", 1, Microsoft.Win32.RegistryValueKind.DWord);
             ForEachUserHive(hive =>
             {
                 SetHiveDword(hive, UserWindowsAiPath, "DisableAIDataAnalysis", 1);
                 SetHiveDword(hive, UserWindowsAiPath, "DisableClickToDo", 1);
+                SetHiveDword(hive, UserWindowsAiPath, "DisableSettingsAgent", 1);
+                // ClickToDo user preference (policy alone leaves the shell entry)
+                SetHiveDword(hive, UserClickToDoPath, "DisableClickToDo", 1);
             });
+            // Per-app AI features: Paint (image creator/cocreator/fill/erase/
+            // background) and Notepad (Rewrite) — documented policy keys
+            using (var paint = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(PaintPoliciesPath))
+            {
+                foreach (var name in new[] { "DisableImageCreator", "DisableCocreator",
+                                             "DisableGenerativeFill", "DisableGenerativeErase",
+                                             "DisableRemoveBackground" })
+                    paint?.SetValue(name, 1, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            using (var notepad = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(NotepadPoliciesPath))
+                notepad?.SetValue("DisableAIFeatures", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            foreach (var (id, state) in VelocityAiIds)
+                SetHiveDword(Microsoft.Win32.Registry.LocalMachine,
+                             VelocityOverridesPath + @"\" + id, "EnabledState", state);
 
             // AI fabric service: 2=auto, 3=demand. Absent without NPU/Copilot+ hardware.
             try
@@ -1600,7 +1653,7 @@ public static class RegistryGuard
             };
             Proc.Wait(psi, 120000);
 
-            GuardLogger.Info("Applied: DisableRecall (WindowsAI policies + Click to Do off, Recall feature removal attempted, WSAIFabricSvc=demand)");
+            GuardLogger.Info("Applied: DisableRecall (WindowsAI+SettingsAgent policies, Paint/Notepad AI off, Click to Do off, Recall feature removal attempted, WSAIFabricSvc=demand)");
         }
         catch (Exception ex)
         {
@@ -1994,7 +2047,18 @@ public static class RegistryGuard
             // Promo tabs + desktop web widget (feature/promo surfaces)
             key?.SetValue("PromotionalTabsEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("WebWidgetAllowed", 0, Microsoft.Win32.RegistryValueKind.DWord);
-            GuardLogger.Info("Applied: DisableEdgeBloat (sidebar/startup-boost/prelaunch/first-run/shopping/recommendations/URL-leak surfaces off)");
+            // Edge AI surface (zoicware/RemoveWindowsAI policy set): page-
+            // context Copilot, inline compose, history AI search, generated
+            // themes, DevTools AI (2 = disabled), browsing-history sharing
+            foreach (var name in new[] { "CopilotPageContext", "EdgeEntraCopilotPageContext",
+                                         "EdgeHistoryAISearchEnabled", "ComposeInlineEnabled",
+                                         "BuiltInAIAPIsEnabled", "AIGenThemesEnabled",
+                                         "ShareBrowsingHistoryWithCopilotSearchAllowed" })
+                key?.SetValue(name, 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("DevToolsGenAiSettings", 2, Microsoft.Win32.RegistryValueKind.DWord);
+            // 1 = disable the local on-device foundation model used by Edge AI
+            key?.SetValue("GenAILocalFoundationalModelSettings", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            GuardLogger.Info("Applied: DisableEdgeBloat (sidebar/startup-boost/prelaunch/first-run/shopping/recommendations/URL-leak/AI surfaces off)");
         }
         catch (Exception ex)
         {

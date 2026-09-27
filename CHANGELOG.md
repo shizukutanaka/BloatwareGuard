@@ -2,7 +2,34 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
-## [Unreleased] — v1.56.0-mvp: service-list dedup + case-variant guards
+## [Unreleased] — v1.56.0-mvp: service-list dedup + AI-surface hardening
+
+### Added
+- `DisableCopilot` extended (both impls): shell eligibility suppression
+  (`Shell\Copilot IsCopilotAvailable=0`, `Shell\Copilot\BingChat
+  IsUserEligible=0`; HKLM + all user hives), Copilot voice-agent
+  activation off (`AgentActivationEnabled=0`), and FeatureManagement
+  velocity overrides disabling Copilot nudges/taskbar/systray
+  (IDs 1546588812, 203105932, 2381287564, 3389499533, 4027803789 →
+  `EnabledState=1`) — same set as zoicware/RemoveWindowsAI.
+- `DisableRecall` extended (both impls): 25H2 "Agent in Settings" off
+  (`WindowsAI DisableSettingsAgent=1`, HKLM + user hives), per-app AI
+  policies — Paint (`DisableImageCreator`/`DisableCocreator`/
+  `DisableGenerativeFill`/`DisableGenerativeErase`/
+  `DisableRemoveBackground`) and Notepad (`DisableAIFeatures=1`) —
+  ClickToDo user preference off, and AI-Actions velocity overrides
+  (1853569164/4098520719/929719951 disabled; 1646260367 enabled so the
+  Explorer entry hides itself when no action exists).
+- `DisableEdgeBloat` extended (both impls): Edge AI surface off —
+  `CopilotPageContext`, `EdgeEntraCopilotPageContext`,
+  `EdgeHistoryAISearchEnabled`, `ComposeInlineEnabled`,
+  `BuiltInAIAPIsEnabled`, `AIGenThemesEnabled`,
+  `ShareBrowsingHistoryWithCopilotSearchAllowed` = 0;
+  `DevToolsGenAiSettings=2`; `GenAILocalFoundationalModelSettings=1`
+  (on-device foundation model off).
+- C# CLI `--config PATH` flag (Python parity): loads config from the
+  given path instead of the exe-adjacent `config.json`; flag pairs are
+  skipped when resolving the command argument.
 
 ### Fixed
 - Case-variant duplicate `SensrSvc`/`sensrsvc` in the misc-bloat demote
@@ -50,6 +77,13 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   disabled just once at service start, letting OEM updaters re-enable
   them between scans. `DisableOemTasks` now also runs per scan (Python
   parity).
+- C# one-shot `scan`/`dry-run` ran `DisableOemTasks` unconditionally —
+  the `DisableOemScheduledTasks` toggle was ignored outside service
+  mode. Now gated on the toggle like the scan loop.
+- `get_blacklisted_packages` briefly returned 4-tuples, breaking the
+  CI verification snippet's 3-field unpack; the public API is back to
+  `(family, name, install_path)` while the scan path uses the 4-field
+  `_enum_blacklisted_packages` for the single-query full-name map.
 
 ### Changed
 - Misc-bloat demote list extracted from inline loop literals into named
