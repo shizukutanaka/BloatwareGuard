@@ -17,6 +17,9 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   args on whitespace, mangling quoted paths (e.g. `/log "C:\dir x\f"`).
   It now passes the raw command line to CreateProcess, matching the C#
   `FileName`/`Arguments` split.
+- Timeout drift (Python vs C#): OEM scheduled-task enumeration now waits
+  120s (was 60s vs C# `Proc.Capture(120000)`); every `schtasks /Change`
+  call now waits 15s (was the 30s default vs C# `Proc.Wait(15000)`).
 
 ### Changed
 - Misc-bloat demote list extracted from inline loop literals into named

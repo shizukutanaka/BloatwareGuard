@@ -1178,7 +1178,7 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         # OneDrive's own standalone updaters — stop them alongside the sync
         for t in ("OneDrive Standalone Update Task",
                   "OneDrive Per-Machine Standalone Update Task"):
-            run_cmd(["schtasks", "/Change", "/TN", t, "/Disable"])
+            run_cmd(["schtasks", "/Change", "/TN", t, "/Disable"], timeout=15)
         logger.info("Applied: DisableOneDrive (DisableFileSyncNGSC=1, nav pin hidden, update tasks off)")
 
     if prev.get("DisableChatTaskbar", True):
@@ -1248,7 +1248,7 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         for task in ("MicrosoftEdgeUpdateTaskMachineCore",
                      "MicrosoftEdgeUpdateTaskMachineUA",
                      "MicrosoftEdgeUpdateBrowserReplacementTask"):
-            run_cmd(["schtasks.exe", "/Change", "/TN", task, "/DISABLE"])
+            run_cmd(["schtasks.exe", "/Change", "/TN", task, "/DISABLE"], timeout=15)
         logger.info("Applied: DisableEdgeUpdateBloat "
                     "(edgeupdate/edgeupdatem/elevation → demand, update tasks off)")
 
@@ -1836,7 +1836,9 @@ def disable_oem_scheduled_tasks(logger: logging.Logger):
         f"Where-Object {{$_.TaskPath -like '*OEM*' -or $_.TaskName -match '{patterns}'}} | "
         f"Select-Object TaskName,TaskPath,State | ConvertTo-Json"
     )
-    stdout, _, rc = run_powershell(ps_cmd, timeout=60)
+    # 120s — parity with C# Proc.Capture(120000); large task lists on slow
+    # machines can exceed a minute
+    stdout, _, rc = run_powershell(ps_cmd, timeout=120)
 
     if rc != 0 or not stdout:
         return
@@ -1858,7 +1860,7 @@ def disable_oem_scheduled_tasks(logger: logging.Logger):
                 logger.warning(f"Skipping protected system task: {full_path}")
                 skipped += 1
                 continue
-            out, ret = run_cmd(["schtasks", "/Change", "/TN", full_path, "/DISABLE"])
+            out, ret = run_cmd(["schtasks", "/Change", "/TN", full_path, "/DISABLE"], timeout=15)
             if ret == 0:
                 logger.info(f"Disabled scheduled task: {full_path}")
             else:
@@ -1953,7 +1955,7 @@ TELEMETRY_TASK_PATHS = (
 def disable_telemetry_tasks(logger: logging.Logger):
     """Disable the known Microsoft telemetry/CEIP scheduled tasks."""
     for full_path in TELEMETRY_TASK_PATHS:
-        out, ret = run_cmd(["schtasks", "/Change", "/TN", full_path, "/DISABLE"])
+        out, ret = run_cmd(["schtasks", "/Change", "/TN", full_path, "/DISABLE"], timeout=15)
         if ret == 0:
             logger.info(f"Disabled scheduled task: {full_path}")
         else:
