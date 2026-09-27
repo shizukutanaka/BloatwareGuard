@@ -19,7 +19,9 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   `FileName`/`Arguments` split.
 - Timeout drift (Python vs C#): OEM scheduled-task enumeration now waits
   120s (was 60s vs C# `Proc.Capture(120000)`); every `schtasks /Change`
-  call now waits 15s (was the 30s default vs C# `Proc.Wait(15000)`).
+  call now waits 15s (was the 30s default vs C# `Proc.Wait(15000)`);
+  `Remove-AppxProvisionedPackage` now waits 120s (was 60s vs C# 120000 —
+  provisioned removal is a servicing op that can exceed a minute).
 
 ### Changed
 - Misc-bloat demote list extracted from inline loop literals into named

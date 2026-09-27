@@ -452,7 +452,8 @@ def remove_provisioned_package(package_name: str) -> bool:
         f"Remove-AppxProvisionedPackage -Online "
         f"-PackageName '{package_name}' -ErrorAction SilentlyContinue"
     )
-    _, _, rc = run_powershell(ps_cmd, timeout=60)
+    # 120s — provisioned removal is a servicing op (parity: C# 120000ms)
+    _, _, rc = run_powershell(ps_cmd, timeout=120)
     return rc == 0
 
 
