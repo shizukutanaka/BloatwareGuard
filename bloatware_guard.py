@@ -941,6 +941,10 @@ _MISC_DEMOTE_SERVICES = (
     # Storage settings service + Offline Files (Client Side Caching —
     # legacy enterprise sync, dead weight on consumer installs)
     "StorSvc", "CscService",
+    # Windows AI Fabric service — feeds Copilot+ AI APIs; demand-start
+    # keeps apps working without the resident listener (Win11Debloat
+    # DisableAISvcAutoStart / winutil)
+    "WSAIFabricSvc",
 )
 
 
@@ -1049,6 +1053,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             w(_USER_MOBILITY, "OptedIn", 0)
             # Mail/Calendar -> "new Outlook" forced migration nudge (winutil)
             w(_USER_OUTLOOK_MIGRATION, "DoNewOutlookAutoMigration", 0)
+        # "Get the latest updates as soon as they're available" opt-in off —
+        # continuous-innovation drops ship unannounced feature/bloat updates
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Microsoft\WindowsUpdate\UX\Settings",
+                           "IsContinuousInnovationOptedIn", 0)
 
         for_each_user_hive(_apply_suggestions, logger)
         logger.info("Applied: BlockProvisioning (silent installs + all suggestion surfaces, all hives)")
@@ -1290,6 +1299,16 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         # Game Bar nags: Nexus overlay hook + startup panel
         set_user_dword_all_hives(r"Software\Microsoft\GameBar", "UseNexusForGameBarEnabled", 0, logger)
         set_user_dword_all_hives(r"Software\Microsoft\GameBar", "ShowStartupPanel", 0, logger)
+        # ms-gamebar/ms-gamebarservices protocol hijack (Win11Debloat):
+        # NoOpenWith + a dead handler command kills the "get Game Bar"
+        # popup that games trigger when the app is removed
+        for proto in ("ms-gamebar", "ms-gamebarservices"):
+            base = rf"SOFTWARE\Classes\{proto}"
+            set_registry_string("HKLM", base, "", f"URL:{proto}")
+            set_registry_string("HKLM", base, "URL Protocol", "")
+            set_registry_string("HKLM", base, "NoOpenWith", "")
+            set_registry_string("HKLM", base + r"\shell\open\command",
+                                "", r"%SystemRoot%/System32/systray.exe")
         logger.info("Applied: DisableGameDvr (AllowGameDVR=0, GameDVR_Enabled=0, "
                     "AppCaptureEnabled=0)")
 

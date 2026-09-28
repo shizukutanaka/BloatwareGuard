@@ -1625,6 +1625,12 @@ public static class RegistryGuard
                 SetHiveDword(hive, UserOutlookMigrationPath, "DoNewOutlookAutoMigration", 0);
             });
 
+            // "Get the latest updates as soon as they're available" opt-in
+            // off — continuous-innovation drops ship unannounced
+            // feature/bloat updates (winutil)
+            using var ux = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Microsoft\WindowsUpdate\UX\Settings");
+            ux?.SetValue("IsContinuousInnovationOptedIn", 0, Microsoft.Win32.RegistryValueKind.DWord);
             GuardLogger.Info("Applied: BlockProvisioning (silent installs + all suggestion surfaces, all hives)");
         }
         catch (Exception ex)
@@ -2025,6 +2031,20 @@ public static class RegistryGuard
                 SetHiveDword(hive, @"Software\Microsoft\GameBar", "UseNexusForGameBarEnabled", 0);
                 SetHiveDword(hive, @"Software\Microsoft\GameBar", "ShowStartupPanel", 0);
             });
+            // ms-gamebar/ms-gamebarservices protocol hijack (Win11Debloat):
+            // NoOpenWith + a dead handler command kills the "get Game Bar"
+            // popup that games trigger when the app is removed
+            foreach (var proto in new[] { "ms-gamebar", "ms-gamebarservices" })
+            {
+                var protoBase = @"SOFTWARE\Classes\" + proto;
+                using var pb = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(protoBase);
+                pb?.SetValue("", "URL:" + proto);
+                pb?.SetValue("URL Protocol", "");
+                pb?.SetValue("NoOpenWith", "");
+                using var cmd = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    protoBase + @"\shell\open\command");
+                cmd?.SetValue("", @"%SystemRoot%/System32/systray.exe");
+            }
             GuardLogger.Info("Applied: DisableGameDvr (AllowGameDVR=0, GameDVR_Enabled=0, AppCaptureEnabled=0)");
         }
         catch (Exception ex)
@@ -2791,6 +2811,10 @@ public static class RegistryGuard
         // Storage settings service + Offline Files (Client Side Caching —
         // legacy enterprise sync, dead weight on consumer installs)
         "StorSvc", "CscService",
+        // Windows AI Fabric service — Copilot+ AI API backend; demand-start
+        // keeps apps working without the resident listener (Win11Debloat
+        // DisableAISvcAutoStart / winutil)
+        "WSAIFabricSvc",
     };
 
     public static void DisableMiscBloatServices()

@@ -73,6 +73,16 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   Skipped: sovereign-cloud (`.us`), Azure-service, sandbox, and
   akadns/GLB load-balancer intermediate names.
 
+- `DisableMiscBloatServices` 46→47: `WSAIFabricSvc` (Windows AI Fabric —
+  Copilot+ AI API backend; demand-start, Win11Debloat
+  DisableAISvcAutoStart / winutil).
+- `DisableGameDvr`: `ms-gamebar`/`ms-gamebarservices` protocol hijack —
+  `NoOpenWith` + a dead handler command (`%SystemRoot%/System32/
+  systray.exe`) kills the "get Game Bar" popup games trigger when the
+  app is removed (Win11Debloat Disable_Game_Bar_Integration).
+- `BlockProvisioning`: `IsContinuousInnovationOptedIn=0` — opts out of
+  "get the latest updates ASAP" continuous-innovation feature drops
+  (winutil Disable_Update_ASAP).
 - `BlockOemDriverUpdates`: `DisableCoInstallers=1` on
   `SOFTWARE\Microsoft\Windows\CurrentVersion\Device Installer` — blocks
   vendor driver co-installers, the channel that seeds OEM companion apps
