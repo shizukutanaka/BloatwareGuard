@@ -570,6 +570,11 @@ public static class ConfigLoader
                 "Microsoft.WindowsPhone", "Fitbit.FitbitCoach",
                 "KeeperSecurityInc.Keeper", "ShazamEntertainmentLtd.Shazam",
                 "XINGAG.XING",
+                // ReviOS playbook diff: Take-a-Test browser, People host,
+                // Surface Hub mail, New Outlook PWA package name
+                "Microsoft.Windows.SecureAssessmentBrowser",
+                "Microsoft.Windows.PeopleExperienceHost",
+                "MicrosoftCorporationII.MailforSurfaceHub", "OutlookPWA",
 
                 // OEM utilities (uncomment as needed)
                 // "DellInc.Dell",

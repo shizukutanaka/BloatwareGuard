@@ -140,7 +140,11 @@
         "Fitbit.FitbitCoach",
         "KeeperSecurityInc.Keeper",
         "ShazamEntertainmentLtd.Shazam",
-        "XINGAG.XING"
+        "XINGAG.XING",
+        "Microsoft.Windows.SecureAssessmentBrowser",
+        "Microsoft.Windows.PeopleExperienceHost",
+        "MicrosoftCorporationII.MailforSurfaceHub",
+        "OutlookPWA"
     ],
     "Whitelist": [
         "Microsoft.WindowsStore",

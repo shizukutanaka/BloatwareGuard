@@ -226,6 +226,12 @@ DEFAULT_BLACKLIST = [
     "Microsoft.WindowsPhone", "Fitbit.FitbitCoach",
     "KeeperSecurityInc.Keeper", "ShazamEntertainmentLtd.Shazam",
     "XINGAG.XING",
+    # ReviOS playbook diff: Take-a-Test secure browser, People host,
+    # Surface Hub mail, and the New Outlook PWA package name (the
+    # Microsoft.OutlookForWindows entry covers the other family name)
+    "Microsoft.Windows.SecureAssessmentBrowser",
+    "Microsoft.Windows.PeopleExperienceHost",
+    "MicrosoftCorporationII.MailforSurfaceHub", "OutlookPWA",
 ]
 
 

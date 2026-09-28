@@ -128,6 +128,14 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   (Office AI Actions). `DisableRecall` also now silences the four 25H2
   AI-platform event-log channels (`Microsoft-Windows-AI-ModelContext
   Protocol` + `AI-Platform`, admin + operational).
+- Blacklist 148→152 (ReviOS playbook / meetrevision diff):
+  `Microsoft.Windows.SecureAssessmentBrowser` (Take-a-Test),
+  `Microsoft.Windows.PeopleExperienceHost` (People host backend),
+  `MicrosoftCorporationII.MailforSurfaceHub` (Surface Hub mail),
+  `OutlookPWA` (New Outlook PWA package name — the existing
+  `Microsoft.OutlookForWindows` entry covers the other family name).
+  Skipped: Office Excel/PowerPoint/Word appx (functional Office apps),
+  `Microsoft.StartExperiencesApp` (Start menu host).
 
 - `RemoveWin32Programs`: new `_WIN32_BLOAT_NAMES`/`Win32BloatNames`
   needle list (79 entries) merged into the Win32 DisplayName scan —
