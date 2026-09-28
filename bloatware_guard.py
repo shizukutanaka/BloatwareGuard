@@ -1138,6 +1138,15 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             w(_USER_EXPLORER_ADV, "Start_IrisRecommendations", 0)
             w(_USER_EXPLORER_ADV, "ShowSyncProviderNotifications", 0)
             w(_USER_PROFILE_ENGAGEMENT, "ScoobeSystemSettingEnabled", 0)
+            # "Let's finish setting up" second-chance OOBE — mark done
+            # (ReviOS notifications.yml)
+            w(_USER_CDM + r"\Context\CloudExperienceHostIntent\Wireless",
+              "ScoobeCheckCompleted", 1)
+            # Tray balloon feature ads + auto tray nags (ReviOS)
+            w(r"Software\Policies\Microsoft\Windows\Explorer",
+              "NoBalloonFeatureAdvertisements", 1)
+            w(r"Software\Policies\Microsoft\Windows\Explorer",
+              "NoAutoTrayNotify", 1)
             w(_USER_ACCOUNT_NOTIFICATIONS, "EnableAccountNotifications", 0)
             w(_USER_SUGGESTED_TOAST, "Enabled", 0)
             w(_USER_MOBILITY, "OptedIn", 0)
@@ -1174,6 +1183,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_registry_dword("HKLM",
                            r"SOFTWARE\Policies\Microsoft\Teams",
                            "DisableInstallation", 1)
+        # Cloud app notifications (promo toasts) — ReviOS notifications.yml
+        set_registry_dword(
+            "HKLM",
+            r"SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\PushNotifications",
+            "NoCloudApplicationNotification", 1)
         # Mark forced new-Outlook/DevHome pushes as already delivered so
         # Windows Update does not re-ship them (tiny11builder)
         for sched in ("UScheduler", "UScheduler_Oobe"):

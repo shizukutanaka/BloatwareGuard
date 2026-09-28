@@ -1701,6 +1701,11 @@ public static class RegistryGuard
                 SetHiveDword(hive, UserExplorerAdvancedPath, "Start_IrisRecommendations", 0);
                 SetHiveDword(hive, UserExplorerAdvancedPath, "ShowSyncProviderNotifications", 0);
                 SetHiveDword(hive, UserProfileEngagementPath, "ScoobeSystemSettingEnabled", 0);
+                // "Let's finish setting up" second-chance OOBE — mark done
+                // + tray balloon feature ads off (ReviOS notifications.yml)
+                SetHiveDword(hive, UserCdmPath + @"\Context\CloudExperienceHostIntent\Wireless", "ScoobeCheckCompleted", 1);
+                SetHiveDword(hive, @"Software\Policies\Microsoft\Windows\Explorer", "NoBalloonFeatureAdvertisements", 1);
+                SetHiveDword(hive, @"Software\Policies\Microsoft\Windows\Explorer", "NoAutoTrayNotify", 1);
                 SetHiveDword(hive, UserAccountNotificationsPath, "EnableAccountNotifications", 0);
                 SetHiveDword(hive, UserSuggestedToastPath, "Enabled", 0);
                 SetHiveDword(hive, UserMobilityPath, "OptedIn", 0);
@@ -1742,6 +1747,13 @@ public static class RegistryGuard
                 @"SOFTWARE\Policies\Microsoft\Teams", true))
             {
                 teams?.SetValue("DisableInstallation", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            // Cloud app notifications (promo toasts) — ReviOS
+            // notifications.yml
+            using (var push = Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\PushNotifications", true))
+            {
+                push?.SetValue("NoCloudApplicationNotification", 1, Microsoft.Win32.RegistryValueKind.DWord);
             }
             // Mark forced new-Outlook/DevHome pushes as already delivered so
             // Windows Update does not re-ship them (tiny11builder)

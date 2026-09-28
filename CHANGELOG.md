@@ -184,6 +184,12 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   (OOBE Outlook push), `HideMCTLink`, WMP `DisableAutoUpdate`.
   Skipped: `RestartNotificationsAllowed2`/`UpgradeAvailable`/
   `ShippedWithReserves` (functional update behavior, not promo).
+- `BlockProvisioning` — ReviOS notifications.yml: mark second-chance
+  OOBE done (`ScoobeCheckCompleted`), tray balloon feature ads off
+  (`NoBalloonFeatureAdvertisements`/`NoAutoTrayNotify`, per-user),
+  `NoCloudApplicationNotification` (HKLM promo-toast channel).
+  Skipped: OOBE page-show/hide set, `UpdateNotificationLevel`, Office
+  ClickToRun tuning (functional/UX preferences).
   entries + Deprovisioned markers.
 
 - `RemoveWin32Programs`: new `_WIN32_BLOAT_NAMES`/`Win32BloatNames`
