@@ -140,6 +140,10 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   (Spiceworks HP-debloat canon): Connection Optimizer, Documentation,
   Notifications, Security Update Service, Sure Recover, Sure Run Module.
   `HP Wolf Security` excluded — a real AV product, not trial nagware.
+- Telemetry tasks 61→62: `Application Experience\SdbinstMergeDbTask`
+  (shim-DB merge on the same AppCompat collection pipeline — privacy.sexy).
+  Skipped: UpdateOrchestrator Schedule-Scan/UUS-Failover/UpdateModel
+  (servicing infrastructure, not telemetry).
 
 - `RemoveWin32Programs`: new `_WIN32_BLOAT_NAMES`/`Win32BloatNames`
   needle list (79 entries) merged into the Win32 DisplayName scan —
