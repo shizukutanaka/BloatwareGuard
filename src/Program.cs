@@ -1122,7 +1122,15 @@ public static class RegistryGuard
     private static readonly string[] StartupBloatNames = {
         "Skype", "Cortana", "MicrosoftEdgeAutoLaunch", "GameAssist",
         "McAfee", "Norton", "WebAdvisor", "CCleaner", "Dell", "Lenovo",
-        "SupportAssist", "Acer", "ASUS", "HP"
+        "SupportAssist", "Acer", "ASUS", "HP",
+        // First-party promo suites + OEM utilities that re-register autostart
+        "Teams", "YourPhone", "PhoneLink", "Xbox", "EdgeUpdate",
+        "Armoury", "Nahimic",
+        // Promo-installed third parties (markers are re-enableable)
+        "Spotify", "Opera", "Adobe", "iTunes",
+        // PUA-tier "optimizers"/driver updaters pushed by OEMs/ads
+        "IObit", "DriverBooster", "DriverEasy", "SlimWare", "Outbyte",
+        "Restoro", "Wondershare", "PCHealth"
     };
 
     // 0x03 = disabled in StartupApproved (value kept — user can re-enable via Task Manager)

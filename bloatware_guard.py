@@ -755,6 +755,15 @@ _STARTUP_BLOAT_NAMES = (
     "Skype", "Cortana", "MicrosoftEdgeAutoLaunch", "GameAssist",
     "McAfee", "Norton", "WebAdvisor", "CCleaner", "Dell", "Lenovo",
     "SupportAssist", "Acer", "ASUS", "HP",
+    # First-party promo suites + OEM utilities that re-register autostart
+    "Teams", "YourPhone", "PhoneLink", "Xbox", "EdgeUpdate",
+    "Armoury", "Nahimic",
+    # Promo-installed third parties (markers are re-enableable, so a
+    # deliberate install can re-enable from Task Manager)
+    "Spotify", "Opera", "Adobe", "iTunes",
+    # PUA-tier "optimizers"/driver updaters commonly pushed by OEMs/ads
+    "IObit", "DriverBooster", "DriverEasy", "SlimWare", "Outbyte",
+    "Restoro", "Wondershare", "PCHealth",
 )
 # 0x03 = disabled in StartupApproved (value kept — re-enableable via Task Manager)
 _STARTUP_DISABLED_MARKER = b"\x03" + b"\x00" * 11

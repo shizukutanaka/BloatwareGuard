@@ -73,6 +73,14 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   Skipped: sovereign-cloud (`.us`), Azure-service, sandbox, and
   akadns/GLB load-balancer intermediate names.
 
+- Startup-bloat name list 14→32: promo suites + OEM utilities that
+  re-register autostart (`Teams`, `YourPhone`, `PhoneLink`, `Xbox`,
+  `EdgeUpdate`, `Armoury`, `Nahimic`), promo-installed third parties
+  (`Spotify`, `Opera`, `Adobe`, `iTunes` — markers stay re-enableable),
+  and PUA-tier optimizer/driver-updater vendors (`IObit`, `DriverBooster`,
+  `DriverEasy`, `SlimWare`, `Outbyte`, `Restoro`, `Wondershare`,
+  `PCHealth`).
+
 ### Fixed
 - Whitelist 8→12: `Microsoft.Xbox.TCUI`, `Microsoft.XboxIdentityProvider`,
   `Microsoft.XboxSpeechToTextOverlay`, `Microsoft.GetHelp` — the broad
