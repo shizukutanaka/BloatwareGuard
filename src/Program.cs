@@ -561,6 +561,10 @@ public static class ConfigLoader
                 "Microsoft.FreshPaint", "Microsoft.MinecraftUWP",
                 "Microsoft.ForzaHorizon3Demo", "Microsoft.ForzaMotorsport7Demo",
                 "Microsoft.BingMaps",
+                // Dead Microsoft products still shipped by images
+                // (Windows10Debloater diff): Office Lens retired Jan 2021,
+                // Office.Todo.List folded into To Do, Wunderlist killed 2020
+                "Microsoft.Office.Lens", "Microsoft.Office.Todo.List", "Wunderlist",
 
                 // OEM utilities (uncomment as needed)
                 // "DellInc.Dell",

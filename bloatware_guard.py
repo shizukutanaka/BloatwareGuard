@@ -215,6 +215,10 @@ DEFAULT_BLACKLIST = [
     "Microsoft.FreshPaint", "Microsoft.MinecraftUWP",
     "Microsoft.ForzaHorizon3Demo", "Microsoft.ForzaMotorsport7Demo",
     "Microsoft.BingMaps",
+    # Dead Microsoft products still shipped by images (Windows10Debloater
+    # diff): Office Lens retired Jan 2021, Office.Todo.List folded into
+    # Microsoft To Do, Wunderlist killed 2020 (6Wunderkinder publisher)
+    "Microsoft.Office.Lens", "Microsoft.Office.Todo.List", "Wunderlist",
 ]
 
 

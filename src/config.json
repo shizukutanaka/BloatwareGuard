@@ -132,7 +132,10 @@
         "Microsoft.WindowsReadingList",
         "Microsoft.FreshPaint", "Microsoft.MinecraftUWP",
         "Microsoft.ForzaHorizon3Demo", "Microsoft.ForzaMotorsport7Demo",
-        "Microsoft.BingMaps"
+        "Microsoft.BingMaps",
+        "Microsoft.Office.Lens",
+        "Microsoft.Office.Todo.List",
+        "Wunderlist"
     ],
     "Whitelist": [
         "Microsoft.WindowsStore",

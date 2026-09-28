@@ -99,6 +99,14 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   `HKLM\...\Communications` — the documented Chat/Teams consumer
   auto-install channel (Atlas appx.yml); complements `Teams
   DisableInstallation`.
+- Blacklist 140→143 (Sycnex Windows10Debloater diff): dead Microsoft
+  products still shipped by images — `Microsoft.Office.Lens` (retired
+  Jan 2021), `Microsoft.Office.Todo.List` (folded into Microsoft To Do),
+  `Wunderlist` (killed 2020). Skipped: `Microsoft.StorePurchaseApp`
+  (Store infra), `Microsoft.PPIProjection` (system component),
+  `CanonicalGroupLimited.UbuntuonWindows` (functional WSL distro),
+  `Microsoft.RemoteDesktop`/OneNote (utilities), and entries already
+  covered by `KING.COM.`/`Microsoft.Zune`/`Microsoft.Xbox` prefixes.
 
 - `RemoveWin32Programs`: new `_WIN32_BLOAT_NAMES`/`Win32BloatNames`
   needle list (79 entries) merged into the Win32 DisplayName scan —
