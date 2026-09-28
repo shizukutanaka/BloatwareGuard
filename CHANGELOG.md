@@ -27,6 +27,11 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 - `BackupRegistry` covers the Game Bar protocol-hijack writes:
   `SOFTWARE\Classes\ms-gamebar` + `ms-gamebarservices` added to the export
   list (68→70 keys) so `--uninstall` restore covers them.
+- `Explorer\Run` deletions now durable: each removed policy-run value is
+  recorded to `removed-startup.jsonl` (hive/path/name/data/reg_type)
+  before deletion — per-user hives have no .reg backup and the log line
+  rotates away. `--restore` rewrites the values when the hive is still
+  loaded.
 
 ## [Unreleased] — v1.58.0-mvp: 32-bit autostart coverage + blacklist expansion
 

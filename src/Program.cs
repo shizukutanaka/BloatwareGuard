@@ -378,6 +378,43 @@ public static class RemovalLedger
         return Path.Combine(dir, "removed-packages.jsonl");
     }
 
+    public static string GetStartupPath(GuardConfig config)
+    {
+        var dir = config.BackupDirectory;
+        if (string.IsNullOrEmpty(dir))
+            dir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+                "BloatwareGuard", "Backups");
+        return Path.Combine(dir, "removed-startup.jsonl");
+    }
+
+    /// <summary>Persist a deleted autostart value — policy-Run deletions
+    /// have no StartupApproved marker and per-user hives aren't in the .reg
+    /// backup, so this is their only durable restore record.</summary>
+    public static void RecordStartup(GuardConfig config, string hive,
+        string path, string name, string data, int regType)
+    {
+        try
+        {
+            var ledger = GetStartupPath(config);
+            Directory.CreateDirectory(Path.GetDirectoryName(ledger)!);
+            var entry = new Dictionary<string, string>
+            {
+                ["ts"] = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss"),
+                ["kind"] = "startup_value",
+                ["hive"] = hive,
+                ["path"] = path,
+                ["name"] = name,
+                ["data"] = data,
+                ["reg_type"] = regType.ToString(),
+            };
+            File.AppendAllText(ledger,
+                JsonSerializer.Serialize(entry, GuardJsonContext.Default.DictionaryStringString)
+                + Environment.NewLine);
+        }
+        catch { /* ledger is best-effort */ }
+    }
+
     public static void Record(GuardConfig config, string kind, string name,
         string family = "", string fullName = "")
     {
@@ -1250,7 +1287,8 @@ public static class RegistryGuard
         new(@"^S-1-5-21-\d+-\d+-\d+-\d+$", RegexOptions.Compiled);
 
     public static void ApplyAll(PreventionLayers layers,
-                                List<string> blacklist, List<string> whitelist)
+                                List<string> blacklist, List<string> whitelist,
+                                GuardConfig config)
     {
         if (layers.BackupRegistry)
             BackupRegistryKeys();
@@ -1298,7 +1336,7 @@ public static class RegistryGuard
             DisableEdgeBloat();
 
         if (layers.DisableStartupBloat)
-            DisableStartupBloat(blacklist, whitelist);
+            DisableStartupBloat(blacklist, whitelist, config);
 
         if (layers.DisableErrorReporting)
             DisableErrorReporting();
@@ -2443,7 +2481,7 @@ public static class RegistryGuard
     /// StartupApproved\Run disabled marker (0x03...) instead of deleting the
     /// Run value, so the entry stays listed in Task Manager's Startup tab and
     /// can be re-enabled — same mechanism the UI uses.</summary>
-    public static void DisableStartupBloat(List<string> blacklist, List<string> whitelist)
+    public static void DisableStartupBloat(List<string> blacklist, List<string> whitelist, GuardConfig config)
     {
         var needles = blacklist
             .Concat(StartupBloatNames)
@@ -2537,7 +2575,7 @@ public static class RegistryGuard
             // Explorer\Run policy keys — an autostart vector Task Manager
             // never lists and StartupApproved can't mark, so matching
             // values are removed outright (data logged for manual restore)
-            void PurgePolicyRun(RegistryKey root, string policyPath)
+            void PurgePolicyRun(RegistryKey root, string policyPath, string hiveLabel)
             {
                 try
                 {
@@ -2549,9 +2587,15 @@ public static class RegistryGuard
                         .ToList();
                     foreach (var name in targets)
                     {
+                        // Durable restore record BEFORE deletion — per-user
+                        // hives have no .reg backup and the log rotates away.
+                        var data = key.GetValue(name);
+                        RemovalLedger.RecordStartup(config, hiveLabel,
+                            policyPath, name,
+                            data?.ToString() ?? "",
+                            (int)key.GetValueKind(name));
                         try
                         {
-                            var data = key.GetValue(name) as string;
                             key.DeleteValue(name);
                             applied++;
                             GuardLogger.Info(
@@ -2567,10 +2611,10 @@ public static class RegistryGuard
                 catch { }
             }
             PurgePolicyRun(Registry.LocalMachine,
-                @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run");
+                @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run", "HKLM");
             ForEachUserHive(hive =>
                 PurgePolicyRun(hive,
-                    @"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run"));
+                    @"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run", "HKU"));
 
             // Startup folders aren't governed by StartupApproved — match the
             // same needles against filenames and rename to .bgdisabled
@@ -3612,7 +3656,7 @@ public class GuardService : BackgroundService
         else
         {
             GuardLogger.Info("Applying registry-based prevention layers...");
-            RegistryGuard.ApplyAll(_config.Prevention, _config.Blacklist, _config.Whitelist);
+            RegistryGuard.ApplyAll(_config.Prevention, _config.Blacklist, _config.Whitelist, _config);
 
             if (_config.Prevention.DisableOemScheduledTasks)
             {
@@ -3933,7 +3977,7 @@ public class GuardService : BackgroundService
         // 3. Re-apply registry settings (they can be reset by Windows Update)
         if (!dryRun)
         {
-            RegistryGuard.ApplyAll(_config.Prevention, _config.Blacklist, _config.Whitelist);
+            RegistryGuard.ApplyAll(_config.Prevention, _config.Blacklist, _config.Whitelist, _config);
             // OEM updaters re-enable their tasks between boots — re-disable
             // every scan, same as the Python scan loop.
             if (_config.Prevention.DisableOemScheduledTasks)
@@ -4072,7 +4116,7 @@ public class Program
 
         if (!dryRun)
         {
-            RegistryGuard.ApplyAll(config.Prevention, config.Blacklist, config.Whitelist);
+            RegistryGuard.ApplyAll(config.Prevention, config.Blacklist, config.Whitelist, config);
             if (config.Prevention.DisableOemScheduledTasks)
                 ScheduledTaskGuard.DisableOemTasks();
             if (config.Prevention.DisableTelemetryTasks)
@@ -4191,7 +4235,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var ledger = RemovalLedger.GetPath(config);
         if (!File.Exists(ledger))
         {
-            GuardLogger.Info("No removal ledger found — nothing to restore.");
+            GuardLogger.Info("No removal ledger found — checking startup ledger.");
+            RestoreStartupValues(config);
             return;
         }
 
@@ -4234,6 +4279,59 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
             }
         }
         GuardLogger.Info($"Restore complete: {restored} restored, {manual} need manual reinstall.");
+        RestoreStartupValues(config);
+    }
+
+    /// <summary>Rewrite autostart values recorded in removed-startup.jsonl
+    /// (only for hives still loaded — same visibility the scan had).</summary>
+    private static void RestoreStartupValues(GuardConfig config)
+    {
+        var ledger = RemovalLedger.GetStartupPath(config);
+        if (!File.Exists(ledger)) return;
+        int restored = 0;
+        foreach (var line in File.ReadAllLines(ledger))
+        {
+            Dictionary<string, string>? entry;
+            try
+            {
+                entry = JsonSerializer.Deserialize(line,
+                    GuardJsonContext.Default.DictionaryStringString);
+            }
+            catch { continue; }
+            if (entry == null) continue;
+            if (!entry.TryGetValue("kind", out var kind) || kind != "startup_value")
+                continue;
+            try
+            {
+                var root = entry["hive"] == "HKLM"
+                    ? Registry.LocalMachine
+                    : Registry.Users;
+                using var key = root.OpenSubKey(entry["path"], writable: true);
+                if (key == null)
+                {
+                    GuardLogger.Warn(
+                        $"Could not restore startup value {entry.GetValueOrDefault("name")}: key not loaded");
+                    continue;
+                }
+                var regType = int.TryParse(
+                    entry.GetValueOrDefault("reg_type"), out var t)
+                    ? (Microsoft.Win32.RegistryValueKind)t
+                    : Microsoft.Win32.RegistryValueKind.String;
+                key.SetValue(entry["name"],
+                    entry.GetValueOrDefault("data") ?? "", regType);
+                GuardLogger.Info(
+                    $"Restored startup value: {entry["hive"]}\\{entry["path"]}\\{entry["name"]}");
+                restored++;
+            }
+            catch (Exception ex)
+            {
+                GuardLogger.Warn(
+                    $"Could not restore startup value " +
+                    $"{entry.GetValueOrDefault("name") ?? "?"}: {ex.Message}");
+            }
+        }
+        if (restored > 0)
+            GuardLogger.Info($"Restored {restored} startup value(s).");
     }
 
     private static bool RestoreStagedPackage(string name)

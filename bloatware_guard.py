@@ -506,12 +506,63 @@ def record_removal(config: dict, entry: dict):
         pass
 
 
+def record_startup_removal(config: dict, entry: dict):
+    """Append a deleted autostart value to its own ledger — policy-Run
+    deletions have no StartupApproved marker and per-user hives aren't in
+    the .reg backup, so this is their only durable restore record."""
+    backup_dir = Path(config.get("BackupDirectory") or (LOG_DIR / "Backups"))
+    try:
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        entry = {"ts": time.strftime("%Y-%m-%dT%H:%M:%S"), **entry}
+        with open(backup_dir / "removed-startup.jsonl", "a",
+                  encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+
+
+def _restore_startup_values(config: dict, logger: logging.Logger):
+    """Rewrite autostart values recorded in removed-startup.jsonl (only for
+    hives still loaded — same visibility the scan had at delete time)."""
+    import winreg
+    ledger = Path(config.get("BackupDirectory") or (LOG_DIR / "Backups")) / "removed-startup.jsonl"
+    if not ledger.exists():
+        return
+    restored = 0
+    for line in ledger.read_text(encoding="utf-8").splitlines():
+        try:
+            entry = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if entry.get("kind") != "startup_value":
+            continue
+        try:
+            root = {"HKLM": winreg.HKEY_LOCAL_MACHINE,
+                    "HKU": winreg.HKEY_USERS}[entry["hive"]]
+            with winreg.OpenKey(root, entry["path"], 0,
+                                winreg.KEY_SET_VALUE) as key:
+                winreg.SetValueEx(key, entry["name"], 0,
+                                  entry["reg_type"], entry["data"])
+            logger.info(
+                f"Restored startup value: {entry['hive']}\\{entry['path']}"
+                f"\\{entry['name']}")
+            restored += 1
+        except Exception as e:
+            logger.warning(
+                f"Could not restore startup value "
+                f"{entry.get('name', '?')}: {e}")
+    if restored:
+        logger.info(f"Restored {restored} startup value(s).")
+
+
 def run_restore(config: dict, logger: logging.Logger) -> int:
     """Re-register staged AppxPackages recorded in the removal ledger.
-    Provisioned packages cannot be restored from the image — reported as manual."""
+    Provisioned packages cannot be restored from the image — reported as manual.
+    Deleted autostart values are rewritten from removed-startup.jsonl."""
     ledger = Path(config.get("BackupDirectory") or (LOG_DIR / "Backups")) / "removed-packages.jsonl"
     if not ledger.exists():
-        logger.info("No removal ledger found — nothing to restore.")
+        logger.info("No removal ledger found — checking startup ledger.")
+        _restore_startup_values(config, logger)
         return 0
 
     restored = 0
@@ -543,6 +594,7 @@ def run_restore(config: dict, logger: logging.Logger) -> int:
             manual += 1
 
     logger.info(f"Restore complete: {restored} restored, {manual} need manual reinstall.")
+    _restore_startup_values(config, logger)
     return 0
 
 
@@ -2043,7 +2095,7 @@ def disable_startup_bloat(config: dict, logger: logging.Logger):
     # Explorer\Run policy keys — an autostart vector Task Manager never
     # lists and StartupApproved can't mark, so matching values are removed
     # outright (data logged for manual restore). HKLM + every user hive.
-    def _purge_policy_run(root, policy_path):
+    def _purge_policy_run(root, policy_path, hive_label):
         nonlocal applied
         try:
             key = winreg.OpenKey(root, policy_path, 0,
@@ -2055,13 +2107,20 @@ def disable_startup_bloat(config: dict, logger: logging.Logger):
             i = 0
             while True:
                 try:
-                    name, data, _ = winreg.EnumValue(key, i)
+                    name, data, regtype = winreg.EnumValue(key, i)
                     i += 1
                     if _is_bloat(name, data):
-                        targets.append((name, data))
+                        targets.append((name, data, regtype))
                 except OSError:
                     break
-            for name, data in targets:
+            for name, data, regtype in targets:
+                # Durable restore record BEFORE deletion — per-user hives
+                # have no .reg backup and the log line rotates away.
+                record_startup_removal(config, {
+                    "kind": "startup_value", "hive": hive_label,
+                    "path": policy_path, "name": name,
+                    "data": data if isinstance(data, (str, int)) else str(data),
+                    "reg_type": regtype})
                 try:
                     winreg.DeleteValue(key, name)
                 except OSError as e:
@@ -2076,14 +2135,14 @@ def disable_startup_bloat(config: dict, logger: logging.Logger):
 
     _purge_policy_run(winreg.HKEY_LOCAL_MACHINE,
                       r"SOFTWARE\Microsoft\Windows\CurrentVersion"
-                      r"\Policies\Explorer\Run")
+                      r"\Policies\Explorer\Run", "HKLM")
 
     user_policy_run = (r"Software\Microsoft\Windows\CurrentVersion"
                        r"\Policies\Explorer\Run")
 
     def _purge_user(root, prefix):
         p = (prefix + "\\") if prefix else ""
-        _purge_policy_run(root, p + user_policy_run)
+        _purge_policy_run(root, p + user_policy_run, "HKU")
 
     for_each_user_hive(_purge_user, logger)
 
