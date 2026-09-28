@@ -29,6 +29,12 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   the Phone Link companion panel in Start. Skipped as out-of-scope: location
   services (deliberate exclusion), BitLocker auto-encryption (security
   trade-off), Drag Tray/notification/UI-preference tweaks.
+- 2 service-demote entries (44→46), diffed against winutil's service
+  tweak list: `StorSvc` (storage settings) and `CscService` (Offline
+  Files — legacy enterprise sync dead on consumer installs). Skipped:
+  `SharedAccess` (ICS is already demand-start; disabling breaks mobile
+  hotspot). winutil's registry tweaks were verified already covered
+  (Activity History upload, WPBT, Notepad AI, CloudContent, DO).
 - 12 telemetry-host entries (46→58), diffed against WindowsSpyBlocker's
   spy list: the actual DiagTrack ingest FQDNs `v10/v20.vortex-win.data.
   microsoft.com` (only the CNAME base was blocked before), the Edge ARIA
