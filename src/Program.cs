@@ -1905,6 +1905,8 @@ public static class RegistryGuard
                 using var ac = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(AppCompatPath);
                 ac?.SetValue("AITEnable", 0, Microsoft.Win32.RegistryValueKind.DWord);
                 ac?.SetValue("DisablePCA", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // Application Compatibility Inventory collector
+                ac?.SetValue("DisableInventory", 1, Microsoft.Win32.RegistryValueKind.DWord);
             }
             catch { }
             // Skip the OOBE privacy pages — every policy they gate is already

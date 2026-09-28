@@ -1187,6 +1187,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         appc = r"SOFTWARE\Policies\Microsoft\Windows\AppCompat"
         set_registry_dword("HKLM", appc, "AITEnable", 0)
         set_registry_dword("HKLM", appc, "DisablePCA", 1)
+        # Application Compatibility Inventory collector (app inventory
+        # telemetry) — classic Win10-Initial-Setup hardening
+        set_registry_dword("HKLM", appc, "DisableInventory", 1)
         # Skip the OOBE privacy pages — every policy they gate is denied
         set_registry_dword("HKLM",
                            r"SOFTWARE\Microsoft\Windows\CurrentVersion\OOBE",
