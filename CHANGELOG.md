@@ -190,6 +190,14 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   `NoCloudApplicationNotification` (HKLM promo-toast channel).
   Skipped: OOBE page-show/hide set, `UpdateNotificationLevel`, Office
   ClickToRun tuning (functional/UX preferences).
+- Blacklist 152→156 — W4RH4WK Debloat-Windows-10 diff:
+  `A025C540.Yandex.Music` (RU-region preinstall),
+  `Microsoft.WindowsFeedback` (legacy Win10 feedback app),
+  `Microsoft.MicrosoftReadingList` (dead), `Microsoft.MSPaint`
+  (Paint 3D — deprecated UWP; classic paint.exe unaffected).
+  Skipped: `Microsoft.BioEnrollment` (Hello biometric enrollment —
+  system component), telemetry IP blocks (firewall IPs rot — we
+  block by hostname instead).
   entries + Deprovisioned markers.
 
 - `RemoveWin32Programs`: new `_WIN32_BLOAT_NAMES`/`Win32BloatNames`

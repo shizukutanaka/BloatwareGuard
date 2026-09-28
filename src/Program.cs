@@ -575,6 +575,10 @@ public static class ConfigLoader
                 "Microsoft.Windows.SecureAssessmentBrowser",
                 "Microsoft.Windows.PeopleExperienceHost",
                 "MicrosoftCorporationII.MailforSurfaceHub", "OutlookPWA",
+                // W4RH4WK leftovers (Paint 3D is deprecated UWP, not
+                // paint.exe)
+                "A025C540.Yandex.Music", "Microsoft.WindowsFeedback",
+                "Microsoft.MicrosoftReadingList", "Microsoft.MSPaint",
 
                 // OEM utilities (uncomment as needed)
                 // "DellInc.Dell",

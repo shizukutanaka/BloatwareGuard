@@ -232,6 +232,11 @@ DEFAULT_BLACKLIST = [
     "Microsoft.Windows.SecureAssessmentBrowser",
     "Microsoft.Windows.PeopleExperienceHost",
     "MicrosoftCorporationII.MailforSurfaceHub", "OutlookPWA",
+    # W4RH4WK leftovers: Yandex preinstall, legacy Win10 feedback app,
+    # dead Reading List, Paint 3D (deprecated UWP paint — classic
+    # paint.exe is a different binary and unaffected)
+    "A025C540.Yandex.Music", "Microsoft.WindowsFeedback",
+    "Microsoft.MicrosoftReadingList", "Microsoft.MSPaint",
 ]
 
 
