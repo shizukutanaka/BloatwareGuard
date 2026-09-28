@@ -2,7 +2,22 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
-## [Unreleased] — v1.58.0-mvp: per-user 32-bit autostart coverage
+## [Unreleased] — v1.58.0-mvp: 32-bit autostart coverage + blacklist expansion
+
+### Added
+- 29 blacklist entries (85→114), diffed against Raphire/Win11Debloat's
+  default-removal app list: 10 Microsoft apps (`3DBuilder`, six
+  discontinued `Bing*` consumer apps, `News`, `PCManager`,
+  `Windows.AIHub`) and 19 third-party OEM/promo entries
+  (`ACGMediaPlayer`, `ActiproSoftwareLLC`, `AdobePhotoshopExpress`,
+  `AutodeskSketchBook`, `CaesarsSlotsFreeCasino`, `DrawboardPDF`,
+  `FarmVille2CountryEscape`, `HULUPLUS`, `HiddenCity`, `NYTCrossword`,
+  `OneCalendar`, `PhototasticCollage`, `Polarr`, `LiveWallpaper`,
+  `SlingTV`, `TuneInRadio`, `WinZipUniversal`, `RoyalRevolt`,
+  `iHeartRadio`). Deliberately skipped: `Microsoft.Office.OneNote`
+  (exclusion policy), `MicrosoftPowerBIForWindows` (business tool),
+  `XP9CXNGPPJ97XX` (WebExperiencePack — breaks Widgets; the toggle
+  already covers it), `COOKINGFEVER` (covered by `Nordcurrent`).
 
 ### Fixed
 - Per-user-hive startup scan covered only the native `Run`/`RunOnce`

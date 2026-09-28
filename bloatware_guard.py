@@ -114,6 +114,16 @@ DEFAULT_BLACKLIST = [
     "Microsoft.BingSearch",
     "Microsoft.MicrosoftStickyNotes",
     "Microsoft.Edge.GameAssist",
+    "Microsoft.3DBuilder",               # discontinued
+    "Microsoft.BingFinance",             # discontinued Bing consumer apps
+    "Microsoft.BingFoodAndDrink",
+    "Microsoft.BingHealthAndFitness",
+    "Microsoft.BingSports",
+    "Microsoft.BingTranslator",
+    "Microsoft.BingTravel",
+    "Microsoft.News",                    # News feed app
+    "Microsoft.PCManager",               # pushed via 24H2+ provisioning
+    "Microsoft.Windows.AIHub",           # Store AI promotions hub
     # Third-party
     "McAfee",
     "Norton",
@@ -161,6 +171,26 @@ DEFAULT_BLACKLIST = [
     "Microsoft.ECApp",                   # Edge app-maker stub
     "SystweakSoftware",                  # optimizer ads
     "PricerunnerAB",
+    # OEM/promo third-party (Win11Debloat default-removal parity)
+    "ACGMediaPlayer",
+    "ActiproSoftwareLLC",
+    "AdobeSystemsIncorporated.AdobePhotoshopExpress",
+    "AutodeskSketchBook",
+    "CaesarsSlotsFreeCasino",
+    "DrawboardPDF",
+    "FarmVille2CountryEscape",
+    "HULULLC.HULUPLUS",
+    "HiddenCity",
+    "NYTCrossword",
+    "OneCalendar",
+    "PhototasticCollage",
+    "PolarrPhotoEditorAcademicEdition",
+    "Sidia.LiveWallpaper",
+    "SlingTV",
+    "TuneInRadio",
+    "WinZipUniversal",
+    "flaregamesGmbH.RoyalRevolt",
+    "iHeartRadio",
 ]
 
 

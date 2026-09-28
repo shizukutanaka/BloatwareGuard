@@ -472,6 +472,14 @@ public static class ConfigLoader
                 "Microsoft.BingSearch",
                 "Microsoft.MicrosoftStickyNotes",
                 "Microsoft.Edge.GameAssist",
+                "Microsoft.3DBuilder",                // discontinued
+                "Microsoft.BingFinance",              // discontinued Bing consumer apps
+                "Microsoft.BingFoodAndDrink", "Microsoft.BingHealthAndFitness",
+                "Microsoft.BingSports", "Microsoft.BingTranslator",
+                "Microsoft.BingTravel",
+                "Microsoft.News",                     // News feed app
+                "Microsoft.PCManager",                // pushed via 24H2+ provisioning
+                "Microsoft.Windows.AIHub",            // Store AI promotions hub
 
                 // Third-party bloatware commonly pre-installed
                 "McAfee",
@@ -517,6 +525,16 @@ public static class ConfigLoader
                 "MicrosoftWindows.CrossDevice",           // Cross-Device Experience stub
                 "Microsoft.ECApp",                        // Edge app-maker stub
                 "SystweakSoftware", "PricerunnerAB",
+                // OEM/promo third-party (Win11Debloat default-removal parity)
+                "ACGMediaPlayer", "ActiproSoftwareLLC",
+                "AdobeSystemsIncorporated.AdobePhotoshopExpress",
+                "AutodeskSketchBook", "CaesarsSlotsFreeCasino",
+                "DrawboardPDF", "FarmVille2CountryEscape",
+                "HULULLC.HULUPLUS", "HiddenCity", "NYTCrossword",
+                "OneCalendar", "PhototasticCollage",
+                "PolarrPhotoEditorAcademicEdition", "Sidia.LiveWallpaper",
+                "SlingTV", "TuneInRadio", "WinZipUniversal",
+                "flaregamesGmbH.RoyalRevolt", "iHeartRadio",
 
                 // OEM utilities (uncomment as needed)
                 // "DellInc.Dell",
