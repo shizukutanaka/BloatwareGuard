@@ -17,6 +17,18 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   Teredo ipv6.microsoft.com, and WU/signon-capable live.com/Office pipes.
 - Telemetry tasks +1: `\Microsoft\Windows\Power Efficiency Diagnostics\AnalyzeSystem`
   (Winhance diff — diagnostic ETW collection task).
+- Blacklist 171→176 (RemoveWindowsAI $aipackages + winutil WPFTweaksWindowsAI
+  diff): the Copilot+ AI client packages none of the Store-app lists cover —
+  `MicrosoftWindows.Client.CoreAI` (AI platform hosting Recall/ClickToDo
+  runtime), `MicrosoftWindows.Client.AIX` (AI experience shell),
+  `MicrosoftWindows.Client.CoPilot` (Copilot client — distinct package from
+  `Microsoft.Copilot`), `Microsoft.Windows.Ai.Copilot.Provider`, `aimgr`
+  (AI Manager). Skipped: `MicrosoftWindows.Client.CBS`/`.Core`/`.Photon`
+  (inbox shell components), `MicrosoftWindows.*.Voiess/Speion/Livtop/Filons`
+  (Copilot+ voice/vision components — wildcard-only references, package
+  names unverified), `Microsoft.AIFabric.CBS` (explorer dependency per
+  RemoveWindowsAI itself; WSAIFabricSvc is already demand-started),
+  `Microsoft.Ink.Handwriting` (functional input pack).
 - Blacklist 156→171 (xd-AntiSpy DebloaterPlugin.json diff): OEM promo/
   collection stubs (`HPJumpStart`, `ASUSGiftBox`, `AcerCollection`,
   `DellDigitalDelivery`, `DellSupportAssist`) + third-party promo

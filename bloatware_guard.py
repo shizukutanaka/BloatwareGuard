@@ -104,6 +104,11 @@ DEFAULT_BLACKLIST = [
     "Microsoft.MicrosoftEdge.Stable",
     "Microsoft.Windows.DevHome",       # Dev Home (+ GitHub extension)
     "Microsoft.Copilot",
+    "Microsoft.Windows.Ai.Copilot.Provider",  # Copilot provider package
+    "MicrosoftWindows.Client.CoPilot",  # Copilot client (distinct from Microsoft.Copilot)
+    "MicrosoftWindows.Client.CoreAI",   # Windows AI platform — Recall/ClickToDo runtime
+    "MicrosoftWindows.Client.AIX",      # AI experience shell (Copilot+)
+    "aimgr",                            # AI Manager package
     "Clipchamp.Clipchamp",
     "MSTeams",                          # New Teams (Work/School), provisioned via AppX push
     "Microsoft.OutlookForWindows",      # New Outlook, preinstalled since 23H2
