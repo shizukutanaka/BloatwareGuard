@@ -2173,6 +2173,24 @@ public static class RegistryGuard
                 using var ones = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Windows\OneSettings");
                 ones?.SetValue("DisableOneSettingsFileDownloads", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // Store: never auto-update apps + no OS-upgrade offers
+                // (ReviOS updates/ms-store.yml)
+                using var store = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\WindowsStore");
+                store?.SetValue("AutoDownload", 4, Microsoft.Win32.RegistryValueKind.DWord);
+                store?.SetValue("DisableOSUpgrade", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // Block the OOBE updater that pushes "New Outlook" via WU
+                using var uoob = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Microsoft\WindowsUpdate\Orchestrator\UScheduler_Oobe");
+                uoob?.SetValue("BlockedOobeUpdaters", "[\"MS_Outlook\"]", Microsoft.Win32.RegistryValueKind.String);
+                // Media Creation Tool promo link in Windows Update settings
+                using var wuux = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Microsoft\WindowsUpdate\UX\Settings");
+                wuux?.SetValue("HideMCTLink", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // WMP legacy auto-update channel (dead on modern builds)
+                using var wmp = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\WindowsMediaPlayer");
+                wmp?.SetValue("DisableAutoUpdate", 1, Microsoft.Win32.RegistryValueKind.DWord);
             }
             catch { }
             // "Share across devices" (Connected Devices Platform) user consent off

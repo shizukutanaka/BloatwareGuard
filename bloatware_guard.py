@@ -1461,6 +1461,25 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         # OneSettings periodic config download (recommendations channel)
         set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\OneSettings",
                            "DisableOneSettingsFileDownloads", 1)
+        # Store: never auto-update apps + no OS-upgrade offers via Store
+        # (ReviOS updates/ms-store.yml)
+        store = r"SOFTWARE\Policies\Microsoft\WindowsStore"
+        set_registry_dword("HKLM", store, "AutoDownload", 4)
+        set_registry_dword("HKLM", store, "DisableOSUpgrade", 1)
+        # Block the OOBE updater that pushes "New Outlook" via WU
+        # (ReviOS updates.yml)
+        set_registry_string(
+            "HKLM",
+            r"SOFTWARE\Microsoft\WindowsUpdate\Orchestrator\UScheduler_Oobe",
+            "BlockedOobeUpdaters", '["MS_Outlook"]')
+        # Media Creation Tool promo link in Windows Update settings
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Microsoft\WindowsUpdate\UX\Settings",
+                           "HideMCTLink", 1)
+        # WMP legacy auto-update channel (dead on modern builds)
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Policies\Microsoft\WindowsMediaPlayer",
+                           "DisableAutoUpdate", 1)
         # "Share across devices" (Connected Devices Platform) consent off
         cdp = r"Software\Microsoft\Windows\CurrentVersion\CDP"
         set_user_dword_all_hives(cdp, "CdpSessionUserAuthzPolicy", 0, logger)

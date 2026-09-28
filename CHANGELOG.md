@@ -179,6 +179,11 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   PCHealth, SearchCompanion), DiagTrack/WerSvc firewall *rule
   injection* (registry FirewallRules writes — we block via
   Get/Set-NetFirewallRule instead).
+- `DisableTelemetry` — ReviOS updates/ms-store diff: `WindowsStore`
+  `AutoDownload=4` + `DisableOSUpgrade=1`, `BlockedOobeUpdaters`
+  (OOBE Outlook push), `HideMCTLink`, WMP `DisableAutoUpdate`.
+  Skipped: `RestartNotificationsAllowed2`/`UpgradeAvailable`/
+  `ShippedWithReserves` (functional update behavior, not promo).
   entries + Deprovisioned markers.
 
 - `RemoveWin32Programs`: new `_WIN32_BLOAT_NAMES`/`Win32BloatNames`
