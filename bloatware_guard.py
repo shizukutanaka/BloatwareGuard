@@ -1688,6 +1688,53 @@ def disable_startup_bloat(config: dict, logger: logging.Logger):
 
     for_each_user_hive(_scan_user, logger)
 
+    # Explorer\Run policy keys — an autostart vector Task Manager never
+    # lists and StartupApproved can't mark, so matching values are removed
+    # outright (data logged for manual restore). HKLM + every user hive.
+    def _purge_policy_run(root, policy_path):
+        nonlocal applied
+        try:
+            key = winreg.OpenKey(root, policy_path, 0,
+                                 winreg.KEY_READ | winreg.KEY_SET_VALUE)
+        except OSError:
+            return
+        try:
+            targets = []
+            i = 0
+            while True:
+                try:
+                    name, data, _ = winreg.EnumValue(key, i)
+                    i += 1
+                    if _is_bloat(name, data):
+                        targets.append((name, data))
+                except OSError:
+                    break
+            for name, data in targets:
+                try:
+                    winreg.DeleteValue(key, name)
+                except OSError as e:
+                    logger.warning(
+                        f"Could not remove policy-run entry {name}: {e}")
+                    continue
+                applied += 1
+                logger.info(f"Removed policy-run autostart: "
+                            f"{name} (was: {data})")
+        finally:
+            key.Close()
+
+    _purge_policy_run(winreg.HKEY_LOCAL_MACHINE,
+                      r"SOFTWARE\Microsoft\Windows\CurrentVersion"
+                      r"\Policies\Explorer\Run")
+
+    user_policy_run = (r"Software\Microsoft\Windows\CurrentVersion"
+                       r"\Policies\Explorer\Run")
+
+    def _purge_user(root, prefix):
+        p = (prefix + "\\") if prefix else ""
+        _purge_policy_run(root, p + user_policy_run)
+
+    for_each_user_hive(_purge_user, logger)
+
     # Startup folders aren't governed by StartupApproved — match the same
     # needles against filenames and rename to .bgdisabled (restorable;
     # deleting would lose the restore path)

@@ -2251,6 +2251,45 @@ public static class RegistryGuard
                 ScanAndMark(hive, UserRunOncePath, StartupApprovedRunOnce, UserRunOncePath32);
                 ScanAndMark(hive, UserRunOncePath32, StartupApprovedRunOnce, UserRunOncePath);
             });
+
+            // Explorer\Run policy keys — an autostart vector Task Manager
+            // never lists and StartupApproved can't mark, so matching
+            // values are removed outright (data logged for manual restore)
+            void PurgePolicyRun(RegistryKey root, string policyPath)
+            {
+                try
+                {
+                    using var key = root.OpenSubKey(policyPath, writable: true);
+                    if (key == null)
+                        return;
+                    var targets = key.GetValueNames()
+                        .Where(n => IsBloat(n, key.GetValue(n) as string))
+                        .ToList();
+                    foreach (var name in targets)
+                    {
+                        try
+                        {
+                            var data = key.GetValue(name) as string;
+                            key.DeleteValue(name);
+                            applied++;
+                            GuardLogger.Info(
+                                $"Removed policy-run autostart: {name} (was: {data})");
+                        }
+                        catch (Exception ex)
+                        {
+                            GuardLogger.Warn(
+                                $"Could not remove policy-run entry {name}: {ex.Message}");
+                        }
+                    }
+                }
+                catch { }
+            }
+            PurgePolicyRun(Registry.LocalMachine,
+                @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run");
+            ForEachUserHive(hive =>
+                PurgePolicyRun(hive,
+                    @"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run"));
+
             // Startup folders aren't governed by StartupApproved — match the
             // same needles against filenames and rename to .bgdisabled
             // (restorable; deleting would lose the restore path)

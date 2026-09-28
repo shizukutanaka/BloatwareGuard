@@ -80,6 +80,9 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   remove them; Win11Debloat marks all four unsafe (breaks Store, Photos,
   some games, and the accessibility overlay; GetHelp feeds
   troubleshooters).
+- `Policies\Explorer\Run` autostart vector (HKLM + every user hive) —
+  entries Task Manager never lists and StartupApproved can't mark;
+  bloat matches are deleted with their data logged for manual restore.
 - Per-user-hive startup scan covered only the native `Run`/`RunOnce`
   views; 32-bit installers can also register per-user autostart under
   `HKCU\SOFTWARE\WOW6432Node\...\Run`/`RunOnce` (listed by Sysinternals
