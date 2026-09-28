@@ -1829,6 +1829,11 @@ public static class RegistryGuard
             key?.SetValue("DisableClickToDo", 1, Microsoft.Win32.RegistryValueKind.DWord);
             // 25H2 "Agent in Settings" (Settings AI agent)
             key?.SetValue("DisableSettingsAgent", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            // Copilot OS runtime master switch + Copilot hardware key (Winhance)
+            key?.SetValue("AllowCopilotRuntime", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            using (var copilotKey = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CopilotKey"))
+                copilotKey?.SetValue("SetCopilotHardwareKey", "", Microsoft.Win32.RegistryValueKind.String);
             ForEachUserHive(hive =>
             {
                 SetHiveDword(hive, UserWindowsAiPath, "DisableAIDataAnalysis", 1);
@@ -1987,6 +1992,15 @@ public static class RegistryGuard
                 SetHiveDword(hive, UserIntlProfilePath, "HttpAcceptLanguageOptOut", 1);
                 // Tailored-experiences policy (policy-level, not just the value)
                 SetHiveDword(hive, UserPrivacyPoliciesPath, "TailoredExperiencesWithDiagnosticDataEnabled", 0);
+                // Tailored-experiences disable policy (Winhance)
+                SetHiveDword(hive, @"Software\Policies\Microsoft\Windows\CloudContent",
+                    "DisableTailoredExperiencesWithDiagnosticData", 1);
+                // Input-learning policy + typing insights + Copilot nags
+                SetHiveDword(hive, @"Software\Policies\Microsoft\InputPersonalization",
+                    "AllowInputPersonalization", 0);
+                SetHiveDword(hive, @"Software\Microsoft\input\Settings",
+                    "InsightsEnabled", 0);
+                SetHiveDword(hive, UserExplorerAdvancedPath, "ShowCopilotNudges", 0);
                 // Mark the diagnostic-level toast as shown — silences the
                 // "your data settings changed" prompt after telemetry is cut
                 SetHiveDword(hive,
@@ -2237,6 +2251,11 @@ public static class RegistryGuard
                 @"Software\NVIDIA Corporation\NVControlPanel2\Client",
                 "OptInOrOutPreference", 0);
 
+            // OneDrive Known-Folder-Move opt-in nag (Winhance)
+            using (var oneDrive = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Policies\Microsoft\OneDrive"))
+                oneDrive?.SetValue("KFMBlockOptIn", 1, Microsoft.Win32.RegistryValueKind.DWord);
+
             GuardLogger.Info("Applied: DisableTelemetry (AllowTelemetry=0, DiagTrack off, privacy surfaces set)");
         }
         catch (Exception ex)
@@ -2410,7 +2429,8 @@ public static class RegistryGuard
             foreach (var name in new[] { "CopilotPageContext", "EdgeEntraCopilotPageContext",
                                          "EdgeHistoryAISearchEnabled", "ComposeInlineEnabled",
                                          "BuiltInAIAPIsEnabled", "AIGenThemesEnabled",
-                                         "ShareBrowsingHistoryWithCopilotSearchAllowed" })
+                                         "ShareBrowsingHistoryWithCopilotSearchAllowed",
+                                         "Microsoft365CopilotChatIconEnabled" })
                 key?.SetValue(name, 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("DevToolsGenAiSettings", 2, Microsoft.Win32.RegistryValueKind.DWord);
             // 1 = disable the local on-device foundation model used by Edge AI
@@ -2709,6 +2729,9 @@ public static class RegistryGuard
         "LetAppsAccessTasks", "LetAppsAccessTrustedDevices",
         "LetAppsSyncWithDevices", "LetAppsGetDiagnosticInfo",
         "LetAppsActivateWithVoice", "LetAppsActivateWithVoiceAboveLock",
+        // 25H2 on-device AI surfaces (Winhance): generative-AI access and
+        // the system AI-model store
+        "LetAppsAccessGenerativeAI", "LetAppsAccessSystemAIModels",
     };
 
     /// <summary>Layer 26: force-deny conservative AppPrivacy set.</summary>
@@ -2719,6 +2742,15 @@ public static class RegistryGuard
             using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(AppPrivacyPath);
             foreach (var name in AppPrivacyDenies)
                 key?.SetValue(name, 2, Microsoft.Win32.RegistryValueKind.DWord);
+            // ConsentStore runtime counterparts (Winhance): deny at the
+            // capability-access layer too — policy alone leaves consent UI paths
+            foreach (var cap in new[] { "userAccountInformation", "appDiagnostics",
+                                        "generativeAI", "systemAIModels" })
+            {
+                using var consent = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    $@"SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\{cap}");
+                consent?.SetValue("Value", "Deny", Microsoft.Win32.RegistryValueKind.String);
+            }
             // HKLM-level ad-ID and device-finder policies (per-hive counterparts
             // are in DisableTelemetry; these survive profile churn)
             using var adInfo = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
@@ -3979,7 +4011,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.58.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.59.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -4065,7 +4097,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.58.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.59.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -4231,8 +4263,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 8;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.58.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.58.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.59.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.59.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try

@@ -2,6 +2,31 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.59.0-mvp: Winhance privacy diff — AI consent + Copilot surfaces
+
+### Added
+- `DisableRecall`: `WindowsAI\AllowCopilotRuntime=0` (Copilot OS-runtime master
+  switch) + `Explorer\CopilotKey\SetCopilotHardwareKey=""` (disables the Copilot
+  hardware key) — Winhance PrivacyOptimizations diff.
+- `DisableAppPermissions`: AppPrivacy denies 15→17 with
+  `LetAppsAccessGenerativeAI=2` + `LetAppsAccessSystemAIModels=2` (25H2
+  on-device AI surfaces), and new ConsentStore `Value="Deny"` writes for
+  `userAccountInformation`, `appDiagnostics`, `generativeAI`,
+  `systemAIModels` — runtime capability-consent counterparts of the policy
+  denies (policy alone leaves consent-UI paths).
+- `DisableTelemetry`: `CloudContent\DisableTailoredExperiencesWithDiagnosticData=1`
+  (per-user policy), `Policies\Microsoft\OneDrive\KFMBlockOptIn=1` (OneDrive
+  known-folder-move opt-in nag), per-user `InputPersonalization` policy
+  `AllowInputPersonalization=0`, `input\Settings\InsightsEnabled=0` (typing
+  insights) and `Explorer\Advanced\ShowCopilotNudges=0` (Copilot nags).
+- `DisableEdgeBloat`: `Microsoft365CopilotChatIconEnabled=0` (M365 Copilot
+  Chat icon in Edge).
+- Skipped from the Winhance diff: Office 16.0 Copilot/connected-experiences
+  values (app-internal), Defender Security Center notifications, Smart App
+  Control `VerifiedAndReputablePolicyState`, BitLocker `PreventDeviceEncryption`,
+  Remote Assistance, Storage Sense/WU/notification UI toggles (functional),
+  and everything already covered (~40 values verified present).
+
 ## [Unreleased] — v1.58.0-mvp: 32-bit autostart coverage + blacklist expansion
 
 ### Added

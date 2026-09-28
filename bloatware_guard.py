@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.58.0-mvp - Python prototype
+BloatwareGuard v1.59.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -35,7 +35,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.58.0-mvp"
+APP_VERSION = "1.59.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -1271,6 +1271,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_registry_dword("HKLM", ai_pol, "DisableClickToDo", 1)
         # 25H2 "Agent in Settings" (Settings AI agent)
         set_registry_dword("HKLM", ai_pol, "DisableSettingsAgent", 1)
+        # Copilot OS runtime master switch + Copilot hardware key (Winhance)
+        set_registry_dword("HKLM", ai_pol, "AllowCopilotRuntime", 0)
+        set_registry_string("HKLM",
+                            r"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CopilotKey",
+                            "SetCopilotHardwareKey", "")
         set_user_dword_all_hives(_USER_WINDOWS_AI, "DisableAIDataAnalysis", 1, logger)
         set_user_dword_all_hives(_USER_WINDOWS_AI, "DisableClickToDo", 1, logger)
         set_user_dword_all_hives(_USER_WINDOWS_AI, "DisableSettingsAgent", 1, logger)
@@ -1373,6 +1378,14 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             w(_USER_INTL_PROFILE, "HttpAcceptLanguageOptOut", 1)
             # Tailored-experiences policy (policy-level, not just the value)
             w(_USER_PRIVACY_POLICIES, "TailoredExperiencesWithDiagnosticDataEnabled", 0)
+            # Tailored-experiences disable policy (Winhance)
+            w(r"Software\Policies\Microsoft\Windows\CloudContent",
+              "DisableTailoredExperiencesWithDiagnosticData", 1)
+            # Input-learning policy + typing insights + Copilot nags
+            w(r"Software\Policies\Microsoft\InputPersonalization",
+              "AllowInputPersonalization", 0)
+            w(r"Software\Microsoft\input\Settings", "InsightsEnabled", 0)
+            w(_USER_EXPLORER_ADV, "ShowCopilotNudges", 0)
             # Mark the diagnostic-level toast as shown — silences the
             # "your data settings changed" prompt after telemetry is cut
             w(r"Software\Microsoft\Windows\CurrentVersion\Diagnostics\DiagTrack",
@@ -1558,6 +1571,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_user_dword_all_hives(
             r"Software\NVIDIA Corporation\NVControlPanel2\Client",
             "OptInOrOutPreference", 0, logger)
+        # OneDrive Known-Folder-Move opt-in nag (Winhance)
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Policies\Microsoft\OneDrive",
+                           "KFMBlockOptIn", 1)
         logger.info("Applied: DisableTelemetry (AllowTelemetry=0, DiagTrack off, "
                     "privacy surfaces set)")
 
@@ -1659,7 +1676,8 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         for name in ("CopilotPageContext", "EdgeEntraCopilotPageContext",
                      "EdgeHistoryAISearchEnabled", "ComposeInlineEnabled",
                      "BuiltInAIAPIsEnabled", "AIGenThemesEnabled",
-                     "ShareBrowsingHistoryWithCopilotSearchAllowed"):
+                     "ShareBrowsingHistoryWithCopilotSearchAllowed",
+                     "Microsoft365CopilotChatIconEnabled"):
             set_registry_dword("HKLM", edge_pol, name, 0)
         set_registry_dword("HKLM", edge_pol, "DevToolsGenAiSettings", 2)
         # 1 = disable the local on-device foundation model used by Edge AI
@@ -1732,11 +1750,21 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             "LetAppsAccessTasks", "LetAppsAccessTrustedDevices",
             "LetAppsSyncWithDevices", "LetAppsGetDiagnosticInfo",
             "LetAppsActivateWithVoice", "LetAppsActivateWithVoiceAboveLock",
+            # 25H2 on-device AI surfaces (Winhance): generative-AI access and
+            # the system AI-model store
+            "LetAppsAccessGenerativeAI", "LetAppsAccessSystemAIModels",
         )
         for name in app_privacy:
             set_registry_dword("HKLM",
                                r"SOFTWARE\Policies\Microsoft\Windows\AppPrivacy",
                                name, 2)
+        # ConsentStore runtime counterparts (Winhance): deny at the
+        # capability-access layer too — policy alone leaves consent UI paths
+        consent = (r"SOFTWARE\Microsoft\Windows\CurrentVersion"
+                   r"\CapabilityAccessManager\ConsentStore")
+        for cap in ("userAccountInformation", "appDiagnostics",
+                    "generativeAI", "systemAIModels"):
+            set_registry_string("HKLM", rf"{consent}\{cap}", "Value", "Deny")
         # HKLM ad-ID + Find My Device policies
         set_registry_dword("HKLM",
                            r"SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo",
