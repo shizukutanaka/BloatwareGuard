@@ -1578,6 +1578,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_user_dword_all_hives(
             r"Software\NVIDIA Corporation\NVControlPanel2\Client",
             "OptInOrOutPreference", 0, logger)
+        # RSoP logging — policy-application diagnostic logging, on by default;
+        # off reduces boot time + disk IO (ReviOS misc/disable-logging.yml)
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Policies\Microsoft\Windows\System",
+                           "RSoPLogging", 0)
         logger.info("Applied: DisableTelemetry (AllowTelemetry=0, DiagTrack off, "
                     "privacy surfaces set)")
 

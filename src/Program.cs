@@ -2248,6 +2248,12 @@ public static class RegistryGuard
             SetUserDwordAllHives(
                 @"Software\NVIDIA Corporation\NVControlPanel2\Client",
                 "OptInOrOutPreference", 0);
+            // RSoP logging — policy-application diagnostic logging, on by
+            // default; off reduces boot time + disk IO (ReviOS
+            // misc/disable-logging.yml)
+            SetHiveDword(Microsoft.Win32.Registry.LocalMachine,
+                @"SOFTWARE\Policies\Microsoft\Windows\System",
+                "RSoPLogging", 0);
 
             GuardLogger.Info("Applied: DisableTelemetry (AllowTelemetry=0, DiagTrack off, privacy surfaces set)");
         }

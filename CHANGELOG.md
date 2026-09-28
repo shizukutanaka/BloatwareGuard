@@ -13,6 +13,10 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   enabled/auto-update value — the write was at best a no-op restating the
   default and at worst re-enabled store auto-updates an operator had off.
   `DisableOSUpgrade=1` stays.
+- `DisableTelemetry`: `Policies\...\System\RSoPLogging=0` (ReviOS
+  misc/disable-logging.yml — policy-application diagnostic logging, on by
+  default; off trims boot-time + disk-IO overhead. OOBE screen prefs, Office
+  ClickToRun logging, and WU `UpdateNotificationLevel` skipped: UX/functional).
 - Malformed `config.json` no longer crashes the tool (both impls):
   `json.loads`/`JsonSerializer.Deserialize` failures and non-object top
   levels now warn and run with defaults — the broken file is left in
