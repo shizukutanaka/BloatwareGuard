@@ -32,6 +32,10 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 - 1 telemetry task (57→58), diffed against Sophia Script + privacy.sexy:
   `\Microsoft\Windows\Application Experience\MareBackup` — gathers Win32
   app data for the Windows Backup app scenario (24H2+).
+- `DisableTelemetry`: `AppCompat\DisableInventory=1` (Application
+  Compatibility Inventory collector — app inventory telemetry).
+  Disassembler0 parity; that script's task/service diffs were already
+  covered.
 - `DisableTelemetry`: `MaxTelemetryAllowed=1` (policy cap at Security/
   Basic even if AllowTelemetry is re-raised) + per-user-hive
   `Diagnostics\DiagTrack\ShowedToastAtLevel=1` (silences the
