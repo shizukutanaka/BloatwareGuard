@@ -21,7 +21,14 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   insights) and `Explorer\Advanced\ShowCopilotNudges=0` (Copilot nags).
 - `DisableEdgeBloat`: `Microsoft365CopilotChatIconEnabled=0` (M365 Copilot
   Chat icon in Edge).
-- Skipped from the Winhance diff: Office 16.0 Copilot/connected-experiences
+- Blacklist 156→158: `Microsoft.Office.ActionsServer` (inbox AI-actions host —
+  its scheduled task was already disabled) + `Microsoft.WritingAssistant`
+  (2025 inbox AI writing-coach app) — Winhance WindowsAppDefinitions diff.
+- `RemoveOptionalCapabilities`: `App.Support.QuickAssist` added (legacy inbox
+  Quick Assist capability — superseded by the Store app, which is itself
+  already blacklisted).
+- Skipped from the Winhance diff: `Microsoft.OneDriveSync` (OneDrive removal
+  stays opt-in), MSPaint/Notepad/WMP/OpenSSH capabilities (functional), Office 16.0 Copilot/connected-experiences
   values (app-internal), Defender Security Center notifications, Smart App
   Control `VerifiedAndReputablePolicyState`, BitLocker `PreventDeviceEncryption`,
   Remote Assistance, Storage Sense/WU/notification UI toggles (functional),

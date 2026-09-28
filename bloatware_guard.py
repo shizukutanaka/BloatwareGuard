@@ -219,6 +219,10 @@ DEFAULT_BLACKLIST = [
     # diff): Office Lens retired Jan 2021, Office.Todo.List folded into
     # Microsoft To Do, Wunderlist killed 2020 (6Wunderkinder publisher)
     "Microsoft.Office.Lens", "Microsoft.Office.Todo.List", "Wunderlist",
+    # Winhance diff: Office Actions Server = the inbox AI-actions host (its
+    # scheduled task is already disabled); WritingAssistant = 2025 inbox AI
+    # writing-coach app
+    "Microsoft.Office.ActionsServer", "Microsoft.WritingAssistant",
     # simeononsecurity diff: dead Windows Phone companion + promo
     # preinstalls (Fitbit Coach upsell, Keeper PM promo, Shazam, Xing).
     # Skipped: MicrosoftPowerBIForWindows (business tool), CAF9E577.Plex
@@ -546,7 +550,7 @@ def remove_optional_capabilities(logger: logging.Logger) -> bool:
     WordPad). Requires admin; non-present entries are skipped by PowerShell."""
     pattern = ("Browser.InternetExplorer|App.StepsRecorder|"
                "Microsoft.Windows.WordPad|XPS.Viewer|Print.Fax.Scan|"
-               "App.WirelessDisplay.Connect")
+               "App.WirelessDisplay.Connect|App.Support.QuickAssist")
     _, _, rc = run_powershell(
         "Get-WindowsCapability -Online | Where-Object "
         f"{{$_.Name -match '{pattern}' -and $_.State -eq 'Installed'}} | "

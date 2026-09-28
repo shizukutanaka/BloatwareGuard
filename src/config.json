@@ -145,6 +145,8 @@
         "Microsoft.Office.Lens",
         "Microsoft.Office.Todo.List",
         "Wunderlist",
+        "Microsoft.Office.ActionsServer",
+        "Microsoft.WritingAssistant",
         "Microsoft.WindowsPhone",
         "Fitbit.FitbitCoach",
         "KeeperSecurityInc.Keeper",

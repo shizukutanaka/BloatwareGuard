@@ -565,6 +565,10 @@ public static class ConfigLoader
                 // (Windows10Debloater diff): Office Lens retired Jan 2021,
                 // Office.Todo.List folded into To Do, Wunderlist killed 2020
                 "Microsoft.Office.Lens", "Microsoft.Office.Todo.List", "Wunderlist",
+                // Winhance diff: Office Actions Server = the inbox AI-actions
+                // host (its scheduled task is already disabled);
+                // WritingAssistant = 2025 inbox AI writing-coach app
+                "Microsoft.Office.ActionsServer", "Microsoft.WritingAssistant",
                 // simeononsecurity diff: dead Windows Phone companion +
                 // promo preinstalls (Fitbit Coach, Keeper promo, Shazam, Xing)
                 "Microsoft.WindowsPhone", "Fitbit.FitbitCoach",
@@ -680,7 +684,7 @@ public static class AppxManager
     /// Requires admin; non-admin/non-present entries are skipped by PowerShell.</summary>
     public static void RemoveOptionalCapabilities()
     {
-        var pattern = "Browser.InternetExplorer|App.StepsRecorder|Microsoft.Windows.WordPad|XPS.Viewer|Print.Fax.Scan|App.WirelessDisplay.Connect";
+        var pattern = "Browser.InternetExplorer|App.StepsRecorder|Microsoft.Windows.WordPad|XPS.Viewer|Print.Fax.Scan|App.WirelessDisplay.Connect|App.Support.QuickAssist";
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
