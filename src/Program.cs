@@ -4164,6 +4164,14 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         };
         Process.Start(psi);
         GuardLogger.Info("Service uninstalled.");
+
+        // The hosts block is tool-owned runtime state that outlives the
+        // service — strip it so an uninstalled tool leaves no stale
+        // null-routes. Registry policies and deprovision/startup markers
+        // intentionally persist: they are the hardening itself and removing
+        // them would re-enable the telemetry and reprovisioning the tool was
+        // installed to kill.
+        RegistryGuard.SetTelemetryHostsBlock(false);
     }
 
     private static void ShowStatus()

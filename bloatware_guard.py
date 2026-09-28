@@ -2939,6 +2939,12 @@ def uninstall_service():
     subprocess.run(["sc", "stop", SERVICE_NAME], capture_output=True)
     result = subprocess.run(["sc", "delete", SERVICE_NAME], capture_output=True, text=True)
     print(result.stdout)
+    # The hosts block is tool-owned runtime state that outlives the service —
+    # strip it so an uninstalled tool leaves no stale null-routes. Registry
+    # policies and deprovision/startup markers intentionally persist: they are
+    # the hardening itself and removing them would re-enable the telemetry
+    # and reprovisioning the tool was installed to kill.
+    set_telemetry_hosts_block(False, logging.getLogger(APP_NAME))
 
 
 # ─── Self-Test ───────────────────────────────────────────────────────────────

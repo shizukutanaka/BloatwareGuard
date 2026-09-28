@@ -18,6 +18,14 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 - Telemetry tasks +1: `\Microsoft\Windows\Power Efficiency Diagnostics\AnalyzeSystem`
   (Winhance diff — diagnostic ETW collection task).
 
+### Fixed
+- `--uninstall`/`uninstall` left the tool-owned hosts block behind forever —
+  a deleted tool permanently null-routing 109 telemetry/ad domains with no
+  removal path. Uninstall now strips the marked block before returning
+  (both impls). Registry policies and deprovision/startup markers
+  intentionally persist: they are the hardening itself, not service state,
+  and reversing them would re-enable what the tool was installed to kill.
+
 ## [Unreleased] — v1.58.0-mvp: 32-bit autostart coverage + blacklist expansion
 
 ### Added
