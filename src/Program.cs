@@ -2110,8 +2110,15 @@ public static class RegistryGuard
                 using var fdb = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Windows\DataCollection");
                 fdb?.SetValue("DoNotShowFeedbackNotifications", 1, Microsoft.Win32.RegistryValueKind.DWord);
-                // Suppress the "your telemetry setting changed" nag
+                // Suppress the "your telemetry setting changed" nag + hide
+                // the telemetry level picker UX entirely (ReviOS parity)
                 fdb?.SetValue("DisableTelemetryOptInChangeNotification", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                fdb?.SetValue("DisableTelemetryOptInSettingsUx", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // Commercial data pipeline, device name in telemetry, Edge
+                // data opt-in — ReviOS privacy/telemetry.yml parity
+                fdb?.SetValue("AllowCommercialDataPipeline", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                fdb?.SetValue("AllowDeviceNameInTelemetry", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                fdb?.SetValue("MicrosoftEdgeDataOptIn", 0, Microsoft.Win32.RegistryValueKind.DWord);
                 // Cap the diagnostic level at Security/Basic even if a
                 // component or update re-raises AllowTelemetry later
                 fdb?.SetValue("MaxTelemetryAllowed", 1, Microsoft.Win32.RegistryValueKind.DWord);

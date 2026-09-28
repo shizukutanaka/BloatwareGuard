@@ -150,6 +150,14 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   (network/driver/protected components — ReviOS marks them experimental).
   Also corrected the stale service counts in the applied-log strings
   (44→51) and README (49→51).
+- `DisableTelemetry` +4 policy values — ReviOS privacy/telemetry.yml:
+  `DisableTelemetryOptInSettingsUx=1` (hides the level picker),
+  `AllowCommercialDataPipeline=0`, `AllowDeviceNameInTelemetry=0`,
+  `MicrosoftEdgeDataOptIn=0`. Skipped: `DisableEnterpriseAuthProxy`
+  (enterprise proxy), CPSS consent-store entries, Wow6432Node policy
+  mirror (redirected view of the same key). ReviOS
+  deprovisioned-apps.yml is fully covered by the existing blacklist
+  entries + Deprovisioned markers.
 
 - `RemoveWin32Programs`: new `_WIN32_BLOAT_NAMES`/`Win32BloatNames`
   needle list (79 entries) merged into the Win32 DisplayName scan —

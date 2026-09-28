@@ -1400,9 +1400,20 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                            "CEIPEnable", 0)
         set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\DataCollection",
                            "DoNotShowFeedbackNotifications", 1)
-        # Suppress the "your telemetry setting changed" nag
+        # Suppress the "your telemetry setting changed" nag + hide the
+        # telemetry level picker UX entirely (ReviOS parity)
         set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\DataCollection",
                            "DisableTelemetryOptInChangeNotification", 1)
+        set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\DataCollection",
+                           "DisableTelemetryOptInSettingsUx", 1)
+        # Commercial data pipeline, device name in telemetry, Edge data
+        # opt-in — ReviOS privacy/telemetry.yml parity
+        set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\DataCollection",
+                           "AllowCommercialDataPipeline", 0)
+        set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\DataCollection",
+                           "AllowDeviceNameInTelemetry", 0)
+        set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\DataCollection",
+                           "MicrosoftEdgeDataOptIn", 0)
         # Cap the diagnostic level at Security/Basic even if a component
         # or update re-raises AllowTelemetry later (Sophia Script parity)
         set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\DataCollection",
