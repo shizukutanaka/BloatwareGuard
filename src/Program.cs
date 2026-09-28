@@ -565,6 +565,11 @@ public static class ConfigLoader
                 // (Windows10Debloater diff): Office Lens retired Jan 2021,
                 // Office.Todo.List folded into To Do, Wunderlist killed 2020
                 "Microsoft.Office.Lens", "Microsoft.Office.Todo.List", "Wunderlist",
+                // simeononsecurity diff: dead Windows Phone companion +
+                // promo preinstalls (Fitbit Coach, Keeper promo, Shazam, Xing)
+                "Microsoft.WindowsPhone", "Fitbit.FitbitCoach",
+                "KeeperSecurityInc.Keeper", "ShazamEntertainmentLtd.Shazam",
+                "XINGAG.XING",
 
                 // OEM utilities (uncomment as needed)
                 // "DellInc.Dell",

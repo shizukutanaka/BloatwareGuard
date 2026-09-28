@@ -135,7 +135,12 @@
         "Microsoft.BingMaps",
         "Microsoft.Office.Lens",
         "Microsoft.Office.Todo.List",
-        "Wunderlist"
+        "Wunderlist",
+        "Microsoft.WindowsPhone",
+        "Fitbit.FitbitCoach",
+        "KeeperSecurityInc.Keeper",
+        "ShazamEntertainmentLtd.Shazam",
+        "XINGAG.XING"
     ],
     "Whitelist": [
         "Microsoft.WindowsStore",

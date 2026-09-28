@@ -219,6 +219,13 @@ DEFAULT_BLACKLIST = [
     # diff): Office Lens retired Jan 2021, Office.Todo.List folded into
     # Microsoft To Do, Wunderlist killed 2020 (6Wunderkinder publisher)
     "Microsoft.Office.Lens", "Microsoft.Office.Todo.List", "Wunderlist",
+    # simeononsecurity diff: dead Windows Phone companion + promo
+    # preinstalls (Fitbit Coach upsell, Keeper PM promo, Shazam, Xing).
+    # Skipped: MicrosoftPowerBIForWindows (business tool), CAF9E577.Plex
+    # (functional app, only that list removes it)
+    "Microsoft.WindowsPhone", "Fitbit.FitbitCoach",
+    "KeeperSecurityInc.Keeper", "ShazamEntertainmentLtd.Shazam",
+    "XINGAG.XING",
 ]
 
 

@@ -116,6 +116,12 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   consent on Mobility), `SafeSearchMode=0` + `ShowDynamicContent=0`
   (Search highlights/dynamic content), and `DisableCopilot` per-hive
   `AutoOpenCopilotLargeScreens=0` (Copilot auto-open channel).
+- Blacklist 143→148 (simeononsecurity Windows-Optimize-Debloat diff):
+  `Microsoft.WindowsPhone` (dead companion), `Fitbit.FitbitCoach`,
+  `KeeperSecurityInc.Keeper`, `ShazamEntertainmentLtd.Shazam`,
+  `XINGAG.XING` (promo preinstalls). Skipped: `PowerBIForWindows`
+  (business tool) and `CAF9E577.Plex` (functional app removed by only
+  that list). Its other ~90 names are covered by existing prefixes.
 
 - `RemoveWin32Programs`: new `_WIN32_BLOAT_NAMES`/`Win32BloatNames`
   needle list (79 entries) merged into the Win32 DisplayName scan —
