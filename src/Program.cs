@@ -903,6 +903,41 @@ public static class Win32Guard
     private static readonly Regex MsiGuidPattern =
         new(@"\{[0-9A-Fa-f\-]{36}\}", RegexOptions.Compiled);
 
+    // DisplayName needles checked alongside the blacklist — appx-style
+    // publisher prefixes (DellInc., AD2F1837.) never appear in DisplayName
+    // strings, so OEM support-ware and PUA optimizers need their own
+    // product names. Sources: TronScript programs_to_target_by_name
+    // (PUA/adware canon), winutil, Win11Debloat. Vendor-bare names
+    // (HP, Dell, Lenovo) are deliberately absent — substrings would
+    // false-positive on utilities ("HP" is inside "Touchpad").
+    private static readonly string[] Win32BloatNames = {
+        // OEM support-ware / promo updaters still shipping today
+        "SupportAssist", "HP Support Assistant", "HP JumpStart", "MyASUS",
+        "Acer Collection", "MSI Center", "Dragon Center", "Armoury Crate",
+        "ArmouryCrate", "Nahimic", "Killer Intelligence", "BlueStacks",
+        "Wondershare",
+        // PUA "optimizer"/driver-updater tier pushed via ads
+        "IObit", "Advanced SystemCare", "Driver Booster", "DriverBooster",
+        "Driver Easy", "DriverEasy", "DriverUpdate", "Driver Tonic",
+        "Win Tonic", "PCVARK", "Systweak", "RegClean", "SlimWare",
+        "SlimCleaner", "Outbyte", "Restoro", "PCRepair", "PC Repair",
+        "PC Cleaner", "SpeedUpMyPC", "OneSafe", "WinZip Driver",
+        "DriverDoc", "TotalAV", "ScanGuard", "PCProtect", "PC Health",
+        "McAfee Security Scan",
+        // Legacy adware/toolbar canon — dead weight where still installed
+        "Ask Toolbar", "Babylon", "Conduit", "Wajam", "Yontoo", "OpenCandy",
+        "SweetIM", "Iminent", "Spigot", "Binkiland", "Snap.do",
+        "Search Protect", "SearchProtect", "MyStartSearch", "Omiga Plus",
+        "Delta Search", "Qone8", "Trovi", "MapsGalaxy", "InfoAtoms",
+        "Mobogenie", "GetSavin", "DealPly", "BrowseFox", "Media Buzz",
+        "Media View", "Media Watch", "Buzzdock", "BrowserSafeguard",
+        "CloudScout", "ClipGenie", "ClickForSale", "Bonanza", "AnyProtect",
+        "AppsHat", "ArcadeParlor", "AtuZi", "Altnet", "iBryte", "iLivid",
+        "iStart123", "FilesFrog", "Gamevance", "InstaCodecs", "IWon",
+        "MyPC Backup", "My Web Search", "Sweet Packs", "VisualBee",
+        "WhiteSmoke", "WildTangent", "Big Fish", "Bonzi",
+    };
+
     /// <summary>Enumerate installed Win32 programs matching the blacklist.
     /// Returns (DisplayName, UninstallString, QuietUninstallString, UserHive).
     /// UserHive entries are report-only: HKU\<sid> is user-writable, so an
@@ -935,7 +970,8 @@ public static class Win32Guard
                             continue;
                         var quiet = sk?.GetValue("QuietUninstallString") as string ?? "";
                         if (!IsWhitelisted(display, whitelist) &&
-                            blacklist.Any(b => !string.IsNullOrWhiteSpace(b) &&
+                            blacklist.Concat(Win32BloatNames).Any(
+                                b => !string.IsNullOrWhiteSpace(b) &&
                                 display.Contains(b, StringComparison.OrdinalIgnoreCase)) &&
                             seen.Add(display))
                         {

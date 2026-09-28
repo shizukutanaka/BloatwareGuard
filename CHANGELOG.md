@@ -73,6 +73,18 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   Skipped: sovereign-cloud (`.us`), Azure-service, sandbox, and
   akadns/GLB load-balancer intermediate names.
 
+- `RemoveWin32Programs`: new `_WIN32_BLOAT_NAMES`/`Win32BloatNames`
+  needle list (79 entries) merged into the Win32 DisplayName scan —
+  appx publisher prefixes never appear in DisplayName strings, so OEM
+  support-ware (`SupportAssist`, `HP Support Assistant`, `MyASUS`,
+  `Acer Collection`, `MSI Center`, `Armoury Crate`, `Nahimic`,
+  `Killer Intelligence`), PUA optimizers (`IObit`, `Advanced SystemCare`,
+  `Driver Booster`/`Easy`/`Tonic`, `SlimWare`, `Outbyte`, `Restoro`,
+  `PCRepair`, `TotalAV`, `ScanGuard`…), and the legacy adware/toolbar
+  canon (TronScript's programs_to_target_by_name: `Ask Toolbar`,
+  `Conduit`, `Wajam`, `Yontoo`, `OpenCandy`, `WildTangent`, `Big Fish`…)
+  are now covered. Vendor-bare names deliberately excluded — `HP` is a
+  substring of `Touchpad`.
 - Blacklist 120→140, diffed against TronScript's Metro app removal list
   (bmrf/tron, 968 user-curated entries — only dead/promo/game-demo
   Microsoft appx adopted; its 3rd-party list nukes user-installed

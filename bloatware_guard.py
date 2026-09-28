@@ -540,6 +540,42 @@ def remove_optional_capabilities(logger: logging.Logger) -> bool:
 
 # ─── Win32 program removal (non-Appx OEM bloatware) ──────────────────────────
 
+# DisplayName needles checked alongside the blacklist in the Win32 uninstall
+# scan — appx-style publisher prefixes (DellInc., AD2F1837.) never appear in
+# DisplayName strings, so OEM support-ware and PUA optimizers need their own
+# product names. Sources: TronScript programs_to_target_by_name (PUA/adware
+# canon), winutil, Win11Debloat. Vendor-bare names (HP, Dell, Lenovo) are
+# deliberately absent — substrings would false-positive on utilities
+# ("HP" is inside "Touchpad").
+_WIN32_BLOAT_NAMES = (
+    # OEM support-ware / promo updaters still shipping today
+    "SupportAssist", "HP Support Assistant", "HP JumpStart", "MyASUS",
+    "Acer Collection", "MSI Center", "Dragon Center", "Armoury Crate",
+    "ArmouryCrate", "Nahimic", "Killer Intelligence", "BlueStacks",
+    "Wondershare",
+    # PUA "optimizer"/driver-updater tier pushed via ads
+    "IObit", "Advanced SystemCare", "Driver Booster", "DriverBooster",
+    "Driver Easy", "DriverEasy", "DriverUpdate", "Driver Tonic",
+    "Win Tonic", "PCVARK", "Systweak", "RegClean", "SlimWare",
+    "SlimCleaner", "Outbyte", "Restoro", "PCRepair", "PC Repair",
+    "PC Cleaner", "SpeedUpMyPC", "OneSafe", "WinZip Driver",
+    "DriverDoc", "TotalAV", "ScanGuard", "PCProtect", "PC Health",
+    "McAfee Security Scan",
+    # Legacy adware/toolbar canon — dead weight where still installed
+    "Ask Toolbar", "Babylon", "Conduit", "Wajam", "Yontoo", "OpenCandy",
+    "SweetIM", "Iminent", "Spigot", "Binkiland", "Snap.do",
+    "Search Protect", "SearchProtect", "MyStartSearch", "Omiga Plus",
+    "Delta Search", "Qone8", "Trovi", "MapsGalaxy", "InfoAtoms",
+    "Mobogenie", "GetSavin", "DealPly", "BrowseFox", "Media Buzz",
+    "Media View", "Media Watch", "Buzzdock", "BrowserSafeguard",
+    "CloudScout", "ClipGenie", "ClickForSale", "Bonanza", "AnyProtect",
+    "AppsHat", "ArcadeParlor", "AtuZi", "Altnet", "iBryte", "iLivid",
+    "iStart123", "FilesFrog", "Gamevance", "InstaCodecs", "IWon",
+    "MyPC Backup", "My Web Search", "Sweet Packs", "VisualBee",
+    "WhiteSmoke", "WildTangent", "Big Fish", "Bonzi",
+)
+
+
 _UNINSTALL_PATH = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"
 _UNINSTALL_PATH32 = r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
 _USER_UNINSTALL_PATH = r"Software\Microsoft\Windows\CurrentVersion\Uninstall"
@@ -584,7 +620,9 @@ def get_blacklisted_win32(blacklist, whitelist):
                         quiet = winreg.QueryValueEx(sk, "QuietUninstallString")[0] or ""
                     except OSError:
                         quiet = ""
-                    if not is_target_package(display, blacklist, whitelist):
+                    if not is_target_package(
+                            display, blacklist + list(_WIN32_BLOAT_NAMES),
+                            whitelist):
                         continue
                     if display.lower() not in seen:
                         seen.add(display.lower())
@@ -2788,6 +2826,7 @@ def run_self_test() -> int:
                                   ("MICROSOFT_SYSTEM_TASK_PREFIXES",
                                    MICROSOFT_SYSTEM_TASK_PREFIXES),
                                   ("_BACKUP_KEY_PATHS", _BACKUP_KEY_PATHS),
+                                  ("_WIN32_BLOAT_NAMES", _WIN32_BLOAT_NAMES),
                                   ("_MISC_DEMOTE_SERVICES",
                                    _MISC_DEMOTE_SERVICES)):
                 miss = [e for e in entries if e not in cs_src]
@@ -2806,6 +2845,7 @@ def run_self_test() -> int:
                               ("MICROSOFT_SYSTEM_TASK_PREFIXES",
                                MICROSOFT_SYSTEM_TASK_PREFIXES),
                               ("_BACKUP_KEY_PATHS", _BACKUP_KEY_PATHS),
+                              ("_WIN32_BLOAT_NAMES", _WIN32_BLOAT_NAMES),
                               ("_MISC_DEMOTE_SERVICES", _MISC_DEMOTE_SERVICES)):
             dupes = {e for e in entries if entries.count(e) > 1}
             assert not dupes, f"{name} has duplicate entries: {dupes}"
