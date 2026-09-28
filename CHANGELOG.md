@@ -2,6 +2,20 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.58.2-mvp: verify scripts cover the new layers
+
+### Fixed
+- `verify_scan.ps1` / `verify_scan_sys.ps1` extended to the surfaces added
+  since they were written: before/after snapshots now include
+  `Deprovisioned` registry markers, CEIP + Autochk telemetry task states,
+  `DiagTrack`/`WerSvc`/`wercplsupport` service start types, and the hosts
+  telemetry block — previously only Appx/provisioned/2 registry keys were
+  captured, so the newer layers were unverifiable.
+- `verify_scan.ps1` apx diff direction corrected: `Compare-Object`
+  `SideIndicator "=>"` showed packages *added* after the scan, not
+  removed — now `"<="` (in before, gone after). Dead `-contains` check
+  (exact-match against partial names, always false) dropped.
+
 ## [Unreleased] — v1.58.0-mvp: 32-bit autostart coverage + blacklist expansion
 
 ### Added
