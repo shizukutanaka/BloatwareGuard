@@ -35,7 +35,7 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 │    ├─ Capability 除去 (IE/StepsRecorder/WordPad)    │
 │    ├─ Win32 除去 (Uninstall キー走査+MSI サイレント)│
 │    ├─ 復元ポイント作成 (スキャン前、24h スロットル)  │
-│    ├─ テレメトリタスク停止 (CompatTel/CEIP 等56件)  │
+│    ├─ テレメトリタスク停止 (CompatTel/CEIP 等62件)  │
 │    ├─ StartupApproved 無効化マーカー (Run/RunOnce)  │
 │    ├─ Windows Error Reporting 停止                 │
 │    ├─ Edge Update サービス/タスク → demand 化       │
@@ -89,7 +89,7 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 | Win32 ブロートウェア (OEM プレインストール) | HKLM/HKLM(WOW6432)/全ユーザーハイブの Uninstall キー走査 → QuietUninstallString or `msiexec /x {guid} /qn` | RemoveWin32Programs |
 | 復元ポイント | Enable-ComputerRestore + Checkpoint-Computer (MODIFY_SETTINGS、スキャン前、24h スロットル) | CreateRestorePoint |
 | MS テレメトリタスク | 固定リストの schtasks /DISABLE: CompatTelRunner, CEIP Consolidator/UsbCeip/KernelCeip, Autochk Proxy, DiskDiagnostic, Siuf DmClient, MapsUpdate/Toast 他 | DisableTelemetryTasks |
-| スタートアップブロート | Run キー走査 (HKLM 64/32 + 全ハイブ) → StartupApproved\Run に 0x03 無効化マーカー (削除せず復元可能) | DisableStartupBloat |
+| スタートアップブロート | Run/RunOnce キー走査 (HKLM 64/32 + 全ユーザーハイブ 64/32) → StartupApproved\Run/RunOnce に 0x03 無効化マーカー (削除せず復元可能; peer-view 同名非ブロートはスキップ) | DisableStartupBloat |
 | Windows Error Reporting | Disabled=1, DontSendAdditionalData=1 (HKLM+policy), DontShowUI=1, LoggingDisabled=1 (全ハイブ) | DisableErrorReporting |
 | Edge Update 常駐 | edgeupdate/edgeupdatem/MicrosoftEdgeElevationService → Start=3 + EdgeUpdateTask* 3件 /DISABLE | DisableEdgeUpdateBloat |
 | WU 経由 OEM ドライバ | ExcludeWUDriversInQualityUpdate=1 (WindowsUpdate policy) | BlockOemDriverUpdates |
@@ -109,7 +109,7 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 | Start「おすすめ」 | Policies\...\Explorer HideRecommendedSection=1 | HideStartRecommendations |
 | Deprovisioned マーカー | AppxAllUserStore\Deprovisioned\<family> にキー作成 (feature update 時の再プロビジョニングを OS がスキップ) | MarkDeprovisioned |
 | 25H2 RemoveDefaultMicrosoftStorePackages | PolicyManager\...\EnterpriseDesktopAppManagement Enabled=1 + PackageList REG_MULTI_SZ | RemoveDefaultStorePackages |
-| テレメトリドメイン遮断 | hosts にマーカー付きブロック (46 ドメイン、トグルOFFで除去・可逆) | BlockTelemetryEndpoints |
+| テレメトリドメイン遮断 | hosts にマーカー付きブロック (69 ドメイン、トグルOFFで除去・可逆) | BlockTelemetryEndpoints |
 | winget 掃除 | `winget uninstall -e --id <id> --silent --disable-interactivity` (winget 不在時スキップ) | WingetSweep |
 | テレメトリ ETW AutoLogger | Control\WMI\AutoLogger\<session> Start=0 (13 セッション; OpenKey で不存在なら作らない) | DisableTelemetryAutologgers |
 | 再インストール監視 | 削除済みパッケージが再出現したら再削除 (スキャン毎; 常駐の本質機能) | ReinstallMonitor |

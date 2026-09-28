@@ -2,7 +2,295 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
-## [Unreleased] — v1.57.0-mvp: startup-surface coverage
+## [Unreleased] — v1.58.0-mvp: 32-bit autostart coverage + blacklist expansion
+
+### Added
+- `BackupRegistry` coverage completion (36→68 keys): self-audit diffed every
+  HKLM path the tool writes against `_BACKUP_KEY_PATHS` and found ~30
+  policy-key gaps — the docstring promises "every HKLM key this tool
+  touches" is exported for double-click restore. Added the missing write
+  paths (DataCollection, WindowsUpdate Orchestrator/UX, PushToInstall,
+  TabletPC/Handwriting/EdgeUI, OOBE/Communications, FeatureManagement
+  overrides, et al.) so `--uninstall` restore actually covers all writes.
+  Deliberately skipped: per-user hive exports — the backup runs under the
+  elevated caller so HKCU only captures the admin's own hive, not the
+  targets'; exporting every loaded `HKU\S-1-5-21-*` hive for a manual
+  restore aid adds complexity out of proportion to its value. HKLM
+  machine-scope is the meaningful restore surface.
+- Self-test guard registration gap closed: T9 parity + T10 dup-free now
+  cover the 11 previously-unregistered shared constants
+  (`_ACTIVE_SETUP_PATHS`, `_VELOCITY_AI_IDS`, `_VELOCITY_COPILOT_IDS`,
+  `_DEPROVISIONED_PATH`, `_REMOVE_DEFAULT_PKGS_PATH`, `_USER_*` x5)
+  and C# T8 gained `ActiveSetupPaths` + `Win32BloatNames`; structured
+  (subkey, value) tuple entries are checked per string component.
+- 29 blacklist entries (85→114), diffed against Raphire/Win11Debloat's
+  default-removal app list: 10 Microsoft apps (`3DBuilder`, six
+  discontinued `Bing*` consumer apps, `News`, `PCManager`,
+  `Windows.AIHub`) and 19 third-party OEM/promo entries
+  (`ACGMediaPlayer`, `ActiproSoftwareLLC`, `AdobePhotoshopExpress`,
+  `AutodeskSketchBook`, `CaesarsSlotsFreeCasino`, `DrawboardPDF`,
+  `FarmVille2CountryEscape`, `HULUPLUS`, `HiddenCity`, `NYTCrossword`,
+  `OneCalendar`, `PhototasticCollage`, `Polarr`, `LiveWallpaper`,
+  `SlingTV`, `TuneInRadio`, `WinZipUniversal`, `RoyalRevolt`,
+  `iHeartRadio`). Deliberately skipped: `Microsoft.Office.OneNote`
+  (exclusion policy), `MicrosoftPowerBIForWindows` (business tool),
+  `XP9CXNGPPJ97XX` (WebExperiencePack — breaks Widgets; the toggle
+  already covers it), `COOKINGFEVER` (covered by `Nordcurrent`).
+- 6 blacklist entries (114→120) from the Recommendation-field pass: OEM
+  publisher prefixes `AD2F1837.` (all 21 HP appx bundles), `DellInc.`
+  (3 apps), `E046963F.LenovoCompanion`, `LenovoCompanyLimited.
+  LenovoVantageService`, plus `Microsoft.M365Companions` (24H2 promo)
+  and `Facebook.Instagram` (stable — only the Beta family was listed).
+  Skipped: `LGElectronics.LGMonitorApp` (functional monitor utility),
+  Paint/Calculator/Camera/Notepad/RemoteDesktop/OneDrive/
+  StartExperiencesApp/WidgetsPlatformRuntime (utilities or components,
+  not bloat; Calculator/Notepad already whitelisted anyway).
+- New opt-in layer `DisableModernStandbyNetworking` (46th toggle, default
+  false): ConnectivityInStandby power policy (`AC/DCSettingIndex=0`) —
+  severs network during Modern Standby, stopping background sync/telemetry
+  while asleep on S0 systems. Source: Win11Debloat DisableModernStandbyNetworking.
+- `DisableCloudContent`: added `DisableConsumerAccountStateContent=1`
+  (CloudContent policy — hides Microsoft 365 Copilot ads on Settings Home).
+- `HideStartRecommendations`: added per-user-hive
+  `Start\Companions\Microsoft.YourPhone_8wekyb3d8bbwe\IsEnabled=0` — disables
+  the Phone Link companion panel in Start. Skipped as out-of-scope: location
+  services (deliberate exclusion), BitLocker auto-encryption (security
+  trade-off), Drag Tray/notification/UI-preference tweaks.
+- 1 telemetry task (57→58), diffed against Sophia Script + privacy.sexy:
+  `\Microsoft\Windows\Application Experience\MareBackup` — gathers Win32
+  app data for the Windows Backup app scenario (24H2+).
+- `DisableTelemetry`: `AppCompat\DisableInventory=1` (Application
+  Compatibility Inventory collector — app inventory telemetry).
+  Disassembler0 parity; that script's task/service diffs were already
+  covered.
+- `DisableTelemetry`: `MaxTelemetryAllowed=1` (policy cap at Security/
+  Basic even if AllowTelemetry is re-raised) + per-user-hive
+  `Diagnostics\DiagTrack\ShowedToastAtLevel=1` (silences the
+  settings-changed toast). Sophia Script parity.
+- `DisableTelemetry`: also stops+disables `WerSvc` (Windows Error
+  Reporting — crash-dump upload path; QueueReporting task and WER hosts
+  were already covered). Matches Sophia Script's ErrorsReporting tweak.
+- `DisableTelemetry`: blocks the DiagTrack outbound firewall rules —
+  `Get-NetFirewallRule -Group DiagTrack | Set-NetFirewallRule -Enabled
+  True -Action Block` (Sophia Script kill-chain). The "Unified Telemetry
+  Client Outbound Traffic" rules exist but default to Allow; this makes
+  the block survive even if a component re-enables the service.
+- 2 service-demote entries (44→46), diffed against winutil's service
+  tweak list: `StorSvc` (storage settings) and `CscService` (Offline
+  Files — legacy enterprise sync dead on consumer installs). Skipped:
+  `SharedAccess` (ICS is already demand-start; disabling breaks mobile
+  hotspot). winutil's registry tweaks were verified already covered
+  (Activity History upload, WPBT, Notepad AI, CloudContent, DO).
+- 12 telemetry-host entries (46→58), diffed against WindowsSpyBlocker's
+  spy list: the actual DiagTrack ingest FQDNs `v10/v20.vortex-win.data.
+  microsoft.com` (only the CNAME base was blocked before), the Edge ARIA
+  pipe `browser.pipe.aria.microsoft.com`, additional WER ingest names on
+  `*.events.data.microsoft.com` (`umwatson`, `nw-umwatson`, `kmwatson`,
+  `kmwatsonc`), and legacy CEIP/WER endpoints (`df/alpha/ca.telemetry.
+  microsoft.com`, `telemetry.microsoft.com`, `watson.live.com`).
+  Skipped: sovereign-cloud (`.us`), Azure-service, sandbox, and
+  akadns/GLB load-balancer intermediate names.
+- Telemetry hosts 58→69 — regional ingest mirrors and sibling pipes from
+  WindowsSpyBlocker's "extra" tier (`eu/us-v20.events.data.microsoft.com`,
+  `eu/us.vortex-win.data.microsoft.com`, `eu.vortex.data.microsoft.com`,
+  `server6/7.pipe.aria.microsoft.com`, `browser.events.data.msn.com`,
+  `ic3`/`mobile`/`teams.events.data.microsoft.com`). The rest of that tier
+  is deliberately skipped: it null-routes OneDrive, Windows activation,
+  SmartScreen and support sites.
+- `BlockProvisioning` +3 anchors (tiny11builder diff): policy
+  `DisablePushToInstall=1` (third anchor on the push-install channel —
+  demoted service + disabled task already existed), `Teams\Disable
+  Installation=1` (Teams keeps coming back via Store), and the
+  `UScheduler{,_Oobe}\{OutlookUpdate,DevHomeUpdate} workCompleted=1`
+  markers so Windows Update treats forced new-Outlook/DevHome pushes as
+  delivered. Skipped: MRT `DontOfferThroughWUAU` (declines a security
+  tool), `Windows Mail PreventRun` (hard-blocks a functional app),
+  install-bypass knobs (LabConfig/BypassNRO), BitLocker opt-out, and
+  tiny11's functional removals (Terminal, Paint, OneNote, GetHelp).
+- Demote services 47→49 (Atlas services.yml diff): `TrkWks` (Distributed
+  Link Tracking — Microsoft 'OK to disable' per IoT/VDI guidance) and
+  `wercplsupport` (WER control-panel support, companion to the disabled
+  `WerSvc`). Skipped: `UCPD` (protects default-app choice), drivers
+  `GpuEnergyDrv`/`NetBT`/`Telemetry` (out of demote scope / risky), and
+  Atlas's file-sharing/location/search removals (functional or covered).
+- `BlockProvisioning` + `ConfigureChatAutoInstall=0` on
+  `HKLM\...\Communications` — the documented Chat/Teams consumer
+  auto-install channel (Atlas appx.yml); complements `Teams
+  DisableInstallation`.
+- Blacklist 140→143 (Sycnex Windows10Debloater diff): dead Microsoft
+  products still shipped by images — `Microsoft.Office.Lens` (retired
+  Jan 2021), `Microsoft.Office.Todo.List` (folded into Microsoft To Do),
+  `Wunderlist` (killed 2020). Skipped: `Microsoft.StorePurchaseApp`
+  (Store infra), `Microsoft.PPIProjection` (system component),
+  `CanonicalGroupLimited.UbuntuonWindows` (functional WSL distro),
+  `Microsoft.RemoteDesktop`/OneNote (utilities), and entries already
+  covered by `KING.COM.`/`Microsoft.Zune`/`Microsoft.Xbox` prefixes.
+- privacy.sexy corpus diff (934 registry paths / 123 value names — most
+  out of scope: WU deferral, SCHANNEL/SMB hardening, DeviceGuard,
+  Office-internals, UI prefs). Adopted in-scope adds: per-hive
+  `HideNewOutlookToggle=1` + `NewOutlookMigrationUserSetting=0`
+  (classic-Outlook migration surface, Office-side sibling of
+  `DoNewOutlookAutoMigration`), `CrossDeviceEnabled=0` (cross-device
+  consent on Mobility), `SafeSearchMode=0` + `ShowDynamicContent=0`
+  (Search highlights/dynamic content), and `DisableCopilot` per-hive
+  `AutoOpenCopilotLargeScreens=0` (Copilot auto-open channel).
+- Blacklist 143→148 (simeononsecurity Windows-Optimize-Debloat diff):
+  `Microsoft.WindowsPhone` (dead companion), `Fitbit.FitbitCoach`,
+  `KeeperSecurityInc.Keeper`, `ShazamEntertainmentLtd.Shazam`,
+  `XINGAG.XING` (promo preinstalls). Skipped: `PowerBIForWindows`
+  (business tool) and `CAF9E577.Plex` (functional app removed by only
+  that list). Its other ~90 names are covered by existing prefixes.
+- Telemetry tasks 58→61 (zoicware/RemoveWindowsAI task set): Recall
+  snapshot tasks `WindowsAI\Recall\InitialConfiguration` +
+  `PolicyConfiguration` and `\Microsoft\Office\Office Actions Server`
+  (Office AI Actions). `DisableRecall` also now silences the four 25H2
+  AI-platform event-log channels (`Microsoft-Windows-AI-ModelContext
+  Protocol` + `AI-Platform`, admin + operational).
+- Blacklist 148→152 (ReviOS playbook / meetrevision diff):
+  `Microsoft.Windows.SecureAssessmentBrowser` (Take-a-Test),
+  `Microsoft.Windows.PeopleExperienceHost` (People host backend),
+  `MicrosoftCorporationII.MailforSurfaceHub` (Surface Hub mail),
+  `OutlookPWA` (New Outlook PWA package name — the existing
+  `Microsoft.OutlookForWindows` entry covers the other family name).
+  Skipped: Office Excel/PowerPoint/Word appx (functional Office apps),
+  `Microsoft.StartExperiencesApp` (Start menu host).
+- `_WIN32_BLOAT_NAMES`/`Win32BloatNames` 79→85 — HP serviceware channel
+  (Spiceworks HP-debloat canon): Connection Optimizer, Documentation,
+  Notifications, Security Update Service, Sure Recover, Sure Run Module.
+  `HP Wolf Security` excluded — a real AV product, not trial nagware.
+- Telemetry tasks 61→62: `Application Experience\SdbinstMergeDbTask`
+  (shim-DB merge on the same AppCompat collection pipeline — privacy.sexy).
+  Skipped: UpdateOrchestrator Schedule-Scan/UUS-Failover/UpdateModel
+  (servicing infrastructure, not telemetry).
+- Demote services 49→51 — ReviOS services.yml diff: `dam` (Desktop
+  Activity Moderator), `Telemetry` (Intel driver), `Wecsvc` (Event
+  Collector). Skipped: `tcpipreg`/`condrv`/`NetBT`/`GpuEnergyDrv`/`UCPD`
+  (network/driver/protected components — ReviOS marks them experimental).
+  Also corrected the stale service counts in the applied-log strings
+  (44→51) and README (49→51).
+- `DisableTelemetry` +4 policy values — ReviOS privacy/telemetry.yml:
+  `DisableTelemetryOptInSettingsUx=1` (hides the level picker),
+  `AllowCommercialDataPipeline=0`, `AllowDeviceNameInTelemetry=0`,
+  `MicrosoftEdgeDataOptIn=0`. Skipped: `DisableEnterpriseAuthProxy`
+  (enterprise proxy), CPSS consent-store entries, Wow6432Node policy
+  mirror (redirected view of the same key). ReviOS
+  deprovisioned-apps.yml is fully covered by the existing blacklist
+- `DisableCloudContent` per-user CDM +5 SubscribedContent IDs —
+  ReviOS privacy/cdm.yml: 314559/280815/202914/280810/280811
+  (OneDrive promotions, SyncProviders ad, Start ads). Skipped:
+  Subscriptions/SuggestedApps key deletion (value-off is reversible).
+- `DisableErrorReporting` +2 WER consent-policy values (ReviOS
+  privacy/wer.yml): `DefaultConsent=0` + `DefaultOverrideBehavior=1`.
+- `DisableTelemetry` — ReviOS privacy/app-compat/ceip diffs (~20
+  values): WerSvc outbound firewall block (alongside DiagTrack),
+  AppCompat `DisableEngine`/`DisableUAR`, CEIP stragglers (App-V,
+  Messenger, unattend SQM), EventViewer online links off,
+  `DisableHelpSticker`, handwriting error-report/data-sharing off,
+  web-printing channels off, Explorer online wizards off
+  (HKLM+per-user), Help&Support feedback channel off (per-user),
+  EdgeUI `DisableMFUTracking`, NVIDIA `OptInOrOutPreference=0`.
+- `DisableXboxServices` — neuter the Xbox GamingAI companion host's
+  WinRT activation (ActivationType=0xffffffff + empty Server; ReviOS
+  privacy.yml — stops GameAssist).
+  Skipped: `SbEnable`/`MSAOptional`/`NoGenTicket` (ambiguous or
+  activation-adjacent), XP-era dead targets (MovieMaker, ICW,
+  PCHealth, SearchCompanion), DiagTrack/WerSvc firewall *rule
+  injection* (registry FirewallRules writes — we block via
+  Get/Set-NetFirewallRule instead).
+- `DisableTelemetry` — ReviOS updates/ms-store diff: `WindowsStore`
+  `AutoDownload=4` + `DisableOSUpgrade=1`, `BlockedOobeUpdaters`
+  (OOBE Outlook push), `HideMCTLink`, WMP `DisableAutoUpdate`.
+  Skipped: `RestartNotificationsAllowed2`/`UpgradeAvailable`/
+  `ShippedWithReserves` (functional update behavior, not promo).
+- `BlockProvisioning` — ReviOS notifications.yml: mark second-chance
+  OOBE done (`ScoobeCheckCompleted`), tray balloon feature ads off
+  (`NoBalloonFeatureAdvertisements`/`NoAutoTrayNotify`, per-user),
+  `NoCloudApplicationNotification` (HKLM promo-toast channel).
+  Skipped: OOBE page-show/hide set, `UpdateNotificationLevel`, Office
+  ClickToRun tuning (functional/UX preferences).
+- Blacklist 152→156 — W4RH4WK Debloat-Windows-10 diff:
+  `A025C540.Yandex.Music` (RU-region preinstall),
+  `Microsoft.WindowsFeedback` (legacy Win10 feedback app),
+  `Microsoft.MicrosoftReadingList` (dead), `Microsoft.MSPaint`
+  (Paint 3D — deprecated UWP; classic paint.exe unaffected).
+  Skipped: `Microsoft.BioEnrollment` (Hello biometric enrollment —
+  system component), telemetry IP blocks (firewall IPs rot — we
+  block by hostname instead).
+  entries + Deprovisioned markers.
+
+- `RemoveWin32Programs`: new `_WIN32_BLOAT_NAMES`/`Win32BloatNames`
+  needle list (79 entries) merged into the Win32 DisplayName scan —
+  appx publisher prefixes never appear in DisplayName strings, so OEM
+  support-ware (`SupportAssist`, `HP Support Assistant`, `MyASUS`,
+  `Acer Collection`, `MSI Center`, `Armoury Crate`, `Nahimic`,
+  `Killer Intelligence`), PUA optimizers (`IObit`, `Advanced SystemCare`,
+  `Driver Booster`/`Easy`/`Tonic`, `SlimWare`, `Outbyte`, `Restoro`,
+  `PCRepair`, `TotalAV`, `ScanGuard`…), and the legacy adware/toolbar
+  canon (TronScript's programs_to_target_by_name: `Ask Toolbar`,
+  `Conduit`, `Wajam`, `Yontoo`, `OpenCandy`, `WildTangent`, `Big Fish`…)
+  are now covered. Vendor-bare names deliberately excluded — `HP` is a
+  substring of `Touchpad`.
+- Blacklist 120→140, diffed against TronScript's Metro app removal list
+  (bmrf/tron, 968 user-curated entries — only dead/promo/game-demo
+  Microsoft appx adopted; its 3rd-party list nukes user-installed
+  utilities like Rufus/QuickLook and stays out): `Microsoft.Advertising.
+  JavaScript`/`Xaml` (ad SDK frameworks), `ConnectivityStore` (carrier
+  commerce channel), `HelpAndTips`, `HoganThreshold` (OEM factory test),
+  `MicrosoftRewards`, `TreasureHunt`/`Jackpot`/`Jigsaw`/`Sudoku`/
+  `Mahjong`/`Studios.Wordament` (legacy game promos), `MovieMoments`,
+  `SkypeWiFi` (dead), `FeatureOnDemand.InsiderHub`, `ReadingList`,
+  `Zune` (subsumes former `ZuneMusic`/`ZuneVideo` entries), `FreshPaint`,
+  `MinecraftUWP`, `ForzaHorizon3Demo`/`ForzaMotorsport7Demo`, `BingMaps`.
+  Skipped: `BioEnrollment`/`Lucille`/`CBSPreview`/`ContactSupport`
+  (system/functional components), `PowerBIForWindows`/`StickyNotes`/
+  `Journal`/`DiagnosticDataViewer`/`SurfaceDiagnostics` (utilities),
+  language packs, `WorldNationalParks`/`FrenchRiviera` (theme packs).
+- `DisableMiscBloatServices` 46→47: `WSAIFabricSvc` (Windows AI Fabric —
+  Copilot+ AI API backend; demand-start, Win11Debloat
+  DisableAISvcAutoStart / winutil).
+- `DisableGameDvr`: `ms-gamebar`/`ms-gamebarservices` protocol hijack —
+  `NoOpenWith` + a dead handler command (`%SystemRoot%/System32/
+  systray.exe`) kills the "get Game Bar" popup games trigger when the
+  app is removed (Win11Debloat Disable_Game_Bar_Integration).
+- `BlockProvisioning`: `IsContinuousInnovationOptedIn=0` — opts out of
+  "get the latest updates ASAP" continuous-innovation feature drops
+  (winutil Disable_Update_ASAP).
+- `BlockOemDriverUpdates`: `DisableCoInstallers=1` on
+  `SOFTWARE\Microsoft\Windows\CurrentVersion\Device Installer` — blocks
+  vendor driver co-installers, the channel that seeds OEM companion apps
+  alongside driver packages (winutil).
+- `BlockProvisioning` per-user suggestions: `DoNewOutlookAutoMigration=0`
+  — stops the Mail/Calendar → "new Outlook" forced migration nudge
+  (winutil).
+- `DisableEdgeBloat`: `MicrosoftEdgeInsiderPromotionEnabled=0`,
+  `WalletDonationEnabled=0` (Insider/donation promos) and
+  `ConfigureDoNotTrack=1` (winutil Edge set).
+- Startup-bloat name list 14→32: promo suites + OEM utilities that
+  re-register autostart (`Teams`, `YourPhone`, `PhoneLink`, `Xbox`,
+  `EdgeUpdate`, `Armoury`, `Nahimic`), promo-installed third parties
+  (`Spotify`, `Opera`, `Adobe`, `iTunes` — markers stay re-enableable),
+  and PUA-tier optimizer/driver-updater vendors (`IObit`, `DriverBooster`,
+  `DriverEasy`, `SlimWare`, `Outbyte`, `Restoro`, `Wondershare`,
+  `PCHealth`).
+
+### Fixed
+- Whitelist 8→12: `Microsoft.Xbox.TCUI`, `Microsoft.XboxIdentityProvider`,
+  `Microsoft.XboxSpeechToTextOverlay`, `Microsoft.GetHelp` — the broad
+  `Microsoft.Xbox`/`Microsoft.GetHelp` blacklist prefixes would otherwise
+  remove them; Win11Debloat marks all four unsafe (breaks Store, Photos,
+  some games, and the accessibility overlay; GetHelp feeds
+  troubleshooters).
+- `Policies\Explorer\Run` autostart vector (HKLM + every user hive) —
+  entries Task Manager never lists and StartupApproved can't mark;
+  bloat matches are deleted with their data logged for manual restore.
+- Per-user-hive startup scan covered only the native `Run`/`RunOnce`
+  views; 32-bit installers can also register per-user autostart under
+  `HKCU\SOFTWARE\WOW6432Node\...\Run`/`RunOnce` (listed by Sysinternals
+  Autoruns). Both impls now scan those views in every user hive and mark
+  matches with the same StartupApproved 0x03 marker, with the peer-view
+  name-collision guard applied symmetrically.
+
+## [1.57.0-mvp] — startup-surface coverage
 
 ### Fixed
 - Startup-bloat scan missed the 32-bit `RunOnce` view
