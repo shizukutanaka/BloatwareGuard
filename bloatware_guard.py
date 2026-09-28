@@ -237,6 +237,14 @@ DEFAULT_BLACKLIST = [
     # paint.exe is a different binary and unaffected)
     "A025C540.Yandex.Music", "Microsoft.WindowsFeedback",
     "Microsoft.MicrosoftReadingList", "Microsoft.MSPaint",
+    # xd-AntiSpy DebloaterPlugin diff: OEM promo/collection stubs and
+    # third-party promo preinstalls (publisher-needle form — family names
+    # embed the vendor id so substring needles stay safe)
+    "HPJumpStart", "ASUSGiftBox", "AcerCollection",
+    "DellDigitalDelivery", "DellSupportAssist",
+    "GAMELOFTSA", "KhanAcademy", "AsanaInc.Asana", "Luminar",
+    "DropboxInc.Dropbox", "TripAdvisor", "Uber",
+    "WildTangent", "SaferVPN", "SymantecCorporation",
 ]
 
 

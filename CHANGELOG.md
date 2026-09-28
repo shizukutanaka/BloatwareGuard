@@ -17,6 +17,19 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   Teredo ipv6.microsoft.com, and WU/signon-capable live.com/Office pipes.
 - Telemetry tasks +1: `\Microsoft\Windows\Power Efficiency Diagnostics\AnalyzeSystem`
   (Winhance diff — diagnostic ETW collection task).
+- Blacklist 156→171 (xd-AntiSpy DebloaterPlugin.json diff): OEM promo/
+  collection stubs (`HPJumpStart`, `ASUSGiftBox`, `AcerCollection`,
+  `DellDigitalDelivery`, `DellSupportAssist`) + third-party promo
+  preinstalls (`GAMELOFTSA`, `KhanAcademy`, `AsanaInc.Asana`, `Luminar`,
+  `DropboxInc.Dropbox`, `TripAdvisor`, `Uber`, `WildTangent`, `SaferVPN`,
+  `SymantecCorporation`). Vendor-product needles, not bare vendor names —
+  the existing commented-out `HPInc.`/`DellInc.Dell`/`Lenovo.`/`ASUS`
+  prefixes stay opt-in. Skipped: `Apple`/`Adobe`/`Corel`/`Google`/`Amazon`
+  (legit-app publishers), single-word game names (`Farm`/`Heroes`/`Gears`/
+  `Tsum`/`Tetris` — substring-collision risk vs. non-promo packages),
+  Office apps + Calculator/Camera (functional), `BioEnrollment` (Windows
+  Hello biometrics), `Microsoft.Feedback` (Feedback Hub already covered),
+  classic UI toggles.
 - `DisableEdgeBloat` +3 values (xd-AntiSpy diff): `ImportOnEachLaunch=0`
   (Edge re-imports foreign browser data on every launch),
   `DefaultBrowserSettingEnabled=0` (set-default nag),

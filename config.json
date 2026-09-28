@@ -157,7 +157,22 @@
         "A025C540.Yandex.Music",
         "Microsoft.WindowsFeedback",
         "Microsoft.MicrosoftReadingList",
-        "Microsoft.MSPaint"
+        "Microsoft.MSPaint",
+        "HPJumpStart",
+        "ASUSGiftBox",
+        "AcerCollection",
+        "DellDigitalDelivery",
+        "DellSupportAssist",
+        "GAMELOFTSA",
+        "KhanAcademy",
+        "AsanaInc.Asana",
+        "Luminar",
+        "DropboxInc.Dropbox",
+        "TripAdvisor",
+        "Uber",
+        "WildTangent",
+        "SaferVPN",
+        "SymantecCorporation"
     ],
     "Whitelist": [
         "Microsoft.WindowsStore",

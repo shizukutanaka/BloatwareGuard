@@ -579,6 +579,13 @@ public static class ConfigLoader
                 // paint.exe)
                 "A025C540.Yandex.Music", "Microsoft.WindowsFeedback",
                 "Microsoft.MicrosoftReadingList", "Microsoft.MSPaint",
+                // xd-AntiSpy DebloaterPlugin diff: OEM promo stubs +
+                // third-party promo preinstalls (publisher-needle form)
+                "HPJumpStart", "ASUSGiftBox", "AcerCollection",
+                "DellDigitalDelivery", "DellSupportAssist",
+                "GAMELOFTSA", "KhanAcademy", "AsanaInc.Asana", "Luminar",
+                "DropboxInc.Dropbox", "TripAdvisor", "Uber",
+                "WildTangent", "SaferVPN", "SymantecCorporation",
 
                 // OEM utilities (uncomment as needed)
                 // "DellInc.Dell",
