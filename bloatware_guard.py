@@ -906,6 +906,9 @@ _MISC_DEMOTE_SERVICES = (
     # SNMP traps (dead), recommended-troubleshooting runner, cellular WWAN
     # (demand-start keeps LTE working)
     "SNMPTRAP", "TroubleshootingSvc", "WwanSvc", "WwanAuthSvc",
+    # Storage settings service + Offline Files (Client Side Caching —
+    # legacy enterprise sync, dead weight on consumer installs)
+    "StorSvc", "CscService",
 )
 
 
