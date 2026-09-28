@@ -1097,6 +1097,7 @@ public static class RegistryGuard
     private const string UserAccountNotificationsPath = @"Software\Microsoft\Windows\CurrentVersion\SystemSettings\AccountNotifications";
     private const string UserSuggestedToastPath = @"Software\Microsoft\Windows\CurrentVersion\Notifications\Settings\Windows.SystemToast.Suggested";
     private const string UserMobilityPath = @"Software\Microsoft\Windows\CurrentVersion\Mobility";
+    private const string UserOutlookMigrationPath = @"Software\Policies\Microsoft\Office\16.0\Outlook\Options\General";
     // Language-list leak to websites (documented in Sophia Script)
     private const string UserIntlProfilePath = @"Control Panel\International\User Profile";
     private const string UserPrivacyPoliciesPath = @"Software\Policies\Microsoft\Windows\Privacy";
@@ -1620,6 +1621,8 @@ public static class RegistryGuard
                 SetHiveDword(hive, UserAccountNotificationsPath, "EnableAccountNotifications", 0);
                 SetHiveDword(hive, UserSuggestedToastPath, "Enabled", 0);
                 SetHiveDword(hive, UserMobilityPath, "OptedIn", 0);
+                // Mail/Calendar -> "new Outlook" forced migration nudge (winutil)
+                SetHiveDword(hive, UserOutlookMigrationPath, "DoNewOutlookAutoMigration", 0);
             });
 
             GuardLogger.Info("Applied: BlockProvisioning (silent installs + all suggestion surfaces, all hives)");
@@ -2143,6 +2146,11 @@ public static class RegistryGuard
             key?.SetValue("DropEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("CryptoWalletEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("EdgeAssetDeliveryServiceEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // Insider-program promo + donation-wallet promos
+            key?.SetValue("MicrosoftEdgeInsiderPromotionEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("WalletDonationEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // Send the DoNotTrack header (harmless privacy signal)
+            key?.SetValue("ConfigureDoNotTrack", 1, Microsoft.Win32.RegistryValueKind.DWord);
             // Promo tabs + desktop web widget (feature/promo surfaces)
             key?.SetValue("PromotionalTabsEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("WebWidgetAllowed", 0, Microsoft.Win32.RegistryValueKind.DWord);
@@ -2508,7 +2516,12 @@ public static class RegistryGuard
             using var dsrch = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                 @"SOFTWARE\Microsoft\Windows\CurrentVersion\DriverSearching");
             dsrch?.SetValue("SearchOrderConfig", 0, Microsoft.Win32.RegistryValueKind.DWord);
-            GuardLogger.Info("Applied: BlockOemDriverUpdates (ExcludeWUDriversInQualityUpdate=1, SearchOrderConfig=0)");
+            // Vendor driver co-installers — the channel that seeds OEM
+            // companion apps alongside driver packages
+            using var coinst = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Microsoft\Windows\CurrentVersion\Device Installer");
+            coinst?.SetValue("DisableCoInstallers", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            GuardLogger.Info("Applied: BlockOemDriverUpdates (ExcludeWUDriversInQualityUpdate=1, SearchOrderConfig=0, DisableCoInstallers=1)");
         }
         catch (Exception ex)
         {

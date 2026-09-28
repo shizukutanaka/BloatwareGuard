@@ -732,6 +732,8 @@ _USER_ACCOUNT_NOTIFICATIONS = r"Software\Microsoft\Windows\CurrentVersion\System
 _USER_SUGGESTED_TOAST = (r"Software\Microsoft\Windows\CurrentVersion"
                          r"\Notifications\Settings\Windows.SystemToast.Suggested")
 _USER_MOBILITY = r"Software\Microsoft\Windows\CurrentVersion\Mobility"
+_USER_OUTLOOK_MIGRATION = (r"Software\Policies\Microsoft\Office\16.0"
+                           r"\Outlook\Options\General")
 _USER_ADVERTISING_INFO = r"Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo"
 _USER_PRIVACY = r"Software\Microsoft\Windows\CurrentVersion\Privacy"
 _USER_PRIVACY_POLICIES = r"Software\Policies\Microsoft\Windows\Privacy"
@@ -1045,6 +1047,8 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             w(_USER_ACCOUNT_NOTIFICATIONS, "EnableAccountNotifications", 0)
             w(_USER_SUGGESTED_TOAST, "Enabled", 0)
             w(_USER_MOBILITY, "OptedIn", 0)
+            # Mail/Calendar -> "new Outlook" forced migration nudge (winutil)
+            w(_USER_OUTLOOK_MIGRATION, "DoNewOutlookAutoMigration", 0)
 
         for_each_user_hive(_apply_suggestions, logger)
         logger.info("Applied: BlockProvisioning (silent installs + all suggestion surfaces, all hives)")
@@ -1353,8 +1357,13 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         # Drop syncs files to OneDrive; crypto wallet + asset delivery service
         # are promo/feature-download surfaces
         for name in ("DropEnabled", "CryptoWalletEnabled",
-                     "EdgeAssetDeliveryServiceEnabled"):
+                     "EdgeAssetDeliveryServiceEnabled",
+                     # Insider-program promo + donation-wallet promos
+                     "MicrosoftEdgeInsiderPromotionEnabled",
+                     "WalletDonationEnabled"):
             set_registry_dword("HKLM", edge_pol, name, 0)
+        # Send the DoNotTrack header (harmless privacy signal)
+        set_registry_dword("HKLM", edge_pol, "ConfigureDoNotTrack", 1)
         # Edge AI surface (zoicware/RemoveWindowsAI policy set): page-context
         # Copilot, inline compose, history AI search, generated themes,
         # DevTools AI (2 = disabled), browsing-history sharing with Copilot
@@ -1410,6 +1419,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_registry_dword("HKLM",
                            r"SOFTWARE\Microsoft\Windows\CurrentVersion\DriverSearching",
                            "SearchOrderConfig", 0)
+        # Vendor driver co-installers — the channel that seeds OEM
+        # companion apps alongside driver packages
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Microsoft\Windows\CurrentVersion\Device Installer",
+                           "DisableCoInstallers", 1)
         logger.info("Applied: BlockOemDriverUpdates "
                     "(ExcludeWUDriversInQualityUpdate=1)")
 

@@ -73,6 +73,16 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   Skipped: sovereign-cloud (`.us`), Azure-service, sandbox, and
   akadns/GLB load-balancer intermediate names.
 
+- `BlockOemDriverUpdates`: `DisableCoInstallers=1` on
+  `SOFTWARE\Microsoft\Windows\CurrentVersion\Device Installer` — blocks
+  vendor driver co-installers, the channel that seeds OEM companion apps
+  alongside driver packages (winutil).
+- `BlockProvisioning` per-user suggestions: `DoNewOutlookAutoMigration=0`
+  — stops the Mail/Calendar → "new Outlook" forced migration nudge
+  (winutil).
+- `DisableEdgeBloat`: `MicrosoftEdgeInsiderPromotionEnabled=0`,
+  `WalletDonationEnabled=0` (Insider/donation promos) and
+  `ConfigureDoNotTrack=1` (winutil Edge set).
 - Startup-bloat name list 14→32: promo suites + OEM utilities that
   re-register autostart (`Teams`, `YourPhone`, `PhoneLink`, `Xbox`,
   `EdgeUpdate`, `Armoury`, `Nahimic`), promo-installed third parties
