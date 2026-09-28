@@ -788,6 +788,10 @@ _USER_SUGGESTED_TOAST = (r"Software\Microsoft\Windows\CurrentVersion"
 _USER_MOBILITY = r"Software\Microsoft\Windows\CurrentVersion\Mobility"
 _USER_OUTLOOK_MIGRATION = (r"Software\Policies\Microsoft\Office\16.0"
                            r"\Outlook\Options\General")
+_USER_OUTLOOK_PREFERENCES = (r"Software\Policies\Microsoft\Office\16.0"
+                             r"\Outlook\Preferences")
+_USER_NOTIFICATION_SETTINGS = (r"Software\Microsoft\Windows\CurrentVersion"
+                               r"\Notifications\Settings")
 _USER_ADVERTISING_INFO = r"Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo"
 _USER_PRIVACY = r"Software\Microsoft\Windows\CurrentVersion\Privacy"
 _USER_PRIVACY_POLICIES = r"Software\Policies\Microsoft\Windows\Privacy"
@@ -1113,6 +1117,15 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             w(_USER_MOBILITY, "OptedIn", 0)
             # Mail/Calendar -> "new Outlook" forced migration nudge (winutil)
             w(_USER_OUTLOOK_MIGRATION, "DoNewOutlookAutoMigration", 0)
+            # Classic-Outlook "try new Outlook" toggle + migration prompt
+            # off (privacy.sexy; same migration surface, Office-side)
+            w(_USER_OUTLOOK_MIGRATION, "HideNewOutlookToggle", 1)
+            w(_USER_OUTLOOK_PREFERENCES, "NewOutlookMigrationUserSetting", 0)
+            # Cross-device experiences consent (Phone Link channel) +
+            # Search highlights/dynamic content (privacy.sexy)
+            w(_USER_MOBILITY, "CrossDeviceEnabled", 0)
+            w(_USER_SEARCH_SETTINGS, "SafeSearchMode", 0)
+            w(_USER_SEARCH_SETTINGS, "ShowDynamicContent", 0)
         # Block Chat/Teams consumer auto-install at the documented
         # channel (Atlas appx.yml — complements Teams DisableInstallation)
         set_registry_dword(
@@ -1163,6 +1176,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_user_dword_all_hives(_USER_SHELL_COPILOT_BINGCHAT, "IsUserEligible", 0, logger)
         # Copilot voice-agent activation off (all user hives)
         set_user_dword_all_hives(_USER_VOICE_ACTIVATION, "AgentActivationEnabled", 0, logger)
+        # Copilot auto-open on large screens (notification channel,
+        # privacy.sexy) — per-user
+        set_user_dword_all_hives(_USER_NOTIFICATION_SETTINGS, "AutoOpenCopilotLargeScreens", 0, logger)
         for vid, state in _VELOCITY_COPILOT_IDS:
             set_registry_dword("HKLM", _VELOCITY_PATH + "\\" + vid,
                                "EnabledState", state)

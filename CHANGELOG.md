@@ -107,6 +107,15 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   `CanonicalGroupLimited.UbuntuonWindows` (functional WSL distro),
   `Microsoft.RemoteDesktop`/OneNote (utilities), and entries already
   covered by `KING.COM.`/`Microsoft.Zune`/`Microsoft.Xbox` prefixes.
+- privacy.sexy corpus diff (934 registry paths / 123 value names — most
+  out of scope: WU deferral, SCHANNEL/SMB hardening, DeviceGuard,
+  Office-internals, UI prefs). Adopted in-scope adds: per-hive
+  `HideNewOutlookToggle=1` + `NewOutlookMigrationUserSetting=0`
+  (classic-Outlook migration surface, Office-side sibling of
+  `DoNewOutlookAutoMigration`), `CrossDeviceEnabled=0` (cross-device
+  consent on Mobility), `SafeSearchMode=0` + `ShowDynamicContent=0`
+  (Search highlights/dynamic content), and `DisableCopilot` per-hive
+  `AutoOpenCopilotLargeScreens=0` (Copilot auto-open channel).
 
 - `RemoveWin32Programs`: new `_WIN32_BLOAT_NAMES`/`Win32BloatNames`
   needle list (79 entries) merged into the Win32 DisplayName scan —

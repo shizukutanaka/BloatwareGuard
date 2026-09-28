@@ -1150,6 +1150,8 @@ public static class RegistryGuard
     private const string UserSuggestedToastPath = @"Software\Microsoft\Windows\CurrentVersion\Notifications\Settings\Windows.SystemToast.Suggested";
     private const string UserMobilityPath = @"Software\Microsoft\Windows\CurrentVersion\Mobility";
     private const string UserOutlookMigrationPath = @"Software\Policies\Microsoft\Office\16.0\Outlook\Options\General";
+    private const string UserOutlookPreferencesPath = @"Software\Policies\Microsoft\Office\16.0\Outlook\Preferences";
+    private const string UserNotificationSettingsPath = @"Software\Microsoft\Windows\CurrentVersion\Notifications\Settings";
     // Language-list leak to websites (documented in Sophia Script)
     private const string UserIntlProfilePath = @"Control Panel\International\User Profile";
     private const string UserPrivacyPoliciesPath = @"Software\Policies\Microsoft\Windows\Privacy";
@@ -1685,6 +1687,14 @@ public static class RegistryGuard
                 SetHiveDword(hive, UserMobilityPath, "OptedIn", 0);
                 // Mail/Calendar -> "new Outlook" forced migration nudge (winutil)
                 SetHiveDword(hive, UserOutlookMigrationPath, "DoNewOutlookAutoMigration", 0);
+                // Classic-Outlook "try new Outlook" toggle + migration
+                // prompt off (privacy.sexy; same surface, Office-side)
+                SetHiveDword(hive, UserOutlookMigrationPath, "HideNewOutlookToggle", 1);
+                SetHiveDword(hive, UserOutlookPreferencesPath, "NewOutlookMigrationUserSetting", 0);
+                // Cross-device experiences consent + Search highlights
+                SetHiveDword(hive, UserMobilityPath, "CrossDeviceEnabled", 0);
+                SetHiveDword(hive, UserSearchSettingsPath, "SafeSearchMode", 0);
+                SetHiveDword(hive, UserSearchSettingsPath, "ShowDynamicContent", 0);
             });
 
             // "Get the latest updates as soon as they're available" opt-in
@@ -1755,6 +1765,9 @@ public static class RegistryGuard
             SetUserDwordAllHives(UserShellCopilotPath + @"\BingChat", "IsUserEligible", 0);
             // Copilot voice-agent activation off (all user hives)
             SetUserDwordAllHives(UserVoiceActivationPath, "AgentActivationEnabled", 0);
+            // Copilot auto-open on large screens (notification channel,
+            // privacy.sexy) — per-user
+            SetUserDwordAllHives(UserNotificationSettingsPath, "AutoOpenCopilotLargeScreens", 0);
             foreach (var (id, state) in VelocityCopilotIds)
                 SetHiveDword(Microsoft.Win32.Registry.LocalMachine,
                              VelocityOverridesPath + @"\" + id, "EnabledState", state);
