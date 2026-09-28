@@ -19,6 +19,11 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   (Winhance diff — diagnostic ETW collection task).
 
 ### Fixed
+- `ScanIntervalSeconds` was unvalidated: `0`/negative values would spin the
+  service loop (`time.sleep(0)` busy-loop in Python, `Task.Delay` range
+  exception in C#) and non-numeric values crashed the Python loop. Both
+  impls now clamp to a 60s floor with a warning (non-numeric falls back to
+  the 300s default).
 - `--uninstall`/`uninstall` left the tool-owned hosts block behind forever —
   a deleted tool permanently null-routing 109 telemetry/ad domains with no
   removal path. Uninstall now strips the marked block before returning

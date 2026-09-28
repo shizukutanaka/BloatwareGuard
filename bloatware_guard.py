@@ -2778,7 +2778,17 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
 
 def run_service(config: dict, logger: logging.Logger):
     """Run as a persistent background process."""
-    interval = config.get("ScanIntervalSeconds", 300)
+    try:
+        interval = int(config.get("ScanIntervalSeconds", 300))
+    except (TypeError, ValueError):
+        interval = 300
+    # Each scan spawns real work — clamp a zero/negative/garbage interval to
+    # a floor instead of letting it spin or crash the service loop.
+    if interval < 60:
+        logger.warning(
+            f"ScanIntervalSeconds={config.get('ScanIntervalSeconds')!r} invalid"
+            " — clamped to 60s minimum")
+        interval = 60
     prev = config.get("Prevention", {})
     blacklist = config.get("Blacklist", [])
     whitelist = config.get("Whitelist", [])

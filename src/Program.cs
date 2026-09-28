@@ -3590,6 +3590,13 @@ public class GuardService : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         GuardLogger.Info("=== BloatwareGuard Service Started ===");
+        // Each scan spawns real work — clamp a zero/negative interval to a
+        // floor instead of letting it spin or crash Task.Delay.
+        if (_config.ScanIntervalSeconds < 60)
+        {
+            GuardLogger.Warn($"ScanIntervalSeconds={_config.ScanIntervalSeconds} invalid — clamped to 60s minimum");
+            _config.ScanIntervalSeconds = 60;
+        }
         GuardLogger.Info($"Scan interval: {_config.ScanIntervalSeconds}s");
         GuardLogger.Info($"Blacklist entries: {_config.Blacklist.Count}");
 
