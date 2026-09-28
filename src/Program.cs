@@ -416,7 +416,17 @@ public static class ConfigLoader
         }
 
         var json = File.ReadAllText(path);
-        var config = JsonSerializer.Deserialize(json, GuardJsonContext.Default.GuardConfig);
+        GuardConfig? config = null;
+        try
+        {
+            config = JsonSerializer.Deserialize(json, GuardJsonContext.Default.GuardConfig);
+        }
+        catch (JsonException ex)
+        {
+            // Fall back to defaults WITHOUT overwriting the file — the
+            // operator can repair their edits; a blind rewrite would lose them.
+            GuardLogger.Warn($"config.json malformed ({ex.Message}) — running with defaults; fix or delete the file");
+        }
 
         return config ?? CreateDefault();
     }

@@ -321,7 +321,24 @@ def load_config(path: Path) -> dict:
         return config
 
     # utf-8-sig tolerates a BOM (Notepad saves UTF-8 with BOM by default)
-    return json.loads(path.read_text(encoding="utf-8-sig"))
+    try:
+        config = json.loads(path.read_text(encoding="utf-8-sig"))
+    except json.JSONDecodeError as e:
+        config = None
+        reason = str(e)
+    else:
+        reason = None
+        if not isinstance(config, dict):
+            config = None
+            reason = "top level is not an object"
+    if config is None:
+        # Fall back to defaults WITHOUT overwriting the file — the operator
+        # can repair their edits; a blind rewrite would lose them.
+        print(f"config.json malformed ({reason}) — running with defaults; "
+              "fix or delete the file", file=sys.stderr)
+        with tempfile.TemporaryDirectory() as td:
+            return load_config(Path(td) / "config.json")
+    return config
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────

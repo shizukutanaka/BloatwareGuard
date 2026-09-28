@@ -5,6 +5,11 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.58.2-mvp: verify scripts cover the new layers
 
 ### Fixed
+- Malformed `config.json` no longer crashes the tool (both impls):
+  `json.loads`/`JsonSerializer.Deserialize` failures and non-object top
+  levels now warn and run with defaults — the broken file is left in
+  place for repair instead of being silently rewritten (which would lose
+  the operator's edits).
 - `verify_scan.ps1` / `verify_scan_sys.ps1` extended to the surfaces added
   since they were written: before/after snapshots now include
   `Deprovisioned` registry markers, CEIP + Autochk telemetry task states,
