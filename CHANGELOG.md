@@ -73,6 +73,21 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   Skipped: sovereign-cloud (`.us`), Azure-service, sandbox, and
   akadns/GLB load-balancer intermediate names.
 
+- Blacklist 120→140, diffed against TronScript's Metro app removal list
+  (bmrf/tron, 968 user-curated entries — only dead/promo/game-demo
+  Microsoft appx adopted; its 3rd-party list nukes user-installed
+  utilities like Rufus/QuickLook and stays out): `Microsoft.Advertising.
+  JavaScript`/`Xaml` (ad SDK frameworks), `ConnectivityStore` (carrier
+  commerce channel), `HelpAndTips`, `HoganThreshold` (OEM factory test),
+  `MicrosoftRewards`, `TreasureHunt`/`Jackpot`/`Jigsaw`/`Sudoku`/
+  `Mahjong`/`Studios.Wordament` (legacy game promos), `MovieMoments`,
+  `SkypeWiFi` (dead), `FeatureOnDemand.InsiderHub`, `ReadingList`,
+  `Zune` (subsumes former `ZuneMusic`/`ZuneVideo` entries), `FreshPaint`,
+  `MinecraftUWP`, `ForzaHorizon3Demo`/`ForzaMotorsport7Demo`, `BingMaps`.
+  Skipped: `BioEnrollment`/`Lucille`/`CBSPreview`/`ContactSupport`
+  (system/functional components), `PowerBIForWindows`/`StickyNotes`/
+  `Journal`/`DiagnosticDataViewer`/`SurfaceDiagnostics` (utilities),
+  language packs, `WorldNationalParks`/`FrenchRiviera` (theme packs).
 - `DisableMiscBloatServices` 46→47: `WSAIFabricSvc` (Windows AI Fabric —
   Copilot+ AI API backend; demand-start, Win11Debloat
   DisableAISvcAutoStart / winutil).

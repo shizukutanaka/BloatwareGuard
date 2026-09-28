@@ -79,8 +79,7 @@ DEFAULT_BLACKLIST = [
     "Microsoft.MicrosoftSolitaireCollection",
     "Microsoft.People",
     "Microsoft.WindowsMaps",
-    "Microsoft.ZuneMusic",
-    "Microsoft.ZuneVideo",
+    "Microsoft.Zune",
     "Microsoft.YourPhone",
     "Microsoft.MicrosoftOfficeHub",
     "Microsoft.SkypeApp",
@@ -203,6 +202,19 @@ DEFAULT_BLACKLIST = [
     # family was listed before)
     "Microsoft.M365Companions",
     "Facebook.Instagram",
+    # TronScript Metro diff — dead/promo/game-demo Microsoft appx
+    "Microsoft.Advertising.JavaScript", "Microsoft.Advertising.Xaml",
+    "Microsoft.ConnectivityStore", "Microsoft.HelpAndTips",
+    "Microsoft.HoganThreshold", "Microsoft.MicrosoftRewards",
+    "Microsoft.MicrosoftTreasureHunt", "Microsoft.MicrosoftJackpot",
+    "Microsoft.MicrosoftJigsaw", "Microsoft.MicrosoftSudoku",
+    "Microsoft.MicrosoftMahjong", "Microsoft.Studios.Wordament",
+    "Microsoft.MovieMoments", "Microsoft.SkypeWiFi",
+    "Microsoft.Windows.FeatureOnDemand.InsiderHub",
+    "Microsoft.WindowsReadingList",
+    "Microsoft.FreshPaint", "Microsoft.MinecraftUWP",
+    "Microsoft.ForzaHorizon3Demo", "Microsoft.ForzaMotorsport7Demo",
+    "Microsoft.BingMaps",
 ]
 
 
