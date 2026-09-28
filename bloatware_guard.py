@@ -1339,11 +1339,12 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         # task and WER hosts are already covered elsewhere)
         run_cmd(["sc.exe", "stop", "WerSvc"], timeout=15)
         run_cmd(["sc.exe", "config", "WerSvc", "start=", "disabled"], timeout=15)
-        # Block the "Unified Telemetry Client Outbound Traffic" firewall
-        # rules — DiagTrack can't upload even if something re-enables it.
+        # Block the outbound firewall rules for the telemetry/error-report
+        # services — neither can upload even if something re-enables them.
         run_powershell(
-            "Get-NetFirewallRule -Group DiagTrack -ErrorAction Ignore "
-            "| Set-NetFirewallRule -Enabled True -Action Block", timeout=60)
+            "'DiagTrack','WerSvc' | % { Get-NetFirewallRule -Group $_ "
+            "-ErrorAction Ignore | Set-NetFirewallRule -Enabled True "
+            "-Action Block }", timeout=60)
         # ETW AutoLogger feeding DiagTrack — Start=0 kills the boot-time trace
         set_registry_dword(
             "HKLM",
@@ -1369,6 +1370,40 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         # Application Compatibility Inventory collector (app inventory
         # telemetry) — classic Win10-Initial-Setup hardening
         set_registry_dword("HKLM", appc, "DisableInventory", 1)
+        # AppCompat engine + User-Access-Reporting off (ReviOS app-compat.yml)
+        set_registry_dword("HKLM", appc, "DisableEngine", 1)
+        set_registry_dword("HKLM", appc, "DisableUAR", 1)
+        # CEIP stragglers: App-V, Messenger client, unattend SQM
+        # (ReviOS ceip.yml)
+        set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\AppV\CEIP",
+                           "CEIPEnable", 0)
+        set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Messenger\Client",
+                           "CEIP", 2)
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\UnattendSettings\SQMClient",
+                           "CEIPEnabled", 0)
+        # Event Viewer "more information online" links (ReviOS ceip.yml)
+        set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\EventViewer",
+                           "MicrosoftEventVwrDisableLinks", 1)
+        # Help-sticker hand raises + EdgeUI tracking (ReviOS privacy.yml)
+        edgeui = r"SOFTWARE\Policies\Microsoft\Windows\EdgeUI"
+        set_registry_dword("HKLM", edgeui, "DisableHelpSticker", 1)
+        # Handwriting error reports + data sharing (ReviOS privacy.yml)
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Policies\Microsoft\Windows\HandwritingErrorReports",
+                           "PreventHandwritingErrorReports", 1)
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Policies\Microsoft\Windows\TabletPC",
+                           "PreventHandwritingDataSharing", 1)
+        # Web printing channels (ReviOS privacy.yml)
+        printers = r"SOFTWARE\Policies\Microsoft\Windows NT\Printers"
+        set_registry_dword("HKLM", printers, "DisableHTTPPrinting", 1)
+        set_registry_dword("HKLM", printers, "DisableWebPnPDownload", 1)
+        # Explorer online wizards (ReviOS privacy.yml; HKLM + per-user below)
+        exp_pol = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer"
+        for v in ("NoOnlinePrintsWizard", "NoPublishingWizard",
+                  "NoWebServices"):
+            set_registry_dword("HKLM", exp_pol, v, 1)
         # Skip the OOBE privacy pages — every policy they gate is denied
         set_registry_dword("HKLM",
                            r"SOFTWARE\Microsoft\Windows\CurrentVersion\OOBE",
@@ -1435,6 +1470,23 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         # Nearby Share consent — same CDP auth-policy family
         set_user_dword_all_hives(cdp + r"\SettingsPage",
                                  "NearShareChannelUserAuthzPolicy", 0, logger)
+        # Per-user policy stragglers (ReviOS privacy.yml): Explorer online
+        # wizards, Help & Support feedback channel, EdgeUI MFU tracking,
+        # NVIDIA CEIP opt-out
+        user_exp = r"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer"
+        for v in ("NoOnlinePrintsWizard", "NoPublishingWizard",
+                  "NoWebServices"):
+            set_user_dword_all_hives(user_exp, v, 1, logger)
+        assist = r"Software\Policies\Microsoft\Assistance\Client\1.0"
+        for v in ("NoExplicitFeedback", "NoImplicitFeedback",
+                  "NoOnlineAssist"):
+            set_user_dword_all_hives(assist, v, 1, logger)
+        set_user_dword_all_hives(
+            r"Software\Policies\Microsoft\Windows\EdgeUI",
+            "DisableMFUTracking", 1, logger)
+        set_user_dword_all_hives(
+            r"Software\NVIDIA Corporation\NVControlPanel2\Client",
+            "OptInOrOutPreference", 0, logger)
         logger.info("Applied: DisableTelemetry (AllowTelemetry=0, DiagTrack off, "
                     "privacy surfaces set)")
 
@@ -1691,6 +1743,14 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         for svc in ("XblAuthManager", "XblGameSave",
                     "XboxNetApiSvc", "XboxGipSvc"):
             demote_service(svc)
+        # Neuter the Xbox GamingAI companion host's WinRT activation —
+        # ActivationType=0xffffffff + empty Server stops GameAssist
+        # (ReviOS privacy.yml)
+        gai = (r"SOFTWARE\Microsoft\WindowsRuntime\ActivatableClassId"
+               r"\Microsoft.Xbox.GamingAI.Companion.Host."
+               r"GamingCompanionHostOptions")
+        set_registry_dword("HKLM", gai, "ActivationType", 0xFFFFFFFF)
+        set_registry_string("HKLM", gai, "Server", "")
         logger.info("Applied: DisableXboxServices (4 services -> demand-start)")
 
     if prev.get("DisableMiscBloatServices", True):

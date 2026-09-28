@@ -163,6 +163,22 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   Subscriptions/SuggestedApps key deletion (value-off is reversible).
 - `DisableErrorReporting` +2 WER consent-policy values (ReviOS
   privacy/wer.yml): `DefaultConsent=0` + `DefaultOverrideBehavior=1`.
+- `DisableTelemetry` — ReviOS privacy/app-compat/ceip diffs (~20
+  values): WerSvc outbound firewall block (alongside DiagTrack),
+  AppCompat `DisableEngine`/`DisableUAR`, CEIP stragglers (App-V,
+  Messenger, unattend SQM), EventViewer online links off,
+  `DisableHelpSticker`, handwriting error-report/data-sharing off,
+  web-printing channels off, Explorer online wizards off
+  (HKLM+per-user), Help&Support feedback channel off (per-user),
+  EdgeUI `DisableMFUTracking`, NVIDIA `OptInOrOutPreference=0`.
+- `DisableXboxServices` — neuter the Xbox GamingAI companion host's
+  WinRT activation (ActivationType=0xffffffff + empty Server; ReviOS
+  privacy.yml — stops GameAssist).
+  Skipped: `SbEnable`/`MSAOptional`/`NoGenTicket` (ambiguous or
+  activation-adjacent), XP-era dead targets (MovieMaker, ICW,
+  PCHealth, SearchCompanion), DiagTrack/WerSvc firewall *rule
+  injection* (registry FirewallRules writes — we block via
+  Get/Set-NetFirewallRule instead).
   entries + Deprovisioned markers.
 
 - `RemoveWin32Programs`: new `_WIN32_BLOAT_NAMES`/`Win32BloatNames`

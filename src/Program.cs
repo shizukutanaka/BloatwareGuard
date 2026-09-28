@@ -1996,7 +1996,7 @@ public static class RegistryGuard
                 var fpsi = new ProcessStartInfo
                 {
                     FileName = "powershell.exe",
-                    Arguments = "-NoProfile -ExecutionPolicy Bypass -Command \"Get-NetFirewallRule -Group DiagTrack -ErrorAction Ignore | Set-NetFirewallRule -Enabled True -Action Block\"",
+                    Arguments = "-NoProfile -ExecutionPolicy Bypass -Command \"'DiagTrack','WerSvc' | % { Get-NetFirewallRule -Group $_ -ErrorAction Ignore | Set-NetFirewallRule -Enabled True -Action Block }\"",
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
@@ -2075,6 +2075,47 @@ public static class RegistryGuard
                 ac?.SetValue("DisablePCA", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 // Application Compatibility Inventory collector
                 ac?.SetValue("DisableInventory", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // AppCompat engine + User-Access-Reporting off
+                // (ReviOS app-compat.yml)
+                ac?.SetValue("DisableEngine", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                ac?.SetValue("DisableUAR", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            catch { }
+            // CEIP stragglers + EventViewer online links + help-sticker +
+            // handwriting reporting + web printing + Explorer online
+            // wizards (ReviOS ceip.yml / privacy.yml)
+            try
+            {
+                using var appv = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\AppV\CEIP");
+                appv?.SetValue("CEIPEnable", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                using var msgr = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Messenger\Client");
+                msgr?.SetValue("CEIP", 2, Microsoft.Win32.RegistryValueKind.DWord);
+                using var usqm = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\UnattendSettings\SQMClient");
+                usqm?.SetValue("CEIPEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                using var evw = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\EventViewer");
+                evw?.SetValue("MicrosoftEventVwrDisableLinks", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                using var eui = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\EdgeUI");
+                eui?.SetValue("DisableHelpSticker", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                using var hw = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\HandwritingErrorReports");
+                hw?.SetValue("PreventHandwritingErrorReports", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                using var tp = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\TabletPC");
+                tp?.SetValue("PreventHandwritingDataSharing", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                using var pr = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows NT\Printers");
+                pr?.SetValue("DisableHTTPPrinting", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                pr?.SetValue("DisableWebPnPDownload", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                using var ep = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer");
+                ep?.SetValue("NoOnlinePrintsWizard", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                ep?.SetValue("NoPublishingWizard", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                ep?.SetValue("NoWebServices", 1, Microsoft.Win32.RegistryValueKind.DWord);
             }
             catch { }
             // Skip the OOBE privacy pages — every policy they gate is already
@@ -2148,6 +2189,19 @@ public static class RegistryGuard
             SetUserDwordAllHives(
                 @"Software\Microsoft\Windows\CurrentVersion\CDP\SettingsPage",
                 "NearShareChannelUserAuthzPolicy", 0);
+            // Per-user policy stragglers (ReviOS privacy.yml)
+            foreach (var v in new[] { "NoOnlinePrintsWizard", "NoPublishingWizard", "NoWebServices" })
+                SetUserDwordAllHives(
+                    @"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer", v, 1);
+            foreach (var v in new[] { "NoExplicitFeedback", "NoImplicitFeedback", "NoOnlineAssist" })
+                SetUserDwordAllHives(
+                    @"Software\Policies\Microsoft\Assistance\Client\1.0", v, 1);
+            SetUserDwordAllHives(
+                @"Software\Policies\Microsoft\Windows\EdgeUI",
+                "DisableMFUTracking", 1);
+            SetUserDwordAllHives(
+                @"Software\NVIDIA Corporation\NVControlPanel2\Client",
+                "OptInOrOutPreference", 0);
 
             GuardLogger.Info("Applied: DisableTelemetry (AllowTelemetry=0, DiagTrack off, privacy surfaces set)");
         }
@@ -2659,6 +2713,17 @@ public static class RegistryGuard
             {
                 DemoteService(svc);
             }
+            // Neuter the Xbox GamingAI companion host's WinRT activation
+            // — ActivationType=0xffffffff + empty Server stops GameAssist
+            // (ReviOS privacy.yml)
+            try
+            {
+                using var gai = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Microsoft\WindowsRuntime\ActivatableClassId\Microsoft.Xbox.GamingAI.Companion.Host.GamingCompanionHostOptions");
+                gai?.SetValue("ActivationType", unchecked((int)0xFFFFFFFF), Microsoft.Win32.RegistryValueKind.DWord);
+                gai?.SetValue("Server", "", Microsoft.Win32.RegistryValueKind.String);
+            }
+            catch { }
             GuardLogger.Info("Applied: DisableXboxServices (4 services → demand-start)");
         }
         catch (Exception ex)
