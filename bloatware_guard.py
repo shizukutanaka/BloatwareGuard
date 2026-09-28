@@ -191,6 +191,18 @@ DEFAULT_BLACKLIST = [
     "WinZipUniversal",
     "flaregamesGmbH.RoyalRevolt",
     "iHeartRadio",
+    # OEM vendor appx bundles — entire publisher prefixes: all 21 HP apps
+    # (SupportAssistant, JumpStarts, QuickDrop, PowerManager, Welcome,
+    # myHP, SureShieldAI, ...), all three Dell apps, both Lenovo entries
+    # (Win11Debloat "optional" removals — consumer promo/support-ware)
+    "AD2F1837.",
+    "DellInc.",
+    "E046963F.LenovoCompanion",
+    "LenovoCompanyLimited.LenovoVantageService",
+    # M365 companion suite promo (24H2) + stable Instagram (only the Beta
+    # family was listed before)
+    "Microsoft.M365Companions",
+    "Facebook.Instagram",
 ]
 
 

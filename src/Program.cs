@@ -540,6 +540,15 @@ public static class ConfigLoader
                 "PolarrPhotoEditorAcademicEdition", "Sidia.LiveWallpaper",
                 "SlingTV", "TuneInRadio", "WinZipUniversal",
                 "flaregamesGmbH.RoyalRevolt", "iHeartRadio",
+                // OEM vendor appx bundles — publisher prefixes: 21 HP apps,
+                // 3 Dell apps, 2 Lenovo entries (Win11Debloat optional)
+                "AD2F1837.",
+                "DellInc.",
+                "E046963F.LenovoCompanion",
+                "LenovoCompanyLimited.LenovoVantageService",
+                // M365 companion suite promo (24H2) + stable Instagram
+                "Microsoft.M365Companions",
+                "Facebook.Instagram",
 
                 // OEM utilities (uncomment as needed)
                 // "DellInc.Dell",

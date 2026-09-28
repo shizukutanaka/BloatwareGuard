@@ -18,6 +18,15 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   (exclusion policy), `MicrosoftPowerBIForWindows` (business tool),
   `XP9CXNGPPJ97XX` (WebExperiencePack — breaks Widgets; the toggle
   already covers it), `COOKINGFEVER` (covered by `Nordcurrent`).
+- 6 blacklist entries (114→120) from the Recommendation-field pass: OEM
+  publisher prefixes `AD2F1837.` (all 21 HP appx bundles), `DellInc.`
+  (3 apps), `E046963F.LenovoCompanion`, `LenovoCompanyLimited.
+  LenovoVantageService`, plus `Microsoft.M365Companions` (24H2 promo)
+  and `Facebook.Instagram` (stable — only the Beta family was listed).
+  Skipped: `LGElectronics.LGMonitorApp` (functional monitor utility),
+  Paint/Calculator/Camera/Notepad/RemoteDesktop/OneDrive/
+  StartExperiencesApp/WidgetsPlatformRuntime (utilities or components,
+  not bloat; Calculator/Notepad already whitelisted anyway).
 - New opt-in layer `DisableModernStandbyNetworking` (46th toggle, default
   false): ConnectivityInStandby power policy (`AC/DCSettingIndex=0`) —
   severs network during Modern Standby, stopping background sync/telemetry
