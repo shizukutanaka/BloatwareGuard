@@ -1224,9 +1224,17 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "-NoRestart -ErrorAction SilentlyContinue | Out-Null", timeout=120)
         # AI fabric service: 2=auto, 3=demand. Absent without NPU/Copilot+ hardware.
         demote_service("WSAIFabricSvc")
+        # 25H2 AI platform event-log channels off (RemoveWindowsAI —
+        # ModelContextProtocol + AI-Platform admin/operational logs)
+        for chan in ("Microsoft-Windows-AI-ModelContextProtocol/Admin",
+                     "Microsoft-Windows-AI-ModelContextProtocol/Operational",
+                     "Microsoft-Windows-AI-Platform/Admin",
+                     "Microsoft-Windows-AI-Platform/Operational"):
+            run_cmd(["wevtutil", "sl", chan, "/e:false"], timeout=15)
         logger.info("Applied: DisableRecall (WindowsAI+SettingsAgent policies, "
                     "Paint/Notepad AI off, Click to Do off, Recall feature "
-                    "removal attempted, WSAIFabricSvc=demand)")
+                    "removal attempted, WSAIFabricSvc=demand, AI event-log "
+                    "channels off)")
 
     if prev.get("DisableSearchSuggestions", True):
         search_pol = r"SOFTWARE\Policies\Microsoft\Windows\Windows Search"
@@ -2382,6 +2390,11 @@ TELEMETRY_TASK_PATHS = (
     "\\Microsoft\\Windows\\PI\\Sqm-Tasks",
     "\\Microsoft\\Windows\\DiskDiagnostic\\Microsoft-Windows-DiskDiagnosticResolver",
     "\\Microsoft\\Windows\\Maintenance\\WinSAT",
+    # WindowsAI Recall snapshot configuration tasks + Office AI Actions
+    # server (zoicware/RemoveWindowsAI task set)
+    "\\Microsoft\\Windows\\WindowsAI\\Recall\\InitialConfiguration",
+    "\\Microsoft\\Windows\\WindowsAI\\Recall\\PolicyConfiguration",
+    "\\Microsoft\\Office\\Office Actions Server",
 )
 
 

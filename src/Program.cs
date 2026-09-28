@@ -1843,7 +1843,16 @@ public static class RegistryGuard
             };
             Proc.Wait(psi, 120000);
 
-            GuardLogger.Info("Applied: DisableRecall (WindowsAI+SettingsAgent policies, Paint/Notepad AI off, Click to Do off, Recall feature removal attempted, WSAIFabricSvc=demand)");
+            // 25H2 AI platform event-log channels off (RemoveWindowsAI —
+            // ModelContextProtocol + AI-Platform admin/operational logs)
+            foreach (var chan in new[] {
+                "Microsoft-Windows-AI-ModelContextProtocol/Admin",
+                "Microsoft-Windows-AI-ModelContextProtocol/Operational",
+                "Microsoft-Windows-AI-Platform/Admin",
+                "Microsoft-Windows-AI-Platform/Operational" })
+                RunToolSilent("wevtutil", $"sl {chan} /e:false");
+
+            GuardLogger.Info("Applied: DisableRecall (WindowsAI+SettingsAgent policies, Paint/Notepad AI off, Click to Do off, Recall feature removal attempted, WSAIFabricSvc=demand, AI event-log channels off)");
         }
         catch (Exception ex)
         {
@@ -3267,6 +3276,11 @@ public static class ScheduledTaskGuard
         @"\Microsoft\Windows\PI\Sqm-Tasks",
         @"\Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticResolver",
         @"\Microsoft\Windows\Maintenance\WinSAT",
+        // WindowsAI Recall snapshot configuration tasks + Office AI
+        // Actions server (zoicware/RemoveWindowsAI task set)
+        @"\Microsoft\Windows\WindowsAI\Recall\InitialConfiguration",
+        @"\Microsoft\Windows\WindowsAI\Recall\PolicyConfiguration",
+        @"\Microsoft\Office\Office Actions Server",
     };
 
     /// <summary>Disable the known Microsoft telemetry/CEIP scheduled tasks.</summary>

@@ -122,6 +122,12 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   `XINGAG.XING` (promo preinstalls). Skipped: `PowerBIForWindows`
   (business tool) and `CAF9E577.Plex` (functional app removed by only
   that list). Its other ~90 names are covered by existing prefixes.
+- Telemetry tasks 58→61 (zoicware/RemoveWindowsAI task set): Recall
+  snapshot tasks `WindowsAI\Recall\InitialConfiguration` +
+  `PolicyConfiguration` and `\Microsoft\Office\Office Actions Server`
+  (Office AI Actions). `DisableRecall` also now silences the four 25H2
+  AI-platform event-log channels (`Microsoft-Windows-AI-ModelContext
+  Protocol` + `AI-Platform`, admin + operational).
 
 - `RemoveWin32Programs`: new `_WIN32_BLOAT_NAMES`/`Win32BloatNames`
   needle list (79 entries) merged into the Win32 DisplayName scan —
