@@ -30,7 +30,7 @@ also apply correctly when the tool runs as a SYSTEM service and for users create
 || 18. Optional capabilities removed (IE mode, Steps Recorder, WordPad, XPS Viewer, Fax&Scan, Wireless Display) | ✅ | ✅ | Requires admin |
 || 19. Win32 bloatware uninstalled (McAfee/Norton OEM preinstalls — MSI silent) | ✅ | ✅ | Requires admin |
 || 20. Restore point before destructive scans (self-throttles 24h) | ✅ | ✅ | Requires admin |
-|| 21. Microsoft telemetry tasks off (62: CompatTelRunner, CEIP, Siuf, Maps, Office CEIP, RetailDemo, Insider flighting, feedback, Device Census, family safety, net-trace, AIT, speech models, disk diagnostics, PCA, location, IME/input sync, PerfTrack, push-install, WDI, WindowsAI Recall, Office AI) | ✅ | ✅ | Requires admin |
+|| 21. Microsoft telemetry tasks off (63: CompatTelRunner, CEIP, Siuf, Maps, Office CEIP, RetailDemo, Insider flighting, feedback, Device Census, family safety, net-trace, AIT, speech models, disk diagnostics, PCA, location, IME/input sync, PerfTrack, push-install, WDI, WindowsAI Recall, Office AI, power diagnostics) | ✅ | ✅ | Requires admin |
 || 22. Bloatware autostart entries disabled (StartupApproved marker + Startup-folder rename — restorable) | ✅ | ✅ | Per-hive, some HKLM |
 || 23. Windows Error Reporting uploads off | ✅ | ✅ | HKLM needs admin |
 || 24. Edge update services → demand-start + update tasks off | ✅ | ✅ | Requires admin |
