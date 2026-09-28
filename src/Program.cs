@@ -2951,6 +2951,9 @@ public static class RegistryGuard
         // WER control-panel support — companion to the disabled WerSvc
         // (Atlas services.yml; the error-report pipeline is already off)
         "wercplsupport",
+        // Desktop Activity Moderator, Intel telemetry, Event Collector
+        // — all disabled by ReviOS services.yml
+        "dam", "Telemetry", "Wecsvc",
     };
 
     public static void DisableMiscBloatServices()
@@ -2966,7 +2969,7 @@ public static class RegistryGuard
             // demand-start, which still leaves it reachable).
             RunToolSilent("sc.exe", "stop RemoteRegistry");
             RunToolSilent("sc.exe", "config RemoteRegistry start= disabled");
-            GuardLogger.Info("Applied: DisableMiscBloatServices (44 services → demand-start, RemoteRegistry disabled)");
+            GuardLogger.Info("Applied: DisableMiscBloatServices (51 services → demand-start, RemoteRegistry disabled)");
         }
         catch (Exception ex)
         {

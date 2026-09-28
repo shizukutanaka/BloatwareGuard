@@ -1027,6 +1027,9 @@ _MISC_DEMOTE_SERVICES = (
     # WER control-panel support — companion to the disabled WerSvc
     # (Atlas services.yml; the error-report pipeline is already off)
     "wercplsupport",
+    # Desktop Activity Moderator (user-activity monitoring driver),
+    # Intel telemetry driver, Event Collector — all disabled by ReviOS
+    "dam", "Telemetry", "Wecsvc",
 )
 
 
@@ -1680,7 +1683,7 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         run_cmd(["sc.exe", "stop", "RemoteRegistry"], timeout=15)
         run_cmd(["sc.exe", "config", "RemoteRegistry", "start=", "disabled"], timeout=15)
         logger.info("Applied: DisableMiscBloatServices "
-                    "(44 services -> demand-start, RemoteRegistry disabled)")
+                    "(51 services -> demand-start, RemoteRegistry disabled)")
 
     if prev.get("DisableSpotlight", True):
         # Desktop Spotlight = content-delivery channel (wallpaper promos)

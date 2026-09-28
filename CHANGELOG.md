@@ -144,6 +144,12 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   (shim-DB merge on the same AppCompat collection pipeline — privacy.sexy).
   Skipped: UpdateOrchestrator Schedule-Scan/UUS-Failover/UpdateModel
   (servicing infrastructure, not telemetry).
+- Demote services 49→51 — ReviOS services.yml diff: `dam` (Desktop
+  Activity Moderator), `Telemetry` (Intel driver), `Wecsvc` (Event
+  Collector). Skipped: `tcpipreg`/`condrv`/`NetBT`/`GpuEnergyDrv`/`UCPD`
+  (network/driver/protected components — ReviOS marks them experimental).
+  Also corrected the stale service counts in the applied-log strings
+  (44→51) and README (49→51).
 
 - `RemoveWin32Programs`: new `_WIN32_BLOAT_NAMES`/`Win32BloatNames`
   needle list (79 entries) merged into the Win32 DisplayName scan —
