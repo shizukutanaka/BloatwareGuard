@@ -1108,6 +1108,26 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_registry_dword("HKLM",
                            r"SOFTWARE\Microsoft\WindowsUpdate\UX\Settings",
                            "IsContinuousInnovationOptedIn", 0)
+        # Push-to-install: block remote/mobile-driven Store installs
+        # (tiny11builder; complements the demoted PushToInstall service
+        # and disabled LoginCheck task — third anchor on the channel)
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Policies\Microsoft\PushToInstall",
+                           "DisablePushToInstall", 1)
+        # Block automatic Teams (personal & consumer) install/reinstall
+        # (tiny11builder — the package keeps coming back via Store)
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Policies\Microsoft\Teams",
+                           "DisableInstallation", 1)
+        # Mark forced new-Outlook/DevHome pushes as already delivered so
+        # Windows Update does not re-ship them (tiny11builder)
+        for sched in ("UScheduler", "UScheduler_Oobe"):
+            for upd in ("OutlookUpdate", "DevHomeUpdate"):
+                set_registry_dword(
+                    "HKLM",
+                    r"SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate"
+                    rf"\Orchestrator\{sched}\{upd}",
+                    "workCompleted", 1)
 
         for_each_user_hive(_apply_suggestions, logger)
         logger.info("Applied: BlockProvisioning (silent installs + all suggestion surfaces, all hives)")

@@ -1689,6 +1689,31 @@ public static class RegistryGuard
             using var ux = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                 @"SOFTWARE\Microsoft\WindowsUpdate\UX\Settings");
             ux?.SetValue("IsContinuousInnovationOptedIn", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // Push-to-install: block remote/mobile-driven Store installs
+            // (tiny11builder; complements the demoted PushToInstall service
+            // and disabled LoginCheck task — third anchor on the channel)
+            using (var pti = Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Policies\Microsoft\PushToInstall", true))
+            {
+                pti?.SetValue("DisablePushToInstall", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            // Block automatic Teams (personal & consumer) install/reinstall
+            using (var teams = Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Policies\Microsoft\Teams", true))
+            {
+                teams?.SetValue("DisableInstallation", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            // Mark forced new-Outlook/DevHome pushes as already delivered so
+            // Windows Update does not re-ship them (tiny11builder)
+            foreach (var sched in new[] { "UScheduler", "UScheduler_Oobe" })
+            {
+                foreach (var upd in new[] { "OutlookUpdate", "DevHomeUpdate" })
+                {
+                    using var s = Registry.LocalMachine.CreateSubKey(
+                        $@"SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Orchestrator\{sched}\{upd}", true);
+                    s?.SetValue("workCompleted", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                }
+            }
             GuardLogger.Info("Applied: BlockProvisioning (silent installs + all suggestion surfaces, all hives)");
         }
         catch (Exception ex)

@@ -79,6 +79,16 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   `ic3`/`mobile`/`teams.events.data.microsoft.com`). The rest of that tier
   is deliberately skipped: it null-routes OneDrive, Windows activation,
   SmartScreen and support sites.
+- `BlockProvisioning` +3 anchors (tiny11builder diff): policy
+  `DisablePushToInstall=1` (third anchor on the push-install channel —
+  demoted service + disabled task already existed), `Teams\Disable
+  Installation=1` (Teams keeps coming back via Store), and the
+  `UScheduler{,_Oobe}\{OutlookUpdate,DevHomeUpdate} workCompleted=1`
+  markers so Windows Update treats forced new-Outlook/DevHome pushes as
+  delivered. Skipped: MRT `DontOfferThroughWUAU` (declines a security
+  tool), `Windows Mail PreventRun` (hard-blocks a functional app),
+  install-bypass knobs (LabConfig/BypassNRO), BitLocker opt-out, and
+  tiny11's functional removals (Terminal, Paint, OneNote, GetHelp).
 
 - `RemoveWin32Programs`: new `_WIN32_BLOAT_NAMES`/`Win32BloatNames`
   needle list (79 entries) merged into the Win32 DisplayName scan —
