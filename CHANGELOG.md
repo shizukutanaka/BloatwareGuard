@@ -30,6 +30,16 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   Office apps + Calculator/Camera (functional), `BioEnrollment` (Windows
   Hello biometrics), `Microsoft.Feedback` (Feedback Hub already covered),
   classic UI toggles.
+- hellzerg/Optimizer diff (privacy tweaks): +`SubscribedContent-88000326Enabled`
+  CDM id (Edge/app promotions), `DisableWebSearch=1` policy under
+  `DisableSearchSuggestions` (web results in Start — one level deeper than
+  the existing Bing/suggestion switches), and `SmartGlass UserAuthPolicy=0`
+  under `DisableXboxServices` (deny Xbox companion-app connections).
+  Skipped: `EnableWebContentEvaluation=0` (SmartScreen for app web content —
+  security path), `MaxTelemetryAllowed` (undocumented value), `SafeSearchMode`
+  (already covered), XPS print feature + Fax printer removal (functional),
+  VS Telemetry (dev tool), language/attachment/zone-map settings (out of
+  scope or security).
 - `DisableEdgeBloat` +3 values (xd-AntiSpy diff): `ImportOnEachLaunch=0`
   (Edge re-imports foreign browser data on every launch),
   `DefaultBrowserSettingEnabled=0` (set-default nag),

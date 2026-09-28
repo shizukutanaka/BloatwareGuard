@@ -1174,6 +1174,7 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             "SubscribedContent-202914Enabled",   # Start ads (ReviOS)
             "SubscribedContent-280810Enabled",   # OneDrive SyncProviders ad
             "SubscribedContent-280811Enabled",   # OneDrive upsell
+            "SubscribedContent-88000326Enabled",  # Edge/app promotions (Optimizer diff)
             "RotatingLockScreenEnabled",         # lock-screen spotlight
             "RotatingLockScreenOverlayEnabled",  # lock-screen overlay ads
             "PreInstalledAppsEnabled",           # OEM app seeding
@@ -1342,6 +1343,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_user_dword_all_hives(_USER_SEARCH_SETTINGS, "IsMSACloudSearchEnabled", 0, logger)
         set_user_dword_all_hives(_USER_SEARCH_SETTINGS, "IsDeviceSearchHistoryEnabled", 0, logger)
         set_user_dword_all_hives(_USER_SEARCH, "CortanaConsent", 0, logger)
+        # Policy kill for web results in Start (Optimizer diff — same spirit
+        # as the Bing/suggestion switches above, one level deeper)
+        set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\Windows Search",
+                           "DisableWebSearch", 1)
         logger.info("Applied: DisableSearchSuggestions (Bing/search suggestions + Cortana off, all hives)")
 
     if prev.get("DisableWidgets", True):
@@ -1844,6 +1849,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                r"GamingCompanionHostOptions")
         set_registry_dword("HKLM", gai, "ActivationType", 0xFFFFFFFF)
         set_registry_string("HKLM", gai, "Server", "")
+        # 0 = never allow SmartGlass (Xbox companion phone-app) connections
+        # (Optimizer privacy diff)
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Microsoft\Windows\CurrentVersion\SmartGlass",
+                           "UserAuthPolicy", 0)
         logger.info("Applied: DisableXboxServices (4 services -> demand-start)")
 
     if prev.get("DisableMiscBloatServices", True):

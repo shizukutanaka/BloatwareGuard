@@ -1723,6 +1723,7 @@ public static class RegistryGuard
                 "SubscribedContent-202914Enabled",  // Start ads (ReviOS)
                 "SubscribedContent-280810Enabled",  // OneDrive SyncProviders ad
                 "SubscribedContent-280811Enabled",  // OneDrive upsell
+                "SubscribedContent-88000326Enabled", // Edge/app promotions (Optimizer diff)
                 "RotatingLockScreenEnabled",        // lock-screen spotlight
                 "RotatingLockScreenOverlayEnabled", // lock-screen overlay ads
                 "PreInstalledAppsEnabled",          // OEM app seeding
@@ -1938,6 +1939,9 @@ public static class RegistryGuard
             // Explorer-search web lookups off too (separate nag surface)
             using var expNoNet = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(ExplorerPoliciesHklmPath);
             expNoNet?.SetValue("NoSearchInternet", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            // Policy kill for web results in Start (Optimizer diff — one
+            // level deeper than the Bing/suggestion switches)
+            key?.SetValue("DisableWebSearch", 1, Microsoft.Win32.RegistryValueKind.DWord);
 
             ForEachUserHive(hive =>
             {
@@ -2795,6 +2799,15 @@ public static class RegistryGuard
                     @"SOFTWARE\Microsoft\WindowsRuntime\ActivatableClassId\Microsoft.Xbox.GamingAI.Companion.Host.GamingCompanionHostOptions");
                 gai?.SetValue("ActivationType", unchecked((int)0xFFFFFFFF), Microsoft.Win32.RegistryValueKind.DWord);
                 gai?.SetValue("Server", "", Microsoft.Win32.RegistryValueKind.String);
+            }
+            catch { }
+            // 0 = never allow SmartGlass (Xbox companion phone-app)
+            // connections (Optimizer privacy diff)
+            try
+            {
+                using var sg = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Microsoft\Windows\CurrentVersion\SmartGlass");
+                sg?.SetValue("UserAuthPolicy", 0, Microsoft.Win32.RegistryValueKind.DWord);
             }
             catch { }
             GuardLogger.Info("Applied: DisableXboxServices (4 services → demand-start)");
