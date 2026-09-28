@@ -418,8 +418,25 @@ public static class ConfigLoader
         var json = File.ReadAllText(path);
         var config = JsonSerializer.Deserialize(json, GuardJsonContext.Default.GuardConfig);
 
-        return config ?? CreateDefault();
+        if (config == null) return CreateDefault();
+        // Union the safety whitelist into whatever the file carries — added
+        // protections must reach installs whose config predates them.
+        var present = new HashSet<string>(config.Whitelist, StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in SafetyWhitelist)
+            if (!present.Contains(entry))
+                config.Whitelist.Add(entry);
+        return config;
     }
+
+    // Whitelist entries that protect against harmful blacklist sweeps — always
+    // merged into the loaded config so upgrades keep the Xbox/GetHelp
+    // protections the broad prefixes would otherwise bypass.
+    private static readonly string[] SafetyWhitelist = {
+        "Microsoft.Xbox.TCUI",
+        "Microsoft.XboxIdentityProvider",
+        "Microsoft.XboxSpeechToTextOverlay",
+        "Microsoft.GetHelp",
+    };
 
     public static void Save(string path, GuardConfig config)
     {
@@ -2001,18 +2018,16 @@ public static class RegistryGuard
             // RetailDemo data-collection service (present on most images)
             RunToolSilent("sc.exe", "stop RetailDemo");
             RunToolSilent("sc.exe", "config RetailDemo start= disabled");
-            // Windows Error Reporting — upload path for crash dumps
-            // (QueueReporting task and WER hosts are covered elsewhere)
-            RunToolSilent("sc.exe", "stop WerSvc");
-            RunToolSilent("sc.exe", "config WerSvc start= disabled");
             // Block the "Unified Telemetry Client Outbound Traffic" firewall
             // rules — DiagTrack can't upload even if something re-enables it.
+            // WerSvc lives under DisableErrorReporting so crash uploads stay
+            // possible when only telemetry suppression is wanted.
             try
             {
                 var fpsi = new ProcessStartInfo
                 {
                     FileName = "powershell.exe",
-                    Arguments = "-NoProfile -ExecutionPolicy Bypass -Command \"'DiagTrack','WerSvc' | % { Get-NetFirewallRule -Group $_ -ErrorAction Ignore | Set-NetFirewallRule -Enabled True -Action Block }\"",
+                    Arguments = "-NoProfile -ExecutionPolicy Bypass -Command \"Get-NetFirewallRule -Group DiagTrack -ErrorAction Ignore | Set-NetFirewallRule -Enabled True -Action Block\"",
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
@@ -2189,11 +2204,12 @@ public static class RegistryGuard
                 using var ones = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Windows\OneSettings");
                 ones?.SetValue("DisableOneSettingsFileDownloads", 1, Microsoft.Win32.RegistryValueKind.DWord);
-                // Store: never auto-update apps + no OS-upgrade offers
-                // (ReviOS updates/ms-store.yml)
+                // Store: no OS-upgrade offers via Store (ReviOS
+                // updates/ms-store.yml). `AutoDownload=4` deliberately not
+                // set — it kills automatic updates for retained user apps
+                // machine-wide, not just bloat.
                 using var store = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\WindowsStore");
-                store?.SetValue("AutoDownload", 4, Microsoft.Win32.RegistryValueKind.DWord);
                 store?.SetValue("DisableOSUpgrade", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 // Block the OOBE updater that pushes "New Outlook" via WU
                 using var uoob = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
@@ -2663,6 +2679,28 @@ public static class RegistryGuard
             });
             // WER control-panel support service → demand-start
             DemoteService("wercplsupport");
+            // Kill the upload path itself: service off + outbound rules
+            // blocked. WerSvc (not DiagTrack) is the crash-dump uploader, so
+            // it belongs to this toggle — keeping it inside DisableTelemetry
+            // would let WER be disabled even when the operator asked to
+            // preserve reporting.
+            RunToolSilent("sc.exe", "stop WerSvc");
+            RunToolSilent("sc.exe", "config WerSvc start= disabled");
+            try
+            {
+                var fpsi = new ProcessStartInfo
+                {
+                    FileName = "powershell.exe",
+                    Arguments = "-NoProfile -ExecutionPolicy Bypass -Command \"Get-NetFirewallRule -Group WerSvc -ErrorAction Ignore | Set-NetFirewallRule -Enabled True -Action Block\"",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                using var p = Process.Start(fpsi);
+                p?.WaitForExit(60000);
+            }
+            catch { /* firewall block is best-effort */ }
             GuardLogger.Info("Applied: DisableErrorReporting (WER uploads + UI + logging off)");
         }
         catch (Exception ex)
@@ -2868,6 +2906,8 @@ public static class RegistryGuard
         @"SOFTWARE\Policies\Microsoft\Windows\TabletPC",
         @"SOFTWARE\Policies\Microsoft\WindowsNotepad",
         @"SYSTEM\CurrentControlSet\Control\FeatureManagement\Overrides\8",
+        @"SOFTWARE\Classes\ms-gamebar",
+        @"SOFTWARE\Classes\ms-gamebarservices",
     };
     private static bool _backupDone;
 
@@ -4116,25 +4156,18 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
 
     private static void UninstallService()
     {
-        // Stop first — sc delete on a running service only marks it for
-        // deletion; it keeps running until the next stop/reboot (py parity).
-        var stopPsi = new ProcessStartInfo
-        {
-            FileName = "sc.exe",
-            Arguments = "stop BloatwareGuard",
-            UseShellExecute = true,
-            Verb = "runas"
-        };
-        Process.Start(stopPsi);
+        // One elevated chain: stop must finish before delete — `sc delete` on
+        // a running service only marks it for removal while it keeps running.
+        // Single UAC prompt covers both calls (same pattern as install).
         var psi = new ProcessStartInfo
         {
-            FileName = "sc.exe",
-            Arguments = "delete BloatwareGuard",
+            FileName = "cmd.exe",
+            Arguments = "/c sc stop BloatwareGuard & ping -n 3 127.0.0.1 > nul & sc delete BloatwareGuard",
             UseShellExecute = true,
             Verb = "runas"
         };
         Process.Start(psi);
-        GuardLogger.Info("Service uninstalled.");
+        GuardLogger.Info("Service uninstalled (stop → delete in one elevated chain).");
     }
 
     private static void ShowStatus()

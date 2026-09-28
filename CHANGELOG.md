@@ -2,6 +2,32 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.58.1-mvp: post-merge review hardening (PR #26 findings)
+
+### Fixed
+- `UninstallService` (C#): `sc stop` was fire-and-forget before `sc delete` —
+  a running service was only marked for deletion and kept running. Now a
+  single elevated `stop → wait → delete` chain (same pattern as install;
+  one UAC prompt).
+- `DisableTelemetry` no longer writes `WindowsStore\AutoDownload=4` — it
+  disabled automatic updates for ALL retained Store apps machine-wide,
+  far outside telemetry scope. `DisableOSUpgrade=1` stays (OS-upgrade
+  offers are in-scope promo blocking).
+- Safety whitelist now merged at config load (both impls): v1.58's
+  Xbox/GetHelp whitelist protections would never reach installs whose
+  preserved config predates them — the broad `Microsoft.Xbox` prefix
+  would still sweep `XboxIdentityProvider`/`TCUI`/`SpeechToTextOverlay`.
+  `_SAFETY_WHITELIST`/`SafetyWhitelist` unions the four entries into any
+  loaded `Whitelist` (case-insensitive dedupe).
+- WerSvc kill-chain moved behind `DisableErrorReporting` (both impls):
+  service stop/disable + outbound firewall block ran unconditionally
+  inside `DisableTelemetry`, so `DisableErrorReporting=false` could not
+  preserve crash uploads. DiagTrack's FW block stays under telemetry —
+  it's the telemetry channel, not the crash-dump uploader.
+- `BackupRegistry` covers the Game Bar protocol-hijack writes:
+  `SOFTWARE\Classes\ms-gamebar` + `ms-gamebarservices` added to the export
+  list (68→70 keys) so `--uninstall` restore covers them.
+
 ## [Unreleased] — v1.58.0-mvp: 32-bit autostart coverage + blacklist expansion
 
 ### Added

@@ -240,6 +240,17 @@ DEFAULT_BLACKLIST = [
 ]
 
 
+# Whitelist entries that protect against harmful blacklist sweeps — always
+# merged into the loaded config so a user upgrading with an older file keeps
+# the Xbox/GetHelp protections the broad prefixes would otherwise bypass.
+_SAFETY_WHITELIST = (
+    "Microsoft.Xbox.TCUI",
+    "Microsoft.XboxIdentityProvider",
+    "Microsoft.XboxSpeechToTextOverlay",
+    "Microsoft.GetHelp",
+)
+
+
 def load_config(path: Path) -> dict:
     if not path.exists():
         config = {
@@ -321,7 +332,14 @@ def load_config(path: Path) -> dict:
         return config
 
     # utf-8-sig tolerates a BOM (Notepad saves UTF-8 with BOM by default)
-    return json.loads(path.read_text(encoding="utf-8-sig"))
+    config = json.loads(path.read_text(encoding="utf-8-sig"))
+    # Union the safety whitelist into whatever the file carries — added
+    # protections must reach installs whose config predates them.
+    existing = config.get("Whitelist") or []
+    present = {w.lower() for w in existing if isinstance(w, str)}
+    config["Whitelist"] = list(existing) + [
+        e for e in _SAFETY_WHITELIST if e.lower() not in present]
+    return config
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -1015,6 +1033,8 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Policies\Microsoft\Windows\TabletPC",
     r"SOFTWARE\Policies\Microsoft\WindowsNotepad",
     r"SYSTEM\CurrentControlSet\Control\FeatureManagement\Overrides\8",
+    r"SOFTWARE\Classes\ms-gamebar",
+    r"SOFTWARE\Classes\ms-gamebarservices",
 )
 _registry_backup_done = False
 
@@ -1387,16 +1407,13 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         # RetailDemo data-collection service (present on most images)
         run_cmd(["sc.exe", "stop", "RetailDemo"], timeout=15)
         run_cmd(["sc.exe", "config", "RetailDemo", "start=", "disabled"], timeout=15)
-        # Windows Error Reporting — upload path for crash dumps (QueueReporting
-        # task and WER hosts are already covered elsewhere)
-        run_cmd(["sc.exe", "stop", "WerSvc"], timeout=15)
-        run_cmd(["sc.exe", "config", "WerSvc", "start=", "disabled"], timeout=15)
-        # Block the outbound firewall rules for the telemetry/error-report
-        # services — neither can upload even if something re-enables them.
+        # Block the outbound firewall rules for the telemetry service —
+        # DiagTrack can't upload even if something re-enables it. WerSvc
+        # lives under DisableErrorReporting so crash uploads stay possible
+        # when only telemetry suppression is wanted.
         run_powershell(
-            "'DiagTrack','WerSvc' | % { Get-NetFirewallRule -Group $_ "
-            "-ErrorAction Ignore | Set-NetFirewallRule -Enabled True "
-            "-Action Block }", timeout=60)
+            "Get-NetFirewallRule -Group DiagTrack -ErrorAction Ignore "
+            "| Set-NetFirewallRule -Enabled True -Action Block", timeout=60)
         # ETW AutoLogger feeding DiagTrack — Start=0 kills the boot-time trace
         set_registry_dword(
             "HKLM",
@@ -1515,8 +1532,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                            "DisableOneSettingsFileDownloads", 1)
         # Store: never auto-update apps + no OS-upgrade offers via Store
         # (ReviOS updates/ms-store.yml)
+        # Store: no OS-upgrade offers via Store (ReviOS updates/ms-store.yml).
+        # `AutoDownload=4` deliberately not set — it kills automatic updates
+        # for retained user apps machine-wide, not just bloat.
         store = r"SOFTWARE\Policies\Microsoft\WindowsStore"
-        set_registry_dword("HKLM", store, "AutoDownload", 4)
         set_registry_dword("HKLM", store, "DisableOSUpgrade", 1)
         # Block the OOBE updater that pushes "New Outlook" via WU
         # (ReviOS updates.yml)
@@ -1687,6 +1706,15 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         # WER support service + companion → demand-start
         for svc in ("wercplsupport",):
             demote_service(svc)
+        # Kill the upload path itself: service off + outbound rules blocked.
+        # WerSvc (not DiagTrack) is the crash-dump uploader, so it belongs to
+        # this toggle — keeping it inside DisableTelemetry would let WER be
+        # disabled even when the operator asked to preserve reporting.
+        run_cmd(["sc.exe", "stop", "WerSvc"], timeout=15)
+        run_cmd(["sc.exe", "config", "WerSvc", "start=", "disabled"], timeout=15)
+        run_powershell(
+            "Get-NetFirewallRule -Group WerSvc -ErrorAction Ignore "
+            "| Set-NetFirewallRule -Enabled True -Action Block", timeout=60)
         logger.info("Applied: DisableErrorReporting (WER uploads + UI + logging off)")
 
     if prev.get("DisableEdgeUpdateBloat", True):
