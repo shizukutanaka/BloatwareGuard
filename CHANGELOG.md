@@ -71,6 +71,15 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   (both impls). Registry policies and deprovision/startup markers
   intentionally persist: they are the hardening itself, not service state,
   and reversing them would re-enable what the tool was installed to kill.
+- `CreateRestorePoint` hardcoded `-Drive 'C:\'` for `Enable-ComputerRestore`
+  — on systems whose OS volume isn't C: (multi-boot, relocated installs)
+  it enabled System Restore on the wrong drive. Both impls now pass
+  `$env:SystemDrive`.
+- `verify_scan.ps1` printed the appx diff backwards: `SideIndicator "=>"`
+  lists packages that *appeared* after the scan, not removed ones —
+  corrected to `"<="`.
+- DESIGN.md layer table was missing the `DisableModernStandbyNetworking`
+  opt-in row — all 46 prevention layers now documented.
 
 ## [Unreleased] — v1.58.0-mvp: 32-bit autostart coverage + blacklist expansion
 
