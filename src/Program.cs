@@ -1394,6 +1394,16 @@ public static class RegistryGuard
         "df.telemetry.microsoft.com", "alpha.telemetry.microsoft.com",
         "telemetry.microsoft.com", "ca.telemetry.microsoft.com",
         "watson.live.com",
+        // Regional ingest mirrors + sibling pipes (SpyBlocker extra tier —
+        // only pure-telemetry names adopted; the tier's OneDrive/activation/
+        // SmartScreen entries would break functionality and stay out)
+        "eu-v20.events.data.microsoft.com", "us-v20.events.data.microsoft.com",
+        "eu.vortex-win.data.microsoft.com", "us.vortex-win.data.microsoft.com",
+        "eu.vortex.data.microsoft.com",
+        "server6.pipe.aria.microsoft.com", "server7.pipe.aria.microsoft.com",
+        "browser.events.data.msn.com",
+        "ic3.events.data.microsoft.com", "mobile.events.data.microsoft.com",
+        "teams.events.data.microsoft.com",
     };
     private const string HostsBlockBegin = "# >>> BloatwareGuard telemetry block";
     private const string HostsBlockEnd = "# <<< BloatwareGuard telemetry block";

@@ -72,6 +72,13 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   microsoft.com`, `telemetry.microsoft.com`, `watson.live.com`).
   Skipped: sovereign-cloud (`.us`), Azure-service, sandbox, and
   akadns/GLB load-balancer intermediate names.
+- Telemetry hosts 58→69 — regional ingest mirrors and sibling pipes from
+  WindowsSpyBlocker's "extra" tier (`eu/us-v20.events.data.microsoft.com`,
+  `eu/us.vortex-win.data.microsoft.com`, `eu.vortex.data.microsoft.com`,
+  `server6/7.pipe.aria.microsoft.com`, `browser.events.data.msn.com`,
+  `ic3`/`mobile`/`teams.events.data.microsoft.com`). The rest of that tier
+  is deliberately skipped: it null-routes OneDrive, Windows activation,
+  SmartScreen and support sites.
 
 - `RemoveWin32Programs`: new `_WIN32_BLOAT_NAMES`/`Win32BloatNames`
   needle list (79 entries) merged into the Win32 DisplayName scan —
