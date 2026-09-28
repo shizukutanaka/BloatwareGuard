@@ -1803,6 +1803,11 @@ public static class RegistryGuard
                 SetHiveDword(hive, UserIntlProfilePath, "HttpAcceptLanguageOptOut", 1);
                 // Tailored-experiences policy (policy-level, not just the value)
                 SetHiveDword(hive, UserPrivacyPoliciesPath, "TailoredExperiencesWithDiagnosticDataEnabled", 0);
+                // Mark the diagnostic-level toast as shown — silences the
+                // "your data settings changed" prompt after telemetry is cut
+                SetHiveDword(hive,
+                    @"Software\Microsoft\Windows\CurrentVersion\Diagnostics\DiagTrack",
+                    "ShowedToastAtLevel", 1);
             });
 
             // "Connected User Experiences and Telemetry" (DiagTrack) — the actual
@@ -1942,6 +1947,9 @@ public static class RegistryGuard
                 fdb?.SetValue("DoNotShowFeedbackNotifications", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 // Suppress the "your telemetry setting changed" nag
                 fdb?.SetValue("DisableTelemetryOptInChangeNotification", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // Cap the diagnostic level at Security/Basic even if a
+                // component or update re-raises AllowTelemetry later
+                fdb?.SetValue("MaxTelemetryAllowed", 1, Microsoft.Win32.RegistryValueKind.DWord);
 
                 // OneSettings periodic config download (recommendations channel)
                 using var ones = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(

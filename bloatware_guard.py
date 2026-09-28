@@ -1142,6 +1142,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             w(_USER_INTL_PROFILE, "HttpAcceptLanguageOptOut", 1)
             # Tailored-experiences policy (policy-level, not just the value)
             w(_USER_PRIVACY_POLICIES, "TailoredExperiencesWithDiagnosticDataEnabled", 0)
+            # Mark the diagnostic-level toast as shown — silences the
+            # "your data settings changed" prompt after telemetry is cut
+            w(r"Software\Microsoft\Windows\CurrentVersion\Diagnostics\DiagTrack",
+              "ShowedToastAtLevel", 1)
 
         for_each_user_hive(_apply_telemetry, logger)
 
@@ -1222,6 +1226,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         # Suppress the "your telemetry setting changed" nag
         set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\DataCollection",
                            "DisableTelemetryOptInChangeNotification", 1)
+        # Cap the diagnostic level at Security/Basic even if a component
+        # or update re-raises AllowTelemetry later (Sophia Script parity)
+        set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\DataCollection",
+                           "MaxTelemetryAllowed", 1)
         # OneSettings periodic config download (recommendations channel)
         set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\OneSettings",
                            "DisableOneSettingsFileDownloads", 1)

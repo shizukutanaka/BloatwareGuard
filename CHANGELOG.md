@@ -32,6 +32,10 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 - 1 telemetry task (57→58), diffed against Sophia Script + privacy.sexy:
   `\Microsoft\Windows\Application Experience\MareBackup` — gathers Win32
   app data for the Windows Backup app scenario (24H2+).
+- `DisableTelemetry`: `MaxTelemetryAllowed=1` (policy cap at Security/
+  Basic even if AllowTelemetry is re-raised) + per-user-hive
+  `Diagnostics\DiagTrack\ShowedToastAtLevel=1` (silences the
+  settings-changed toast). Sophia Script parity.
 - `DisableTelemetry`: also stops+disables `WerSvc` (Windows Error
   Reporting — crash-dump upload path; QueueReporting task and WER hosts
   were already covered). Matches Sophia Script's ErrorsReporting tweak.
