@@ -1152,6 +1152,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         # RetailDemo data-collection service (present on most images)
         run_cmd(["sc.exe", "stop", "RetailDemo"], timeout=15)
         run_cmd(["sc.exe", "config", "RetailDemo", "start=", "disabled"], timeout=15)
+        # Block the "Unified Telemetry Client Outbound Traffic" firewall
+        # rules — DiagTrack can't upload even if something re-enables it.
+        run_powershell(
+            "Get-NetFirewallRule -Group DiagTrack -ErrorAction Ignore "
+            "| Set-NetFirewallRule -Enabled True -Action Block", timeout=60)
         # ETW AutoLogger feeding DiagTrack — Start=0 kills the boot-time trace
         set_registry_dword(
             "HKLM",

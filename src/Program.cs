@@ -1812,6 +1812,22 @@ public static class RegistryGuard
             // RetailDemo data-collection service (present on most images)
             RunToolSilent("sc.exe", "stop RetailDemo");
             RunToolSilent("sc.exe", "config RetailDemo start= disabled");
+            // Block the "Unified Telemetry Client Outbound Traffic" firewall
+            // rules — DiagTrack can't upload even if something re-enables it.
+            try
+            {
+                var fpsi = new ProcessStartInfo
+                {
+                    FileName = "powershell.exe",
+                    Arguments = "-NoProfile -ExecutionPolicy Bypass -Command \"Get-NetFirewallRule -Group DiagTrack -ErrorAction Ignore | Set-NetFirewallRule -Enabled True -Action Block\"",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                Proc.Wait(fpsi, 60000);
+            }
+            catch { }
             // ETW AutoLogger that feeds DiagTrack — Start=0 kills the boot-time trace
             try
             {

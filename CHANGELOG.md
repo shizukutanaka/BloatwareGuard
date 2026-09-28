@@ -29,6 +29,11 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   the Phone Link companion panel in Start. Skipped as out-of-scope: location
   services (deliberate exclusion), BitLocker auto-encryption (security
   trade-off), Drag Tray/notification/UI-preference tweaks.
+- `DisableTelemetry`: blocks the DiagTrack outbound firewall rules —
+  `Get-NetFirewallRule -Group DiagTrack | Set-NetFirewallRule -Enabled
+  True -Action Block` (Sophia Script kill-chain). The "Unified Telemetry
+  Client Outbound Traffic" rules exist but default to Allow; this makes
+  the block survive even if a component re-enables the service.
 - 2 service-demote entries (44→46), diffed against winutil's service
   tweak list: `StorSvc` (storage settings) and `CscService` (Offline
   Files — legacy enterprise sync dead on consumer installs). Skipped:
