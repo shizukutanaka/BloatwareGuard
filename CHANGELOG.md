@@ -5,6 +5,14 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.58.2-mvp: verify scripts cover the new layers
 
 ### Fixed
+- CDM: `SubscribedContentEnabled=0` added to the per-user suggestion block
+  (BCUninstaller Tweaks.cs diff — the master content switch was the only
+  missing value; UI-preference tweaks like StickyKeys/Mouse accel/folder
+  hiding deliberately skipped).
+- `WindowsStore\AutoDownload=4` write removed (both impls): `4` is the
+  enabled/auto-update value — the write was at best a no-op restating the
+  default and at worst re-enabled store auto-updates an operator had off.
+  `DisableOSUpgrade=1` stays.
 - Malformed `config.json` no longer crashes the tool (both impls):
   `json.loads`/`JsonSerializer.Deserialize` failures and non-object top
   levels now warn and run with defaults — the broken file is left in

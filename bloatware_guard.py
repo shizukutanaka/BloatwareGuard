@@ -1159,6 +1159,7 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             "SilentInstalledAppsEnabled",        # silent app installs
             "SystemPaneSuggestionsEnabled",      # system pane suggestions
             "SoftLandingEnabled",                # soft landing tips
+            "SubscribedContentEnabled",          # master content switch (BCU)
             "SubscribedContent-310093Enabled",   # Windows welcome experience
             "SubscribedContent-338387Enabled",   # lock-screen spotlight ads
             "SubscribedContent-338388Enabled",   # Start suggestions
@@ -1532,8 +1533,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                            "DisableOneSettingsFileDownloads", 1)
         # Store: never auto-update apps + no OS-upgrade offers via Store
         # (ReviOS updates/ms-store.yml)
+        # Store: no OS-upgrade offers via Store (ReviOS updates/ms-store.yml).
+        # `AutoDownload` deliberately unset — writing it toggles automatic
+        # app updates machine-wide, outside telemetry scope.
         store = r"SOFTWARE\Policies\Microsoft\WindowsStore"
-        set_registry_dword("HKLM", store, "AutoDownload", 4)
         set_registry_dword("HKLM", store, "DisableOSUpgrade", 1)
         # Block the OOBE updater that pushes "New Outlook" via WU
         # (ReviOS updates.yml)
