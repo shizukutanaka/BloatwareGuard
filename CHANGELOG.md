@@ -9,6 +9,13 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   (`HKLM\SOFTWARE\WOW6432Node\...\RunOnce`) — 32-bit installers could
   register autostart entries there untouched. Both impls now mark it
   with the same StartupApproved\RunOnce 0x03 marker.
+- `_scan` (py) no longer aborts the whole prevention pass when the
+  HKLM StartupApproved marker write hits `PermissionError` (non-admin):
+  marker creation/write failures are logged and skipped per entry.
+- StartupApproved markers are name-keyed and shared across the 64/32-bit
+  registry views; both impls now skip stamping a name that a non-bloat
+  entry in the peer view also uses (avoids disabling a same-named
+  legitimate autostart).
 
 ## [Unreleased] — v1.56.0-mvp: service-list dedup + AI-surface hardening
 

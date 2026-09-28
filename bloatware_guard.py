@@ -1500,7 +1500,7 @@ def disable_startup_bloat(config: dict, logger: logging.Logger):
             return False
         return any(n.lower() in haystack for n in needles)
 
-    def _scan(root, run_path, approved_path):
+    def _scan(root, run_path, approved_path, peer_path=None):
         nonlocal applied
         try:
             run_key = winreg.OpenKey(root, run_path)
@@ -1517,25 +1517,71 @@ def disable_startup_bloat(config: dict, logger: logging.Logger):
                         targets.append(name)
                 except OSError:
                     break
+            # StartupApproved markers are name-keyed and shared between the
+            # 64-bit and 32-bit registry views; don't stamp a name that an
+            # unmatched entry in the peer view also uses, or the marker would
+            # disable that non-bloat entry as well.
+            if peer_path is not None and targets:
+                blocked = []
+                try:
+                    peer = winreg.OpenKey(root, peer_path)
+                except OSError:
+                    peer = None
+                if peer is not None:
+                    try:
+                        i = 0
+                        while True:
+                            try:
+                                pname, pdata, _ = winreg.EnumValue(peer, i)
+                                i += 1
+                                if pname.lower() in (t.lower() for t in targets) \
+                                        and not _is_bloat(pname, pdata):
+                                    blocked.append(pname)
+                            except OSError:
+                                break
+                    finally:
+                        peer.Close()
+                for b in blocked:
+                    logger.info(
+                        f"Skipped startup marker for '{b}': same-named "
+                        "non-bloat entry exists in the paired 32/64-bit view")
+                targets = [t for t in targets
+                           if t.lower() not in (b.lower() for b in blocked)]
             if not targets:
                 return
-            ap_key = winreg.CreateKeyEx(root, approved_path, 0, winreg.KEY_WRITE)
-            for name in targets:
-                winreg.SetValueEx(ap_key, name, 0, winreg.REG_BINARY,
-                                  _STARTUP_DISABLED_MARKER)
-                applied += 1
-                logger.info(f"Disabled startup entry: {name}")
-            ap_key.Close()
+            try:
+                ap_key = winreg.CreateKeyEx(root, approved_path, 0,
+                                            winreg.KEY_WRITE)
+            except OSError as e:
+                logger.warning(
+                    f"Cannot write startup-approved markers for "
+                    f"{run_path}: {e}")
+                return
+            try:
+                for name in targets:
+                    try:
+                        winreg.SetValueEx(ap_key, name, 0, winreg.REG_BINARY,
+                                          _STARTUP_DISABLED_MARKER)
+                    except OSError as e:
+                        logger.warning(
+                            f"Could not disable startup entry {name}: {e}")
+                        continue
+                    applied += 1
+                    logger.info(f"Disabled startup entry: {name}")
+            finally:
+                ap_key.Close()
         finally:
             run_key.Close()
 
-    _scan(winreg.HKEY_LOCAL_MACHINE, machine_run, approved)
-    _scan(winreg.HKEY_LOCAL_MACHINE, machine_run32, approved)
-    _scan(winreg.HKEY_LOCAL_MACHINE, machine_runonce, approved_once)
+    machine_runonce32 = \
+        r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\RunOnce"
+    _scan(winreg.HKEY_LOCAL_MACHINE, machine_run, approved, machine_run32)
+    _scan(winreg.HKEY_LOCAL_MACHINE, machine_run32, approved, machine_run)
+    _scan(winreg.HKEY_LOCAL_MACHINE, machine_runonce, approved_once,
+          machine_runonce32)
     # 32-bit view of RunOnce — same StartupApproved marker semantics
-    _scan(winreg.HKEY_LOCAL_MACHINE,
-          r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\RunOnce",
-          approved_once)
+    _scan(winreg.HKEY_LOCAL_MACHINE, machine_runonce32, approved_once,
+          machine_runonce)
 
     def _scan_user(root, prefix):
         p = (prefix + "\\") if prefix else ""
