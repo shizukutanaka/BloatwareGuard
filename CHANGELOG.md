@@ -157,6 +157,12 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   (enterprise proxy), CPSS consent-store entries, Wow6432Node policy
   mirror (redirected view of the same key). ReviOS
   deprovisioned-apps.yml is fully covered by the existing blacklist
+- `DisableCloudContent` per-user CDM +5 SubscribedContent IDs —
+  ReviOS privacy/cdm.yml: 314559/280815/202914/280810/280811
+  (OneDrive promotions, SyncProviders ad, Start ads). Skipped:
+  Subscriptions/SuggestedApps key deletion (value-off is reversible).
+- `DisableErrorReporting` +2 WER consent-policy values (ReviOS
+  privacy/wer.yml): `DefaultConsent=0` + `DefaultOverrideBehavior=1`.
   entries + Deprovisioned markers.
 
 - `RemoveWin32Programs`: new `_WIN32_BLOAT_NAMES`/`Win32BloatNames`
