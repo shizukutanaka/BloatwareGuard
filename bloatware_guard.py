@@ -1682,6 +1682,7 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         # Copilot, inline compose, history AI search, generated themes,
         # DevTools AI (2 = disabled), browsing-history sharing with Copilot
         for name in ("CopilotPageContext", "EdgeEntraCopilotPageContext",
+                     "CopilotCDPPageContext", "NewTabPageBingChatEnabled",
                      "EdgeHistoryAISearchEnabled", "ComposeInlineEnabled",
                      "BuiltInAIAPIsEnabled", "AIGenThemesEnabled",
                      "ShareBrowsingHistoryWithCopilotSearchAllowed"):

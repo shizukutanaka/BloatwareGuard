@@ -17,6 +17,10 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   misc/disable-logging.yml — policy-application diagnostic logging, on by
   default; off trims boot-time + disk-IO overhead. OOBE screen prefs, Office
   ClickToRun logging, and WU `UpdateNotificationLevel` skipped: UX/functional).
+- `DisableEdgeBloat`: +2 Edge AI-surface values — `CopilotCDPPageContext=0`
+  (Copilot w/ commercial data protection page context) and
+  `NewTabPageBingChatEnabled=0` (Bing Chat on the new-tab page), Win11Debloat
+  Disable_Edge_AI_Features.reg diff; the remaining 6 values already covered.
 - Malformed `config.json` no longer crashes the tool (both impls):
   `json.loads`/`JsonSerializer.Deserialize` failures and non-object top
   levels now warn and run with defaults — the broken file is left in

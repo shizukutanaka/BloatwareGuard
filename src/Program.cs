@@ -2426,6 +2426,7 @@ public static class RegistryGuard
             // context Copilot, inline compose, history AI search, generated
             // themes, DevTools AI (2 = disabled), browsing-history sharing
             foreach (var name in new[] { "CopilotPageContext", "EdgeEntraCopilotPageContext",
+                                         "CopilotCDPPageContext", "NewTabPageBingChatEnabled",
                                          "EdgeHistoryAISearchEnabled", "ComposeInlineEnabled",
                                          "BuiltInAIAPIsEnabled", "AIGenThemesEnabled",
                                          "ShareBrowsingHistoryWithCopilotSearchAllowed" })
