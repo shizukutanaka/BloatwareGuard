@@ -113,6 +113,7 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 | winget 掃除 | `winget uninstall -e --id <id> --silent --disable-interactivity` (winget 不在時スキップ) | WingetSweep |
 | テレメトリ ETW AutoLogger | Control\WMI\AutoLogger\<session> Start=0 (13 セッション; OpenKey で不存在なら作らない) | DisableTelemetryAutologgers |
 | 再インストール監視 | 削除済みパッケージが再出現したら再削除 (スキャン毎; 常駐の本質機能) | ReinstallMonitor |
+| Modern Standby ネットワーク (opt-in, 既定OFF) | PowerSettings\ConnectivityInStandby AC/DCSettingIndex=0 — スリープ中の同期・テレメトリを遮断 | DisableModernStandbyNetworking |
 
 ## ブラックリスト方式
 - config.json の `Blacklist` にパッケージ名の**部分一致**パターンを列挙
