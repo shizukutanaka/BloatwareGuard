@@ -2961,6 +2961,8 @@ public static class ScheduledTaskGuard
         @"\Microsoft\Windows\Application Experience\ProgramDataUpdater",
         @"\Microsoft\Windows\Application Experience\PcaPatchDbTask",
         @"\Microsoft\Windows\Application Experience\StartupAppTask",
+        // Gathers Win32 app data for the Windows Backup app scenario (24H2+)
+        @"\Microsoft\Windows\Application Experience\MareBackup",
         @"\Microsoft\Windows\Autochk\Proxy",
         @"\Microsoft\Windows\Customer Experience Improvement Program\Consolidator",
         @"\Microsoft\Windows\Customer Experience Improvement Program\UsbCeip",
