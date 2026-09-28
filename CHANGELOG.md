@@ -17,6 +17,12 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   targets'; exporting every loaded `HKU\S-1-5-21-*` hive for a manual
   restore aid adds complexity out of proportion to its value. HKLM
   machine-scope is the meaningful restore surface.
+- Self-test guard registration gap closed: T9 parity + T10 dup-free now
+  cover the 11 previously-unregistered shared constants
+  (`_ACTIVE_SETUP_PATHS`, `_VELOCITY_AI_IDS`, `_VELOCITY_COPILOT_IDS`,
+  `_DEPROVISIONED_PATH`, `_REMOVE_DEFAULT_PKGS_PATH`, `_USER_*` x5)
+  and C# T8 gained `ActiveSetupPaths` + `Win32BloatNames`; structured
+  (subkey, value) tuple entries are checked per string component.
 - 29 blacklist entries (85→114), diffed against Raphire/Win11Debloat's
   default-removal app list: 10 Microsoft apps (`3DBuilder`, six
   discontinued `Bing*` consumer apps, `News`, `PCManager`,

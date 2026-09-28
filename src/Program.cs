@@ -4383,6 +4383,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
                 (typeof(RegistryGuard), "MiscBloatServices"),
                 (typeof(ScheduledTaskGuard), "OemTaskPatterns"),
                 (typeof(ScheduledTaskGuard), "MicrosoftSystemPrefixes"),
+                (typeof(RegistryGuard), "ActiveSetupPaths"),
+                (typeof(RegistryGuard), "Win32BloatNames"),
             };
             var dups = new List<string>();
             foreach (var (holder, field) in sharedArrays)

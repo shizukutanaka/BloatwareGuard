@@ -3077,8 +3077,36 @@ def run_self_test() -> int:
                                   ("_BACKUP_KEY_PATHS", _BACKUP_KEY_PATHS),
                                   ("_WIN32_BLOAT_NAMES", _WIN32_BLOAT_NAMES),
                                   ("_MISC_DEMOTE_SERVICES",
-                                   _MISC_DEMOTE_SERVICES)):
-                miss = [e for e in entries if e not in cs_src]
+                                   _MISC_DEMOTE_SERVICES),
+                                  ("_ACTIVE_SETUP_PATHS", _ACTIVE_SETUP_PATHS),
+                                  ("_VELOCITY_AI_IDS", _VELOCITY_AI_IDS),
+                                  ("_VELOCITY_COPILOT_IDS",
+                                   _VELOCITY_COPILOT_IDS),
+                                  # scalar shared constants — drift breaks
+                                  # parity silently, so assert presence too
+                                  ("_DEPROVISIONED_PATH",
+                                   (_DEPROVISIONED_PATH,)),
+                                  ("_REMOVE_DEFAULT_PKGS_PATH",
+                                   (_REMOVE_DEFAULT_PKGS_PATH,)),
+                                  ("_USER_DELIVERY_OPT",
+                                   (_USER_DELIVERY_OPT,)),
+                                  ("_USER_NOTIFICATION_SETTINGS",
+                                   (_USER_NOTIFICATION_SETTINGS,)),
+                                  ("_USER_OUTLOOK_MIGRATION",
+                                   (_USER_OUTLOOK_MIGRATION,)),
+                                  ("_USER_OUTLOOK_PREFERENCES",
+                                   (_USER_OUTLOOK_PREFERENCES,)),
+                                  ("_USER_SUGGESTED_TOAST",
+                                   (_USER_SUGGESTED_TOAST,)),
+                                  ("_USER_VOICE_ACTIVATION",
+                                   (_USER_VOICE_ACTIVATION,))):
+                miss = []
+                for e in entries:
+                    # structured entries ((subkey, value) pairs) — verify each
+                    # string component appears rather than the tuple itself
+                    parts = e if isinstance(e, tuple) else (e,)
+                    if any(isinstance(p, str) and p not in cs_src for p in parts):
+                        miss.append(e)
                 assert not miss, f"{name} entries missing from Program.cs: {miss}"
 
     check("T9: defaults <-> config.json parity", t_defaults_config_parity)
@@ -3095,12 +3123,17 @@ def run_self_test() -> int:
                                MICROSOFT_SYSTEM_TASK_PREFIXES),
                               ("_BACKUP_KEY_PATHS", _BACKUP_KEY_PATHS),
                               ("_WIN32_BLOAT_NAMES", _WIN32_BLOAT_NAMES),
-                              ("_MISC_DEMOTE_SERVICES", _MISC_DEMOTE_SERVICES)):
+                              ("_MISC_DEMOTE_SERVICES", _MISC_DEMOTE_SERVICES),
+                              ("_ACTIVE_SETUP_PATHS", _ACTIVE_SETUP_PATHS),
+                              ("_VELOCITY_AI_IDS", _VELOCITY_AI_IDS),
+                              ("_VELOCITY_COPILOT_IDS", _VELOCITY_COPILOT_IDS)):
             dupes = {e for e in entries if entries.count(e) > 1}
             assert not dupes, f"{name} has duplicate entries: {dupes}"
             # Service names are case-insensitive on Windows — catch
             # case-variant dups too (SensrSvc/sensrsvc shipped as both).
-            lower = [e.lower() for e in entries]
+            # Structured entries (e.g. (subkey, value) velocity pairs) carry
+            # no case-insensitive namespace — skip them here.
+            lower = [e.lower() for e in entries if isinstance(e, str)]
             case_dupes = {e for e in lower if lower.count(e) > 1}
             assert not case_dupes, f"{name} has case-variant duplicates: {case_dupes}"
 
