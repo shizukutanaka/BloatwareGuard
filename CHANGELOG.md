@@ -19,6 +19,10 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   (Winhance diff — diagnostic ETW collection task).
 
 ### Fixed
+- Python `get_blacklisted_packages` deduped `-AllUsers` rows by family —
+  when two versions of the same family coexisted (inbox update pending),
+  only the first was removed while C# removed all versions. Dedupe now keys
+  on PackageFullName like C# (family fallback for empty full_name).
 - `--restore` interpolated the ledger's `name` into a PowerShell string
   unvalidated — a malformed/hand-edited ledger entry could break quoting.
   Both impls now skip entries outside the package-name charset

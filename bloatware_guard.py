@@ -409,7 +409,9 @@ def _enum_blacklisted_packages(blacklist: List[str], whitelist: List[str]) -> Li
     if rc != 0 or not stdout:
         return []
 
-    # -AllUsers returns one row per user — dedupe by family
+    # -AllUsers returns one row per user — dedupe by PackageFullName so two
+    # coexisting versions of the same family both get removed (C# parity:
+    # keyed on fullName; fall back to family when full_name is empty).
     seen = set()
     results = []
     try:
@@ -421,10 +423,11 @@ def _enum_blacklisted_packages(blacklist: List[str], whitelist: List[str]) -> Li
             name = pkg.get("Name", "")
             install_path = pkg.get("InstallPath", "")  # None for SystemApps
             full_name = pkg.get("PackageFullName", "")
-            if bool(pkg.get("IsFramework")) or family in seen:
+            key = full_name or family
+            if bool(pkg.get("IsFramework")) or key in seen:
                 continue
             if is_target_package(family, blacklist, whitelist):
-                seen.add(family)
+                seen.add(key)
                 results.append((family, name, install_path, full_name))
     except (json.JSONDecodeError, TypeError):
         pass
