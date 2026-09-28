@@ -505,6 +505,12 @@ def run_restore(config: dict, logger: logging.Logger) -> int:
             continue
         name = entry.get("name", "")
         if entry.get("kind") == "appx" and name:
+            # Interpolated into a PowerShell string — reject anything outside
+            # the package-name charset before it can break the quoting.
+            if not _safe_pkg_name(name):
+                logger.warning(f"Ledger entry with unsafe name skipped: {name!r}")
+                manual += 1
+                continue
             ps_cmd = (
                 f"Get-AppxPackage -AllUsers -Name '{name}' | "
                 f"ForEach-Object {{ Add-AppxPackage -DisableDevelopmentMode "

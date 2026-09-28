@@ -825,7 +825,7 @@ public static class AppxManager
     private static readonly Regex PackageNamePattern =
         new(@"^[A-Za-z0-9_.\-~!]+$", RegexOptions.Compiled);
 
-    private static bool IsPackageNameSafe(string name) =>
+    internal static bool IsPackageNameSafe(string name) =>
         !string.IsNullOrEmpty(name) && PackageNamePattern.IsMatch(name);
 
     /// <summary>Get-AppxProvisionedPackage returns no PublisherId — the
@@ -4249,6 +4249,13 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
 
     private static bool RestoreStagedPackage(string name)
     {
+        // The name is interpolated into a PowerShell string — reject anything
+        // outside the package-name charset before it can break the quoting.
+        if (!AppxManager.IsPackageNameSafe(name))
+        {
+            GuardLogger.Warn($"Ledger entry with unsafe name skipped: {name}");
+            return false;
+        }
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",

@@ -19,6 +19,10 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   (Winhance diff — diagnostic ETW collection task).
 
 ### Fixed
+- `--restore` interpolated the ledger's `name` into a PowerShell string
+  unvalidated — a malformed/hand-edited ledger entry could break quoting.
+  Both impls now skip entries outside the package-name charset
+  (`_safe_pkg_name` / `AppxManager.IsPackageNameSafe`, widened to internal).
 - `ScanIntervalSeconds` was unvalidated: `0`/negative values would spin the
   service loop (`time.sleep(0)` busy-loop in Python, `Task.Delay` range
   exception in C#) and non-numeric values crashed the Python loop. Both
