@@ -18,6 +18,17 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   (exclusion policy), `MicrosoftPowerBIForWindows` (business tool),
   `XP9CXNGPPJ97XX` (WebExperiencePack — breaks Widgets; the toggle
   already covers it), `COOKINGFEVER` (covered by `Nordcurrent`).
+- New opt-in layer `DisableModernStandbyNetworking` (46th toggle, default
+  false): ConnectivityInStandby power policy (`AC/DCSettingIndex=0`) —
+  severs network during Modern Standby, stopping background sync/telemetry
+  while asleep on S0 systems. Source: Win11Debloat DisableModernStandbyNetworking.
+- `DisableCloudContent`: added `DisableConsumerAccountStateContent=1`
+  (CloudContent policy — hides Microsoft 365 Copilot ads on Settings Home).
+- `HideStartRecommendations`: added per-user-hive
+  `Start\Companions\Microsoft.YourPhone_8wekyb3d8bbwe\IsEnabled=0` — disables
+  the Phone Link companion panel in Start. Skipped as out-of-scope: location
+  services (deliberate exclusion), BitLocker auto-encryption (security
+  trade-off), Drag Tray/notification/UI-preference tweaks.
 - 12 telemetry-host entries (46→58), diffed against WindowsSpyBlocker's
   spy list: the actual DiagTrack ingest FQDNs `v10/v20.vortex-win.data.
   microsoft.com` (only the CNAME base was blocked before), the Edge ARIA

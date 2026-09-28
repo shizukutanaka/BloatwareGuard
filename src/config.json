@@ -158,6 +158,7 @@
         "DisableXboxServices": true,
         "BackupRegistry": true,
         "DisablePrintSpooler": false,
+        "DisableModernStandbyNetworking": false,
         "BlockOemWpbtExecution": true,
         "DisableReservedStorage": true,
         "DisableCloudClipboard": true,

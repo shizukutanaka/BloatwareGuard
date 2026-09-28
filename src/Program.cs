@@ -150,6 +150,11 @@ public class PreventionLayers
     /// kills the PrintNightmare attack surface on machines that never print</summary>
     public bool DisablePrintSpooler { get; set; }
 
+    /// <summary>Layer 46: Opt-in — documented power policy that severs
+    /// network connectivity during Modern Standby (S0): stops background
+    /// sync and telemetry while the device sleeps</summary>
+    public bool DisableModernStandbyNetworking { get; set; }
+
     /// <summary>Layer 30: Disable WPBT — UEFI tables OEMs use to inject
     /// executables into Windows at boot (ASUS Live Update abuse vector)</summary>
     public bool BlockOemWpbtExecution { get; set; } = true;
@@ -1199,6 +1204,9 @@ public static class RegistryGuard
         if (layers.DisablePrintSpooler)
             DisablePrintSpooler();
 
+        if (layers.DisableModernStandbyNetworking)
+            DisableModernStandbyNetworking();
+
         if (layers.BlockOemWpbtExecution)
             BlockOemWpbtExecution();
 
@@ -1502,6 +1510,8 @@ public static class RegistryGuard
             using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(CloudContentPath);
             key?.SetValue("DisableSoftLanding", 1, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("DisableCloudOptimizedContent", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            // Microsoft 365 / consumer-account content (Settings Home Copilot ads)
+            key?.SetValue("DisableConsumerAccountStateContent", 1, Microsoft.Win32.RegistryValueKind.DWord);
             // Settings "Home" page — the Microsoft 365 / account promo card
             using var exp = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(ExplorerPoliciesHklmPath);
             exp?.SetValue("SettingsPageVisibility", "hide:home");
@@ -2502,6 +2512,25 @@ public static class RegistryGuard
         }
     }
 
+    /// <summary>Opt-in: ConnectivityInStandby power policy — severs network
+    /// connectivity during Modern Standby (S0), stopping background sync
+    /// and telemetry while the device sleeps.</summary>
+    public static void DisableModernStandbyNetworking()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Policies\Microsoft\Power\PowerSettings\f15576e8-98b7-4186-b944-eafa664402d9");
+            key?.SetValue("ACSettingIndex", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("DCSettingIndex", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            GuardLogger.Info("Applied: DisableModernStandbyNetworking");
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Error($"Failed to disable Modern Standby networking: {ex.Message}");
+        }
+    }
+
     /// <summary>Layer 30: Windows Platform Binary Table lets OEMs inject an
     /// executable into the boot chain via firmware (abused e.g. by ASUS Live
     /// Update). DisableWpbtExecution=1 makes Windows ignore it.</summary>
@@ -2773,6 +2802,10 @@ public static class RegistryGuard
             SetUserDwordAllHives(
                 @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
                 "Start_TrackDocs", 0);
+            // Phone Link companion panel in Start (mobile-device promo surface)
+            SetUserDwordAllHives(
+                @"Software\Microsoft\Windows\CurrentVersion\Start\Companions\Microsoft.YourPhone_8wekyb3d8bbwe",
+                "IsEnabled", 0);
             GuardLogger.Info("Applied: HideStartRecommendations");
         }
         catch (Exception ex)

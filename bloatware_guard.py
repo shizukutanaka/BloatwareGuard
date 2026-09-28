@@ -241,6 +241,7 @@ def load_config(path: Path) -> dict:
                 "DisableXboxServices": True,
                 "BackupRegistry": True,
                 "DisablePrintSpooler": False,
+                "DisableModernStandbyNetworking": False,
                 "BlockOemWpbtExecution": True,
                 "DisableReservedStorage": True,
                 "DisableCloudClipboard": True,
@@ -946,6 +947,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
     if prev.get("DisableCloudContent", True):
         set_registry_dword("HKLM", cloud_content, "DisableSoftLanding", 1)
         set_registry_dword("HKLM", cloud_content, "DisableCloudOptimizedContent", 1)
+        # Microsoft 365 / consumer-account content (Settings Home Copilot ads)
+        set_registry_dword("HKLM", cloud_content,
+                           "DisableConsumerAccountStateContent", 1)
         # Settings "Home" page — the Microsoft 365 / account promo card
         set_registry_string("HKLM", _EXPLORER_POLICIES_HKLM,
                             "SettingsPageVisibility", "hide:home")
@@ -1389,6 +1393,16 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         run_cmd(["sc.exe", "config", "Spooler", "start=", "disabled"], timeout=15)
         logger.info("Applied: DisablePrintSpooler (Spooler stopped + disabled)")
 
+    if prev.get("DisableModernStandbyNetworking", False):
+        # Opt-in — documented power policy (ConnectivityInStandby) that
+        # severs network connectivity during Modern Standby: stops
+        # background sync/telemetry while asleep on S0 systems
+        standby = (r"SOFTWARE\Policies\Microsoft\Power\PowerSettings"
+                   r"\f15576e8-98b7-4186-b944-eafa664402d9")
+        set_registry_dword("HKLM", standby, "ACSettingIndex", 0)
+        set_registry_dword("HKLM", standby, "DCSettingIndex", 0)
+        logger.info("Applied: DisableModernStandbyNetworking")
+
     if prev.get("BlockOemWpbtExecution", True):
         # WPBT: OEMs inject executables into the boot chain via UEFI
         # (abused e.g. by ASUS Live Update) — DisableWpbtExecution makes
@@ -1502,6 +1516,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_user_dword_all_hives(
             r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
             "Start_TrackDocs", 0, logger)
+        # Phone Link companion panel in Start (mobile-device promo surface)
+        set_user_dword_all_hives(
+            r"Software\Microsoft\Windows\CurrentVersion\Start\Companions"
+            r"\Microsoft.YourPhone_8wekyb3d8bbwe",
+            "IsEnabled", 0, logger)
         logger.info("Applied: HideStartRecommendations")
 
 
@@ -2566,7 +2585,8 @@ def run_self_test() -> int:
                     "NoForcedReboot", "HideStartRecommendations",
                     "MarkDeprovisioned", "RemoveDefaultStorePackages",
                     "BlockTelemetryEndpoints", "WingetSweep",
-                    "DisableTelemetryAutologgers"]
+                    "DisableTelemetryAutologgers",
+                    "DisableModernStandbyNetworking"]
         missing = [k for k in required if k not in prev]
         assert not missing, f"missing prevention keys: {missing}"
 
@@ -2588,7 +2608,7 @@ def run_self_test() -> int:
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
     check("T4: Logger file + console wiring", t_logging)
     check("T5: is_admin() callable", t_is_admin)
-    check("T6: Prevention layers — 45 registered", t_prevention_layers)
+    check("T6: Prevention layers — 46 registered", t_prevention_layers)
     check("T7: Removal ledger write/read", t_removal_ledger)
     check("T8: Full-name batch map", t_full_name_map)
 
