@@ -18,6 +18,15 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   (exclusion policy), `MicrosoftPowerBIForWindows` (business tool),
   `XP9CXNGPPJ97XX` (WebExperiencePack — breaks Widgets; the toggle
   already covers it), `COOKINGFEVER` (covered by `Nordcurrent`).
+- 12 telemetry-host entries (46→58), diffed against WindowsSpyBlocker's
+  spy list: the actual DiagTrack ingest FQDNs `v10/v20.vortex-win.data.
+  microsoft.com` (only the CNAME base was blocked before), the Edge ARIA
+  pipe `browser.pipe.aria.microsoft.com`, additional WER ingest names on
+  `*.events.data.microsoft.com` (`umwatson`, `nw-umwatson`, `kmwatson`,
+  `kmwatsonc`), and legacy CEIP/WER endpoints (`df/alpha/ca.telemetry.
+  microsoft.com`, `telemetry.microsoft.com`, `watson.live.com`).
+  Skipped: sovereign-cloud (`.us`), Azure-service, sandbox, and
+  akadns/GLB load-balancer intermediate names.
 
 ### Fixed
 - Per-user-hive startup scan covered only the native `Run`/`RunOnce`

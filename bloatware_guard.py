@@ -1771,6 +1771,20 @@ _TELEMETRY_HOSTS = (
     "activity.windows.com",
     # Office diagnostics upload endpoint
     "api.diagnostics.office.com",
+    # DiagTrack ingest FQDNs actually queried by the Connected User
+    # Experiences service — vortex-win.data.microsoft.com above is the
+    # CNAME base, the live endpoints carry v10/v20 prefixes
+    "v10.vortex-win.data.microsoft.com", "v20.vortex-win.data.microsoft.com",
+    # Desktop/Edge counterpart of the mobile ARIA pipe above
+    "browser.pipe.aria.microsoft.com",
+    # More WER/event-ingest names on the same events.data.microsoft.com pipe
+    "umwatson.events.data.microsoft.com",
+    "nw-umwatson.events.data.microsoft.com",
+    "kmwatson.events.data.microsoft.com", "kmwatsonc.events.data.microsoft.com",
+    # Legacy CEIP/WER endpoints still referenced by inbox components
+    "df.telemetry.microsoft.com", "alpha.telemetry.microsoft.com",
+    "telemetry.microsoft.com", "ca.telemetry.microsoft.com",
+    "watson.live.com",
 )
 _HOSTS_BLOCK_BEGIN = "# >>> BloatwareGuard telemetry block"
 _HOSTS_BLOCK_END = "# <<< BloatwareGuard telemetry block"
