@@ -89,6 +89,16 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   tool), `Windows Mail PreventRun` (hard-blocks a functional app),
   install-bypass knobs (LabConfig/BypassNRO), BitLocker opt-out, and
   tiny11's functional removals (Terminal, Paint, OneNote, GetHelp).
+- Demote services 47→49 (Atlas services.yml diff): `TrkWks` (Distributed
+  Link Tracking — Microsoft 'OK to disable' per IoT/VDI guidance) and
+  `wercplsupport` (WER control-panel support, companion to the disabled
+  `WerSvc`). Skipped: `UCPD` (protects default-app choice), drivers
+  `GpuEnergyDrv`/`NetBT`/`Telemetry` (out of demote scope / risky), and
+  Atlas's file-sharing/location/search removals (functional or covered).
+- `BlockProvisioning` + `ConfigureChatAutoInstall=0` on
+  `HKLM\...\Communications` — the documented Chat/Teams consumer
+  auto-install channel (Atlas appx.yml); complements `Teams
+  DisableInstallation`.
 
 - `RemoveWin32Programs`: new `_WIN32_BLOAT_NAMES`/`Win32BloatNames`
   needle list (79 entries) merged into the Win32 DisplayName scan —

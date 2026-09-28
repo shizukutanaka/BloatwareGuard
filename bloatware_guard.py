@@ -995,6 +995,12 @@ _MISC_DEMOTE_SERVICES = (
     # keeps apps working without the resident listener (Win11Debloat
     # DisableAISvcAutoStart / winutil)
     "WSAIFabricSvc",
+    # Distributed Link Tracking — NTFS cross-volume link chasing,
+    # Microsoft 'OK to disable' per IoT/VDI guidance (Atlas services.yml)
+    "TrkWks",
+    # WER control-panel support — companion to the disabled WerSvc
+    # (Atlas services.yml; the error-report pipeline is already off)
+    "wercplsupport",
 )
 
 
@@ -1103,6 +1109,12 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             w(_USER_MOBILITY, "OptedIn", 0)
             # Mail/Calendar -> "new Outlook" forced migration nudge (winutil)
             w(_USER_OUTLOOK_MIGRATION, "DoNewOutlookAutoMigration", 0)
+        # Block Chat/Teams consumer auto-install at the documented
+        # channel (Atlas appx.yml — complements Teams DisableInstallation)
+        set_registry_dword(
+            "HKLM",
+            r"SOFTWARE\Microsoft\Windows\CurrentVersion\Communications",
+            "ConfigureChatAutoInstall", 0)
         # "Get the latest updates as soon as they're available" opt-in off —
         # continuous-innovation drops ship unannounced feature/bloat updates
         set_registry_dword("HKLM",

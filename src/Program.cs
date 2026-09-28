@@ -1689,6 +1689,13 @@ public static class RegistryGuard
             using var ux = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                 @"SOFTWARE\Microsoft\WindowsUpdate\UX\Settings");
             ux?.SetValue("IsContinuousInnovationOptedIn", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // Block Chat/Teams consumer auto-install at the documented
+            // channel (Atlas appx.yml — complements Teams DisableInstallation)
+            using (var comm = Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Microsoft\Windows\CurrentVersion\Communications", true))
+            {
+                comm?.SetValue("ConfigureChatAutoInstall", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            }
             // Push-to-install: block remote/mobile-driven Store installs
             // (tiny11builder; complements the demoted PushToInstall service
             // and disabled LoginCheck task — third anchor on the channel)
@@ -2898,6 +2905,12 @@ public static class RegistryGuard
         // keeps apps working without the resident listener (Win11Debloat
         // DisableAISvcAutoStart / winutil)
         "WSAIFabricSvc",
+        // Distributed Link Tracking — NTFS cross-volume link chasing,
+        // Microsoft 'OK to disable' per IoT/VDI guidance (Atlas services.yml)
+        "TrkWks",
+        // WER control-panel support — companion to the disabled WerSvc
+        // (Atlas services.yml; the error-report pipeline is already off)
+        "wercplsupport",
     };
 
     public static void DisableMiscBloatServices()
