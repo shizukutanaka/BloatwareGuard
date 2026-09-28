@@ -125,7 +125,11 @@
         "Microsoft.Windows.ShellExperienceHost",
         "Microsoft.Windows.Cortana",
         "Microsoft.Windows.SecHealthUI",
-        "Microsoft.Windows.Apprep.ChxApp"
+        "Microsoft.Windows.Apprep.ChxApp",
+        "Microsoft.Xbox.TCUI",
+        "Microsoft.XboxIdentityProvider",
+        "Microsoft.XboxSpeechToTextOverlay",
+        "Microsoft.GetHelp"
     ],
     "Prevention": {
         "RemoveAppxPackages": true,

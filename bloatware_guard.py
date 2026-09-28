@@ -209,6 +209,15 @@ def load_config(path: Path) -> dict:
                 "Microsoft.Windows.Cortana",
                 "Microsoft.Windows.SecHealthUI",
                 "Microsoft.Windows.Apprep.ChxApp",
+                # Xbox/Troubleshooter framework packages the broad
+                # "Microsoft.Xbox"/"Microsoft.GetHelp" blacklist prefixes
+                # would otherwise hit — removing them breaks the Store,
+                # Photos, some games, and speech-to-text overlay
+                # (Win11Debloat "unsafe" list)
+                "Microsoft.Xbox.TCUI",
+                "Microsoft.XboxIdentityProvider",
+                "Microsoft.XboxSpeechToTextOverlay",
+                "Microsoft.GetHelp",
             ],
             "Prevention": {
                 "RemoveAppxPackages": True,

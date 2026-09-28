@@ -558,6 +558,13 @@ public static class ConfigLoader
                 "Microsoft.Windows.Cortana",
                 "Microsoft.Windows.SecHealthUI",
                 "Microsoft.Windows.Apprep.ChxApp",
+                // Xbox/Troubleshooter framework packages the broad
+                // "Microsoft.Xbox"/"Microsoft.GetHelp" blacklist prefixes
+                // would otherwise hit (Win11Debloat "unsafe" list)
+                "Microsoft.Xbox.TCUI",
+                "Microsoft.XboxIdentityProvider",
+                "Microsoft.XboxSpeechToTextOverlay",
+                "Microsoft.GetHelp",
             },
             BackupDirectory = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),

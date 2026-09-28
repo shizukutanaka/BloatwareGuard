@@ -65,6 +65,12 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   akadns/GLB load-balancer intermediate names.
 
 ### Fixed
+- Whitelist 8→12: `Microsoft.Xbox.TCUI`, `Microsoft.XboxIdentityProvider`,
+  `Microsoft.XboxSpeechToTextOverlay`, `Microsoft.GetHelp` — the broad
+  `Microsoft.Xbox`/`Microsoft.GetHelp` blacklist prefixes would otherwise
+  remove them; Win11Debloat marks all four unsafe (breaks Store, Photos,
+  some games, and the accessibility overlay; GetHelp feeds
+  troubleshooters).
 - Per-user-hive startup scan covered only the native `Run`/`RunOnce`
   views; 32-bit installers can also register per-user autostart under
   `HKCU\SOFTWARE\WOW6432Node\...\Run`/`RunOnce` (listed by Sysinternals
