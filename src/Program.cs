@@ -1812,6 +1812,10 @@ public static class RegistryGuard
             // RetailDemo data-collection service (present on most images)
             RunToolSilent("sc.exe", "stop RetailDemo");
             RunToolSilent("sc.exe", "config RetailDemo start= disabled");
+            // Windows Error Reporting — upload path for crash dumps
+            // (QueueReporting task and WER hosts are covered elsewhere)
+            RunToolSilent("sc.exe", "stop WerSvc");
+            RunToolSilent("sc.exe", "config WerSvc start= disabled");
             // Block the "Unified Telemetry Client Outbound Traffic" firewall
             // rules — DiagTrack can't upload even if something re-enables it.
             try

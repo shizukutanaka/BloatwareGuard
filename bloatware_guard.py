@@ -1152,6 +1152,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         # RetailDemo data-collection service (present on most images)
         run_cmd(["sc.exe", "stop", "RetailDemo"], timeout=15)
         run_cmd(["sc.exe", "config", "RetailDemo", "start=", "disabled"], timeout=15)
+        # Windows Error Reporting — upload path for crash dumps (QueueReporting
+        # task and WER hosts are already covered elsewhere)
+        run_cmd(["sc.exe", "stop", "WerSvc"], timeout=15)
+        run_cmd(["sc.exe", "config", "WerSvc", "start=", "disabled"], timeout=15)
         # Block the "Unified Telemetry Client Outbound Traffic" firewall
         # rules — DiagTrack can't upload even if something re-enables it.
         run_powershell(
