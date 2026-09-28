@@ -2,6 +2,22 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.59.1-mvp: WindowsSpyBlocker hosts diff + diagnostics task
+
+### Added
+- Telemetry hosts 69→109 (WindowsSpyBlocker data/hosts/spy.txt diff): pure-
+  telemetry pipes (vortex/settings sandbox + PPE envs, glbdns2 aliases, oca/
+  umwatsonc/remoteapp pipes, activity test endpoint, residual Cortana, Edge
+  offers, legacy IE web service, GameDVR asset CDN) + ad-delivery endpoints
+  feeding MSN/Edge/widget surfaces (adnxs/adnexus, msn ads/rad variants,
+  msads, serving-sys, flashtalking, atdmt set, adtech.de, footprintpredict).
+  Skipped: *.wns.windows.com (~100 per-region push servers — breaks push
+  notifications), trafficmanager.net/akadns.net CNAME aliases (only resolved
+  inside the DNS chain, never queried literally), llnw/v0cdn CDN edges,
+  Teredo ipv6.microsoft.com, and WU/signon-capable live.com/Office pipes.
+- Telemetry tasks +1: `\Microsoft\Windows\Power Efficiency Diagnostics\AnalyzeSystem`
+  (Winhance diff — diagnostic ETW collection task).
+
 ## [Unreleased] — v1.58.0-mvp: 32-bit autostart coverage + blacklist expansion
 
 ### Added

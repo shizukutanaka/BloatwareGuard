@@ -2229,6 +2229,33 @@ _TELEMETRY_HOSTS = (
     "browser.events.data.msn.com",
     "ic3.events.data.microsoft.com", "mobile.events.data.microsoft.com",
     "teams.events.data.microsoft.com",
+    # WindowsSpyBlocker data/hosts/spy.txt diff — sandbox/PPE telemetry
+    # environments, activity pipeline, residual Cortana/Edge-offer calls,
+    # legacy IE web service (capability removed), GameDVR asset CDN
+    "vortex-sandbox.data.microsoft.com",
+    "settings-sandbox.data.microsoft.com",
+    "settings-win-ppe.data.microsoft.com",
+    "web.vortex.data.microsoft.com",
+    "vortex.data.glbdns2.microsoft.com",
+    "settings.data.glbdns2.microsoft.com",
+    "oca.telemetry.microsoft.us",
+    "umwatsonc.telemetry.microsoft.us",
+    "telemetry.remoteapp.windowsazure.com",
+    "test.activity.windows.com",
+    "api.cortana.ai",
+    "api.edgeoffer.microsoft.com",
+    "ieonlinews.microsoft.com",
+    "xblgdvrassets3010.blob.core.windows.net",
+    # Ad-delivery endpoints serving MSN/Edge/widget surfaces
+    "adnxs.com", "m.adnxs.com", "secure.adnxs.com", "adnexus.net",
+    "a.ads1.msn.com", "a.ads2.msn.com", "b.ads1.msn.com", "ads.msn.com",
+    "ads1.msads.net", "a.ads2.msads.net", "bingads.microsoft.com",
+    "a.rad.msn.com", "b.rad.msn.com", "ac3.msn.com", "live.rads.msn.com",
+    "bs.serving-sys.com", "msntest.serving-sys.com",
+    "secure.flashtalking.com",
+    "aidps.atdmt.com", "c.atdmt.com", "cdn.atdmt.com",
+    "db3aqu.atdmt.com", "ec.atdmt.com", "view.atdmt.com",
+    "aka-cdn-ns.adtech.de", "pre.footprintpredict.com",
 )
 _HOSTS_BLOCK_BEGIN = "# >>> BloatwareGuard telemetry block"
 _HOSTS_BLOCK_END = "# <<< BloatwareGuard telemetry block"
@@ -2496,6 +2523,8 @@ TELEMETRY_TASK_PATHS = (
     "\\Microsoft\\Windows\\Feedback\\Siuf\\DmClientOnScenarioDownload",
     "\\Microsoft\\Windows\\Maps\\MapsUpdateTask",
     "\\Microsoft\\Windows\\Maps\\MapsToastTask",
+    # Winhance: power-efficiency diagnostic ETW collection task
+    "\\Microsoft\\Windows\\Power Efficiency Diagnostics\\AnalyzeSystem",
     # Office Customer Experience Improvement Program (when Office is
     # installed; schtasks ignores missing paths)
     "\\Microsoft\\Office\\OfficeTelemetryAgentLogOn",
