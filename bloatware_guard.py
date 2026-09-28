@@ -570,6 +570,11 @@ _WIN32_BLOAT_NAMES = (
     "Acer Collection", "MSI Center", "Dragon Center", "Armoury Crate",
     "ArmouryCrate", "Nahimic", "Killer Intelligence", "BlueStacks",
     "Wondershare",
+    # HP serviceware channel (Spiceworks HP-debloat canon): connection
+    # optimizer, docs/notifications pushers, update/resilience services.
+    # HP Wolf Security (real AV) deliberately excluded.
+    "HP Connection Optimizer", "HP Documentation", "HP Notifications",
+    "HP Security Update Service", "HP Sure Recover", "HP Sure Run Module",
     # PUA "optimizer"/driver-updater tier pushed via ads
     "IObit", "Advanced SystemCare", "Driver Booster", "DriverBooster",
     "Driver Easy", "DriverEasy", "DriverUpdate", "Driver Tonic",

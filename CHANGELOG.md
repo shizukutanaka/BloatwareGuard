@@ -136,6 +136,10 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   `Microsoft.OutlookForWindows` entry covers the other family name).
   Skipped: Office Excel/PowerPoint/Word appx (functional Office apps),
   `Microsoft.StartExperiencesApp` (Start menu host).
+- `_WIN32_BLOAT_NAMES`/`Win32BloatNames` 79→85 — HP serviceware channel
+  (Spiceworks HP-debloat canon): Connection Optimizer, Documentation,
+  Notifications, Security Update Service, Sure Recover, Sure Run Module.
+  `HP Wolf Security` excluded — a real AV product, not trial nagware.
 
 - `RemoveWin32Programs`: new `_WIN32_BLOAT_NAMES`/`Win32BloatNames`
   needle list (79 entries) merged into the Win32 DisplayName scan —
