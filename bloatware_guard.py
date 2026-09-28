@@ -1652,6 +1652,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         # Promo tabs + desktop web widget (feature/promo surfaces)
         set_registry_dword("HKLM", edge_pol, "PromotionalTabsEnabled", 0)
         set_registry_dword("HKLM", edge_pol, "WebWidgetAllowed", 0)
+        # xd-AntiSpy diff: launch-time browser-data import, default-browser
+        # nag, NTP sponsored quick links
+        for name in ("ImportOnEachLaunch", "DefaultBrowserSettingEnabled",
+                     "NewTabPageQuickLinksEnabled"):
+            set_registry_dword("HKLM", edge_pol, name, 0)
         # Drop syncs files to OneDrive; crypto wallet + asset delivery service
         # are promo/feature-download surfaces
         for name in ("DropEnabled", "CryptoWalletEnabled",

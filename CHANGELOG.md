@@ -17,6 +17,16 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   Teredo ipv6.microsoft.com, and WU/signon-capable live.com/Office pipes.
 - Telemetry tasks +1: `\Microsoft\Windows\Power Efficiency Diagnostics\AnalyzeSystem`
   (Winhance diff — diagnostic ETW collection task).
+- `DisableEdgeBloat` +3 values (xd-AntiSpy diff): `ImportOnEachLaunch=0`
+  (Edge re-imports foreign browser data on every launch),
+  `DefaultBrowserSettingEnabled=0` (set-default nag),
+  `NewTabPageQuickLinksEnabled=0` (NTP sponsored quick links). Skipped:
+  `BrowserSignin`/`GamerModeEnabled` (functional features),
+  `NewTabPageHideDefaultTopSites` (UI preference + inverted semantics in
+  source), location ConsentStore (deliberately untouched),
+  `GlobalUserDisabled` background apps (kills all background apps),
+  OOBE `DisablePrivacyExperience` (functional OOBE change), UI toggles
+  (TaskbarDa/Al, ShowTaskViewButton, classic context menu, verbose logon).
 
 ### Fixed
 - Python `get_blacklisted_packages` deduped `-AllUsers` rows by family —

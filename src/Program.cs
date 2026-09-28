@@ -2431,6 +2431,11 @@ public static class RegistryGuard
             // Promo tabs + desktop web widget (feature/promo surfaces)
             key?.SetValue("PromotionalTabsEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("WebWidgetAllowed", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // xd-AntiSpy diff: launch-time browser-data import, default-
+            // browser nag, NTP sponsored quick links
+            key?.SetValue("ImportOnEachLaunch", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("DefaultBrowserSettingEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("NewTabPageQuickLinksEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
             // Edge AI surface (zoicware/RemoveWindowsAI policy set): page-
             // context Copilot, inline compose, history AI search, generated
             // themes, DevTools AI (2 = disabled), browsing-history sharing
