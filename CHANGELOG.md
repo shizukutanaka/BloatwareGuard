@@ -29,6 +29,9 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   the Phone Link companion panel in Start. Skipped as out-of-scope: location
   services (deliberate exclusion), BitLocker auto-encryption (security
   trade-off), Drag Tray/notification/UI-preference tweaks.
+- 1 telemetry task (57→58), diffed against Sophia Script + privacy.sexy:
+  `\Microsoft\Windows\Application Experience\MareBackup` — gathers Win32
+  app data for the Windows Backup app scenario (24H2+).
 - `DisableTelemetry`: blocks the DiagTrack outbound firewall rules —
   `Get-NetFirewallRule -Group DiagTrack | Set-NetFirewallRule -Enabled
   True -Action Block` (Sophia Script kill-chain). The "Unified Telemetry
