@@ -1680,6 +1680,11 @@ public static class RegistryGuard
                 "SubscribedContent-353698Enabled",  // Settings suggestions (4)
                 "SubscribedContent-338380Enabled",  // Settings app content ads
                 "SubscribedContent-314563Enabled",  // My People suggestions
+                "SubscribedContent-314559Enabled",  // OneDrive promotions (ReviOS)
+                "SubscribedContent-280815Enabled",  // OneDrive suggestions (ReviOS)
+                "SubscribedContent-202914Enabled",  // Start ads (ReviOS)
+                "SubscribedContent-280810Enabled",  // OneDrive SyncProviders ad
+                "SubscribedContent-280811Enabled",  // OneDrive upsell
                 "RotatingLockScreenEnabled",        // lock-screen spotlight
                 "RotatingLockScreenOverlayEnabled", // lock-screen overlay ads
                 "PreInstalledAppsEnabled",          // OEM app seeding
@@ -2555,6 +2560,12 @@ public static class RegistryGuard
             using var policy = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(WerPolicyPath);
             policy?.SetValue("Disabled", 1, Microsoft.Win32.RegistryValueKind.DWord);
             policy?.SetValue("AutoApproveOSDumps", 0, Microsoft.Win32.RegistryValueKind.DWord);
+
+            // WER consent policy — default deny + lock re-consenting
+            // (ReviOS privacy/wer.yml)
+            using var consent = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(WerPath + @"\Consent");
+            consent?.SetValue("DefaultConsent", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            consent?.SetValue("DefaultOverrideBehavior", 1, Microsoft.Win32.RegistryValueKind.DWord);
 
             ForEachUserHive(hive =>
             {

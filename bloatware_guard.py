@@ -1114,6 +1114,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             "SubscribedContent-353698Enabled",   # Settings suggestions (4)
             "SubscribedContent-338380Enabled",   # Settings app content ads
             "SubscribedContent-314563Enabled",   # My People suggestions
+            "SubscribedContent-314559Enabled",   # OneDrive promotions (ReviOS)
+            "SubscribedContent-280815Enabled",   # OneDrive suggestions (ReviOS)
+            "SubscribedContent-202914Enabled",   # Start ads (ReviOS)
+            "SubscribedContent-280810Enabled",   # OneDrive SyncProviders ad
+            "SubscribedContent-280811Enabled",   # OneDrive upsell
             "RotatingLockScreenEnabled",         # lock-screen spotlight
             "RotatingLockScreenOverlayEnabled",  # lock-screen overlay ads
             "PreInstalledAppsEnabled",           # OEM app seeding
@@ -1549,6 +1554,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_registry_dword("HKLM", wer, "DontSendAdditionalData", 1)
         set_registry_dword("HKLM", wer_policy, "Disabled", 1)
         set_registry_dword("HKLM", wer_policy, "AutoApproveOSDumps", 0)
+        # WER consent policy — default deny + lock the user out of
+        # re-consenting (ReviOS privacy/wer.yml)
+        set_registry_dword("HKLM", wer + r"\Consent", "DefaultConsent", 0)
+        set_registry_dword("HKLM", wer + r"\Consent", "DefaultOverrideBehavior", 1)
         set_user_dword_all_hives(_USER_WER, "Disabled", 1, logger)
         set_user_dword_all_hives(_USER_WER, "DontShowUI", 1, logger)
         set_user_dword_all_hives(_USER_WER, "LoggingDisabled", 1, logger)
