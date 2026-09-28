@@ -579,6 +579,13 @@ public static class ConfigLoader
                 // paint.exe)
                 "A025C540.Yandex.Music", "Microsoft.WindowsFeedback",
                 "Microsoft.MicrosoftReadingList", "Microsoft.MSPaint",
+                // xd-AntiSpy DebloaterPlugin diff: OEM promo stubs +
+                // third-party promo preinstalls (publisher-needle form)
+                "HPJumpStart", "ASUSGiftBox", "AcerCollection",
+                "DellDigitalDelivery", "DellSupportAssist",
+                "GAMELOFTSA", "KhanAcademy", "AsanaInc.Asana", "Luminar",
+                "DropboxInc.Dropbox", "TripAdvisor", "Uber",
+                "WildTangent", "SaferVPN", "SymantecCorporation",
 
                 // OEM utilities (uncomment as needed)
                 // "DellInc.Dell",
@@ -825,7 +832,7 @@ public static class AppxManager
     private static readonly Regex PackageNamePattern =
         new(@"^[A-Za-z0-9_.\-~!]+$", RegexOptions.Compiled);
 
-    private static bool IsPackageNameSafe(string name) =>
+    internal static bool IsPackageNameSafe(string name) =>
         !string.IsNullOrEmpty(name) && PackageNamePattern.IsMatch(name);
 
     /// <summary>Get-AppxProvisionedPackage returns no PublisherId — the
@@ -1428,6 +1435,33 @@ public static class RegistryGuard
         "browser.events.data.msn.com",
         "ic3.events.data.microsoft.com", "mobile.events.data.microsoft.com",
         "teams.events.data.microsoft.com",
+        // WindowsSpyBlocker data/hosts/spy.txt diff — sandbox/PPE telemetry
+        // environments, activity pipeline, residual Cortana/Edge-offer calls,
+        // legacy IE web service (capability removed), GameDVR asset CDN
+        "vortex-sandbox.data.microsoft.com",
+        "settings-sandbox.data.microsoft.com",
+        "settings-win-ppe.data.microsoft.com",
+        "web.vortex.data.microsoft.com",
+        "vortex.data.glbdns2.microsoft.com",
+        "settings.data.glbdns2.microsoft.com",
+        "oca.telemetry.microsoft.us",
+        "umwatsonc.telemetry.microsoft.us",
+        "telemetry.remoteapp.windowsazure.com",
+        "test.activity.windows.com",
+        "api.cortana.ai",
+        "api.edgeoffer.microsoft.com",
+        "ieonlinews.microsoft.com",
+        "xblgdvrassets3010.blob.core.windows.net",
+        // Ad-delivery endpoints serving MSN/Edge/widget surfaces
+        "adnxs.com", "m.adnxs.com", "secure.adnxs.com", "adnexus.net",
+        "a.ads1.msn.com", "a.ads2.msn.com", "b.ads1.msn.com", "ads.msn.com",
+        "ads1.msads.net", "a.ads2.msads.net", "bingads.microsoft.com",
+        "a.rad.msn.com", "b.rad.msn.com", "ac3.msn.com", "live.rads.msn.com",
+        "bs.serving-sys.com", "msntest.serving-sys.com",
+        "secure.flashtalking.com",
+        "aidps.atdmt.com", "c.atdmt.com", "cdn.atdmt.com",
+        "db3aqu.atdmt.com", "ec.atdmt.com", "view.atdmt.com",
+        "aka-cdn-ns.adtech.de", "pre.footprintpredict.com",
     };
     private const string HostsBlockBegin = "# >>> BloatwareGuard telemetry block";
     private const string HostsBlockEnd = "# <<< BloatwareGuard telemetry block";
@@ -1689,6 +1723,7 @@ public static class RegistryGuard
                 "SubscribedContent-202914Enabled",  // Start ads (ReviOS)
                 "SubscribedContent-280810Enabled",  // OneDrive SyncProviders ad
                 "SubscribedContent-280811Enabled",  // OneDrive upsell
+                "SubscribedContent-88000326Enabled", // Edge/app promotions (Optimizer diff)
                 "RotatingLockScreenEnabled",        // lock-screen spotlight
                 "RotatingLockScreenOverlayEnabled", // lock-screen overlay ads
                 "PreInstalledAppsEnabled",          // OEM app seeding
@@ -1904,6 +1939,9 @@ public static class RegistryGuard
             // Explorer-search web lookups off too (separate nag surface)
             using var expNoNet = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(ExplorerPoliciesHklmPath);
             expNoNet?.SetValue("NoSearchInternet", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            // Policy kill for web results in Start (Optimizer diff — one
+            // level deeper than the Bing/suggestion switches)
+            key?.SetValue("DisableWebSearch", 1, Microsoft.Win32.RegistryValueKind.DWord);
 
             ForEachUserHive(hive =>
             {
@@ -2404,6 +2442,11 @@ public static class RegistryGuard
             // Promo tabs + desktop web widget (feature/promo surfaces)
             key?.SetValue("PromotionalTabsEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("WebWidgetAllowed", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // xd-AntiSpy diff: launch-time browser-data import, default-
+            // browser nag, NTP sponsored quick links
+            key?.SetValue("ImportOnEachLaunch", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("DefaultBrowserSettingEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("NewTabPageQuickLinksEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
             // Edge AI surface (zoicware/RemoveWindowsAI policy set): page-
             // context Copilot, inline compose, history AI search, generated
             // themes, DevTools AI (2 = disabled), browsing-history sharing
@@ -2756,6 +2799,15 @@ public static class RegistryGuard
                     @"SOFTWARE\Microsoft\WindowsRuntime\ActivatableClassId\Microsoft.Xbox.GamingAI.Companion.Host.GamingCompanionHostOptions");
                 gai?.SetValue("ActivationType", unchecked((int)0xFFFFFFFF), Microsoft.Win32.RegistryValueKind.DWord);
                 gai?.SetValue("Server", "", Microsoft.Win32.RegistryValueKind.String);
+            }
+            catch { }
+            // 0 = never allow SmartGlass (Xbox companion phone-app)
+            // connections (Optimizer privacy diff)
+            try
+            {
+                using var sg = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Microsoft\Windows\CurrentVersion\SmartGlass");
+                sg?.SetValue("UserAuthPolicy", 0, Microsoft.Win32.RegistryValueKind.DWord);
             }
             catch { }
             GuardLogger.Info("Applied: DisableXboxServices (4 services → demand-start)");
@@ -3377,6 +3429,8 @@ public static class ScheduledTaskGuard
         @"\Microsoft\Windows\Feedback\Siuf\DmClientOnScenarioDownload",
         @"\Microsoft\Windows\Maps\MapsUpdateTask",
         @"\Microsoft\Windows\Maps\MapsToastTask",
+        // Winhance: power-efficiency diagnostic ETW collection task
+        @"\Microsoft\Windows\Power Efficiency Diagnostics\AnalyzeSystem",
         // Office Customer Experience Improvement Program (when Office is
         // installed; schtasks ignores missing paths)
         @"\Microsoft\Office\OfficeTelemetryAgentLogOn",
@@ -3561,6 +3615,13 @@ public class GuardService : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         GuardLogger.Info("=== BloatwareGuard Service Started ===");
+        // Each scan spawns real work — clamp a zero/negative interval to a
+        // floor instead of letting it spin or crash Task.Delay.
+        if (_config.ScanIntervalSeconds < 60)
+        {
+            GuardLogger.Warn($"ScanIntervalSeconds={_config.ScanIntervalSeconds} invalid — clamped to 60s minimum");
+            _config.ScanIntervalSeconds = 60;
+        }
         GuardLogger.Info($"Scan interval: {_config.ScanIntervalSeconds}s");
         GuardLogger.Info($"Blacklist entries: {_config.Blacklist.Count}");
 
@@ -4135,6 +4196,14 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         };
         Process.Start(psi);
         GuardLogger.Info("Service uninstalled.");
+
+        // The hosts block is tool-owned runtime state that outlives the
+        // service — strip it so an uninstalled tool leaves no stale
+        // null-routes. Registry policies and deprovision/startup markers
+        // intentionally persist: they are the hardening itself and removing
+        // them would re-enable the telemetry and reprovisioning the tool was
+        // installed to kill.
+        RegistryGuard.SetTelemetryHostsBlock(false);
     }
 
     private static void ShowStatus()
@@ -4205,6 +4274,13 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
 
     private static bool RestoreStagedPackage(string name)
     {
+        // The name is interpolated into a PowerShell string — reject anything
+        // outside the package-name charset before it can break the quoting.
+        if (!AppxManager.IsPackageNameSafe(name))
+        {
+            GuardLogger.Warn($"Ledger entry with unsafe name skipped: {name}");
+            return false;
+        }
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",

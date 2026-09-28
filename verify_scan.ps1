@@ -41,7 +41,7 @@ Write-Host "[Registry Changes (CloudContent)]" -ForegroundColor Yellow
 fc C:\temp\before.reg C:\temp\after.reg | findstr /i "CloudContent\|Consumer\|Disable"
 
 Write-Host "[Removed Appx Packages]" -ForegroundColor Yellow
-Compare-Object (Import-Csv C:\temp\appx_before.csv).PackageFamilyName (Import-Csv C:\temp\appx_after.csv).PackageFamilyName | Where-Object SideIndicator -eq "=>"
+Compare-Object (Import-Csv C:\temp\appx_before.csv).PackageFamilyName (Import-Csv C:\temp\appx_after.csv).PackageFamilyName | Where-Object SideIndicator -eq "<="
 
 Write-Host "`n=== VERIFICATION COMPLETE ===" -ForegroundColor Green
 Write-Host "Reboot Windows. After 10-30 minutes, re-run:" -ForegroundColor Magenta

@@ -2,6 +2,76 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.59.1-mvp: WindowsSpyBlocker hosts diff + diagnostics task
+
+### Added
+- Telemetry hosts 69→109 (WindowsSpyBlocker data/hosts/spy.txt diff): pure-
+  telemetry pipes (vortex/settings sandbox + PPE envs, glbdns2 aliases, oca/
+  umwatsonc/remoteapp pipes, activity test endpoint, residual Cortana, Edge
+  offers, legacy IE web service, GameDVR asset CDN) + ad-delivery endpoints
+  feeding MSN/Edge/widget surfaces (adnxs/adnexus, msn ads/rad variants,
+  msads, serving-sys, flashtalking, atdmt set, adtech.de, footprintpredict).
+  Skipped: *.wns.windows.com (~100 per-region push servers — breaks push
+  notifications), trafficmanager.net/akadns.net CNAME aliases (only resolved
+  inside the DNS chain, never queried literally), llnw/v0cdn CDN edges,
+  Teredo ipv6.microsoft.com, and WU/signon-capable live.com/Office pipes.
+- Telemetry tasks +1: `\Microsoft\Windows\Power Efficiency Diagnostics\AnalyzeSystem`
+  (Winhance diff — diagnostic ETW collection task).
+- Blacklist 156→171 (xd-AntiSpy DebloaterPlugin.json diff): OEM promo/
+  collection stubs (`HPJumpStart`, `ASUSGiftBox`, `AcerCollection`,
+  `DellDigitalDelivery`, `DellSupportAssist`) + third-party promo
+  preinstalls (`GAMELOFTSA`, `KhanAcademy`, `AsanaInc.Asana`, `Luminar`,
+  `DropboxInc.Dropbox`, `TripAdvisor`, `Uber`, `WildTangent`, `SaferVPN`,
+  `SymantecCorporation`). Vendor-product needles, not bare vendor names —
+  the existing commented-out `HPInc.`/`DellInc.Dell`/`Lenovo.`/`ASUS`
+  prefixes stay opt-in. Skipped: `Apple`/`Adobe`/`Corel`/`Google`/`Amazon`
+  (legit-app publishers), single-word game names (`Farm`/`Heroes`/`Gears`/
+  `Tsum`/`Tetris` — substring-collision risk vs. non-promo packages),
+  Office apps + Calculator/Camera (functional), `BioEnrollment` (Windows
+  Hello biometrics), `Microsoft.Feedback` (Feedback Hub already covered),
+  classic UI toggles.
+- hellzerg/Optimizer diff (privacy tweaks): +`SubscribedContent-88000326Enabled`
+  CDM id (Edge/app promotions), `DisableWebSearch=1` policy under
+  `DisableSearchSuggestions` (web results in Start — one level deeper than
+  the existing Bing/suggestion switches), and `SmartGlass UserAuthPolicy=0`
+  under `DisableXboxServices` (deny Xbox companion-app connections).
+  Skipped: `EnableWebContentEvaluation=0` (SmartScreen for app web content —
+  security path), `MaxTelemetryAllowed` (undocumented value), `SafeSearchMode`
+  (already covered), XPS print feature + Fax printer removal (functional),
+  VS Telemetry (dev tool), language/attachment/zone-map settings (out of
+  scope or security).
+- `DisableEdgeBloat` +3 values (xd-AntiSpy diff): `ImportOnEachLaunch=0`
+  (Edge re-imports foreign browser data on every launch),
+  `DefaultBrowserSettingEnabled=0` (set-default nag),
+  `NewTabPageQuickLinksEnabled=0` (NTP sponsored quick links). Skipped:
+  `BrowserSignin`/`GamerModeEnabled` (functional features),
+  `NewTabPageHideDefaultTopSites` (UI preference + inverted semantics in
+  source), location ConsentStore (deliberately untouched),
+  `GlobalUserDisabled` background apps (kills all background apps),
+  OOBE `DisablePrivacyExperience` (functional OOBE change), UI toggles
+  (TaskbarDa/Al, ShowTaskViewButton, classic context menu, verbose logon).
+
+### Fixed
+- Python `get_blacklisted_packages` deduped `-AllUsers` rows by family —
+  when two versions of the same family coexisted (inbox update pending),
+  only the first was removed while C# removed all versions. Dedupe now keys
+  on PackageFullName like C# (family fallback for empty full_name).
+- `--restore` interpolated the ledger's `name` into a PowerShell string
+  unvalidated — a malformed/hand-edited ledger entry could break quoting.
+  Both impls now skip entries outside the package-name charset
+  (`_safe_pkg_name` / `AppxManager.IsPackageNameSafe`, widened to internal).
+- `ScanIntervalSeconds` was unvalidated: `0`/negative values would spin the
+  service loop (`time.sleep(0)` busy-loop in Python, `Task.Delay` range
+  exception in C#) and non-numeric values crashed the Python loop. Both
+  impls now clamp to a 60s floor with a warning (non-numeric falls back to
+  the 300s default).
+- `--uninstall`/`uninstall` left the tool-owned hosts block behind forever —
+  a deleted tool permanently null-routing 109 telemetry/ad domains with no
+  removal path. Uninstall now strips the marked block before returning
+  (both impls). Registry policies and deprovision/startup markers
+  intentionally persist: they are the hardening itself, not service state,
+  and reversing them would re-enable what the tool was installed to kill.
+
 ## [Unreleased] — v1.58.0-mvp: 32-bit autostart coverage + blacklist expansion
 
 ### Added

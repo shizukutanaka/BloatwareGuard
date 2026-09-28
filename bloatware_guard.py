@@ -237,6 +237,14 @@ DEFAULT_BLACKLIST = [
     # paint.exe is a different binary and unaffected)
     "A025C540.Yandex.Music", "Microsoft.WindowsFeedback",
     "Microsoft.MicrosoftReadingList", "Microsoft.MSPaint",
+    # xd-AntiSpy DebloaterPlugin diff: OEM promo/collection stubs and
+    # third-party promo preinstalls (publisher-needle form — family names
+    # embed the vendor id so substring needles stay safe)
+    "HPJumpStart", "ASUSGiftBox", "AcerCollection",
+    "DellDigitalDelivery", "DellSupportAssist",
+    "GAMELOFTSA", "KhanAcademy", "AsanaInc.Asana", "Luminar",
+    "DropboxInc.Dropbox", "TripAdvisor", "Uber",
+    "WildTangent", "SaferVPN", "SymantecCorporation",
 ]
 
 
@@ -409,7 +417,9 @@ def _enum_blacklisted_packages(blacklist: List[str], whitelist: List[str]) -> Li
     if rc != 0 or not stdout:
         return []
 
-    # -AllUsers returns one row per user — dedupe by family
+    # -AllUsers returns one row per user — dedupe by PackageFullName so two
+    # coexisting versions of the same family both get removed (C# parity:
+    # keyed on fullName; fall back to family when full_name is empty).
     seen = set()
     results = []
     try:
@@ -421,10 +431,11 @@ def _enum_blacklisted_packages(blacklist: List[str], whitelist: List[str]) -> Li
             name = pkg.get("Name", "")
             install_path = pkg.get("InstallPath", "")  # None for SystemApps
             full_name = pkg.get("PackageFullName", "")
-            if bool(pkg.get("IsFramework")) or family in seen:
+            key = full_name or family
+            if bool(pkg.get("IsFramework")) or key in seen:
                 continue
             if is_target_package(family, blacklist, whitelist):
-                seen.add(family)
+                seen.add(key)
                 results.append((family, name, install_path, full_name))
     except (json.JSONDecodeError, TypeError):
         pass
@@ -505,6 +516,12 @@ def run_restore(config: dict, logger: logging.Logger) -> int:
             continue
         name = entry.get("name", "")
         if entry.get("kind") == "appx" and name:
+            # Interpolated into a PowerShell string — reject anything outside
+            # the package-name charset before it can break the quoting.
+            if not _safe_pkg_name(name):
+                logger.warning(f"Ledger entry with unsafe name skipped: {name!r}")
+                manual += 1
+                continue
             ps_cmd = (
                 f"Get-AppxPackage -AllUsers -Name '{name}' | "
                 f"ForEach-Object {{ Add-AppxPackage -DisableDevelopmentMode "
@@ -1157,6 +1174,7 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             "SubscribedContent-202914Enabled",   # Start ads (ReviOS)
             "SubscribedContent-280810Enabled",   # OneDrive SyncProviders ad
             "SubscribedContent-280811Enabled",   # OneDrive upsell
+            "SubscribedContent-88000326Enabled",  # Edge/app promotions (Optimizer diff)
             "RotatingLockScreenEnabled",         # lock-screen spotlight
             "RotatingLockScreenOverlayEnabled",  # lock-screen overlay ads
             "PreInstalledAppsEnabled",           # OEM app seeding
@@ -1325,6 +1343,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_user_dword_all_hives(_USER_SEARCH_SETTINGS, "IsMSACloudSearchEnabled", 0, logger)
         set_user_dword_all_hives(_USER_SEARCH_SETTINGS, "IsDeviceSearchHistoryEnabled", 0, logger)
         set_user_dword_all_hives(_USER_SEARCH, "CortanaConsent", 0, logger)
+        # Policy kill for web results in Start (Optimizer diff — same spirit
+        # as the Bing/suggestion switches above, one level deeper)
+        set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\Windows Search",
+                           "DisableWebSearch", 1)
         logger.info("Applied: DisableSearchSuggestions (Bing/search suggestions + Cortana off, all hives)")
 
     if prev.get("DisableWidgets", True):
@@ -1643,6 +1665,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         # Promo tabs + desktop web widget (feature/promo surfaces)
         set_registry_dword("HKLM", edge_pol, "PromotionalTabsEnabled", 0)
         set_registry_dword("HKLM", edge_pol, "WebWidgetAllowed", 0)
+        # xd-AntiSpy diff: launch-time browser-data import, default-browser
+        # nag, NTP sponsored quick links
+        for name in ("ImportOnEachLaunch", "DefaultBrowserSettingEnabled",
+                     "NewTabPageQuickLinksEnabled"):
+            set_registry_dword("HKLM", edge_pol, name, 0)
         # Drop syncs files to OneDrive; crypto wallet + asset delivery service
         # are promo/feature-download surfaces
         for name in ("DropEnabled", "CryptoWalletEnabled",
@@ -1822,6 +1849,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                r"GamingCompanionHostOptions")
         set_registry_dword("HKLM", gai, "ActivationType", 0xFFFFFFFF)
         set_registry_string("HKLM", gai, "Server", "")
+        # 0 = never allow SmartGlass (Xbox companion phone-app) connections
+        # (Optimizer privacy diff)
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Microsoft\Windows\CurrentVersion\SmartGlass",
+                           "UserAuthPolicy", 0)
         logger.info("Applied: DisableXboxServices (4 services -> demand-start)")
 
     if prev.get("DisableMiscBloatServices", True):
@@ -2229,6 +2261,33 @@ _TELEMETRY_HOSTS = (
     "browser.events.data.msn.com",
     "ic3.events.data.microsoft.com", "mobile.events.data.microsoft.com",
     "teams.events.data.microsoft.com",
+    # WindowsSpyBlocker data/hosts/spy.txt diff — sandbox/PPE telemetry
+    # environments, activity pipeline, residual Cortana/Edge-offer calls,
+    # legacy IE web service (capability removed), GameDVR asset CDN
+    "vortex-sandbox.data.microsoft.com",
+    "settings-sandbox.data.microsoft.com",
+    "settings-win-ppe.data.microsoft.com",
+    "web.vortex.data.microsoft.com",
+    "vortex.data.glbdns2.microsoft.com",
+    "settings.data.glbdns2.microsoft.com",
+    "oca.telemetry.microsoft.us",
+    "umwatsonc.telemetry.microsoft.us",
+    "telemetry.remoteapp.windowsazure.com",
+    "test.activity.windows.com",
+    "api.cortana.ai",
+    "api.edgeoffer.microsoft.com",
+    "ieonlinews.microsoft.com",
+    "xblgdvrassets3010.blob.core.windows.net",
+    # Ad-delivery endpoints serving MSN/Edge/widget surfaces
+    "adnxs.com", "m.adnxs.com", "secure.adnxs.com", "adnexus.net",
+    "a.ads1.msn.com", "a.ads2.msn.com", "b.ads1.msn.com", "ads.msn.com",
+    "ads1.msads.net", "a.ads2.msads.net", "bingads.microsoft.com",
+    "a.rad.msn.com", "b.rad.msn.com", "ac3.msn.com", "live.rads.msn.com",
+    "bs.serving-sys.com", "msntest.serving-sys.com",
+    "secure.flashtalking.com",
+    "aidps.atdmt.com", "c.atdmt.com", "cdn.atdmt.com",
+    "db3aqu.atdmt.com", "ec.atdmt.com", "view.atdmt.com",
+    "aka-cdn-ns.adtech.de", "pre.footprintpredict.com",
 )
 _HOSTS_BLOCK_BEGIN = "# >>> BloatwareGuard telemetry block"
 _HOSTS_BLOCK_END = "# <<< BloatwareGuard telemetry block"
@@ -2496,6 +2555,8 @@ TELEMETRY_TASK_PATHS = (
     "\\Microsoft\\Windows\\Feedback\\Siuf\\DmClientOnScenarioDownload",
     "\\Microsoft\\Windows\\Maps\\MapsUpdateTask",
     "\\Microsoft\\Windows\\Maps\\MapsToastTask",
+    # Winhance: power-efficiency diagnostic ETW collection task
+    "\\Microsoft\\Windows\\Power Efficiency Diagnostics\\AnalyzeSystem",
     # Office Customer Experience Improvement Program (when Office is
     # installed; schtasks ignores missing paths)
     "\\Microsoft\\Office\\OfficeTelemetryAgentLogOn",
@@ -2749,7 +2810,17 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
 
 def run_service(config: dict, logger: logging.Logger):
     """Run as a persistent background process."""
-    interval = config.get("ScanIntervalSeconds", 300)
+    try:
+        interval = int(config.get("ScanIntervalSeconds", 300))
+    except (TypeError, ValueError):
+        interval = 300
+    # Each scan spawns real work — clamp a zero/negative/garbage interval to
+    # a floor instead of letting it spin or crash the service loop.
+    if interval < 60:
+        logger.warning(
+            f"ScanIntervalSeconds={config.get('ScanIntervalSeconds')!r} invalid"
+            " — clamped to 60s minimum")
+        interval = 60
     prev = config.get("Prevention", {})
     blacklist = config.get("Blacklist", [])
     whitelist = config.get("Whitelist", [])
@@ -2910,6 +2981,12 @@ def uninstall_service():
     subprocess.run(["sc", "stop", SERVICE_NAME], capture_output=True)
     result = subprocess.run(["sc", "delete", SERVICE_NAME], capture_output=True, text=True)
     print(result.stdout)
+    # The hosts block is tool-owned runtime state that outlives the service —
+    # strip it so an uninstalled tool leaves no stale null-routes. Registry
+    # policies and deprovision/startup markers intentionally persist: they are
+    # the hardening itself and removing them would re-enable the telemetry
+    # and reprovisioning the tool was installed to kill.
+    set_telemetry_hosts_block(False, logging.getLogger(APP_NAME))
 
 
 # ─── Self-Test ───────────────────────────────────────────────────────────────

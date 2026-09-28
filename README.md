@@ -30,7 +30,7 @@ also apply correctly when the tool runs as a SYSTEM service and for users create
 || 18. Optional capabilities removed (IE mode, Steps Recorder, WordPad, XPS Viewer, Fax&Scan, Wireless Display) | ✅ | ✅ | Requires admin |
 || 19. Win32 bloatware uninstalled (McAfee/Norton OEM preinstalls — MSI silent) | ✅ | ✅ | Requires admin |
 || 20. Restore point before destructive scans (self-throttles 24h) | ✅ | ✅ | Requires admin |
-|| 21. Microsoft telemetry tasks off (62: CompatTelRunner, CEIP, Siuf, Maps, Office CEIP, RetailDemo, Insider flighting, feedback, Device Census, family safety, net-trace, AIT, speech models, disk diagnostics, PCA, location, IME/input sync, PerfTrack, push-install, WDI, WindowsAI Recall, Office AI) | ✅ | ✅ | Requires admin |
+|| 21. Microsoft telemetry tasks off (63: CompatTelRunner, CEIP, Siuf, Maps, Office CEIP, RetailDemo, Insider flighting, feedback, Device Census, family safety, net-trace, AIT, speech models, disk diagnostics, PCA, location, IME/input sync, PerfTrack, push-install, WDI, WindowsAI Recall, Office AI, power diagnostics) | ✅ | ✅ | Requires admin |
 || 22. Bloatware autostart entries disabled (StartupApproved marker + Startup-folder rename — restorable) | ✅ | ✅ | Per-hive, some HKLM |
 || 23. Windows Error Reporting uploads off | ✅ | ✅ | HKLM needs admin |
 || 24. Edge update services → demand-start + update tasks off | ✅ | ✅ | Requires admin |
@@ -51,7 +51,7 @@ also apply correctly when the tool runs as a SYSTEM service and for users create
 || 39. Start "Recommended" section hidden (promoted-apps surface) | ✅ | ✅ | HKLM needs admin |
 || 40. Deprovisioned markers for blacklisted families (feature-update re-provision blocked) | ✅ | ✅ | HKLM needs admin |
 || 41. 25H2 RemoveDefaultMicrosoftStorePackages policy (OS removes listed apps at first sign-in of new users) | ✅ | ✅ | HKLM needs admin; unknown ids ignored on older builds |
-|| 42. Telemetry endpoints null-routed via marked hosts block (69 domains, reversible) | ✅ | ✅ | Requires admin |
+|| 42. Telemetry endpoints null-routed via marked hosts block (109 domains, reversible) | ✅ | ✅ | Requires admin |
 || 43. winget uninstall sweep for blacklist entries that are valid package ids | ✅ | ✅ | Skips when winget absent |
 || 44. Telemetry ETW AutoLoggers off (SQMLogger, WiFiSession, Diagtrack-Listener, 13 sessions) | ✅ | ✅ | HKLM needs admin |
 || 45. Provisioning blocked (CDM silent installs, SubscribedContent surfaces, Open-With store nags, online tips) | ✅ | ✅ | HKLM + per-hive |
