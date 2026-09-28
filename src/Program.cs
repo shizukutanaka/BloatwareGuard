@@ -1072,6 +1072,8 @@ public static class RegistryGuard
     private const string MachineRunOncePath32 = @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\RunOnce";
     private const string UserRunPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string UserRunOncePath = @"Software\Microsoft\Windows\CurrentVersion\RunOnce";
+    private const string UserRunPath32 = @"Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Run";
+    private const string UserRunOncePath32 = @"Software\WOW6432Node\Microsoft\Windows\CurrentVersion\RunOnce";
     private const string StartupApprovedRun = @"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run";
     private const string StartupApprovedRunOnce = @"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\RunOnce";
     private const string WindowsUpdatePolicyPath = @"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate";
@@ -2156,8 +2158,10 @@ public static class RegistryGuard
             // Every user hive + HKCU (Run + RunOnce)
             ForEachUserHive(hive =>
             {
-                ScanAndMark(hive, UserRunPath, StartupApprovedRun);
-                ScanAndMark(hive, UserRunOncePath, StartupApprovedRunOnce);
+                ScanAndMark(hive, UserRunPath, StartupApprovedRun, UserRunPath32);
+                ScanAndMark(hive, UserRunPath32, StartupApprovedRun, UserRunPath);
+                ScanAndMark(hive, UserRunOncePath, StartupApprovedRunOnce, UserRunOncePath32);
+                ScanAndMark(hive, UserRunOncePath32, StartupApprovedRunOnce, UserRunOncePath);
             });
             // Startup folders aren't governed by StartupApproved — match the
             // same needles against filenames and rename to .bgdisabled
@@ -3479,7 +3483,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.57.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.58.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -3565,7 +3569,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.57.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.58.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -3731,8 +3735,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 8;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.57.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.57.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.58.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.58.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try

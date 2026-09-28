@@ -2,7 +2,17 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
-## [Unreleased] — v1.57.0-mvp: startup-surface coverage
+## [Unreleased] — v1.58.0-mvp: per-user 32-bit autostart coverage
+
+### Fixed
+- Per-user-hive startup scan covered only the native `Run`/`RunOnce`
+  views; 32-bit installers can also register per-user autostart under
+  `HKCU\SOFTWARE\WOW6432Node\...\Run`/`RunOnce` (listed by Sysinternals
+  Autoruns). Both impls now scan those views in every user hive and mark
+  matches with the same StartupApproved 0x03 marker, with the peer-view
+  name-collision guard applied symmetrically.
+
+## [1.57.0-mvp] — startup-surface coverage
 
 ### Fixed
 - Startup-bloat scan missed the 32-bit `RunOnce` view
