@@ -5,6 +5,13 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.58.0-mvp: 32-bit autostart coverage + blacklist expansion
 
 ### Added
+- `BackupRegistry` coverage completion (36→68 keys): self-audit diffed every
+  HKLM path the tool writes against `_BACKUP_KEY_PATHS` and found ~30
+  policy-key gaps — the docstring promises "every HKLM key this tool
+  touches" is exported for double-click restore. Added the missing write
+  paths (DataCollection, WindowsUpdate Orchestrator/UX, PushToInstall,
+  TabletPC/Handwriting/EdgeUI, OOBE/Communications, FeatureManagement
+  overrides, et al.) so `--uninstall` restore actually covers all writes.
 - 29 blacklist entries (85→114), diffed against Raphire/Win11Debloat's
   default-removal app list: 10 Microsoft apps (`3DBuilder`, six
   discontinued `Bing*` consumer apps, `News`, `PCManager`,
