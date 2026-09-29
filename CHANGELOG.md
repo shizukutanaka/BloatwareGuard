@@ -92,6 +92,13 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   corrected to `"<="`.
 - DESIGN.md layer table was missing the `DisableModernStandbyNetworking`
   opt-in row — all 46 prevention layers now documented.
+- Logging resilience (product-completeness audit): Python `setup_logging`
+  ran `mkdir` outside the try, so an unwritable LogFilePath crashed before
+  any console output instead of falling back to console-only — mkdir moved
+  inside and the catch broadened to OSError. C# `GuardLogger.Write` used
+  `File.AppendAllText` without creating the parent dir, so file logging
+  silently did nothing until some other component created it — now creates
+  the directory on write (caught, non-fatal either way).
 
 ## [Unreleased] — v1.58.0-mvp: 32-bit autostart coverage + blacklist expansion
 

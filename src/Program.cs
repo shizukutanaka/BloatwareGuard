@@ -325,6 +325,9 @@ public static class GuardLogger
         {
             try
             {
+                var parent = Path.GetDirectoryName(logPath);
+                if (!string.IsNullOrEmpty(parent))
+                    Directory.CreateDirectory(parent);
                 // A resident service appends forever — rotate at 1 MB,
                 // keeping one prior generation (*.old)
                 var info = new FileInfo(logPath);

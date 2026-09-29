@@ -45,7 +45,6 @@ LOG_FILE = LOG_DIR / "bloatware-guard.log"
 # ─── Logging ─────────────────────────────────────────────────────────────────
 
 def setup_logging(log_file: Path) -> logging.Logger:
-    log_file.parent.mkdir(parents=True, exist_ok=True)
     logger = logging.getLogger(APP_NAME)
     logger.setLevel(logging.INFO)
 
@@ -53,14 +52,15 @@ def setup_logging(log_file: Path) -> logging.Logger:
                             datefmt="%Y-%m-%d %H:%M:%S")
 
     try:
+        log_file.parent.mkdir(parents=True, exist_ok=True)
         # A resident service appends forever — rotate at 1 MB, keep one backup
         fh = logging.handlers.RotatingFileHandler(
             str(log_file), maxBytes=1_000_000, backupCount=1,
             encoding="utf-8")
         fh.setFormatter(fmt)
         logger.addHandler(fh)
-    except PermissionError:
-        # Non-admin: fall back to console only
+    except OSError:
+        # Non-admin or unwritable path: fall back to console only
         pass
 
     ch = logging.StreamHandler()
