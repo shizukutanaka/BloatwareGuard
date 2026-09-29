@@ -325,6 +325,9 @@ public static class GuardLogger
         {
             try
             {
+                var parent = Path.GetDirectoryName(logPath);
+                if (!string.IsNullOrEmpty(parent))
+                    Directory.CreateDirectory(parent);
                 // A resident service appends forever — rotate at 1 MB,
                 // keeping one prior generation (*.old)
                 var info = new FileInfo(logPath);
@@ -467,6 +470,11 @@ public static class ConfigLoader
                 "Microsoft.MicrosoftEdge.Stable",
                 "Microsoft.Windows.DevHome",       // Dev Home (+ GitHub extension)
                 "Microsoft.Copilot",
+                "Microsoft.Windows.Ai.Copilot.Provider",  // Copilot provider package
+                "MicrosoftWindows.Client.CoPilot",  // Copilot client (distinct from Microsoft.Copilot)
+                "MicrosoftWindows.Client.CoreAI",   // Windows AI platform — Recall/ClickToDo runtime
+                "MicrosoftWindows.Client.AIX",      // AI experience shell (Copilot+)
+                "aimgr",                            // AI Manager package
                 "Clipchamp.Clipchamp",
                 "MSTeams",                          // New Teams (Work/School), provisioned via AppX push
                 "Microsoft.OutlookForWindows",      // New Outlook, preinstalled since 23H2
@@ -1093,7 +1101,7 @@ public static class Win32Guard
         {
             FileName = "powershell.exe",
             Arguments = "-NoProfile -ExecutionPolicy Bypass -Command " +
-                "\"Enable-ComputerRestore -Drive 'C:\\' -ErrorAction SilentlyContinue | Out-Null; " +
+                "\"Enable-ComputerRestore -Drive \\\"$env:SystemDrive\\\\\\\" -ErrorAction SilentlyContinue | Out-Null; " +
                 "Checkpoint-Computer -Description 'BloatwareGuard pre-scan' " +
                 "-RestorePointType 'MODIFY_SETTINGS' -ErrorAction SilentlyContinue | Out-Null\"",
             RedirectStandardOutput = true,
@@ -4040,7 +4048,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.58.0-mvp");
+                    Console.WriteLine("BloatwareGuard v1.59.1-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -4126,7 +4134,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.58.0-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.59.1-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -4307,8 +4315,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 8;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.58.0-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.58.0-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.59.1-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.59.1-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try

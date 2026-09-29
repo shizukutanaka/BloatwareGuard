@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.58.0-mvp - Python prototype
+BloatwareGuard v1.59.1-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -35,7 +35,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.58.0-mvp"
+APP_VERSION = "1.59.1-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -45,7 +45,6 @@ LOG_FILE = LOG_DIR / "bloatware-guard.log"
 # ─── Logging ─────────────────────────────────────────────────────────────────
 
 def setup_logging(log_file: Path) -> logging.Logger:
-    log_file.parent.mkdir(parents=True, exist_ok=True)
     logger = logging.getLogger(APP_NAME)
     logger.setLevel(logging.INFO)
 
@@ -53,14 +52,15 @@ def setup_logging(log_file: Path) -> logging.Logger:
                             datefmt="%Y-%m-%d %H:%M:%S")
 
     try:
+        log_file.parent.mkdir(parents=True, exist_ok=True)
         # A resident service appends forever — rotate at 1 MB, keep one backup
         fh = logging.handlers.RotatingFileHandler(
             str(log_file), maxBytes=1_000_000, backupCount=1,
             encoding="utf-8")
         fh.setFormatter(fmt)
         logger.addHandler(fh)
-    except PermissionError:
-        # Non-admin: fall back to console only
+    except OSError:
+        # Non-admin or unwritable path: fall back to console only
         pass
 
     ch = logging.StreamHandler()
@@ -104,6 +104,11 @@ DEFAULT_BLACKLIST = [
     "Microsoft.MicrosoftEdge.Stable",
     "Microsoft.Windows.DevHome",       # Dev Home (+ GitHub extension)
     "Microsoft.Copilot",
+    "Microsoft.Windows.Ai.Copilot.Provider",  # Copilot provider package
+    "MicrosoftWindows.Client.CoPilot",  # Copilot client (distinct from Microsoft.Copilot)
+    "MicrosoftWindows.Client.CoreAI",   # Windows AI platform — Recall/ClickToDo runtime
+    "MicrosoftWindows.Client.AIX",      # AI experience shell (Copilot+)
+    "aimgr",                            # AI Manager package
     "Clipchamp.Clipchamp",
     "MSTeams",                          # New Teams (Work/School), provisioned via AppX push
     "Microsoft.OutlookForWindows",      # New Outlook, preinstalled since 23H2
@@ -738,7 +743,7 @@ def create_restore_point(logger):
     checkpoints to ~1 per 24h; failure is non-fatal."""
     _, rc = run_cmd(
         ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
-         "Enable-ComputerRestore -Drive 'C:\\' -ErrorAction SilentlyContinue | Out-Null; "
+         "Enable-ComputerRestore -Drive \"$env:SystemDrive\\\" -ErrorAction SilentlyContinue | Out-Null; "
          "Checkpoint-Computer -Description 'BloatwareGuard pre-scan' "
          "-RestorePointType 'MODIFY_SETTINGS' -ErrorAction SilentlyContinue | Out-Null"],
         timeout=120)

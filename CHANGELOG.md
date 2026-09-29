@@ -17,6 +17,18 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   Teredo ipv6.microsoft.com, and WU/signon-capable live.com/Office pipes.
 - Telemetry tasks +1: `\Microsoft\Windows\Power Efficiency Diagnostics\AnalyzeSystem`
   (Winhance diff — diagnostic ETW collection task).
+- Blacklist 171→176 (RemoveWindowsAI $aipackages + winutil WPFTweaksWindowsAI
+  diff): the Copilot+ AI client packages none of the Store-app lists cover —
+  `MicrosoftWindows.Client.CoreAI` (AI platform hosting Recall/ClickToDo
+  runtime), `MicrosoftWindows.Client.AIX` (AI experience shell),
+  `MicrosoftWindows.Client.CoPilot` (Copilot client — distinct package from
+  `Microsoft.Copilot`), `Microsoft.Windows.Ai.Copilot.Provider`, `aimgr`
+  (AI Manager). Skipped: `MicrosoftWindows.Client.CBS`/`.Core`/`.Photon`
+  (inbox shell components), `MicrosoftWindows.*.Voiess/Speion/Livtop/Filons`
+  (Copilot+ voice/vision components — wildcard-only references, package
+  names unverified), `Microsoft.AIFabric.CBS` (explorer dependency per
+  RemoveWindowsAI itself; WSAIFabricSvc is already demand-started),
+  `Microsoft.Ink.Handwriting` (functional input pack).
 - Blacklist 156→171 (xd-AntiSpy DebloaterPlugin.json diff): OEM promo/
   collection stubs (`HPJumpStart`, `ASUSGiftBox`, `AcerCollection`,
   `DellDigitalDelivery`, `DellSupportAssist`) + third-party promo
@@ -71,6 +83,22 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   (both impls). Registry policies and deprovision/startup markers
   intentionally persist: they are the hardening itself, not service state,
   and reversing them would re-enable what the tool was installed to kill.
+- `CreateRestorePoint` hardcoded `-Drive 'C:\'` for `Enable-ComputerRestore`
+  — on systems whose OS volume isn't C: (multi-boot, relocated installs)
+  it enabled System Restore on the wrong drive. Both impls now pass
+  `$env:SystemDrive`.
+- `verify_scan.ps1` printed the appx diff backwards: `SideIndicator "=>"`
+  lists packages that *appeared* after the scan, not removed ones —
+  corrected to `"<="`.
+- DESIGN.md layer table was missing the `DisableModernStandbyNetworking`
+  opt-in row — all 46 prevention layers now documented.
+- Logging resilience (product-completeness audit): Python `setup_logging`
+  ran `mkdir` outside the try, so an unwritable LogFilePath crashed before
+  any console output instead of falling back to console-only — mkdir moved
+  inside and the catch broadened to OSError. C# `GuardLogger.Write` used
+  `File.AppendAllText` without creating the parent dir, so file logging
+  silently did nothing until some other component created it — now creates
+  the directory on write (caught, non-fatal either way).
 
 ## [Unreleased] — v1.58.0-mvp: 32-bit autostart coverage + blacklist expansion
 
