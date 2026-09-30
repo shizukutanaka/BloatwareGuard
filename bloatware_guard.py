@@ -629,11 +629,18 @@ def remove_optional_capabilities(logger: logging.Logger,
         f"{query} | Remove-WindowsCapability -Online "
         "-ErrorAction SilentlyContinue | Out-Null", timeout=180)
     if rc == 0:
+        # Remove-WindowsCapability may fail per-item even with rc=0 — re-query
+        # and only ledger capabilities that are actually gone so restore
+        # does not reinstall ones never removed (Devin Review)
+        out2, _, _ = run_powershell(
+            f"{query} | Select-Object -ExpandProperty Name", timeout=60)
+        remaining = {n.strip() for n in (out2 or "").splitlines()}
+        removed = [n for n in names if n not in remaining]
         if config is not None:
-            for n in names:
+            for n in removed:
                 record_removal(config, {"kind": "capability", "name": n})
         logger.info("Applied: RemoveOptionalCapabilities "
-                    f"({len(names)} capabilities)")
+                    f"({len(removed)}/{len(names)} capabilities removed)")
     else:
         logger.warning("RemoveOptionalCapabilities: no capabilities removed "
                        "(absent or admin required)")
@@ -2274,7 +2281,7 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                          # sidebar variant, games menu, in-app support,
                          # Acrobat promo, web widget autostart, searchbar,
                          # ECS experimentation
-                         "BingAdsSuppression", "DiscoverPageContextEnabled",
+                         "DiscoverPageContextEnabled",
                          "EdgeDiscoverEnabled", "EdgeEnhanceImagesEnabled",
                          "MetricsReportingEnabled",
                          "RelatedMatchesCloudServiceEnabled",
@@ -2287,6 +2294,8 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                          "SearchbarIsEnabledOnStartup",
                          "ExperimentationAndConfigurationServiceControl"):
                 set_registry_dword("HKLM", edge_pol, name, 0)
+            # Documented policy suppresses Bing ads when ENABLED (=1)
+            set_registry_dword("HKLM", edge_pol, "BingAdsSuppressionEnabled", 1)
             # 2 = never predict/pre-resolve via Microsoft web service
             set_registry_dword("HKLM", edge_pol, "NetworkPredictionOptions", 2)
             # Promo tabs + desktop web widget (feature/promo surfaces)

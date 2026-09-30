@@ -735,9 +735,22 @@ public static class AppxManager
         };
         if (Proc.Wait(psi, 180000) == 0)  // DISM ops can be slow
         {
-            foreach (var n in names)
+            // Remove-WindowsCapability may fail per-item even on rc=0 — re-query
+            // and only ledger capabilities that are actually gone.
+            var namesPsi2 = new ProcessStartInfo
+            {
+                FileName = "powershell.exe",
+                Arguments = namesPsi.Arguments,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            var remaining = Proc.Capture(namesPsi2, 60000).Stdout
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                .Select(n => n.Trim()).ToHashSet();
+            var removed = names.Where(n => !remaining.Contains(n)).ToList();
+            foreach (var n in removed)
                 RemovalLedger.Record(config, "capability", n);
-            GuardLogger.Info($"Applied: RemoveOptionalCapabilities ({names.Count} capabilities)");
+            GuardLogger.Info($"Applied: RemoveOptionalCapabilities ({removed.Count}/{names.Count} capabilities removed)");
         }
         else
             GuardLogger.Warn("RemoveOptionalCapabilities: no capabilities removed (absent or admin required)");
@@ -2929,11 +2942,12 @@ public static class RegistryGuard
             key?.SetValue("EdgeCollectionsEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("EdgeFollowEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
             // privacy.sexy Edge-policy diff — promo/feed/telemetry
-            // surfaces: ads suppression, Discover/enhance feeds, metrics
+            // surfaces: Bing ads suppressed (Edge policy is enable-to-
+            // suppress), Discover/enhance feeds, metrics
             // reporting, site-info upload, rewards/sign-in nags, NTP
             // spotlight, sidebar variant, games menu, in-app support,
             // Acrobat promo, web widget autostart, searchbar, ECS
-            key?.SetValue("BingAdsSuppression", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("BingAdsSuppressionEnabled", 1, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("DiscoverPageContextEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("EdgeDiscoverEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("EdgeEnhanceImagesEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
@@ -4989,6 +5003,24 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
 
     /// <summary>Re-register staged AppxPackages recorded in the removal ledger.
     /// Provisioned packages cannot be restored from the image — reported as manual.</summary>
+    // Proc.Wait throws when winget is absent — probe once and treat
+    // winget entries as manual instead of aborting later restores.
+    private static bool? _wingetAvailable;
+    private static bool WingetRestoreAvailable()
+    {
+        if (_wingetAvailable != null) return _wingetAvailable.Value;
+        var psi = new ProcessStartInfo
+        {
+            FileName = "winget.exe", Arguments = "--version",
+            UseShellExecute = false, CreateNoWindow = true
+        };
+        try { _wingetAvailable = Proc.Wait(psi, 15000) != null; }
+        catch { _wingetAvailable = false; }
+        if (_wingetAvailable == false)
+            GuardLogger.Info("winget not found — winget ledger entries marked manual");
+        return _wingetAvailable.Value;
+    }
+
     private static void RestorePackages(GuardConfig config)
     {
         var ledger = RemovalLedger.GetPath(config);
@@ -5031,7 +5063,7 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
             }
             else if (kind == "winget" && !string.IsNullOrEmpty(name))
             {
-                if (!WingetGuard.WingetIdIsMatch(name))
+                if (!WingetGuard.WingetIdIsMatch(name) || !WingetRestoreAvailable())
                 {
                     manual++;
                     continue;

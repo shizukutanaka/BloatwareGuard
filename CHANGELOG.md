@@ -5,6 +5,14 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- Devin Review round (PR #35): fix BingAdsSuppression
+  inverted write -- documented policy is
+  BingAdsSuppressionEnabled and must be 1 to suppress
+  Bing ads (0 disabled suppression); winget-restore
+  availability probe so missing winget marks entries
+  manual instead of throwing mid-loop; capability
+  ledger now re-queries post-removal and records only
+  capabilities actually gone.
 - Microsoft Copilot ADMX docs (CopilotApp.admx +
   copilotupdate.admx): DisableCopilot +BrowsingEnabled
   +CopilotCoworkToolActionsEnabled @
