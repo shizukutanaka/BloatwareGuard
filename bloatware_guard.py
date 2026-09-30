@@ -1045,6 +1045,9 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Policies\Microsoft\Windows\AppPrivacy",
     r"SOFTWARE\Policies\Microsoft\WindowsInkWorkspace",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\Deprovisioned",
+    r"SOFTWARE\Microsoft\Windows\Shell\Copilot",
+    r"SOFTWARE\Microsoft\Windows\CurrentVersion\Search",
+    r"SOFTWARE\NVIDIA Corporation\Global\FTS",
     r"SOFTWARE\Policies\Microsoft\Windows\Appx"
     r"\RemoveDefaultMicrosoftStorePackages",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing",
@@ -1237,6 +1240,8 @@ _USER_BACKUP_KEY_PATHS = (
     r"Software\Microsoft\Windows\CurrentVersion\Search",
     r"Software\Microsoft\Windows\CurrentVersion\SearchSettings",
     r"Software\Microsoft\Windows\CurrentVersion\SearchSettings\WebSearchPro",
+    r"Software\Microsoft\Windows\CurrentVersion\WindowsCopilot",
+    r"Software\Microsoft\Windows\CurrentVersion\Search",
     r"Software\Microsoft\Windows\CurrentVersion\Internet Settings\Wpad",
     r"Software\Microsoft\Notepad",
     r"Software\Microsoft\Paint",
@@ -1487,6 +1492,18 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             shell_copilot = r"SOFTWARE\Microsoft\Windows\Shell\Copilot"
             set_registry_dword("HKLM", shell_copilot, "IsCopilotAvailable", 0)
             set_registry_dword("HKLM", shell_copilot + r"\BingChat", "IsUserEligible", 0)
+            # Region-availability trick (winscript): report the geographic
+            # eligibility check as failed so the feature never surfaces
+            set_registry_string("HKLM", shell_copilot, "CopilotDisabledReason",
+                                "IsEnabledForGeographicRegionFailed")
+            # Per-user Copilot runtime kill (winscript)
+            set_user_dword_all_hives(
+                r"Software\Microsoft\Windows\CurrentVersion\WindowsCopilot",
+                "AllowCopilotRuntime", 0, logger)
+            # NVIDIA telemetry opt-out RIDs (winscript)
+            _nv_fts = r"SOFTWARE\NVIDIA Corporation\Global\FTS"
+            for _rid in ("EnableRID44231", "EnableRID64640", "EnableRID66610"):
+                set_registry_dword("HKLM", _nv_fts, _rid, 0)
             set_user_dword_all_hives(_USER_SHELL_COPILOT, "IsCopilotAvailable", 0, logger)
             set_user_dword_all_hives(_USER_SHELL_COPILOT_BINGCHAT, "IsUserEligible", 0, logger)
             # Copilot voice-agent activation off (all user hives)
@@ -1589,6 +1606,24 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             # Cortana/voice access above the lock screen (TronScript)
             set_registry_dword(
                 "HKLM", search_pol, "AllowCortanaAboveLock", 0)
+            # Connected-search privacy=disabled + no web results on
+            # metered links (winscript)
+            set_registry_dword("HKLM", search_pol, "ConnectedSearchPrivacy", 3)
+            set_registry_dword(
+                "HKLM", search_pol,
+                "ConnectedSearchUseWebOverMeteredConnections", 0)
+            # Legacy Cortana master kill + policy-level search-history off
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Microsoft\Windows\CurrentVersion\Search",
+                "CortanaEnabled", 0)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Policies\Microsoft\Windows\Explorer",
+                "DisableSearchHistory", 1)
+            set_user_dword_all_hives(
+                r"Software\Microsoft\Windows\CurrentVersion\Search",
+                "DeviceHistoryEnabled", 0, logger)
             # Location-aware search results leak the device location to Bing
             set_registry_dword("HKLM", search_pol, "AllowSearchToUseLocation", 0)
             # AAD work/school-account Cortana + OOBE-path variants
@@ -1895,6 +1930,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword("HKLM",
                                r"SOFTWARE\Policies\Microsoft\Windows\Messaging",
                                "AllowMessageSync", 0)
+            # Maps: no background network traffic for Settings-page
+            # content (winscript)
+            set_registry_dword(
+                "HKLM", r"SOFTWARE\Policies\Microsoft\Windows\Maps",
+                "AllowUntriggeredNetworkTrafficOnSettingsPage", 0)
             # SettingSync extras — deeper kills on the same toggle
             ss = r"SOFTWARE\Policies\Microsoft\Windows\SettingSync"
             set_registry_dword("HKLM", ss, "DisableSettingSyncUserOverride", 1)
@@ -1905,7 +1945,18 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             for n, v in (("DisableApplicationSettingSync", 2),
                          ("DisableApplicationSettingSyncUserOverride", 1),
                          ("DisableCredentialsSettingSync", 2),
-                         ("DisableCredentialsSettingSyncUserOverride", 1)):
+                         ("DisableCredentialsSettingSyncUserOverride", 1),
+                         ("DisableWebBrowserSettingSync", 2),
+                         ("DisableWebBrowserSettingSyncUserOverride", 1),
+                         ("DisableStartLayoutSettingSync", 2),
+                         ("DisableStartLayoutSettingSyncUserOverride", 1),
+                         ("DisablePersonalizationSettingSync", 2),
+                         ("DisablePersonalizationSettingSyncUserOverride", 1),
+                         ("DisableDesktopThemeSettingSync", 2),
+                         ("DisableDesktopThemeSettingSyncUserOverride", 1),
+                         ("DisableAppSyncSettingSync", 2),
+                         ("DisableAppSyncSettingSyncUserOverride", 1),
+                         ("DisableWindowsSettingSyncUserOverride", 1)):
                 set_registry_dword("HKLM", ss, n, v)
             # Text-input linguistic data collection + Bluetooth device
             # advertising off (hellzerg/Optimizer privacy diff)

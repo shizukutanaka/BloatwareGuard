@@ -5,6 +5,18 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- flick9000/winscript diff (large): DisableCopilot
+  +CopilotDisabledReason region-fail trick +per-user
+  AllowCopilotRuntime +NVIDIA FTS RID telemetry opt-outs;
+  DisableSearchSuggestions +ConnectedSearchPrivacy=3
+  +ConnectedSearchUseWebOverMeteredConnections +CortanaEnabled
+  legacy master +policy DisableSearchHistory +per-user
+  DeviceHistoryEnabled; DisableTelemetry +Maps
+  AllowUntriggeredNetworkTrafficOnSettingsPage +SettingSync
+  deep kills +11 (browser/startlayout/personalization/theme/
+  appsync categories + user overrides). Backup 99->102,
+  user backup 56->58. Skipped: WU timing/policy, VisualStudio/
+  CCleaner vendor, WMDRM online, UI prefs, Brave.
 - hagezi/dns-blocklists microsoft.txt + native.winoffice diff:
   hosts 151->190 — remaining vortex events ingest regions
   (au/eu/in/jp/uk/us mobile + v20), Office diagnostics

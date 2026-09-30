@@ -1992,6 +1992,22 @@ public static class RegistryGuard
                 using (var bing = shell?.CreateSubKey("BingChat"))
                     bing?.SetValue("IsUserEligible", 0, Microsoft.Win32.RegistryValueKind.DWord);
             }
+            // Region-availability trick (winscript): report the geographic
+            // eligibility check as failed so Copilot never surfaces
+            using (var shell2 = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(ShellCopilotPath))
+                shell2?.SetValue("CopilotDisabledReason", "IsEnabledForGeographicRegionFailed");
+            // Per-user Copilot runtime kill (winscript)
+            SetUserDwordAllHives(
+                @"Software\Microsoft\Windows\CurrentVersion\WindowsCopilot",
+                "AllowCopilotRuntime", 0);
+            // NVIDIA telemetry opt-out RIDs (winscript)
+            using (var fts = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                       @"SOFTWARE\NVIDIA Corporation\Global\FTS"))
+            {
+                fts?.SetValue("EnableRID44231", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                fts?.SetValue("EnableRID64640", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                fts?.SetValue("EnableRID66610", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            }
             SetUserDwordAllHives(UserShellCopilotPath, "IsCopilotAvailable", 0);
             SetUserDwordAllHives(UserShellCopilotPath + @"\BingChat", "IsUserEligible", 0);
             // Copilot voice-agent activation off (all user hives)
@@ -2121,6 +2137,21 @@ public static class RegistryGuard
             key?.SetValue("AllowCortana", 0, Microsoft.Win32.RegistryValueKind.DWord);
             // Cortana/voice above the lock screen (TronScript)
             key?.SetValue("AllowCortanaAboveLock", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // Connected-search privacy=disabled + no web results over
+            // metered links (winscript)
+            key?.SetValue("ConnectedSearchPrivacy", 3, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("ConnectedSearchUseWebOverMeteredConnections", 0,
+                          Microsoft.Win32.RegistryValueKind.DWord);
+            // Legacy Cortana master kill + policy-level search-history off
+            using (var lsearch = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                       @"SOFTWARE\Microsoft\Windows\CurrentVersion\Search"))
+                lsearch?.SetValue("CortanaEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            using (var expol2 = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                       @"SOFTWARE\Policies\Microsoft\Windows\Explorer"))
+                expol2?.SetValue("DisableSearchHistory", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            SetUserDwordAllHives(
+                @"Software\Microsoft\Windows\CurrentVersion\Search",
+                "DeviceHistoryEnabled", 0);
             // AAD work/school-account Cortana + OOBE-path variants
             // (ReviOS search.yml)
             key?.SetValue("AllowCortanaInAAD", 0, Microsoft.Win32.RegistryValueKind.DWord);
@@ -2500,6 +2531,11 @@ public static class RegistryGuard
                 using var msg = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Windows\Messaging");
                 msg?.SetValue("AllowMessageSync", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                // Maps: no background traffic for Settings content (winscript)
+                using var maps = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\Maps");
+                maps?.SetValue("AllowUntriggeredNetworkTrafficOnSettingsPage", 0,
+                               Microsoft.Win32.RegistryValueKind.DWord);
                 // SettingSync extras — deeper kills on the same toggle
                 using var ss = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Windows\SettingSync");
@@ -2512,6 +2548,19 @@ public static class RegistryGuard
                 ss?.SetValue("DisableApplicationSettingSyncUserOverride", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 ss?.SetValue("DisableCredentialsSettingSync", 2, Microsoft.Win32.RegistryValueKind.DWord);
                 ss?.SetValue("DisableCredentialsSettingSyncUserOverride", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // Deeper per-category sync kills (winscript): browser, start
+                // layout, personalization, theme, app-sync + overrides
+                ss?.SetValue("DisableWebBrowserSettingSync", 2, Microsoft.Win32.RegistryValueKind.DWord);
+                ss?.SetValue("DisableWebBrowserSettingSyncUserOverride", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                ss?.SetValue("DisableStartLayoutSettingSync", 2, Microsoft.Win32.RegistryValueKind.DWord);
+                ss?.SetValue("DisableStartLayoutSettingSyncUserOverride", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                ss?.SetValue("DisablePersonalizationSettingSync", 2, Microsoft.Win32.RegistryValueKind.DWord);
+                ss?.SetValue("DisablePersonalizationSettingSyncUserOverride", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                ss?.SetValue("DisableDesktopThemeSettingSync", 2, Microsoft.Win32.RegistryValueKind.DWord);
+                ss?.SetValue("DisableDesktopThemeSettingSyncUserOverride", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                ss?.SetValue("DisableAppSyncSettingSync", 2, Microsoft.Win32.RegistryValueKind.DWord);
+                ss?.SetValue("DisableAppSyncSettingSyncUserOverride", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                ss?.SetValue("DisableWindowsSettingSyncUserOverride", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 ForEachUserHive(hive =>
                 {
                     SetHiveDword(hive, @"Software\Microsoft\Windows\CurrentVersion\SettingSync", "SyncPolicy", 5);
@@ -3366,6 +3415,9 @@ public static class RegistryGuard
         @"SOFTWARE\Policies\Microsoft\FindMyDevice",
         @"SOFTWARE\Policies\Microsoft\Windows\SettingSync",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Device Metadata",
+        @"SOFTWARE\Microsoft\Windows\Shell\Copilot",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Search",
+        @"SOFTWARE\NVIDIA Corporation\Global\FTS",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\Deprovisioned",
         @"SOFTWARE\Policies\Microsoft\Windows\Appx\RemoveDefaultMicrosoftStorePackages",
                 @"SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing",
@@ -3484,6 +3536,8 @@ public static class RegistryGuard
         @"Software\Microsoft\Windows\CurrentVersion\Search",
         @"Software\Microsoft\Windows\CurrentVersion\SearchSettings",
         @"Software\Microsoft\Windows\CurrentVersion\SearchSettings\WebSearchPro",
+        @"Software\Microsoft\Windows\CurrentVersion\WindowsCopilot",
+        @"Software\Microsoft\Windows\CurrentVersion\Search",
         @"Software\Microsoft\Windows\CurrentVersion\Internet Settings\Wpad",
         @"Software\Microsoft\Notepad",
         @"Software\Microsoft\Paint",
