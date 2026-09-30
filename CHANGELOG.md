@@ -5,6 +5,11 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- winutil v2 tweaks.json diff (re-mine): DisableEdgeBloat
+  +UrlKeyedAnonymizedDataCollectionEnabled (URL-keyed browsing
+  data uploads); misc services +SharedAccess (ICS — demand-start).
+  Remaining diffs all UI prefs/third-party browsers/functional
+  or closed-PR content.
 - noid-privacy Strict/Paranoid profile diff: DisableTelemetry
   +DisableOneSettingsDownloads (DataCollection alias path)
   +DisableGraphRecentItems +EnableCdp=0 (CDP master)

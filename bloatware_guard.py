@@ -1172,6 +1172,7 @@ _MISC_DEMOTE_SERVICES = (
     # cellular time sync, SMS router, Internet Connection Sharing —
     # demand-start keeps invocation working
     "BcastDVRUserService", "autotimesvc", "SmsRouter", "icssvc",
+    "SharedAccess",
     # WER control-panel support — companion to the disabled WerSvc
     # (Atlas services.yml; the error-report pipeline is already off)
     "wercplsupport",
@@ -2101,7 +2102,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                          # Address-bar trending suggestions + reading-mode
                          # cloud extraction upload (noid-privacy EdgePolicies)
                          "AddressBarTrendingSuggestEnabled",
-                         "EdgeReadingModeServiceBasedExtractionEnabled"):
+                         "EdgeReadingModeServiceBasedExtractionEnabled",
+                         # URL-keyed "anonymized" browsing-data uploads
+                         # (winutil tweaks.json Edge group)
+                         "UrlKeyedAnonymizedDataCollectionEnabled"):
                 set_registry_dword("HKLM", edge_pol, name, 0)
             set_registry_dword("HKLM", edge_pol, "StartupBoostEnabled", 0)
             set_registry_dword("HKLM", edge_pol, "AllowPrelaunch", 0)

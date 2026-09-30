@@ -2722,7 +2722,9 @@ public static class RegistryGuard
                     "CopilotAddressBarSuggestionsEnabled", "CopilotNewTabPageEnabled",
                     "AllowBrowsingWithCopilot", "M365LinksAutoOpenCopilotEnabled",
                     "VisualSearchEnabled", "AddressBarTrendingSuggestEnabled",
-                    "EdgeReadingModeServiceBasedExtractionEnabled" })
+                    "EdgeReadingModeServiceBasedExtractionEnabled",
+                    // URL-keyed "anonymized" browsing-data uploads (winutil)
+                    "UrlKeyedAnonymizedDataCollectionEnabled" })
                 key?.SetValue(n, 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("StartupBoostEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("AllowPrelaunch", 0, Microsoft.Win32.RegistryValueKind.DWord);
@@ -3673,6 +3675,7 @@ public static class RegistryGuard
             // template, cellular time sync, SMS router, ICS —
             // demand-start keeps invocation working
             "BcastDVRUserService", "autotimesvc", "SmsRouter", "icssvc",
+            "SharedAccess",
         // WER control-panel support — companion to the disabled WerSvc
         // (Atlas services.yml; the error-report pipeline is already off)
         "wercplsupport",
