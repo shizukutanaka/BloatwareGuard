@@ -5,6 +5,13 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- privacyfilters/Microsoft-Blocker (new source,
+  5,850-entry hosts list): telemetry hosts 197->416 —
+  vortex/events-data regional TM aliases, watson/WER
+  family, Clarity analytics, MSN/Bing ads, Office-app
+  telemetry endpoints, xboxlive metrics. Skipped: Azure/
+  enterprise/AppInsights SDK, NCSI, WU/Store/CDN,
+  SmartScreen, 5,300 footprintdns wildcards.
 - Winhance (memstechtips, new source C#): per-user
   ShowCopilotNudges=0, OneDrive KFMBlockOptIn=1
   (HKLM+per-user), AAD WorkplaceJoin
