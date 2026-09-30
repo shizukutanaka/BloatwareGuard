@@ -3002,6 +3002,9 @@ TELEMETRY_TASK_PATHS = (
     # "Exp" variant shipped on newer builds — same telemetry role
     "\\Microsoft\\Windows\\Application Experience\\Microsoft Compatibility Appraiser Exp",
     "\\Microsoft\\Windows\\Application Experience\\ProgramDataUpdater",
+    # Chkdsk Proxy — event-driven disk diagnostic collector
+    # (tiny11Coremaker task-file deletion list)
+    "\\Microsoft\\Windows\\Chkdsk\\Proxy",
     "\\Microsoft\\Windows\\Application Experience\\PcaPatchDbTask",
     # Shim-DB merge task — same AppCompat collection pipeline (privacy.sexy)
     "\\Microsoft\\Windows\\Application Experience\\SdbinstMergeDbTask",

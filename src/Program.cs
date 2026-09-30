@@ -3809,6 +3809,8 @@ public static class ScheduledTaskGuard
         // "Exp" variant shipped on newer builds — same telemetry role
         @"\Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser Exp",
         @"\Microsoft\Windows\Application Experience\ProgramDataUpdater",
+        // Chkdsk Proxy — event-driven disk diagnostic collector
+        @"\Microsoft\Windows\Chkdsk\Proxy",
         @"\Microsoft\Windows\Application Experience\PcaPatchDbTask",
         // Shim-DB merge task — same AppCompat pipeline (privacy.sexy)
         @"\Microsoft\Windows\Application Experience\SdbinstMergeDbTask",

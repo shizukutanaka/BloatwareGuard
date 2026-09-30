@@ -5,6 +5,10 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- tiny11Coremaker diff: telemetry tasks +Chkdsk\Proxy (event-driven
+  disk diagnostic collector, 93->94). Defender service kills / task-file
+  deletions / component stripping skipped (security boundary + offline-
+  image technique, not applicable to live policy enforcement).
 - tiny11builder diff: blacklist +AppUp.IntelManagementandSecurityStatus
   (Intel IMSS OEM support stub, 184->185); DisableChatTaskbar now also
   writes the HKLM 'Windows Chat' ChatIcon=3 policy — the taskbar toggle
