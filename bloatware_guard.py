@@ -1061,6 +1061,10 @@ _BACKUP_KEY_PATHS = (
     r"SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters",
     r"SOFTWARE\Microsoft\PolicyManager\current\device\Bluetooth",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\TextInput",
+    r"SOFTWARE\Microsoft\Input\Settings",
+    r"SOFTWARE\Microsoft\Input\TIPC",
+    r"SOFTWARE\Microsoft\WcmSvc",
+    r"SOFTWARE\Microsoft\PolicyManager\default\WiFi",
     r"SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
     r"SOFTWARE\Microsoft\PolicyManager\default\System\AllowTelemetry",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\CPSS",
@@ -1829,6 +1833,23 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "HKLM",
                 r"SOFTWARE\Microsoft\PolicyManager\current\device\Bluetooth",
                 "AllowAdvertising", 0)
+            # Machine-side typing-insight + handwriting prediction kills
+            # (per-user copies already covered) + WiFi Sense hotspot
+            # reporting/auto-connect family (ReviOS privacy/misc)
+            ins = r"SOFTWARE\Microsoft\Input\Settings"
+            for v in ("InsightsEnabled", "EnableHwkbTextPrediction"):
+                set_registry_dword("HKLM", ins, v, 0)
+            set_registry_dword("HKLM", r"SOFTWARE\Microsoft\Input\TIPC",
+                               "Enabled", 0)
+            wcm = r"SOFTWARE\Microsoft\WcmSvc\wifinetworkmanager"
+            for v in ("PaidWifi", "WiFiSenseOpen"):
+                set_registry_dword("HKLM", wcm + r"\features", v, 0)
+            set_registry_dword("HKLM", wcm + r"\config",
+                               "AutoConnectAllowedOEM", 0)
+            wifi = r"SOFTWARE\Microsoft\PolicyManager\default\WiFi"
+            for p in ("AllowAutoConnectToWiFiSenseHotspots",
+                      "AllowWiFiHotSpotReporting"):
+                set_registry_dword("HKLM", wifi + "\\" + p, "value", 0)
             set_user_dword_all_hives(
                 r"Software\Microsoft\Windows\CurrentVersion\SettingSync",
                 "SyncPolicy", 5, logger)

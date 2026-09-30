@@ -2422,6 +2422,30 @@ public static class RegistryGuard
             using var bt = Registry.LocalMachine.CreateSubKey(
                 @"SOFTWARE\Microsoft\PolicyManager\current\device\Bluetooth", true);
             bt?.SetValue("AllowAdvertising", 0, RegistryValueKind.DWord);
+            // Machine-side typing-insight + handwriting prediction kills
+            // (per-user copies already covered) + WiFi Sense hotspot
+            // reporting/auto-connect family (ReviOS privacy/misc)
+            using var ins = Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Microsoft\Input\Settings", true);
+            ins?.SetValue("InsightsEnabled", 0, RegistryValueKind.DWord);
+            ins?.SetValue("EnableHwkbTextPrediction", 0, RegistryValueKind.DWord);
+            using var tipc = Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Microsoft\Input\TIPC", true);
+            tipc?.SetValue("Enabled", 0, RegistryValueKind.DWord);
+            using var wcmf = Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Microsoft\WcmSvc\wifinetworkmanager\features", true);
+            wcmf?.SetValue("PaidWifi", 0, RegistryValueKind.DWord);
+            wcmf?.SetValue("WiFiSenseOpen", 0, RegistryValueKind.DWord);
+            using var wcmc = Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Microsoft\WcmSvc\wifinetworkmanager\config", true);
+            wcmc?.SetValue("AutoConnectAllowedOEM", 0, RegistryValueKind.DWord);
+            foreach (var p in new[] { "AllowAutoConnectToWiFiSenseHotspots",
+                    "AllowWiFiHotSpotReporting" })
+            {
+                using var wk = Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Microsoft\PolicyManager\default\WiFi\" + p, true);
+                wk?.SetValue("value", 0, RegistryValueKind.DWord);
+            }
 
                 // CEIP policy + feedback nag prompts
                 using var sqm = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
@@ -3216,6 +3240,10 @@ public static class RegistryGuard
                 @"SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters",
                 @"SOFTWARE\Microsoft\PolicyManager\current\device\Bluetooth",
                 @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\TextInput",
+                @"SOFTWARE\Microsoft\Input\Settings",
+                @"SOFTWARE\Microsoft\Input\TIPC",
+                @"SOFTWARE\Microsoft\WcmSvc",
+                @"SOFTWARE\Microsoft\PolicyManager\default\WiFi",
                 @"SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
                 @"SOFTWARE\Microsoft\PolicyManager\default\System\AllowTelemetry",
                 @"SOFTWARE\Microsoft\Windows\CurrentVersion\CPSS",

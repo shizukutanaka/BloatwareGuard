@@ -5,6 +5,11 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- ReviOS privacy/misc diff: DisableTelemetry +machine-side input
+  kills (Input\Settings InsightsEnabled/EnableHwkbTextPrediction,
+  Input\TIPC Enabled) + WiFi Sense family (WcmSvc PaidWifi/
+  WiFiSenseOpen/AutoConnectAllowedOEM, PolicyManager default\WiFi
+  hotspot reporting/auto-connect). Backup keys 93->97.
 - ReviOS search.yml diff: DisableSearchSuggestions +AAD Cortana
   kills (AllowCortanaInAAD/PathOOBE) + WinRT activation neuter for
   WinStore.Tasks.WindowsSearchTask (Store-driven search task).
