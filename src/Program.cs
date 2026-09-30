@@ -2380,6 +2380,12 @@ public static class RegistryGuard
             // Copilot auto-open on large screens (notification channel,
             // privacy.sexy) — per-user
             SetUserDwordAllHives(UserNotificationSettingsPath, "AutoOpenCopilotLargeScreens", 0);
+            // Toast content must not render above the lock screen
+            // (Debloat-Win11) — standard + critical channels
+            SetUserDwordAllHives(UserNotificationSettingsPath,
+                                 "NOC_GLOBAL_SETTING_ALLOW_TOASTS_ABOVE_LOCK", 0);
+            SetUserDwordAllHives(UserNotificationSettingsPath,
+                                 "NOC_GLOBAL_SETTING_ALLOW_CRITICAL_TOASTS_ABOVE_LOCK", 0);
             // Narrator online voices download off (Winnow ExtendedAIPurge)
             SetUserDwordAllHives(@"Software\Microsoft\Narrator\NoRoam",
                                  "OnlineVoicesEnabled", 0);

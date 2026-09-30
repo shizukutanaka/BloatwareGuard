@@ -1716,6 +1716,14 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             # Copilot auto-open on large screens (notification channel,
             # privacy.sexy) — per-user
             set_user_dword_all_hives(_USER_NOTIFICATION_SETTINGS, "AutoOpenCopilotLargeScreens", 0, logger)
+            # Toast content must not render above the lock screen
+            # (Debloat-Win11) — standard + critical channels
+            set_user_dword_all_hives(
+                _USER_NOTIFICATION_SETTINGS,
+                "NOC_GLOBAL_SETTING_ALLOW_TOASTS_ABOVE_LOCK", 0, logger)
+            set_user_dword_all_hives(
+                _USER_NOTIFICATION_SETTINGS,
+                "NOC_GLOBAL_SETTING_ALLOW_CRITICAL_TOASTS_ABOVE_LOCK", 0, logger)
             # Narrator online voices download off (Winnow ExtendedAIPurge)
             set_user_dword_all_hives(
                 r"Software\Microsoft\Narrator\NoRoam",
