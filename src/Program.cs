@@ -3390,6 +3390,11 @@ public static class RegistryGuard
             key?.SetValue("StartupBoostEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("AllowPrelaunch", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("HideFirstRunExperience", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            // Background-mode keep-alive, startup autolaunch and per-URL
+            // diagnostic upload (W1X-Debloat)
+            key?.SetValue("BackgroundModeEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("LaunchEdgeOnWindowsStartupEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("UrlDiagnosticDataEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
             // Edge search-provider suggestions upload (soswod SearchScopes)
             using var searchScopes = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                 @"SOFTWARE\Policies\Microsoft\MicrosoftEdge\SearchScopes");

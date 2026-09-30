@@ -2571,6 +2571,12 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword("HKLM", edge_pol, "StartupBoostEnabled", 0)
             set_registry_dword("HKLM", edge_pol, "AllowPrelaunch", 0)
             set_registry_dword("HKLM", edge_pol, "HideFirstRunExperience", 1)
+            # Background-mode keep-alive, startup autolaunch and per-URL
+            # diagnostic upload (W1X-Debloat)
+            set_registry_dword("HKLM", edge_pol, "BackgroundModeEnabled", 0)
+            set_registry_dword(
+                "HKLM", edge_pol, "LaunchEdgeOnWindowsStartupEnabled", 0)
+            set_registry_dword("HKLM", edge_pol, "UrlDiagnosticDataEnabled", 0)
             # Shopping assistant, recommendations, error-page web service,
             # user feedback — all upload/suggestion surfaces
             for name in ("EdgeShoppingAssistantEnabled",
