@@ -5,6 +5,9 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- SysAdminDoc/Debloat-Win11 (new source, v2.3.11):
+  per-user WindowsBackup NotificationDisabled=1;
+  rest of its 57-policy catalog already covered.
 - zoicware per-user/registry re-diff: DisableCopilot
   +Copilot/Recall taskbar pins +TaskbarCompanion
   +PWA-preinstall flag +background-app kills

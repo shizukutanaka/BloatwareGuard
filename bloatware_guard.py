@@ -1257,6 +1257,7 @@ _USER_BACKUP_KEY_PATHS = (
     r"Software\Microsoft\Windows\CurrentVersion\SearchSettings",
     r"Software\Microsoft\Windows\CurrentVersion\SearchSettings\WebSearchPro",
     r"Software\Microsoft\Windows\CurrentVersion\WindowsCopilot",
+    r"Software\Microsoft\Windows\CurrentVersion\WindowsBackup",
     r"Software\Microsoft\Windows\CurrentVersion\Search",
     r"Software\Microsoft\Windows\CurrentVersion\Explorer\Taskband\AuxilliaryPins",
     r"Software\Microsoft\Windows\CurrentVersion\Explorer\AutoInstalledPWAs",
@@ -2105,6 +2106,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "HKLM",
                 r"SOFTWARE\Policies\Microsoft\Windows\SettingSync",
                 "EnableWindowsBackup", 0)
+            # Windows Backup nag notifications off per user (SysAdminDoc)
+            set_user_dword_all_hives(
+                r"Software\Microsoft\Windows\CurrentVersion\WindowsBackup",
+                "NotificationDisabled", 1, logger)
             # OneDrive: feedback/sync-health reporting + pre-sign-in
             # traffic (policy kills only — OneDrive itself untouched)
             od_pol = r"SOFTWARE\Policies\Microsoft\OneDrive"

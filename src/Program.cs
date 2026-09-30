@@ -2709,6 +2709,10 @@ public static class RegistryGuard
                 using var ssync = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Windows\SettingSync");
                 ssync?.SetValue("EnableWindowsBackup", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                // Windows Backup nag notifications off per user (SysAdminDoc)
+                SetUserDwordAllHives(
+                    @"Software\Microsoft\Windows\CurrentVersion\WindowsBackup",
+                    "NotificationDisabled", 1);
                 // OneDrive: feedback/sync-health reporting + pre-sign-in
                 // traffic (policy kills only — OneDrive itself untouched)
                 using var odpol = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
@@ -3659,6 +3663,7 @@ public static class RegistryGuard
         @"Software\Microsoft\Windows\CurrentVersion\SearchSettings",
         @"Software\Microsoft\Windows\CurrentVersion\SearchSettings\WebSearchPro",
         @"Software\Microsoft\Windows\CurrentVersion\WindowsCopilot",
+        @"Software\Microsoft\Windows\CurrentVersion\WindowsBackup",
         @"Software\Microsoft\Windows\CurrentVersion\Search",
         @"Software\Microsoft\Windows\CurrentVersion\Internet Settings\Wpad",
         @"Software\Microsoft\Notepad",
