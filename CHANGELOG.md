@@ -5,6 +5,11 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- `DisableTelemetry` .NET hardening (simeononsecurity
+  Windows-Optimize-Harden-Debloat): `SchUseStrongCrypto` = 1 and
+  `AllowStrongNameBypass` = 0 under both 64/32-bit .NET v4
+  Framework roots — forces strong TLS for .NET apps and closes
+  the strong-name verification bypass.
 - `DisableEdgeUpdateBloat` EdgeUpdate shortcut suppression (Sophia
   Script `PreventEdgeShortcutCreation`): `CreateDesktopShortcut{GUID}`
   = 0 for all four channel product GUIDs — the installer previously

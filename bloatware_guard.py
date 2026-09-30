@@ -1514,6 +1514,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         env_key = r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment"
         set_registry_string("HKLM", env_key, "POWERSHELL_TELEMETRY_OPTOUT", "1")
         set_registry_string("HKLM", env_key, "DOTNET_CLI_TELEMETRY_OPTOUT", "1")
+        # .NET strong crypto (TLS 1.2+) + strong-name bypass off
+        for dn_root in (r"SOFTWARE\Microsoft\.NETFramework\v4.0.30319",
+                        r"SOFTWARE\Wow6432Node\Microsoft\.NETFramework\v4.0.30319"):
+            set_registry_dword("HKLM", dn_root, "SchUseStrongCrypto", 1)
+            set_registry_dword("HKLM", dn_root, "AllowStrongNameBypass", 0)
         # CEIP policy + feedback nag prompts
         set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\SQMClient\Windows",
                            "CEIPEnable", 0)

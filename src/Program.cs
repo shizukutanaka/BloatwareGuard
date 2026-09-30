@@ -2211,6 +2211,18 @@ public static class RegistryGuard
                 envKey?.SetValue("POWERSHELL_TELEMETRY_OPTOUT", "1");
                 envKey?.SetValue("DOTNET_CLI_TELEMETRY_OPTOUT", "1");
 
+                // .NET strong crypto (TLS 1.2+) + strong-name bypass off
+                foreach (var dnRoot in new[]
+                {
+                    @"SOFTWARE\Microsoft\.NETFramework\v4.0.30319",
+                    @"SOFTWARE\Wow6432Node\Microsoft\.NETFramework\v4.0.30319",
+                })
+                {
+                    using var dn = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(dnRoot);
+                    dn?.SetValue("SchUseStrongCrypto", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                    dn?.SetValue("AllowStrongNameBypass", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                }
+
                 // CEIP policy + feedback nag prompts
                 using var sqm = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\SQMClient\Windows");
