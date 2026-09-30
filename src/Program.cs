@@ -678,7 +678,7 @@ public static class AppxManager
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Get-AppxPackage{scope} | Where-Object {{$_.PackageFamilyName -match '{pattern}'}} | Select-Object PackageFamilyName,Name,PackageFullName,IsFramework,InstallPath | ConvertTo-Json\"",
+            Arguments = $"-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"Get-AppxPackage{scope} | Where-Object {{$_.PackageFamilyName -match '{pattern}'}} | Select-Object PackageFamilyName,Name,PackageFullName,IsFramework,InstallPath | ConvertTo-Json\"",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -699,7 +699,7 @@ public static class AppxManager
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Get-WindowsCapability -Online | Where-Object {{$_.Name -match '{pattern}' -and $_.State -eq 'Installed'}} | Remove-WindowsCapability -Online -ErrorAction SilentlyContinue | Out-Null\"",
+            Arguments = $"-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"Get-WindowsCapability -Online | Where-Object {{$_.Name -match '{pattern}' -and $_.State -eq 'Installed'}} | Remove-WindowsCapability -Online -ErrorAction SilentlyContinue | Out-Null\"",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -732,7 +732,7 @@ public static class AppxManager
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Get-AppxProvisionedPackage -Online | Where-Object {{$_.DisplayName -match '{pattern}'}} | Select-Object DisplayName,PackageName | ConvertTo-Json\"",
+            Arguments = $"-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"Get-AppxProvisionedPackage -Online | Where-Object {{$_.DisplayName -match '{pattern}'}} | Select-Object DisplayName,PackageName | ConvertTo-Json\"",
             RedirectStandardOutput = true,
             UseShellExecute = false,
             CreateNoWindow = true
@@ -773,7 +773,7 @@ public static class AppxManager
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Remove-AppxPackage -Package '{packageFullName}' -AllUsers -ErrorAction SilentlyContinue\"",
+            Arguments = $"-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"Remove-AppxPackage -Package '{packageFullName}' -AllUsers -ErrorAction SilentlyContinue\"",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -802,7 +802,7 @@ public static class AppxManager
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Remove-AppxPackage -Package '{packageFullName}' -ErrorAction SilentlyContinue\"",
+            Arguments = $"-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"Remove-AppxPackage -Package '{packageFullName}' -ErrorAction SilentlyContinue\"",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -822,7 +822,7 @@ public static class AppxManager
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Remove-AppxProvisionedPackage -Online -PackageName '{packageName}' -ErrorAction SilentlyContinue\"",
+            Arguments = $"-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"Remove-AppxProvisionedPackage -Online -PackageName '{packageName}' -ErrorAction SilentlyContinue\"",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -1100,7 +1100,7 @@ public static class Win32Guard
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = "-NoProfile -ExecutionPolicy Bypass -Command " +
+            Arguments = "-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command " +
                 "\"Enable-ComputerRestore -Drive \\\"$env:SystemDrive\\\\\\\" -ErrorAction SilentlyContinue | Out-Null; " +
                 "Checkpoint-Computer -Description 'BloatwareGuard pre-scan' " +
                 "-RestorePointType 'MODIFY_SETTINGS' -ErrorAction SilentlyContinue | Out-Null\"",
@@ -1909,7 +1909,7 @@ public static class RegistryGuard
             var psi = new ProcessStartInfo
             {
                 FileName = "powershell.exe",
-                Arguments = "-NoProfile -ExecutionPolicy Bypass -Command \"Disable-WindowsOptionalFeature -Online -FeatureName 'Recall' -NoRestart -ErrorAction SilentlyContinue | Out-Null\"",
+                Arguments = "-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"Disable-WindowsOptionalFeature -Online -FeatureName 'Recall' -NoRestart -ErrorAction SilentlyContinue | Out-Null\"",
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true
@@ -2060,7 +2060,7 @@ public static class RegistryGuard
                 var fpsi = new ProcessStartInfo
                 {
                     FileName = "powershell.exe",
-                    Arguments = "-NoProfile -ExecutionPolicy Bypass -Command \"'DiagTrack','WerSvc' | % { Get-NetFirewallRule -Group $_ -ErrorAction Ignore | Set-NetFirewallRule -Enabled True -Action Block }\"",
+                    Arguments = "-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"'DiagTrack','WerSvc' | % { Get-NetFirewallRule -Group $_ -ErrorAction Ignore | Set-NetFirewallRule -Enabled True -Action Block }\"",
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
@@ -3493,7 +3493,7 @@ public static class ScheduledTaskGuard
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Get-ScheduledTask | Where-Object {{$_.TaskPath -like '*OEM*' -or $_.TaskName -match '{string.Join("|", OemTaskPatterns.Select(Regex.Escape))}'}} | Select-Object TaskName,TaskPath,State | ConvertTo-Json\"",
+            Arguments = $"-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"Get-ScheduledTask | Where-Object {{$_.TaskPath -like '*OEM*' -or $_.TaskName -match '{string.Join("|", OemTaskPatterns.Select(Regex.Escape))}'}} | Select-Object TaskName,TaskPath,State | ConvertTo-Json\"",
             RedirectStandardOutput = true,
             UseShellExecute = false,
             CreateNoWindow = true
@@ -4428,7 +4428,7 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = "-NoProfile -ExecutionPolicy Bypass -Command \"Get-AppxPackage -AllUsers -Name '" +
+            Arguments = "-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"Get-AppxPackage -AllUsers -Name '" +
                 name + "' | ForEach-Object { Add-AppxPackage -DisableDevelopmentMode -Register " +
                 "\\\"$($_.InstallLocation)\\AppxManifest.xml\\\" -ErrorAction SilentlyContinue }\"",
             RedirectStandardOutput = true,

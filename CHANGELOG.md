@@ -5,6 +5,9 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- C# PowerShell invocations now pass `-NonInteractive` (11 sites) —
+  py `run_powershell` always had it; a prompting cmdlet could hang the
+  C# scan until the process timeout killed it.
 - T9 now also pins the hosts-block begin/end markers to the C#
   copy — mismatched markers would duplicate the telemetry block.
 - T6 now asserts all 46 prevention keys exist in Program.cs —
