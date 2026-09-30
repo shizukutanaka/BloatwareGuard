@@ -4579,6 +4579,9 @@ public static class RegistryGuard
         // weight once those apps are removed
         "CDPUserSvc", "OneSyncSvc", "UnistoreSvc",
         "UserDataSvc", "PimIndexMaintenanceSvc",
+        // OneDrive FileSyncHelper — companion sync service to OneSyncSvc
+        // (WinOpt) — demoted, not disabled
+        "FileSyncHelper",
         // Diagnostic Service Host pair — WDI diagnostics sessions
         "WdiSystemHost", "WdiServiceHost",
         // Diagnostic Policy Service + Diagnostic Execution Service —
