@@ -2864,6 +2864,12 @@ public static class RegistryGuard
                 using var appc = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Windows\AppCompat");
                 appc?.SetValue("VDMDisallowed", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // CEIP collection under-layer (HushWin): census upload +
+                // task-run gate off
+                using var ctele = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\ClientTelemetry");
+                foreach (var ctv in new[] { "IsCensusDisabled", "DontRetryOnError", "TaskEnableRun" })
+                    ctele?.SetValue(ctv, 1, Microsoft.Win32.RegistryValueKind.DWord);
                 using var lsa = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SYSTEM\CurrentControlSet\Control\Lsa");
                 lsa?.SetValue("RestrictAnonymous", 1, Microsoft.Win32.RegistryValueKind.DWord);
@@ -3846,6 +3852,7 @@ public static class RegistryGuard
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
         @"SOFTWARE\Policies\Microsoft\Windows\System",
         @"SOFTWARE\Policies\Microsoft\Edge",
+        @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\ClientTelemetry",
         @"SOFTWARE\Policies\Microsoft\FVE",
         @"SOFTWARE\Policies\Microsoft\Windows\GameDVR",
         @"SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization",

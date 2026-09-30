@@ -5,6 +5,12 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- bitlogik/HushWin (new source): `AppCompatFlags\
+  ClientTelemetry` +3 — `IsCensusDisabled`/`DontRetryOnError`/
+  `TaskEnableRun`=1 (CEIP census upload + retry + task-run
+  gate under-layer). backup 100→101. Skipped: Remote
+  Assistance kill (functional), Office ClientTelemetry
+  (vendor scope).
 - atlantsecurity/windows-hardening-scripts (278★, new
   source): telemetry hosts +13 MSN ad/analytics endpoints —
   rad/live.msn family (a/b/c.rad.msn+live, 0.r.msn,

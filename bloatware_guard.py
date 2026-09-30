@@ -1056,6 +1056,7 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
     r"SOFTWARE\Policies\Microsoft\Windows\System",
     r"SOFTWARE\Policies\Microsoft\Edge",
+    r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\ClientTelemetry",
     r"SOFTWARE\Policies\Microsoft\FVE",
     r"SOFTWARE\Policies\Microsoft\Windows\GameDVR",
     r"SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization",
@@ -1884,6 +1885,14 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "HKLM",
                 r"SYSTEM\CurrentControlSet\Control\WMI\AutoLogger\AutoLogger-Diagtrack-Listener",
                 "Start", 0)
+            # CEIP collection under-layer: census upload + task-run gate
+            # (HushWin — AppCompatFlags telemetry suppression)
+            for _ct in ("IsCensusDisabled", "DontRetryOnError",
+                        "TaskEnableRun"):
+                set_registry_dword(
+                    "HKLM",
+                    r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\ClientTelemetry",
+                    _ct, 1)
             # Ink Workspace suggestion surface (ads inside the pen menu)
             set_registry_dword("HKLM",
                                r"SOFTWARE\Policies\Microsoft\WindowsInkWorkspace",
