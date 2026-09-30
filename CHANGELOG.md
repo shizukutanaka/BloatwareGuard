@@ -5,6 +5,18 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- burakarslan0110/WinToolify (new source, PS catalog):
+  `DisableCopilot` +`HideAIActionsMenu` (HKLM Explorer policy —
+  Explorer "AI actions" context-menu group) + voice-agent extras
+  `AgentActivationOnLockScreenEnabled`/`AgentActivationLastUsed`
+  (per-user), `DisableTelemetry` +`AllowClipboardHistory` (HKLM
+  System policy — cloud clipboard pipeline, cbdhsvc demote の補強),
+  per-user `PhoneLinkEnabled` (Mobility), Edge +2
+  (`TextPredictionEnabled`/`MicrosoftEditorProofingEnabled` —
+  editor proofing ships text to MS). Skipped: Office 16.0
+  privacy/feedback rows (vendor), WU defer/locale kills,
+  NCSI/location/sensor kills, SmartScreen-adjacent toggles,
+  PasswordManager/autofill (functional), RDP `fDenyTSConnections`.
 - itsfatduck/optimizerDuck (new source, C# WPF): telemetry
   autologgers 13->18 (`AppModel`/`Cellcore`/`CloudExperienceHostOobe`/
   `DataMarket`/`WdiContextLog` ETW sessions), `DisableTelemetry`

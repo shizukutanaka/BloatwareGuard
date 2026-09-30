@@ -2182,6 +2182,7 @@ public static class RegistryGuard
                     SetHiveDword(hive, UserNotificationSettingsPath + "\\" + toast,
                         "Enabled", 0);
                 SetHiveDword(hive, UserMobilityPath, "OptedIn", 0);
+                SetHiveDword(hive, UserMobilityPath, "PhoneLinkEnabled", 0);
                 // Mail/Calendar -> "new Outlook" forced migration nudge (winutil)
                 SetHiveDword(hive, UserOutlookMigrationPath, "DoNewOutlookAutoMigration", 0);
                 // Classic-Outlook "try new Outlook" toggle + migration
@@ -2344,6 +2345,11 @@ public static class RegistryGuard
             SetUserDwordAllHives(UserShellCopilotPath + @"\BingChat", "IsUserEligible", 0);
             // Copilot voice-agent activation off (all user hives)
             SetUserDwordAllHives(UserVoiceActivationPath, "AgentActivationEnabled", 0);
+            SetUserDwordAllHives(UserVoiceActivationPath, "AgentActivationOnLockScreenEnabled", 0);
+            SetUserDwordAllHives(UserVoiceActivationPath, "AgentActivationLastUsed", 0);
+            using (var expAi = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Policies\Microsoft\Windows\Explorer"))
+                expAi?.SetValue("HideAIActionsMenu", 1, Microsoft.Win32.RegistryValueKind.DWord);
             // Copilot auto-open on large screens (notification channel,
             // privacy.sexy) — per-user
             SetUserDwordAllHives(UserNotificationSettingsPath, "AutoOpenCopilotLargeScreens", 0);
@@ -2601,6 +2607,7 @@ public static class RegistryGuard
             using var sys = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(SystemPolicyPath);
             sys?.SetValue("PublishUserActivities", 0, Microsoft.Win32.RegistryValueKind.DWord);
             sys?.SetValue("UploadUserActivities", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            sys?.SetValue("AllowClipboardHistory", 0, Microsoft.Win32.RegistryValueKind.DWord);
             sys?.SetValue("PublishUserActivitiesOnUserConsent", 0, Microsoft.Win32.RegistryValueKind.DWord);
             using var assist = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                 @"SOFTWARE\Policies\Microsoft\Assistance\Client\1.0");
@@ -2608,6 +2615,8 @@ public static class RegistryGuard
             sys?.SetValue("EnableActivityFeed", 0, Microsoft.Win32.RegistryValueKind.DWord);
             using var edge = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(EdgePolicyPath);
             edge?.SetValue("PersonalizationReportingEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            edge?.SetValue("TextPredictionEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            edge?.SetValue("MicrosoftEditorProofingEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
             edge?.SetValue("DiagnosticData", 0, Microsoft.Win32.RegistryValueKind.DWord);
 
             ForEachUserHive(hive =>

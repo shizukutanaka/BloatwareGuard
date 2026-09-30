@@ -1492,6 +1492,7 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                     w(_USER_NOTIFICATION_SETTINGS + "\\" + _toast,
                       "Enabled", 0)
                 w(_USER_MOBILITY, "OptedIn", 0)
+                w(_USER_MOBILITY, "PhoneLinkEnabled", 0)
                 # Mail/Calendar -> "new Outlook" forced migration nudge (winutil)
                 w(_USER_OUTLOOK_MIGRATION, "DoNewOutlookAutoMigration", 0)
                 # Classic-Outlook "try new Outlook" toggle + migration prompt
@@ -1630,6 +1631,15 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_user_dword_all_hives(_USER_SHELL_COPILOT_BINGCHAT, "IsUserEligible", 0, logger)
             # Copilot voice-agent activation off (all user hives)
             set_user_dword_all_hives(_USER_VOICE_ACTIVATION, "AgentActivationEnabled", 0, logger)
+            set_user_dword_all_hives(
+                _USER_VOICE_ACTIVATION,
+                "AgentActivationOnLockScreenEnabled", 0, logger)
+            set_user_dword_all_hives(
+                _USER_VOICE_ACTIVATION,
+                "AgentActivationLastUsed", 0, logger)
+            # WinToolify diff: Explorer "AI actions" context-menu group
+            set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\Explorer",
+                               "HideAIActionsMenu", 1)
             # Copilot auto-open on large screens (notification channel,
             # privacy.sexy) — per-user
             set_user_dword_all_hives(_USER_NOTIFICATION_SETTINGS, "AutoOpenCopilotLargeScreens", 0, logger)
@@ -1845,11 +1855,17 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                                "UploadUserActivities", 0)
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\System",
                                "PublishUserActivitiesOnUserConsent", 0)
+            set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\System",
+                               "AllowClipboardHistory", 0)
             set_registry_dword(
                 "HKLM", r"SOFTWARE\Policies\Microsoft\Assistance\Client\1.0",
                 "NoActiveHelp", 1)
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Edge",
                                "PersonalizationReportingEnabled", 0)
+            set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Edge",
+                               "TextPredictionEnabled", 0)
+            set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Edge",
+                               "MicrosoftEditorProofingEnabled", 0)
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Edge",
                                "DiagnosticData", 0)
 
