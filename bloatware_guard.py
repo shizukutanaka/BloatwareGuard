@@ -1122,6 +1122,64 @@ _MISC_DEMOTE_SERVICES = (
 )
 
 
+_USER_BACKUP_KEY_PATHS = (
+    # Per-user key paths written through for_each_user_hive /
+    # set_user_dword_all_hives — exported under every loaded
+    # interactive SID (and HKCU) by backup_registry_keys.
+    r"Control Panel\International\User Profile",
+    r"SOFTWARE\Policies\Microsoft\WindowsMediaPlayer",
+    r"Software\Classes\CLSID\{018D5C66-4533-4307-9B53-224DE2ED1FE6}",
+    r"Software\Microsoft\Clipboard",
+    r"Software\Microsoft\GameBar",
+    r"Software\Microsoft\Input\Settings",
+    r"Software\Microsoft\Input\TIPC",
+    r"Software\Microsoft\InputPersonalization",
+    r"Software\Microsoft\InputPersonalization\TrainedDataStore",
+    r"Software\Microsoft\Personalization\Settings",
+    r"Software\Microsoft\Siuf\Rules",
+    r"Software\Microsoft\Speech_OneCore\Settings\OnlineSpeechPrivacy",
+    r"Software\Microsoft\Speech_OneCore\Settings\VoiceActivation\UserPreferenceForAllApps",
+    r"Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo",
+    r"Software\Microsoft\Windows\CurrentVersion\CDP",
+    r"Software\Microsoft\Windows\CurrentVersion\CDP\SettingsPage",
+    r"Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager",
+    r"Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager\Context\CloudExperienceHostIntent\Wireless",
+    r"Software\Microsoft\Windows\CurrentVersion\DeliveryOptimization\Settings",
+    r"Software\Microsoft\Windows\CurrentVersion\DesktopSpotlight\Settings",
+    r"Software\Microsoft\Windows\CurrentVersion\Diagnostics\DiagTrack",
+    r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
+    r"Software\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers",
+    r"Software\Microsoft\Windows\CurrentVersion\Feeds",
+    r"Software\Microsoft\Windows\CurrentVersion\GameDVR",
+    r"Software\Microsoft\Windows\CurrentVersion\Mobility",
+    r"Software\Microsoft\Windows\CurrentVersion\Notifications\Settings",
+    r"Software\Microsoft\Windows\CurrentVersion\Notifications\Settings\Windows.SystemToast.Suggested",
+    r"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer",
+    r"Software\Microsoft\Windows\CurrentVersion\Privacy",
+    r"Software\Microsoft\Windows\CurrentVersion\Search",
+    r"Software\Microsoft\Windows\CurrentVersion\SearchSettings",
+    r"Software\Microsoft\Windows\CurrentVersion\SettingSync",
+    r"Software\Microsoft\Windows\CurrentVersion\Start\Companions\Microsoft.YourPhone_8wekyb3d8bbwe",
+    r"Software\Microsoft\Windows\CurrentVersion\SystemSettings\AccountNotifications",
+    r"Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement",
+    r"Software\Microsoft\Windows\Shell\ClickToDo",
+    r"Software\Microsoft\Windows\Shell\Copilot",
+    r"Software\Microsoft\Windows\Shell\Copilot\BingChat",
+    r"Software\Microsoft\Windows\Windows Error Reporting",
+    r"Software\NVIDIA Corporation\NVControlPanel2\Client",
+    r"Software\Policies\Microsoft\Assistance\Client\1.0",
+    r"Software\Policies\Microsoft\Office\16.0\Outlook\Options\General",
+    r"Software\Policies\Microsoft\Office\16.0\Outlook\Preferences",
+    r"Software\Policies\Microsoft\Windows\CloudContent",
+    r"Software\Policies\Microsoft\Windows\EdgeUI",
+    r"Software\Policies\Microsoft\Windows\Explorer",
+    r"Software\Policies\Microsoft\Windows\Privacy",
+    r"Software\Policies\Microsoft\Windows\WindowsAI",
+    r"Software\Policies\Microsoft\Windows\WindowsCopilot",
+    r"System\GameConfigStore",
+)
+
+
 def backup_registry_keys(logger: logging.Logger):
     """reg-export every HKLM key this tool touches into
     %ProgramData%\\BloatwareGuard\\backup\\ — once per process."""
@@ -1139,7 +1197,25 @@ def backup_registry_keys(logger: logging.Logger):
             run_cmd(["reg.exe", "export", f"HKLM\\{path}",
                      os.path.join(backup_dir, f"{stamp}-{i}.reg"), "/y"],
                     timeout=15)
-        logger.info(f"Applied: BackupRegistry ({len(_BACKUP_KEY_PATHS)} keys -> {backup_dir})")
+        # Per-user keys — export under each loaded interactive SID and HKCU so
+        # the same safety net covers user-scope writes (the bulk of the knobs).
+        roots = ["HKCU"]
+        try:
+            import winreg
+            sids = [winreg.EnumKey(winreg.HKEY_USERS, i)
+                    for i in range(winreg.QueryInfoKey(winreg.HKEY_USERS)[0])]
+            roots += [f"HKU\\{sid}" for sid in sids if _USER_SID_RE.match(sid)]
+        except Exception:
+            pass
+        j = 0
+        for root in roots:
+            for path in _USER_BACKUP_KEY_PATHS:
+                run_cmd(["reg.exe", "export", f"{root}\\{path}",
+                         os.path.join(backup_dir, f"{stamp}-u{j}.reg"), "/y"],
+                        timeout=15)
+                j += 1
+        logger.info(f"Applied: BackupRegistry ({len(_BACKUP_KEY_PATHS)} HKLM + "
+                    f"{len(_USER_BACKUP_KEY_PATHS)}x{len(roots)} user keys -> {backup_dir})")
     except OSError as e:
         logger.warning(f"BackupRegistry skipped: {e}")
 
@@ -3581,6 +3657,69 @@ def run_self_test() -> int:
                        for b in cs_backup))
         assert not miss_cs, \
             f"HKLM write paths in Program.cs with no backup: {miss_cs}"
+
+        # Per-user coverage: every path written through the per-user
+        # writers must appear in _USER_BACKUP_KEY_PATHS so the exported
+        # .reg safety net covers user-scope writes too.
+        def _resolve_path_expr(expr):
+            """Resolve `'lit' + CONST + 'lit'` style first args."""
+            parts = []
+            for piece in re.split(r'\s*\+\s*', expr.strip()):
+                m = re.match(r'^r?"([^"]+)"$', piece)
+                if m:
+                    parts.append(m.group(1))
+                elif re.match(r'^[a-zA-Z_]+$', piece):
+                    if piece not in vars_:
+                        return None
+                    parts.append(vars_[piece])
+                else:
+                    return None
+            return ''.join(parts)
+
+        user_backup = {p.lower() for p in _USER_BACKUP_KEY_PATHS}
+        py_user = set()
+        for m in re.finditer(
+                r'(?:set_user_dword_all_hives|\bw)\(\s*([^,]+),', src):
+            t = _resolve_path_expr(m.group(1))
+            if t:
+                py_user.add(t.lower())
+        for m in re.finditer(
+                r'set_registry_(?:dword|string|qword)\(\s*'
+                r'"HK(?:CU|EY_CURRENT_USER)",\s*([^,]+),', src):
+            t = _resolve_path_expr(m.group(1))
+            if t:
+                py_user.add(t.lower())
+        miss_u = sorted(p for p in py_user if p not in user_backup)
+        assert not miss_u, \
+            f"per-user write paths with no backup: {miss_u}"
+        # cs side: SetHiveDword/SetUserDwordAllHives path args vs
+        # UserBackupKeyPaths — resolve `const + @"lit"` expressions.
+        cs_consts = dict(re.findall(
+            r'(?:private const string|static readonly string)\s+(\w+)'
+            r'\s*=\s*@?"([^"]+)"', cs_src))
+        i2 = cs_src.find("UserBackupKeyPaths")
+        cs_ubackup = {p.lower() for p in re.findall(
+            r'@"([^"]+)"', cs_src[i2:cs_src.find("};", i2)])}
+        cs_user = set()
+        for m in re.finditer(
+                r'(?:SetHiveDword|SetUserDwordAllHives)\(\s*'
+                r'(?:hive,\s*)?([^,\n]+),', cs_src):
+            expr = m.group(1).strip()
+            parts = []
+            ok = True
+            for piece in re.split(r'\s*\+\s*', expr):
+                pm = re.match(r'^@?"([^"]+)"$', piece)
+                if pm:
+                    parts.append(pm.group(1))
+                elif piece in cs_consts:
+                    parts.append(cs_consts[piece])
+                else:
+                    ok = False
+            if ok:
+                cs_user.add(''.join(parts).lower())
+        miss_ucs = sorted(p for p in cs_user if p not in cs_ubackup)
+        assert not miss_ucs, \
+            f"per-user write paths in Program.cs with no backup: {miss_ucs}"
 
     check("T12: HKLM write-path backup coverage", t_backup_path_coverage)
 

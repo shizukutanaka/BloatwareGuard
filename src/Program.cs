@@ -3144,6 +3144,60 @@ public static class RegistryGuard
         @"SOFTWARE\Policies\Microsoft\WindowsNotepad",
         @"SYSTEM\CurrentControlSet\Control\FeatureManagement\Overrides\8",
     };
+    private static readonly string[] UserBackupKeyPaths =
+    {
+        @"Control Panel\International\User Profile",
+        @"SOFTWARE\Policies\Microsoft\WindowsMediaPlayer",
+        @"Software\Classes\CLSID\{018D5C66-4533-4307-9B53-224DE2ED1FE6}",
+        @"Software\Microsoft\Clipboard",
+        @"Software\Microsoft\GameBar",
+        @"Software\Microsoft\Input\Settings",
+        @"Software\Microsoft\Input\TIPC",
+        @"Software\Microsoft\InputPersonalization",
+        @"Software\Microsoft\InputPersonalization\TrainedDataStore",
+        @"Software\Microsoft\Personalization\Settings",
+        @"Software\Microsoft\Siuf\Rules",
+        @"Software\Microsoft\Speech_OneCore\Settings\OnlineSpeechPrivacy",
+        @"Software\Microsoft\Speech_OneCore\Settings\VoiceActivation\UserPreferenceForAllApps",
+        @"Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo",
+        @"Software\Microsoft\Windows\CurrentVersion\CDP",
+        @"Software\Microsoft\Windows\CurrentVersion\CDP\SettingsPage",
+        @"Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager",
+        @"Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager\Context\CloudExperienceHostIntent\Wireless",
+        @"Software\Microsoft\Windows\CurrentVersion\DeliveryOptimization\Settings",
+        @"Software\Microsoft\Windows\CurrentVersion\DesktopSpotlight\Settings",
+        @"Software\Microsoft\Windows\CurrentVersion\Diagnostics\DiagTrack",
+        @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
+        @"Software\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers",
+        @"Software\Microsoft\Windows\CurrentVersion\Feeds",
+        @"Software\Microsoft\Windows\CurrentVersion\GameDVR",
+        @"Software\Microsoft\Windows\CurrentVersion\Mobility",
+        @"Software\Microsoft\Windows\CurrentVersion\Notifications\Settings",
+        @"Software\Microsoft\Windows\CurrentVersion\Notifications\Settings\Windows.SystemToast.Suggested",
+        @"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer",
+        @"Software\Microsoft\Windows\CurrentVersion\Privacy",
+        @"Software\Microsoft\Windows\CurrentVersion\Search",
+        @"Software\Microsoft\Windows\CurrentVersion\SearchSettings",
+        @"Software\Microsoft\Windows\CurrentVersion\SettingSync",
+        @"Software\Microsoft\Windows\CurrentVersion\Start\Companions\Microsoft.YourPhone_8wekyb3d8bbwe",
+        @"Software\Microsoft\Windows\CurrentVersion\SystemSettings\AccountNotifications",
+        @"Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement",
+        @"Software\Microsoft\Windows\Shell\ClickToDo",
+        @"Software\Microsoft\Windows\Shell\Copilot",
+        @"Software\Microsoft\Windows\Shell\Copilot\BingChat",
+        @"Software\Microsoft\Windows\Windows Error Reporting",
+        @"Software\NVIDIA Corporation\NVControlPanel2\Client",
+        @"Software\Policies\Microsoft\Assistance\Client\1.0",
+        @"Software\Policies\Microsoft\Office\16.0\Outlook\Options\General",
+        @"Software\Policies\Microsoft\Office\16.0\Outlook\Preferences",
+        @"Software\Policies\Microsoft\Windows\CloudContent",
+        @"Software\Policies\Microsoft\Windows\EdgeUI",
+        @"Software\Policies\Microsoft\Windows\Explorer",
+        @"Software\Policies\Microsoft\Windows\Privacy",
+        @"Software\Policies\Microsoft\Windows\WindowsAI",
+        @"Software\Policies\Microsoft\Windows\WindowsCopilot",
+        @"System\GameConfigStore",
+    };
     private static bool _backupDone;
 
     /// <summary>Layer 28: reg-export every HKLM key we touch into
@@ -3168,6 +3222,25 @@ public static class RegistryGuard
                 RunToolSilent("reg.exe", $"export \"HKLM\\{path}\" \"{file}\" /y");
                 if (!File.Exists(file))
                     File.Delete(file);  // no-op guard — keep dir clean
+            }
+            var roots = new List<string> { "HKCU" };
+            try
+            {
+                roots.AddRange(Registry.Users.GetSubKeyNames()
+                    .Where(sid => UserSidPattern.IsMatch(sid))
+                    .Select(sid => $"HKU\\{sid}"));
+            }
+            catch { }
+            foreach (var root in roots)
+            {
+                foreach (var path in UserBackupKeyPaths)
+                {
+                    var file = Path.Combine(dir, $"{stamp}-u{exported++}.reg");
+                    RunToolSilent("reg.exe",
+                        $"export \"{root}\\{path}\" \"{file}\" /y");
+                    if (!File.Exists(file))
+                        File.Delete(file);
+                }
             }
             GuardLogger.Info($"Applied: BackupRegistry ({exported} keys → {dir})");
         }

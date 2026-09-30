@@ -5,6 +5,13 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- BackupRegistry now covers per-user writes: _USER_BACKUP_KEY_PATHS
+  (51 paths — every path written through the per-user hive writers)
+  exported under each loaded interactive SID + HKCU alongside the
+  HKLM set. Previously the .reg safety net covered machine-scope keys
+  only, leaving the bulk of the user-facing knobs (CDM, search,
+  suggestions, Copilot surfaces) unrevertable via export. T12 now
+  asserts both scopes stay covered going forward.
 - T12 fix: py-side extraction now tolerates multi-line
   set_registry_*( "HKLM", ... ) calls — the same blind spot that hid
   the 2 misses it had just caught.
