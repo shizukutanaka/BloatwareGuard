@@ -5,6 +5,13 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- hellzerg/Optimizer diff: `AllowCloudSearch`=0 (Windows Search cloud
+  master), SettingSync per-category kills (app-setting + credential sync,
+  both overrides), `AllowLinguisticDataCollection`=0 (TextInput),
+  `AllowAdvertising`=0 (Bluetooth device advertising),
+  `Edge3PSerpTelemetryEnabled`=0. Skipped: Defender/SmartScreen/AV
+  boundary, TPM/upgrade bypasses, Chrome/Firefox/VS vendor policies,
+  ~140 UI/perf/lockdown prefs.
 - Raphire/Win11Debloat appx diff: blacklist 176->178 —
   `LGElectronics.` namespace (LG OEM stubs) + `COOKINGFEVER` stub game.
   Everything else already covered by existing needles (AD2F1837./

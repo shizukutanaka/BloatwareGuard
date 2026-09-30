@@ -1959,6 +1959,8 @@ public static class RegistryGuard
             // Policy kill for web results in Start (Optimizer diff — one
             // level deeper than the Bing/suggestion switches)
             key?.SetValue("DisableWebSearch", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            // Windows Search cloud results master switch (hellzerg/Optimizer)
+            key?.SetValue("AllowCloudSearch", 0, Microsoft.Win32.RegistryValueKind.DWord);
             // Dynamic web content inside the search box itself (Atlas)
             key?.SetValue("EnableDynamicContentInWSB", 0, Microsoft.Win32.RegistryValueKind.DWord);
 
@@ -2279,6 +2281,12 @@ public static class RegistryGuard
                 ss?.SetValue("DisableSettingSyncUserOverride", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 ss?.SetValue("DisableSyncOnPaidNetwork", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 ss?.SetValue("DisableWindowsSettingSync", 2, Microsoft.Win32.RegistryValueKind.DWord);
+                // Per-category sync kills — app settings + credentials
+                // never roam to the Microsoft account (hellzerg/Optimizer)
+                ss?.SetValue("DisableApplicationSettingSync", 2, Microsoft.Win32.RegistryValueKind.DWord);
+                ss?.SetValue("DisableApplicationSettingSyncUserOverride", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                ss?.SetValue("DisableCredentialsSettingSync", 2, Microsoft.Win32.RegistryValueKind.DWord);
+                ss?.SetValue("DisableCredentialsSettingSyncUserOverride", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 ForEachUserHive(hive =>
                 {
                     SetHiveDword(hive, @"Software\Microsoft\Windows\CurrentVersion\SettingSync", "SyncPolicy", 5);
@@ -2289,6 +2297,14 @@ public static class RegistryGuard
                     SetHiveDword(hive, @"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer", "NoInstrumentation", 1);
                     SetHiveDword(hive, @"Software\Microsoft\Input\Settings", "InsightsEnabled", 0);
                 });
+            // Text-input linguistic data collection + Bluetooth device
+            // advertising off (hellzerg/Optimizer)
+            using var ti = Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\TextInput", true);
+            ti?.SetValue("AllowLinguisticDataCollection", 0, RegistryValueKind.DWord);
+            using var bt = Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Microsoft\PolicyManager\current\device\Bluetooth", true);
+            bt?.SetValue("AllowAdvertising", 0, RegistryValueKind.DWord);
 
                 // CEIP policy + feedback nag prompts
                 using var sqm = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
@@ -2572,7 +2588,9 @@ public static class RegistryGuard
                                          "ShareBrowsingHistoryWithCopilotSearchAllowed",
                                          // Copilot+ connected-page context + NTP
                                          // Bing chat (Raphire/Win11Debloat)
-                                         "CopilotCDPPageContext", "NewTabPageBingChatEnabled" })
+                                         "CopilotCDPPageContext", "NewTabPageBingChatEnabled",
+                                         // 3rd-party SERP telemetry (hellzerg/Optimizer)
+                                         "Edge3PSerpTelemetryEnabled" })
                 key?.SetValue(name, 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("DevToolsGenAiSettings", 2, Microsoft.Win32.RegistryValueKind.DWord);
             // 1 = disable the local on-device foundation model used by Edge AI

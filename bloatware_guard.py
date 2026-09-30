@@ -1349,6 +1349,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_user_dword_all_hives(_USER_EXPLORER_POLICIES, "DisableSearchBoxSuggestions", 1, logger)
         # HKLM policy too — covers hive-creation edge cases
         set_registry_dword("HKLM", _EXPLORER_POLICIES_HKLM, "DisableSearchBoxSuggestions", 1)
+        # Windows Search cloud results master switch (hellzerg/Optimizer)
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Policies\Microsoft\Windows\Windows Search",
+                           "AllowCloudSearch", 0)
         set_user_dword_all_hives(_USER_SEARCH, "BingSearchEnabled", 0, logger)
         # SearchSettings: dynamic search box + cloud search integrations
         set_user_dword_all_hives(_USER_SEARCH_SETTINGS, "IsDynamicSearchBoxEnabled", 0, logger)
@@ -1578,6 +1582,23 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_registry_dword("HKLM", ss, "DisableSettingSyncUserOverride", 1)
         set_registry_dword("HKLM", ss, "DisableSyncOnPaidNetwork", 1)
         set_registry_dword("HKLM", ss, "DisableWindowsSettingSync", 2)
+        # Per-category sync kills — app settings + credentials never roam
+        # to the Microsoft account (hellzerg/Optimizer privacy diff)
+        for n, v in (("DisableApplicationSettingSync", 2),
+                     ("DisableApplicationSettingSyncUserOverride", 1),
+                     ("DisableCredentialsSettingSync", 2),
+                     ("DisableCredentialsSettingSyncUserOverride", 1)):
+            set_registry_dword("HKLM", ss, n, v)
+        # Text-input linguistic data collection + Bluetooth device
+        # advertising off (hellzerg/Optimizer privacy diff)
+        set_registry_dword(
+            "HKLM",
+            r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\TextInput",
+            "AllowLinguisticDataCollection", 0)
+        set_registry_dword(
+            "HKLM",
+            r"SOFTWARE\Microsoft\PolicyManager\current\device\Bluetooth",
+            "AllowAdvertising", 0)
         set_user_dword_all_hives(
             r"Software\Microsoft\Windows\CurrentVersion\SettingSync",
             "SyncPolicy", 5, logger)
@@ -1798,7 +1819,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                      "ShareBrowsingHistoryWithCopilotSearchAllowed",
                      # Copilot+ connected-page context + NTP Bing chat
                      # (Raphire/Win11Debloat Edge AI diff)
-                     "CopilotCDPPageContext", "NewTabPageBingChatEnabled"):
+                     "CopilotCDPPageContext", "NewTabPageBingChatEnabled",
+                     # 3rd-party SERP telemetry (hellzerg/Optimizer)
+                     "Edge3PSerpTelemetryEnabled"):
             set_registry_dword("HKLM", edge_pol, name, 0)
         set_registry_dword("HKLM", edge_pol, "DevToolsGenAiSettings", 2)
         # 1 = disable the local on-device foundation model used by Edge AI
