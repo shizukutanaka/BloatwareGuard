@@ -2729,7 +2729,18 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                          "InAppSupportEnabled", "ShowAcrobatSubscriptionButton",
                          "WebWidgetIsEnabledOnStartup", "SearchbarAllowed",
                          "SearchbarIsEnabledOnStartup",
-                         "ExperimentationAndConfigurationServiceControl"):
+                         "ExperimentationAndConfigurationServiceControl",
+                         # Debloat-Win11 Edge diff — Copilot master + NTP AI
+                         # prompt + crash uploads + Wallet/gamer/travel
+                         # promo surfaces + migration nag + Office
+                         # favorites-bar shortcut + mini search menu
+                         "EdgeCopilotEnabled", "NewTabPageBingAIPromptEnabled",
+                         "CrashReportingMode",
+                         "EdgeWalletEnabled", "EdgeWalletCheckoutEnabled",
+                         "GamerModeEnabled", "TravelAssistanceEnabled",
+                         "ShowBrowserMigrationPrompt",
+                         "ShowOfficeShortcutInFavoritesBar",
+                         "QuickSearchShowMiniMenu"):
                 set_registry_dword("HKLM", edge_pol, name, 0)
             # Documented policy suppresses Bing ads when ENABLED (=1)
             set_registry_dword("HKLM", edge_pol, "BingAdsSuppressionEnabled", 1)

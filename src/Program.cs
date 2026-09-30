@@ -3555,6 +3555,19 @@ public static class RegistryGuard
             key?.SetValue("SearchbarAllowed", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("SearchbarIsEnabledOnStartup", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("ExperimentationAndConfigurationServiceControl", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // Debloat-Win11 Edge diff — Copilot master + NTP AI prompt +
+            // crash uploads + Wallet/gamer/travel promo surfaces +
+            // migration nag + Office favorites-bar shortcut + mini menu
+            key?.SetValue("EdgeCopilotEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("NewTabPageBingAIPromptEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("CrashReportingMode", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("EdgeWalletEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("EdgeWalletCheckoutEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("GamerModeEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("TravelAssistanceEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("ShowBrowserMigrationPrompt", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("ShowOfficeShortcutInFavoritesBar", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("QuickSearchShowMiniMenu", 0, Microsoft.Win32.RegistryValueKind.DWord);
             // Edge Drop syncs files to OneDrive; crypto wallet + asset
             // delivery service are promo/feature-download surfaces
             key?.SetValue("DropEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
