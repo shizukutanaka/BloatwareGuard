@@ -2266,6 +2266,27 @@ public static class RegistryGuard
                 using var tp = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Windows\TabletPC");
                 tp?.SetValue("PreventHandwritingDataSharing", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // ReviOS telemetry.yml deep coverage: 32-bit policy mirror,
+                // PolicyManager default node, CPSS overrides, auth-proxy
+                // telemetry block, IE CEIP
+                using var dc32 = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Policies\DataCollection");
+                dc32?.SetValue("AllowTelemetry", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                using var pmd = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Microsoft\PolicyManager\default\System\AllowTelemetry");
+                pmd?.SetValue("value", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                using var cpss1 = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Microsoft\Windows\CurrentVersion\CPSS\DevicePolicy\AllowTelemetry");
+                cpss1?.SetValue("DefaultValue", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                using var cpss2 = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Microsoft\Windows\CurrentVersion\CPSS\Store\AllowTelemetry");
+                cpss2?.SetValue("Value", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                using var dcap = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\DataCollection");
+                dcap?.SetValue("DisableEnterpriseAuthProxy", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                using var iesqm = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Internet Explorer\SQM");
+                iesqm?.SetValue("DisableCustomerImprovementProgram", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 using var pr = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Windows NT\Printers");
                 pr?.SetValue("DisableHTTPPrinting", 1, Microsoft.Win32.RegistryValueKind.DWord);
@@ -3171,6 +3192,10 @@ public static class RegistryGuard
                 @"SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters",
                 @"SOFTWARE\Microsoft\PolicyManager\current\device\Bluetooth",
                 @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\TextInput",
+                @"SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
+                @"SOFTWARE\Microsoft\PolicyManager\default\System\AllowTelemetry",
+                @"SOFTWARE\Microsoft\Windows\CurrentVersion\CPSS",
+                @"SOFTWARE\Policies\Microsoft\Internet Explorer\SQM",
                 @"SOFTWARE\Policies\Microsoft\Windows\Windows Chat",
         // --- coverage completion (audit: every HKLM write path backed up) ---
         @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\UnattendSettings\SQMClient",
