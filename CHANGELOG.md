@@ -5,6 +5,19 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- itsfatduck/optimizerDuck (new source, C# WPF): telemetry
+  autologgers 13->18 (`AppModel`/`Cellcore`/`CloudExperienceHostOobe`/
+  `DataMarket`/`WdiContextLog` ETW sessions), `DisableTelemetry`
+  +`PublishUserActivitiesOnUserConsent` (HKLM Windows\System),
+  +`NoActiveHelp` (HKLM Assistance\Client — CEIP help pane),
+  backup +Assistance\Client key. Skipped: location/sensor kills,
+  Maps auto-update off (functional), Shell Extensions\Blocked,
+  full-service baseline map (functional restore list).
+- hselimt/HST-WINDOWS-UTILITY (new source): telemetry tasks +3 —
+  `ApplicationData\appuriverifierdaily`/`*install` (app-uninstall
+  verifier upload), `AppListBackup\Backup` (cloud profile store).
+  Skipped: DiskFootprint\StorageSense (functional), Bluetooth/
+  language-sync tasks, Google updater names (vendor), power plan.
 - tomytate/Win-Debloat (new source): misc services +5 —
   `AIFabricUserSvc`/`ModelCatalogUserSvc`/`SemanticSearchUserSvc`/
   `NarrativeFlows`/`OneSettingsClientUserSvc` demoted (AI-fabric

@@ -1056,6 +1056,7 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Audit",
     r"SOFTWARE\Policies\Microsoft\Windows\System",
+    r"SOFTWARE\Policies\Microsoft\Assistance\Client\1.0",
     r"SOFTWARE\Policies\Microsoft\Edge",
     r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\ClientTelemetry",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\DevDrive",
@@ -1842,6 +1843,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                                "EnableActivityFeed", 0)
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\System",
                                "UploadUserActivities", 0)
+            set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\System",
+                               "PublishUserActivitiesOnUserConsent", 0)
+            set_registry_dword(
+                "HKLM", r"SOFTWARE\Policies\Microsoft\Assistance\Client\1.0",
+                "NoActiveHelp", 1)
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Edge",
                                "PersonalizationReportingEnabled", 0)
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Edge",
@@ -3773,6 +3779,11 @@ _EXTRA_AUTOLOGGERS = (
     "LwtNetLog", "NetCore", "NtfsLog", "UBPM", "MellonTelemetry",
     "Circular Kernel Context Logger", "DiagLog", "WFP-IPsec Diagnostics",
     "RadioManager", "SetupPlatformTel",
+    # optimizerDuck diff: appx-activation model trace, cellular OEM
+    # capture, OOBE/CloudExperience trace, DataMarket share-in-use,
+    # WDI diagnostic context log
+    "AppModel", "Cellcore", "CloudExperienceHostOobe", "DataMarket",
+    "WdiContextLog",
 )
 
 
@@ -3946,6 +3957,11 @@ TELEMETRY_TASK_PATHS = (
     "\\Microsoft\\Windows\\Application Experience\\AitEnableAgent",
     "\\Microsoft\\Windows\\Speech\\SpeechModelDownloadTask",
     "\\Microsoft\\Windows\\DiskFootprint\\Diagnostics",
+    # HST Windows Utility diff: app-uninstall verifier telemetry +
+    # app-list backup to the cloud profile store
+    "\\Microsoft\\Windows\\ApplicationData\\appuriverifierdaily",
+    "\\Microsoft\\Windows\\ApplicationData\\appuriverifierinstall",
+    "\\Microsoft\\Windows\\AppListBackup\\Backup",
     # Windows Error Reporting queue upload
     "\\Microsoft\\Windows\\Windows Error Reporting\\QueueReporting",
     # Consumer subscription/license offers (Microsoft 365 upsell channel)

@@ -1455,6 +1455,11 @@ public static class RegistryGuard
         "LwtNetLog", "NetCore", "NtfsLog", "UBPM", "MellonTelemetry",
         "Circular Kernel Context Logger", "DiagLog", "WFP-IPsec Diagnostics",
         "RadioManager", "SetupPlatformTel",
+        // optimizerDuck diff: appx-activation model trace, cellular
+        // OEM capture, OOBE/CloudExperience trace, DataMarket
+        // share-in-use, WDI diagnostic context log
+        "AppModel", "Cellcore", "CloudExperienceHostOobe", "DataMarket",
+        "WdiContextLog",
     };
 
     /// <summary>Start=0 on telemetry ETW AutoLoggers. Opens — never creates —
@@ -2596,6 +2601,10 @@ public static class RegistryGuard
             using var sys = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(SystemPolicyPath);
             sys?.SetValue("PublishUserActivities", 0, Microsoft.Win32.RegistryValueKind.DWord);
             sys?.SetValue("UploadUserActivities", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            sys?.SetValue("PublishUserActivitiesOnUserConsent", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            using var assist = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Policies\Microsoft\Assistance\Client\1.0");
+            assist?.SetValue("NoActiveHelp", 1, Microsoft.Win32.RegistryValueKind.DWord);
             sys?.SetValue("EnableActivityFeed", 0, Microsoft.Win32.RegistryValueKind.DWord);
             using var edge = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(EdgePolicyPath);
             edge?.SetValue("PersonalizationReportingEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
@@ -3884,6 +3893,7 @@ public static class RegistryGuard
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Audit",
         @"SOFTWARE\Policies\Microsoft\Windows\System",
+        @"SOFTWARE\Policies\Microsoft\Assistance\Client\1.0",
         @"SOFTWARE\Policies\Microsoft\Edge",
         @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\ClientTelemetry",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\DevDrive",
@@ -4712,6 +4722,11 @@ public static class ScheduledTaskGuard
         @"\Microsoft\Windows\Application Experience\AitEnableAgent",
         @"\Microsoft\Windows\Speech\SpeechModelDownloadTask",
         @"\Microsoft\Windows\DiskFootprint\Diagnostics",
+        // HST diff: app-uninstall verifier telemetry + app-list
+        // backup to the cloud profile store
+        @"\Microsoft\Windows\ApplicationData\appuriverifierdaily",
+        @"\Microsoft\Windows\ApplicationData\appuriverifierinstall",
+        @"\Microsoft\Windows\AppListBackup\Backup",
         // Windows Error Reporting queue upload
         @"\Microsoft\Windows\Windows Error Reporting\QueueReporting",
         // Consumer subscription/license offers (Microsoft 365 upsell channel)
