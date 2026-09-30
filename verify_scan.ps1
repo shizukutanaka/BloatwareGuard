@@ -16,7 +16,7 @@ powershell "Get-AppxProvisionedPackage -Online | Select PackageName" > C:\temp\p
 
 # 3. Appx packages matching blacklist BEFORE
 $blacklist_patterns = @("Xbox", "Solitaire", "YourPhone", "MicrosoftTeams", "Zune")
-$installed_before = Get-AppxPackage | Where-Object { $blacklist_patterns -contains $_.Name -or $_.Name -like "*Xbox*" -or $_.Name -like "*Solitaire*" }
+$installed_before = Get-AppxPackage | Where-Object { $n = $_.Name; $blacklist_patterns | Where-Object { $n -like "*$_*" } }
 $installed_before | Select PackageFamilyName | Export-Csv -NoType C:\temp\appx_before.csv
 
 # 4. Run the actual scan (real removal!)
@@ -28,7 +28,7 @@ Write-Host "Taking AFTER snapshots..." -ForegroundColor Yellow
 reg export "HKLM\SOFTWARE\Policies\Microsoft\Windows" C:\temp\after.reg 2>$null
 reg export "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" C:\temp\after_system.reg 2>$null
 powershell "Get-AppxProvisionedPackage -Online | Select PackageName" > C:\temp\prov_after.txt
-$installed_after = Get-AppxPackage | Where-Object { $blacklist_patterns -contains $_.Name -or $_.Name -like "*Xbox*" -or $_.Name -like "*Solitaire*" }
+$installed_after = Get-AppxPackage | Where-Object { $n = $_.Name; $blacklist_patterns | Where-Object { $n -like "*$_*" } }
 $installed_after | Select PackageFamilyName | Export-Csv -NoType C:\temp\appx_after.csv
 
 # 6. DIFF REPORT

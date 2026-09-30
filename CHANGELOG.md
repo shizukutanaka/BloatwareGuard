@@ -2,7 +2,693 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
-## [Unreleased] — v1.59.2-mvp: deploy/docstaleness + exe metadata
+## [Unreleased] — v1.60.1-mvp: Edge policy expansion
+
+### Added
+- tomytate/Win-Debloat7 (new source, full module sweep):
+  telemetry tasks +14 (25H2 AI-subtree — `WindowsAI\RecallSnapshot`
+  /`ModelMaintenance`/`AIPlatformServiceTask`/`WorkloadsHostTask`,
+  `AISystem\AIAnalyzer`/`ModelUpdateTask`/`SemanticIndexTask`,
+  `NarrativeFlows\UserJourneyTracker`, `Flighting\OneSettings\*
+  RefreshCache`/`QuerySettings`, `AppxDeploymentClient\UcpdVelocity`,
+  `UNP\RunCampaignManager`, `Setup\EOSNotify`/`EOSNotify2`);
+  `DisableRecall` +`DisableScreenSemanticAnalysis`=1 (on-device
+  screen semantic analysis CSP); `DisableTelemetry` +3 documented
+  policies — RPC `EnableAuthEpResolution`, Kernel-DMA
+  `DeviceEnumerationPolicy`, dump `EnableDumpEncryption`; misc
+  demote +`SensorDataService`; HKLM backup +3 paths
+- coolvitto 25H2 service list (hateblo, Japanese source): misc
+  demote +`whesvc` (Windows Health and Optimized Experiences —
+  PC-health/optimizer suggestion feed), +`dptftcs`/`ipfsvc`
+  (Intel Dynamic Tuning telemetry + Innovation Platform Framework)
+- `DisableCloudContent`: `SettingsPageVisibility` merged —
+  `hide:home` → `hide:home;aicomponents;appactions` (hides the
+  25H2 AI Components + App Actions settings pages)
+- SysAdminDoc/Debloat-Win11 (new source, full modular
+  sweep — PolicyCatalog/AppX/Services/Tasks/OEM/Edge/
+  Privacy triaged): telemetry tasks +2
+  (`Shell\FamilySafetyUpload`, `XblGameSave\XblGameSaveTask`
+  — family-safety upload + Xbox save-sync collectors);
+  OEM task patterns +5 (`Intel|Realtek|Waves|MSI|Razer`
+  vendor needles); blacklist +13 OEM/feed needles
+  (WavesAudio, DragonCenter, MysticLight, MSIAfterburner,
+  ROGLiveService, ArmouryCrate, MyASUS, ASUSPCAssistant,
+  Razer, AcerQuickAccess, LenovoUtility,
+  `Microsoft.WidgetsPlatformRuntime`,
+  `Microsoft.StartExperiencesApp`); misc demote services
+  +5 (`InventorySvc`, `WpcMonSvc`, `MessagingService`,
+  `GamingServices`, `GamingServicesNet`) + `lmhosts`
+  cs-side parity fix + dynamic service counts in logs;
+  Edge policy +10 (`EdgeCopilotEnabled`,
+  `NewTabPageBingAIPromptEnabled`, `CrashReportingMode`,
+  `EdgeWalletEnabled`, `EdgeWalletCheckoutEnabled`,
+  `GamerModeEnabled`, `TravelAssistanceEnabled`,
+  `ShowBrowserMigrationPrompt`,
+  `ShowOfficeShortcutInFavoritesBar`,
+  `QuickSearchShowMiniMenu`); Smart Clipboard kills
+  (`EnableSmartClipboard`=0 policy + per-user
+  SmartClipboard `Disabled`=1); `EnableRecall`=0 per-user
+  shell toggle; WindowsBackup `DisableBackupUI`=1 policy;
+  toast-above-lock kills
+  (`NOC_GLOBAL_SETTING_ALLOW_(CRITICAL_)TOASTS_ABOVE_LOCK`);
+  startup-bloat needles +3 (Razer, Synapse, Cortex).
+  Skipped: UI/pref surfaces, WU deferral/UX, AutoRun
+  duplicates, service wholesale kills, vendor uninstallers.
+- Microsoft official new policies (windowslatest +
+  Microsoft Japan blog): `RemoveMicrosoftCopilotApp`=1
+  per-user WindowsAI (April 2026 "Remove Microsoft Copilot
+  app" — auto-removes Copilot + M365 Copilot when not
+  user-installed and unused >28 days); CopilotKeyboard
+  admin policies ×3 per-user (`TurnOffSendTelementryData`
+  — Microsoft's literal misspelling — usage data upload,
+  `TurnOffCloudCandidate` — cloud text candidates,
+  `TurnOffInternetIntegration` — Bing search/character/
+  update nags), per Microsoft Japan June 2026 guidance.
+- Qiita 24H2 new-policy list (Microsoft Group Policy
+  Settings Reference): `DisableTelemetry` +3 under existing
+  AppCompat backup — 24H2 app-inventory collectors
+  `DisableAPISamping` (Microsoft's literal ADMX spelling),
+  `DisableApplicationFootprint`, `DisableWin32AppBackup`
+  (API-sampling / registry+file-usage footprint / Win32
+  backup compat scans). Skipped: all Defender-side new
+  policies (boundary), `AllowLegacyURLFields` (IE legacy
+  URL fields — weakening direction).
+- zoicware/RemoveWindowsAI (25H2, second pass):
+  `RemoveDefaultStorePackages` now writes the DOCUMENTED
+  mechanism — per-family subkeys with `RemovePackage`=1 +
+  merged `DynamicRemovalList` REG_MULTI_SZ — replacing the
+  non-standard `PackageList` value (stale value is deleted
+  best-effort). Registry/hosts/tasks/packages otherwise
+  already covered. Skipped: `MicrosoftWindows.Client.Photon`
+  (zoicware itself comments it out — breaks WSAI runtime),
+  IsoEnvBroker Start=4 (wholesale service kill — default
+  is already manual), Office Copilot/content-safety kills
+  (vendor apps), `ConfigureStartPins(JSON)` (user layout
+  override), `CopilotLogonTelemetryTime`/`WakeApp` (value
+  deletions — no write semantics), DefenderAiPlatformHost
+  IFEO (Defender boundary).
+- coolvitto hateblo (new source, Policy CSP - System full
+  list): `DisableTelemetry` +10 — DataCollection processing
+  kills (`AllowDesktopAnalyticsProcessing`/
+  `AllowDeviceNameInDiagnosticData`/
+  `AllowMicrosoftManagedDesktopProcessing`/
+  `AllowUpdateComplianceProcessing`/`AllowWUfBCloudProcessing`/
+  `DisableDiagnosticDataViewer`/`EnableOneSettingsAuditing`/
+  `LimitEnhancedDiagnosticDataWindowsAnalytics`), System
+  `EnableFontProviders`=0 (online font downloads),
+  `AllowOOBEUpdates`=0 (OOBE in-setup update pulls). Backup
+  +`Policies\Microsoft\Windows\OOBE`. Skipped:
+  `DisableDeviceDelete` (inverse polarity — kills the delete
+  capability itself), `DisableFileSyncNGSC` (OneDrive kill —
+  rejected class), `DisableSR`/FileHistory `Disabled`
+  (functional feature kills), ELAM `DriverLoadPolicy`
+  (security boundary), `AllowLocation` (per-app design),
+  `HideUnsupportedHardwareNotifications`=0 (shows warnings —
+  opposite direction), TelemetryProxy (no proxy to set),
+  MDM-only entries (no registry surface).
+- atlantsecurity/windows-hardening-scripts (cmd suite, new
+  source): `DisableTelemetry` +5 — `DisableSmartNameResolution`/
+  `EnableICMPRedirect`/`DisableIPSourceRouting` (Tcpip +
+  Tcpip6)/`DontDisplayNetworkSelectionUI`/`AuditLevel`
+  (LSASS access auditing). Backup +3 (Tcpip/Tcpip6
+  Parameters, LSASS.exe IFEO). Skipped: `EnableLUA`
+  (UAC boundary), WSH `DisplayLogo`/Office macro rows
+  (vendor/UI), `EnableOcspStaplingForSni` (commented out in
+  source), `AuditLevel` PowerShell `EnableModuleLogging`
+  (logging surface), printer `DisableWebPnPDownload` (already
+  covered).
+- ledg/WinDebloatTools (new source): `DisableSpotlight`
+  +`IncludeEnterpriseSpotlight`=0 (Enterprise Spotlight
+  content — inverse polarity, =0 disables), `DisableWidgets`
+  +`ShellFeedsTaskbarOpenOnHover`=0 (taskbar feeds
+  open-on-hover). Skipped: `NoAutoUpdate`/`ShowSleepOption`/
+  `EnableMtcUvc`/`EnableMmx`/`DisableLocationScripting`
+  (boundary/UI/location kills).
+- Winnow (BiosSystem, second pass): `DisableCopilot`
+  +`OnlineVoicesEnabled`=0 (Narrator\NoRoam — online voice
+  downloads), `DisableCloudClipboard`
+  +`EnableSuggestedClipboardActions`=0 (clipboard AI
+  actions). User backup +`Narrator\NoRoam` (70→71).
+- CoPilot-Cleaner (new source): `DisableEdgeBloat`
+  +`DiscoverHubEnabled`=0 (Edge Discover-hub kill —
+  value=0 sibling of `DefaultBingContextMenuEnabled`).
+
+- LeDragoX/Win-Debloat-Tools (new source): blacklist +3 —
+  `SAMSUNGELECTRONICS` (OEM stub namespace covering both
+  publisher spellings), `4AE8B7C2.` (Booking.com stub
+  publisher), `FACEBOOK.` (Facebook stub package);
+  `MiscBloatServices` +`lmhosts` demoted (NetBIOS naming —
+  pairs with existing NetBT demote); `DisableTelemetry`
+  +`UserPreference=3` (HKLM WindowsMitigation — recommended
+  troubleshooting auto-runs + uploads diagnostics). Backup
+  +WindowsMitigation key. Skipped: ConsentStore value writes
+  (closed-PR #34 content — must not re-land), WU UX
+  (`UxOption`/`NoAutoRebootWithLoggedOnUsers`), Edge NoRemove
+  (uninstall entry, out of scope), functional services
+  (BITS/Spooler/WlanSvc/iphlpsvc/wscsvc/Defender-adjacent),
+  vendor updaters (gupdate/RtkBtManServ), OneNote/Camera/
+  BioEnrollment/ContactSupport (functional/system apps),
+  task/app diffs all already covered.
+- zoicware/RemoveWindowsAI (new source, actively maintained
+  AI-removal suite): `DisableCopilot` +`SetCopilotHardwareKey`
+  (CopilotKey policy — hardware-key remap), M365Copilot
+  auto-start kills (`AutoStartDelayEnabled`/
+  `IsCompanionWindowAvailable`), `MicrosoftCopilotAutoLaunch`
+  (HKLM RunNotification — startup auto-open), generativeAI +
+  systemAIModels ConsentStore `Value=Deny` + Capabilities
+  `RecordUsageData=0` (usage recording off). Backup +5
+  (ConsentStore generativeAI/systemAIModels, Capabilities
+  generativeAI, RunNotification) + user backup +2
+  (M365Copilot, CopilotKey). Skipped: Office 16.0 AI rows
+  (vendor scope), Edge Local-State labs-flags edit (runtime
+  file mutation), package/file deletion, Xbox GamingAI reg
+  row (gaming feature), SettingsPageVisibility (its `hide:home`
+  already written — merging `aicomponents;appactions` would
+  need string merge; documented as follow-up), velocity ID
+  58375086 (AI-fabric dep — explorer bug noted by source).
+- burakarslan0110/WinToolify (new source, PS catalog):
+  `DisableCopilot` +`HideAIActionsMenu` (HKLM Explorer policy —
+  Explorer "AI actions" context-menu group) + voice-agent extras
+  `AgentActivationOnLockScreenEnabled`/`AgentActivationLastUsed`
+  (per-user), `DisableTelemetry` +`AllowClipboardHistory` (HKLM
+  System policy — cloud clipboard pipeline, cbdhsvc demote の補強),
+  per-user `PhoneLinkEnabled` (Mobility), Edge +2
+  (`TextPredictionEnabled`/`MicrosoftEditorProofingEnabled` —
+  editor proofing ships text to MS). Skipped: Office 16.0
+  privacy/feedback rows (vendor), WU defer/locale kills,
+  NCSI/location/sensor kills, SmartScreen-adjacent toggles,
+  PasswordManager/autofill (functional), RDP `fDenyTSConnections`.
+- itsfatduck/optimizerDuck (new source, C# WPF): telemetry
+  autologgers 13->18 (`AppModel`/`Cellcore`/`CloudExperienceHostOobe`/
+  `DataMarket`/`WdiContextLog` ETW sessions), `DisableTelemetry`
+  +`PublishUserActivitiesOnUserConsent` (HKLM Windows\System),
+  +`NoActiveHelp` (HKLM Assistance\Client — CEIP help pane),
+  backup +Assistance\Client key. Skipped: location/sensor kills,
+  Maps auto-update off (functional), Shell Extensions\Blocked,
+  full-service baseline map (functional restore list).
+- hselimt/HST-WINDOWS-UTILITY (new source): telemetry tasks +3 —
+  `ApplicationData\appuriverifierdaily`/`*install` (app-uninstall
+  verifier upload), `AppListBackup\Backup` (cloud profile store).
+  Skipped: DiskFootprint\StorageSense (functional), Bluetooth/
+  language-sync tasks, Google updater names (vendor), power plan.
+- tomytate/Win-Debloat (new source): misc services +5 —
+  `AIFabricUserSvc`/`ModelCatalogUserSvc`/`SemanticSearchUserSvc`/
+  `NarrativeFlows`/`OneSettingsClientUserSvc` demoted (AI-fabric
+  user listeners: model catalog, Copilot semantic-search
+  orchestration, Recall narrative flow, OneSettings pull
+  client). Skipped: `lltdsvc`/`upnphost` (functional LAN),
+  `WbioSrvc` (biometric sign-in), `WSearch`/SysMain (perf).
+- RajwanYair/RegiLattice security packs (same source):
+  protocol/account hardening +9 — SSL 2.0/3.0 kill (extends
+  TLS deprecation loop), Lsa `EveryoneIncludesAnonymous`=0 /
+  `NoDefaultAdminOwner`=1 / `LimitBlankPasswordUse`=1 /
+  `SCENoApplyLegacyAuditPolicy`=1, MSV1_0 NTLM
+  `RestrictSendingNTLMTraffic`=2 + `AuditReceivingNTLMTraffic`=2,
+  `Audit\ProcessCreationIncludeCmdLine`=1, `NetBT\Parameters\
+  EnableLMHOSTS`=0. backup 103→105. Skipped: RunAsPPL/
+  LsaCfgFlags (PPL boundary), Defender Spynet, FIPS mode,
+  RestrictedAdmin (RDP functional), RestrictAnonymous=2
+  (enumeration-upgrade risk over current =1).
+- RajwanYair/RegiLattice (new source, 7,718-tweak registry
+  toolkit): telemetry surface +5 — `DevDrive\DisableTelemetry`=1
+  (Dev Drive telemetry), `Lxss\EnableTelemetry`=0 (WSL),
+  `Policies\Microsoft\Speech\AllowCloudTTS`=0 (cloud TTS),
+  `DataCollection\MaxTelemetryCacheSize`=0 (telemetry cache),
+  `Appx\AllowAutomaticAppArchiving`=0 (auto-archive bloat).
+  backup 101→103. Skipped: vendor telemetry (VS/VSCode/Office/
+  Firefox/Skype), StorageSense (functional), perf/UI pack.
+- bitlogik/HushWin (new source): `AppCompatFlags\
+  ClientTelemetry` +3 — `IsCensusDisabled`/`DontRetryOnError`/
+  `TaskEnableRun`=1 (CEIP census upload + retry + task-run
+  gate under-layer). backup 100→101. Skipped: Remote
+  Assistance kill (functional), Office ClientTelemetry
+  (vendor scope).
+- atlantsecurity/windows-hardening-scripts (278★, new
+  source): telemetry hosts +13 MSN ad/analytics endpoints —
+  rad/live.msn family (a/b/c.rad.msn+live, 0.r.msn,
+  analytics.r.msn), adsyndication, blu.mobileads,
+  b.ads2.msn, ads1.jp.msn, rel.msn, arc1.msn (419→431).
+  Skipped: generic third-party adblock flood, `target.
+  microsoft.com` (unverifiable), `msnbot-*` (crawler).
+- milgradesec/windows-settings (40★ security config, new
+  source): credential/protocol hardening +5 — Lsa
+  `NoLMHash`=1 + `LmCompatibilityLevel`=5 (NTLMv2-only),
+  FVE `DisableExternalDMAUnderLock`=1 (PCI-DMA under lock),
+  `.NETFramework\v2.0.50727` SchUseStrongCrypto mirrors
+  (legacy runtime TLS opt-in, 64/32), `AppCompat\
+  VDMDisallowed`=1 (NTVDM kill — same class as
+  DisableLegacyFeatures),
+  `SafeDllSearchMode`=1, `DisableExceptionChainValidation`=0
+  (SEHOP). Skipped: RunAsPPL (LSA PPL — plugin/auth break
+  risk, boundary), DMA lock SKU caveat noted.
+- Windows-Utility (ZuanCrisp winutil fork, new source):
+  +4 — UScheduler_Oobe `WindowsUpdate` sibling (workCompleted
+  marker; OOBE updater pass killed alongside Outlook/DevHome),
+  per-user promo toasts `Windows.SystemToast.StartupApp` /
+  `Windows.SystemToast.AccountHealth` / `Microsoft.SkyDrive.
+  Desktop` Enabled=0.
+- Win11Debloater (bunbunconmeow, new source): WindowsAI
+  `AllowSnapshotting`=0 — sibling kill switch to
+  TurnOffSavingSnapshots in the same CSP key.
+- speedup-windows10 (balsamleti, new source): +2 —
+  WindowsSelfHost\UI\Strings DiagnosticErrorText/
+  DiagnosticLinkText blanked (insider diagnostic nag),
+  legacy WindowsStore\WindowsUpdate AutoDownload=2
+  (pre-policy store update suppression). Skipped:
+  NoAutoUpdate/SetACL own-take (WU kill — boundary),
+  AllowLockScreen=0 (UI).
+- Reclaim (jonax1337/Reclaim, Tauri debloat tool, new
+  source): hosts +3 (ads.yahoo.com, advertising.yahoo.com,
+  feedback.microsoft.com). Skipped: msftncsi (NCSI —
+  captive-portal, same class as prior revert), WU/Edge
+  delivery CDNs, corp STS/ADFS, Office Nexus/CDN, msn.com
+  content portals.
+- Reclaim (jonax1337/Reclaim, Tauri debloat tool, new
+  source): blacklist +5 consumer bloat — CandyCrush,
+  MarchofEmpires, Plex, Viber, Royal Revolt was already
+  covered by flaregamesGmbH. Skipped: Paint/Store/
+  Terminal/Calculator/Camera/OneNote/Notepad/MeetNow/
+  RemoteDesktop/FamilySafety removals (system components
+  this tool keeps by design).
+- Reclaim (jonax1337/Reclaim, Tauri debloat tool, new
+  source): per-user +3 — Notepad `ShowStoreRecommendation`=0
+  (store promo banner), Explorer `StartupNotify`=0
+  (startup-impact toast), GameBar `GamePanelStartupTipIndex`=3
+  (promo tip panel). Skipped: SmartScreen/AppHost kills
+  (protection), PPL/RunAsPPL + RDP/Remote Assistance kills
+  (security-boundary), MS account kill (`NoConnectedUser`),
+  WU policy + UX set, StorageSense/WcmSvc metered (functional),
+  services WSearch/Xbl*/MapsBroker=4 (functional), ~90
+  performance/gaming/UI-pref values (mouse/keyboard/TDR/AFD/
+  NIC/transparency/Explorer).
+- DebloatAndSecurizeW11 (JulienVB, new source): velocity
+  overrides +3 AI feature IDs (3189581453, 3552646797,
+  450471565 via phantomofearth velocity lists). Skipped:
+  ConsentStore denies (rejected category), office AI-
+  training keys (vendor), DisableSR/EnableLUA (boundary),
+  WU pause UX times (functional).
+- 0Ai-Windows-Hardening (cervezagua, new source): Notepad
+  AI-disable namespaces — HKLM Policies\Microsoft\Notepad
+  + per-user Policies\Microsoft\Windows\WindowsNotepad
+  DisableAIFeatures (some Store builds read these first).
+  Skipped: ConsentStore systemAIModels Deny (rejected
+  closed-PR category), RestrictedRemoteAdministration
+  (breaks RDP), SmartActionsState (unverifiable).
+- unslop-windows (PyPie-Studio, new source) + Winnow
+  (BiosSystem, new source): Cross-Device Resume kill —
+  MDM PolicyManager DisableCrossDeviceResume + per-user
+  IsResumeAllowed/IsOneDriveResumeAllowed (stops sihost
+  spawning CrossDeviceResumeHost at logon, 24H2+); TLS
+  1.0/1.1 deprecation (SCHANNEL Enabled=0 +
+  DisabledByDefault=1, Client+Server both). Skipped:
+  Office Copilot policy (vendor), RDP/GPU-scheduler/
+  BitLocker (functional/security boundary).
+- 5cover/WinClean (new source): blacklist +2
+  (BethesdaSoftworks.FalloutShelter, Microsoft.Advertising).
+  Sycnex-derived scripts otherwise fully covered.
+- privacyfilters/Microsoft-Blocker (new source,
+  5,850-entry hosts list): telemetry hosts 197->416 —
+  vortex/events-data regional TM aliases, watson/WER
+  family, Clarity analytics, MSN/Bing ads, Office-app
+  telemetry endpoints, xboxlive metrics. Skipped: Azure/
+  enterprise/AppInsights SDK, NCSI, WU/Store/CDN,
+  SmartScreen, 5,300 footprintdns wildcards.
+- Winhance (memstechtips, new source C#): per-user
+  ShowCopilotNudges=0, OneDrive KFMBlockOptIn=1
+  (HKLM+per-user), AAD WorkplaceJoin
+  BlockAADWorkplaceJoin=1 (HKLM+per-user).
+  Skipped: Office AI keys, Defender notifications,
+  Winlogon/perf/UI prefs. Backup 109->110, user 67->69.
+- Raphire/Win11Debloat 2026.06 re-diff: per-user
+  DragTrayEnabled=0 (CDP share drag tray); the rest of
+  the new reg-file set already covered. Backup: CDP
+  already in user backup list.
+- SysAdminDoc/Debloat-Win11 (new source, v2.3.11):
+  per-user WindowsBackup NotificationDisabled=1;
+  rest of its 57-policy catalog already covered.
+- zoicware per-user/registry re-diff: DisableCopilot
+  +Copilot/Recall taskbar pins +TaskbarCompanion
+  +PWA-preinstall flag +background-app kills
+  (Copilot/OfficeHub DisabledByUser+SleepDisabled)
+  +A9HomeContentEnabled sync handler; DisableAppPermissions
+  +LetAppsAccessSystemAIModels +systemAIModels
+  RecordUsageData +Paint targeting opt-out/get-started
+  suppression (10 values) +Notepad ShowStoreBanner.
+  Backup 106->109, user backup 62->66. Skipped: Office
+  training/content-safety subkeys, VoiceAccess runtime,
+  BrandedKey remap, file-assoc deletion, IFEO hijack.
+- zoicware/RemoveWindowsAI re-diff (2026 updates):
+  blacklist +7 -> 197 (Office.ActionsServer, WritingAssistant,
+  Ink.Handwriting, Copilot+ AI component names Voiess/Speion/
+  Livtop/Filons, WindowsWorkload.*). WindowsAI registry surface
+  already covered; CBS-store removal stayed out of scope.
+- Devin Review round (PR #35): fix BingAdsSuppression
+  inverted write -- documented policy is
+  BingAdsSuppressionEnabled and must be 1 to suppress
+  Bing ads (0 disabled suppression); winget-restore
+  availability probe so missing winget marks entries
+  manual instead of throwing mid-loop; capability
+  ledger now re-queries post-removal and records only
+  capabilities actually gone.
+- Microsoft Copilot ADMX docs (CopilotApp.admx +
+  copilotupdate.admx): DisableCopilot +BrowsingEnabled
+  +CopilotCoworkToolActionsEnabled @
+  Policies\Microsoft\Copilot; EdgeUpdate
+  Copilot-distribution guard Install/Update/
+  CopilotUnificationAllowed{C50565E9-...}. Skipped:
+  ComponentUpdatesEnabled (doc warns it can block
+  security fixes), Uninstall/TargetChannel. Backup 104->106.
+- Khotyz/WGO diff: DataCollection
+  +LimitDiagnosticDataConfigurationSet; DisableCloudClipboard
+  +per-user CloudClipboardAutomaticUpload; Edge
+  +ConfigureTelemetryForDesktop. Skipped: location/sensor
+  kills, WU pause, gaming TCP/visual tuning, DoH,
+  Defender/SmartScreen/UAC, RemoveWindowsStore.
+- Residual host diff (BSI list + hagezi microsoft.txt):
+  hosts +6 -> 196 (events.data.microsoft.com universal
+  ingest, pipe.dev.trafficmanager.net, Office
+  diagnostics.front azurefd, arc.msn.com +
+  arc.trafficmanager.net MSN ad-analytics). Skipped:
+  AppCenter/AppInsights/Azure Monitor/LogAnalytics SDK
+  endpoints (app-SDK boundary).
+- winscript VoiceShortcut per-user kill; GTweak
+  audited (Defender/SmartScreen/MRT only -- boundary);
+  Aegis-Win11 audited (Brave/Edge-feature/UI/UAC --
+  boundary). winscript source exhausted.
+- winscript round 2 + Aegis-Win11: NVIDIA driver
+  SendTelemetryData off (both Global\Startup forms);
+  Search policy +PreventRemoteQueries; Edge +AllowSurfGame.
+  Skipped: Defender scan tuning, WU service/service-name
+  sweeps, Office QMEnable/VerboseLogging (vendor
+  boundary), CCleaner, WMP UsageTracking (closed-PR).
+- flick9000/winscript diff (large): DisableCopilot
+  +CopilotDisabledReason region-fail trick +per-user
+  AllowCopilotRuntime +NVIDIA FTS RID telemetry opt-outs;
+  DisableSearchSuggestions +ConnectedSearchPrivacy=3
+  +ConnectedSearchUseWebOverMeteredConnections +CortanaEnabled
+  legacy master +policy DisableSearchHistory +per-user
+  DeviceHistoryEnabled; DisableTelemetry +Maps
+  AllowUntriggeredNetworkTrafficOnSettingsPage +SettingSync
+  deep kills +11 (browser/startlayout/personalization/theme/
+  appsync categories + user overrides). Backup 99->102,
+  user backup 56->58. Skipped: WU timing/policy, VisualStudio/
+  CCleaner vendor, WMDRM online, UI prefs, Brave.
+- hagezi/dns-blocklists microsoft.txt + native.winoffice diff:
+  hosts 151->190 — remaining vortex events ingest regions
+  (au/eu/in/jp/uk/us mobile + v20), Office diagnostics
+  endpoints (msa/cjs/entitlement/incidents/logging/
+  supportexperience.diagnostics.office.com), activity-
+  upload endpoints (*.activity.windows.com), trafficmanager
+  ingest fronts, location inference. Skipped: Azure Monitor /
+  App Insights / AppCenter (app-SDK telemetry, not OS),
+  MSN content CDN.
+- BSI (German federal SiSyPHuS work package) endpoint list
+  diff (via craiu/mobiletrackers): hosts 137->151 —
+  asimov/db5/geo settings-win akadns mirrors, au/de/uk
+  vortex-win + v20 events ingest, sandbox ingest variants.
+  Skipped: AppCenter/CodePush (per-app SDK telemetry, not OS),
+  trafficmanager dev endpoint.
+- TronScript (bmrf/tron) diff: blacklist +FrenchRiviera/
+  Lucille/SeaofThieves stubs (187->190);
+  DisableSearchSuggestions +AllowCortanaAboveLock.
+  Skipped: task-file deletions (design disables, not deletes),
+  WiFi-Sense values (feature removed 2017), Defender Spynet,
+  ~750 user-installed-app wildcards, language packs,
+  BioEnrollment/camera/DDV/BrowserChoice (functional).
+- Microsoft documented-policy gap fill: DisableTelemetry
+  +ConfigureTelemetryOptInChangeNotification/
+  ConfigureTelemetryOptInSettingsUx (opt-in prompt/UX
+  suppression); BlockInsiderPreview +ManagePreviewBuildsPolicyValue;
+  CDM per-user +ShowWindowsWelcomeExperience;
+  DisableSpotlight +UserProfileEngagement
+  ShowSpotlightOnWelcome.
+- WinRice diff: DisableTelemetry +Wdigest UseLogonCredential=0
+  (plaintext credential caching off) +WPAD WpadOverride=1
+  HKLM+all users (proxy auto-discovery poisoning vector);
+  DisableRecall per-user +Notepad EnableCowriter +Paint
+  EnableCocreator/EnableImageCreator +Photos EnableAIFeatures
+  (app-level AI toggles beneath the policy kills). Backup
+  99->101, user backup 52->56. Skipped: VBS toggle, UI prefs,
+  WPAD functional concern none (kills attack surface only).
+- winutil v2 tweaks.json diff (re-mine): DisableEdgeBloat
+  +UrlKeyedAnonymizedDataCollectionEnabled (URL-keyed browsing
+  data uploads); misc services +SharedAccess (ICS — demand-start).
+  Remaining diffs all UI prefs/third-party browsers/functional
+  or closed-PR content.
+- noid-privacy Strict/Paranoid profile diff: DisableTelemetry
+  +DisableOneSettingsDownloads (DataCollection alias path)
+  +DisableGraphRecentItems +EnableCdp=0 (CDP master)
+  +EnableWindowsBackup=0 +OneDrive policy kills
+  (sync-admin reports/feedback/pre-signin traffic — OneDrive
+  itself untouched) +user-policy tailored-experiences lock;
+  DisableSearchSuggestions +ConnectedSearchUseWeb +global
+  web-provider toggle +Bing provider registration kill;
+  AppPrivacy +Calendar/GraphicsCaptureProgrammatic/
+  GraphicsCaptureWithoutBorder force-denies. Backup 97->99.
+  Skipped: AllowInputPersonalization (prior closed-PR content),
+  location/mic/cam force-denies, clipboard-history/font-provider
+  feature kills.
+- noid-privacy EdgePolicies diff: +AddressBarTrendingSuggestEnabled
+  (trending suggestions) +EdgeReadingModeServiceBasedExtractionEnabled
+  (cloud content extraction upload) in DisableEdgeBloat. Skipped:
+  SmartScreen override, auth schemes, IE-mode, ABE, SwiftShader,
+  codec-pack removals (functional/security boundary).
+- noid-privacy AntiAI diff (25H2 WindowsCopilot ADMX): DisableRecall
+  +AllowRecallExport=0 +app/URI deny-lists (browsers/terminals/
+  password managers/RDP; account/login/mail/payment URIs);
+  DisableCopilot +agent framework kills (Agent connectors/workspaces
+  force-deny, consent duration/policy minimum) +LetAppsAccessGenerativeAI
+  force-deny +DisableRecallDataProviders (per-user); DisableEdgeBloat
+  +6 Copilot-in-Edge surface kills.
+- VDOT (Virtual-Desktop-Optimization-Tool) diff: blacklist
+  +Microsoft.USNationalParks (theme-pack stub, 186->187); misc
+  services +BcastDVRUserService/autotimesvc/SmsRouter/icssvc
+  (GameDVR broadcast template, cellular time, SMS router, ICS —
+  demand-start keeps invocation). Skipped: VSS/defrag/RmSvc/
+  MessagingService (functional; restore points need VSS),
+  LanManWorkstation SMB tuning (perf).
+- ReviOS privacy/misc diff: DisableTelemetry +machine-side input
+  kills (Input\Settings InsightsEnabled/EnableHwkbTextPrediction,
+  Input\TIPC Enabled) + WiFi Sense family (WcmSvc PaidWifi/
+  WiFiSenseOpen/AutoConnectAllowedOEM, PolicyManager default\WiFi
+  hotspot reporting/auto-connect). Backup keys 93->97.
+- ReviOS search.yml diff: DisableSearchSuggestions +AAD Cortana
+  kills (AllowCortanaInAAD/PathOOBE) + WinRT activation neuter for
+  WinStore.Tasks.WindowsSearchTask (Store-driven search task).
+- ReviOS appx diff: blacklist +Flipgrid (Flip education stub,
+  185->186 across all four sites).
+- ReviOS updates.yml: DisableWindowsUpdateBloat +SYSTEM\Setup\
+  UpgradeNotification UpgradeAvailable=0 (feature-upgrade offer nag off).
+  Backup keys 92->93.
+- ReviOS privacy.yml: DisableErrorReporting +PCHealth\HelpSvc
+  Headlines/MicrosoftKBSearch=0 (online-help fetch channels off).
+  Backup keys 91->92.
+- ReviOS playbook diff (telemetry.yml/ceip.yml): DisableTelemetry +5 —
+  Wow6432Node AllowTelemetry mirror, PolicyManager default-provider
+  node, CPSS DevicePolicy/Store overrides (survive CSP re-sync),
+  DisableEnterpriseAuthProxy (authenticated-proxy telemetry),
+  IE SQM DisableCustomerImprovementProgram. Backup keys 87->91.
+- tiny11Coremaker diff: telemetry tasks +Chkdsk\Proxy (event-driven
+  disk diagnostic collector, 93->94). Defender service kills / task-file
+  deletions / component stripping skipped (security boundary + offline-
+  image technique, not applicable to live policy enforcement).
+- tiny11builder diff: blacklist +AppUp.IntelManagementandSecurityStatus
+  (Intel IMSS OEM support stub, 184->185); DisableChatTaskbar now also
+  writes the HKLM 'Windows Chat' ChatIcon=3 policy — the taskbar toggle
+  alone only hides the icon, the policy kills the Chat integration
+  (backup key added, 86->87).
+- Per-layer fault isolation also inside apply_registry_prevention:
+  all 33 inline `if prev.get(...)` layer blocks now run under try/except
+  (cs ApplyAll was already per-method isolated in the previous commit).
+- Per-layer fault isolation: each prevention layer invocation now runs
+  in its own try/catch (34 sites in ApplyAll + task/winget/capability/
+  registry calls in scan+service+RunOnce; 9 sites py). Previously one
+  layer raising an exception aborted every later layer that cycle —
+  now it logs and continues (a persistent fault no longer starves
+  the rest of the pipeline between scan intervals).
+- --restore now covers winget removals: kind="winget" ledger entries
+  reinstall via `winget install -e --id` (id-charset checked,
+  300s-bounded, no-op without winget) instead of reporting manual.
+- Capability removal now restorable: RemoveOptionalCapabilities records
+  each removed capability name to the removal ledger (was previously
+  unrecorded — invisible to --restore), and --restore reinstalls them
+  via Add-WindowsCapability (safe-name checked, 180s-bounded).
+- BackupRegistry now covers service config too: every
+  Services\<name> key for the demoted/disabled services (misc list +
+  _EXTRA_BACKUP_SERVICES for the 13 named demotes/disables) is
+  exported so original Start values survive. T12 asserts named
+  demote/disable calls stay covered — it immediately caught that
+  wercplsupport was demoted in Program.cs but absent from the cs
+  misc list (parity gap — now demoted+backed up on both).
+- BackupRegistry now covers per-user writes: _USER_BACKUP_KEY_PATHS
+  (51 paths — every path written through the per-user hive writers)
+  exported under each loaded interactive SID + HKCU alongside the
+  HKLM set. Previously the .reg safety net covered machine-scope keys
+  only, leaving the bulk of the user-facing knobs (CDM, search,
+  suggestions, Copilot surfaces) unrevertable via export. T12 now
+  asserts both scopes stay covered going forward.
+- T12 fix: py-side extraction now tolerates multi-line
+  set_registry_*( "HKLM", ... ) calls — the same blind spot that hid
+  the 2 misses it had just caught.
+- Self-test T12: HKLM write-path backup coverage — every literal-path
+  registry write is asserted covered by _BACKUP_KEY_PATHS (both impls),
+  turning the manual audit that found the gap into a permanent gate.
+  It immediately caught 2 more misses (TextInput + Bluetooth PolicyManager
+  from the hellzerg diff) — added (84->86).
+- Backup coverage fix: 15 HKLM write paths were not in
+  _BACKUP_KEY_PATHS, so `restore` could not revert them — CBS
+  deprovision marker, DiagTrack EventTranscriptKey, Explorer
+  (Edge-shortcut suppression), SmartGlass, DeviceHealthAttestation,
+  PCHealth WER, Speech, DNSClient, DeviceInstall settings, Messaging,
+  WDI GUID, WindowsNotepad, Diagnostics Performance, Lsa,
+  LanmanServer. All now exported before first write (69->84).
+- bloatbox (W4RH4WK extended hosts) diff: telemetry hosts 116->137 —
+  nsatc/akadns CDN aliases (vortex cy2, OneSettings db5, social
+  services i1), insider/flighting ring endpoints
+  (insiderservice.trafficmanager/insiderppe/flightingserviceweurope),
+  Google/Twitter ad-analytics nets (adservice.google.{com,de},
+  googleads/pagead46/stats doubleclick, googlesyndication,
+  google-analytics, ads-twitter), statsfe1.ws. Skipped: NCSI probes,
+  login.live/Skype/Hotmail/XboxLive/Store/WU/Defender-cloud/OCSP/
+  corporate-STS/Edge+Akamai+MSN CDNs, WNS push, live tiles (functional
+  or auth-bearing). Blacklist 178->184 — publisher namespaces:
+  A278AB0D. (absorbs MarchofEmpires entry), 9E2F88E3. (Twitter),
+  613EBCEA. (Polarr), 89006A2E. (Autodesk), D52A8D61. (FarmVille),
+  DB6EA5DB. (CyberLink), NORDCURRENT. (CookingFever family).
+- hellzerg/Optimizer diff: `AllowCloudSearch`=0 (Windows Search cloud
+  master), SettingSync per-category kills (app-setting + credential sync,
+  both overrides), `AllowLinguisticDataCollection`=0 (TextInput),
+  `AllowAdvertising`=0 (Bluetooth device advertising),
+  `Edge3PSerpTelemetryEnabled`=0. Skipped: Defender/SmartScreen/AV
+  boundary, TPM/upgrade bypasses, Chrome/Firefox/VS vendor policies,
+  ~140 UI/perf/lockdown prefs.
+- Raphire/Win11Debloat appx diff: blacklist 176->178 —
+  `LGElectronics.` namespace (LG OEM stubs) + `COOKINGFEVER` stub game.
+  Everything else already covered by existing needles (AD2F1837./
+  DellInc./KING.COM./Disney/LinkedIn/PicsArt/CyberLink/4DF9E0F8./Facebook.)
+  or functional/whitelisted (Camera/Paint/OneNote/Zune/Xbox/Widgets hosts/
+  OneDrive/Copilot provisioned ids/Edge).
+- Raphire/Win11Debloat diff: Edge policies `CopilotCDPPageContext`,
+  `NewTabPageBingChatEnabled`, `NewTabPageContentEnabled`,
+  `TabServicesEnabled`, `DefaultBrowserSettingsCampaignEnabled` =0 and
+  `NewTabPageHideDefaultTopSites`=1; per-user `Start_AccountNotifications`=0
+  (Start account promo toasts). Skipped: Brave/vendor policies, ~120
+  explorer/taskbar/snap/theme/context-menu UI prefs, BitLocker
+  auto-encryption toggle (security boundary).
+- Disassembler Win10-Initial-Setup-Script diff: Ink Workspace
+  `AllowSuggestedAppsInWindowsInkWorkspace=0` (belt for the existing
+  AllowWindowsInkWorkspace=0), `DisableEdgeDesktopShortcutCreation=1`
+  (update-time Edge shortcut suppression, DisableEdgeUpdateBloat), WMP
+  per-user metadata-retrieval trio (windowsmedia.com lookups off).
+  Skipped: Defender/UAC/audit/security toggles, ~120 UI/power/UX prefs.
+- Telemetry hosts 109->116: ad/feedback ingestion from
+  DisableWinTracking's domain diff — DoubleClick ad serving/CDN
+  (ad.doubleclick.net, s0/static.2mdn.net), MS ads (b.ads2.msads.net),
+  compat-exchange endpoint, search/Windows feedback endpoints.
+  Skipped: NCSI (active-probing), Skype/Hotmail/MSN content, Edge/WU
+  CDNs, DNS infrastructure (functional).
+- Win32 uninstall scan: per-subkey `winreg` handles now released via
+  `with` instead of relying on GC finalizers between iterations.
+- Dispose the `BingChat` subkey handle opened inline in DisableCopilot —
+  the only registry key opened without `using` in the codebase.
+- C# PowerShell invocations now pass `-NonInteractive` (11 sites) —
+  py `run_powershell` always had it; a prompting cmdlet could hang the
+  C# scan until the process timeout killed it.
+- T9 now also pins the hosts-block begin/end markers to the C#
+  copy — mismatched markers would duplicate the telemetry block.
+- T6 now asserts all 46 prevention keys exist in Program.cs —
+  a py-only toggle would otherwise skip silently on the C# build.
+- T9 now asserts root `config.json` == `src/config.json` — the C#
+  build ships the src copy, which had drifted unnoticed before.
+- T11 now asserts both directions: cs-only names (e.g. a value name
+  written in Program.cs but never in py) fail the gate; C# line
+  comments are stripped before extraction so quoted words in
+  comments are not mistaken for writes.
+- `verify_scan.ps1`: appx before/after snapshot used `-contains` for
+  exact-name equality that could never match real package names — probes
+  for YourPhone/MicrosoftTeams/Zune were dead. Now substring `-like`
+  matching across all probe names.
+- C# service ops: install/stop/delete waited with 60/30s timeouts
+  (stop now completes before delete fires), `sc query` output read
+  bounded instead of an unbounded synchronous `ReadToEnd`.
+- Service install/uninstall/status shell-outs now go through `run_cmd`
+  (30s timeout) instead of bare `subprocess.run` — a hung SCM or missing
+  NSSM can no longer stall the admin CLI paths.
+- `T11` self-test: registry value-name parity (py → cs). Every value
+  name the Python impl writes (call args, loop variables, (name, value)
+  tuple loops) must appear in Program.cs — drift between the mirrored
+  payloads now fails the gate instead of shipping silently.
+- Atlas-OS playbook diff — 165-value audit, adopted the in-scope
+  privacy/hardening set across existing layers:
+  - `DisableTelemetry`: LLMNR off (`EnableMulticast`), anonymous
+    SAM/null-session enumeration off (`RestrictAnonymous`,
+    `RestrictAnonymousSAM`, `RestrictNullSessAccess`), WDI
+    `ScenarioExecutionEnabled`, `RSoPLogging`, DiagTrack
+    `EnableEventTranscript`/`MiniTraceSlotEnabled`,
+    `DisableDiagnosticTracing`, Device Health Attestation,
+    speech-model auto-download, cloud message sync, SettingSync
+    extras, per-user CDM master switches + `NoInstrumentation` +
+    input `InsightsEnabled`/`SyncPolicy`.
+  - `DisableErrorReporting`: PCHealth `DoReport`, CBS
+    `DisableWerReporting`, device-install WER spill sends.
+  - `DisableSpotlight`: per-user Spotlight policy +
+    welcome-experience/action-center/settings kills.
+  - `DisableSearchSuggestions`: `EnableDynamicContentInWSB`.
+  - `DisableMiscBloatServices`: NetBIOS-over-TCP/IP (`NetBT`) demoted —
+    legacy LAN name protocol matching the LLMNR kill.
+  - Skipped: UAC secure-desktop off (weakens security), MS-account
+    block, kernel/page/MMCSS perf tweaks, ~100 Explorer/UX
+    preference values, crash-dump disables, Office/vendor telemetry.
+- `DisableTelemetry` .NET hardening (simeononsecurity
+  Windows-Optimize-Harden-Debloat): `SchUseStrongCrypto` = 1 and
+  `AllowStrongNameBypass` = 0 under both 64/32-bit .NET v4
+  Framework roots — forces strong TLS for .NET apps and closes
+  the strong-name verification bypass.
+- `DisableEdgeUpdateBloat` EdgeUpdate shortcut suppression (Sophia
+  Script `PreventEdgeShortcutCreation`): `CreateDesktopShortcut{GUID}`
+  = 0 for all four channel product GUIDs — the installer previously
+  re-dropped a desktop Edge shortcut on every update.
+- `DisableEdgeBloat` +18 policy disables (privacy.sexy
+  SetEdgePolicyViaRegistry diff): `BingAdsSuppression`,
+  `DiscoverPageContextEnabled`, `EdgeDiscoverEnabled`,
+  `EdgeEnhanceImagesEnabled`, `MetricsReportingEnabled`,
+  `RelatedMatchesCloudServiceEnabled`, `SendSiteInfoToImproveServices`
+  (deprecated but still read), `ShowMicrosoftRewards`,
+  `SignInCtaOnNtpEnabled`, `SpotlightExperiencesAndRecommendationsEnabled`,
+  `StandaloneHubsSidebarEnabled`, `AllowGamesMenu`, `InAppSupportEnabled`,
+  `ShowAcrobatSubscriptionButton`, `WebWidgetIsEnabledOnStartup`,
+  `SearchbarAllowed`/`SearchbarIsEnabledOnStartup`, and
+  `ExperimentationAndConfigurationServiceControl` (ECS experiments).
+  Deliberately skipped: the whole SmartScreen family (protection
+  boundary), `FamilySafetySettingsEnabled` (functional), autofill
+  toggles (convenience, not telemetry), cookie/tracking policies
+  (browsing-behavior changes), NTP cosmetic settings.
+- simeononsecurity/Windows-Optimize-Debloat + gordonbay/
+  Windows-On-Reins (new sources): `DisableTelemetry`
+  +`WiFiSenseCredShared` (WcmSvc features — Wi-Fi Sense credential
+  sharing, sibling to PaidWifi/WiFiSenseOpen); `DisableEdgeBloat`
+  +`ShowSearchSuggestionsGlobal` (Edge SearchScopes policy —
+  search-provider suggestion uploads); `DisableTelemetry`
+  +`DisableUPnPRegistrar` (WCN UPnP device registrar — legacy
+  network-device discovery surface). Backup 109->111
+  (SearchScopes + WCN\Registrars). Skipped: WMP `UsageTracking`
+  (closed-PR #33 content), Defender Spynet reporting
+  (`LocalSettingOverrideSpynetReporting` — AV boundary), CCleaner
+  `CheckTrialOffer` (vendor), camera/mic/location kills,
+  `NoPhysicalCameraLED` (security regression), `EnableActiveProbing`
+  (NCSI — prior revert), UI/perf names.
+
+### Fixed
+- Dedupe: `_USER_BACKUP_KEY_PATHS` listed
+  `Software\Microsoft\Windows\CurrentVersion\Search` twice (both
+  impls) and cs `MiscBloatServices` listed `wercplsupport` twice —
+  removed; T10 extended to the three backup lists so duplicates in
+  them now fail the self-test gate (previously uncovered).
+- T12 follow-up: `AllowAutomaticAppArchiving` writes to
+  `SOFTWARE\Policies\Microsoft\Windows\Appx` had no backup ancestor —
+  added parent key to `_BACKUP_KEY_PATHS`/`BackupKeyPaths`.
+
+## [Released] — v1.59.2-mvp: deploy/docstaleness + exe metadata
 
 ### Fixed
 - `deploy_verify.bat` was three versions stale (v1.56.0 header), hardcoded a
