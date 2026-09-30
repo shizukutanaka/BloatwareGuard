@@ -1184,6 +1184,9 @@ _BACKUP_KEY_PATHS = (
     r"SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Server",
     r"SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Client",
     r"SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Server",
+    r"SYSTEM\CurrentControlSet\Services\Tcpip\Parameters",
+    r"SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters",
+    r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\LSASS.exe",
     r"SOFTWARE\Policies\Microsoft\Notepad",
 )
 _registry_backup_done = False
@@ -2151,6 +2154,28 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword("HKLM",
                                r"SOFTWARE\Policies\Microsoft\Windows NT\DNSClient",
                                "EnableMulticast", 0)
+            # Smart name-resolution fallback off — same DNSClient policy
+            # bucket (windows-hardening-scripts)
+            set_registry_dword("HKLM",
+                               r"SOFTWARE\Policies\Microsoft\Windows NT\DNSClient",
+                               "DisableSmartNameResolution", 1)
+            # IP source-routing + ICMP-redirect attack surface off
+            # (windows-hardening-scripts)
+            for tcp_root in (r"SYSTEM\CurrentControlSet\Services\Tcpip\Parameters",
+                             r"SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters"):
+                set_registry_dword(
+                    "HKLM", tcp_root, "DisableIPSourceRouting", 2)
+            set_registry_dword("HKLM",
+                               r"SYSTEM\CurrentControlSet\Services\Tcpip\Parameters",
+                               "EnableICMPRedirect", 0)
+            # Lock-screen network-picker off (windows-hardening-scripts)
+            set_registry_dword("HKLM",
+                               r"SOFTWARE\Policies\Microsoft\Windows\System",
+                               "DontDisplayNetworkSelectionUI", 1)
+            # LSASS access auditing on (windows-hardening-scripts)
+            set_registry_dword("HKLM",
+                               r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\LSASS.exe",
+                               "AuditLevel", 8)
             set_registry_dword("HKLM",
                                r"SYSTEM\CurrentControlSet\Control\Lsa",
                                "RestrictAnonymous", 1)

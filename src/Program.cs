@@ -2947,6 +2947,29 @@ public static class RegistryGuard
                 using var dns = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Windows NT\DNSClient");
                 dns?.SetValue("EnableMulticast", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                // Smart name-resolution fallback off — same DNSClient
+                // policy bucket (windows-hardening-scripts)
+                dns?.SetValue("DisableSmartNameResolution", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // IP source-routing + ICMP-redirect attack surface off
+                // (windows-hardening-scripts)
+                foreach (var tcpRoot in new[]
+                {
+                    @"SYSTEM\CurrentControlSet\Services\Tcpip\Parameters",
+                    @"SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters",
+                })
+                    using (var tcp = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(tcpRoot))
+                        tcp?.SetValue("DisableIPSourceRouting", 2, Microsoft.Win32.RegistryValueKind.DWord);
+                using (var tcp4 = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                           @"SYSTEM\CurrentControlSet\Services\Tcpip\Parameters"))
+                    tcp4?.SetValue("EnableICMPRedirect", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                // Lock-screen network-picker off (windows-hardening-scripts)
+                using (var sys2 = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                           @"SOFTWARE\Policies\Microsoft\Windows\System"))
+                    sys2?.SetValue("DontDisplayNetworkSelectionUI", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // LSASS access auditing on (windows-hardening-scripts)
+                using (var lsass = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                           @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\LSASS.exe"))
+                    lsass?.SetValue("AuditLevel", 8, Microsoft.Win32.RegistryValueKind.DWord);
                 // NTVDM kill policy (milgradesec — same layer as
                 // legacy-feature off)
                 using var appc = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
@@ -4111,6 +4134,9 @@ public static class RegistryGuard
         @"SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Client",
         @"SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Server",
         @"SOFTWARE\Policies\Microsoft\Notepad",
+        @"SYSTEM\CurrentControlSet\Services\Tcpip\Parameters",
+        @"SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters",
+        @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\LSASS.exe",
     };
     private static readonly string[] ExtraBackupServiceNames =
     {
