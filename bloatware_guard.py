@@ -1063,6 +1063,7 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Policies\Microsoft\EdgeUpdate",
     r"SYSTEM\CurrentControlSet\Services\nvlddmkm\Global\Startup",
     r"SYSTEM\CurrentControlSet\Services\nvlddmkm\Parameters\Global\Startup",
+    r"SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\Capabilities\systemAIModels",
     r"SOFTWARE\Policies\Microsoft\Windows\Appx"
     r"\RemoveDefaultMicrosoftStorePackages",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing",
@@ -1257,11 +1258,16 @@ _USER_BACKUP_KEY_PATHS = (
     r"Software\Microsoft\Windows\CurrentVersion\SearchSettings\WebSearchPro",
     r"Software\Microsoft\Windows\CurrentVersion\WindowsCopilot",
     r"Software\Microsoft\Windows\CurrentVersion\Search",
+    r"Software\Microsoft\Windows\CurrentVersion\Explorer\Taskband\AuxilliaryPins",
+    r"Software\Microsoft\Windows\CurrentVersion\Explorer\AutoInstalledPWAs",
+    r"Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications",
+    r"Software\Microsoft\Windows\CurrentVersion\Applets\Paint\View",
     r"Software\Microsoft\Windows\CurrentVersion\Internet Settings\Wpad",
     r"Software\Microsoft\Notepad",
     r"Software\Microsoft\Paint",
     r"Software\Microsoft\Windows\CurrentVersion\Photos",
     r"Software\Microsoft\Windows\CurrentVersion\SettingSync",
+    r"Software\Microsoft\Windows\CurrentVersion\SettingSync\WindowsSettingHandlers",
     r"Software\Microsoft\Windows\CurrentVersion\Start\Companions\Microsoft.YourPhone_8wekyb3d8bbwe",
     r"Software\Microsoft\Windows\CurrentVersion\SystemSettings\AccountNotifications",
     r"Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement",
@@ -1534,6 +1540,30 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword(
                 "HKLM", edgeupd_pol,
                 "CopilotUnificationAllowed{C50565E9-CCCF-44B4-BA15-5AC5C6569197}", 0)
+            # zoicware RemoveWindowsAI re-diff — per-user Copilot surface kills:
+            # taskbar pins, companion entry, background-app disable, PWA flag
+            _pins = (r"Software\Microsoft\Windows\CurrentVersion"
+                     r"\Explorer\Taskband\AuxilliaryPins")
+            set_user_dword_all_hives(_pins, "CopilotPWAPin", 0, logger)
+            set_user_dword_all_hives(_pins, "RecallPin", 0, logger)
+            set_user_dword_all_hives(
+                r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
+                "TaskbarCompanion", 0, logger)
+            for _pkg in ("Microsoft.Copilot_8wekyb3d8bbwe",
+                         "Microsoft.MicrosoftOfficeHub_8wekyb3d8bbwe"):
+                _bga = (r"Software\Microsoft\Windows\CurrentVersion"
+                        r"\BackgroundAccessApplications" + "\\" + _pkg)
+                set_user_dword_all_hives(_bga, "DisabledByUser", 1, logger)
+                set_user_dword_all_hives(_bga, "SleepDisabled", 1, logger)
+            _pwa = (r"Software\Microsoft\Windows\CurrentVersion"
+                    r"\Explorer\AutoInstalledPWAs")
+            set_user_dword_all_hives(_pwa, "CopilotPWAPreinstallCompleted", 1, logger)
+            set_user_dword_all_hives(
+                _pwa, "Microsoft.Copilot_8wekyb3d8bbwe", 1, logger)
+            set_user_dword_all_hives(
+                r"Software\Microsoft\Windows\CurrentVersion\SettingSync"
+                r"\WindowsSettingHandlers",
+                "A9HomeContentEnabled", 0, logger)
             # NVIDIA telemetry opt-out RIDs (winscript)
             _nv_fts = r"SOFTWARE\NVIDIA Corporation\Global\FTS"
             for _rid in ("EnableRID44231", "EnableRID64640", "EnableRID66610"):
@@ -2460,6 +2490,7 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "LetAppsAccessGenerativeAI", "LetAppsAccessCalendar",
                 "LetAppsAccessGraphicsCaptureProgrammatic",
                 "LetAppsAccessGraphicsCaptureWithoutBorder",
+                "LetAppsAccessSystemAIModels",
             )
             for name in app_privacy:
                 set_registry_dword("HKLM",
@@ -2472,6 +2503,29 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword("HKLM",
                                r"SOFTWARE\Policies\Microsoft\FindMyDevice",
                                "AllowFindMyDevice", 0)
+            # systemAIModels consent-store usage recording off (zoicware)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Microsoft\Windows\CurrentVersion"
+                r"\CapabilityAccessManager\Capabilities\systemAIModels",
+                "RecordUsageData", 0)
+            # Paint targeting opt-out + getting-started suppression (zoicware)
+            _pv = (r"Software\Microsoft\Windows\CurrentVersion"
+                   r"\Applets\Paint\View")
+            set_user_dword_all_hives(_pv, "IsSignedUpForTargetingService", 0, logger)
+            set_user_dword_all_hives(_pv, "LeftTargetingService", 1, logger)
+            set_user_dword_all_hives(_pv, "IsNotInterestedInTargetingService", 1, logger)
+            for _pvf in ("GettingStartedWelcomePageViewed",
+                         "GettingStartedStickerGeneratorPageViewed",
+                         "GettingStartedGenerativeImageEditPageViewed",
+                         "GettingStartedGenerativeErasePageViewed",
+                         "GettingStartedGenerativeFillPageViewed",
+                         "GettingStartedImageCreatorPageViewed",
+                         "GettingStartedCocreatorPageViewed"):
+                set_user_dword_all_hives(_pv, _pvf, 1, logger)
+            # Notepad store banner off (zoicware)
+            set_user_dword_all_hives(
+                r"Software\Microsoft\Notepad", "ShowStoreBanner", 0, logger)
             logger.info(f"Applied: DisableAppPermissions ({len(app_privacy)} "
                         "force-denied + ad-ID/FindMyDevice policies)")
 

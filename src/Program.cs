@@ -2044,6 +2044,32 @@ public static class RegistryGuard
                 eupd?.SetValue("CopilotUnificationAllowed{C50565E9-CCCF-44B4-BA15-5AC5C6569197}",
                                0, Microsoft.Win32.RegistryValueKind.DWord);
             }
+            // zoicware RemoveWindowsAI re-diff — per-user Copilot surface kills
+            SetUserDwordAllHives(
+                @"Software\Microsoft\Windows\CurrentVersion\Explorer\Taskband\AuxilliaryPins",
+                "CopilotPWAPin", 0);
+            SetUserDwordAllHives(
+                @"Software\Microsoft\Windows\CurrentVersion\Explorer\Taskband\AuxilliaryPins",
+                "RecallPin", 0);
+            SetUserDwordAllHives(
+                @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
+                "TaskbarCompanion", 0);
+            foreach (var pkg in new[] { "Microsoft.Copilot_8wekyb3d8bbwe",
+                                        "Microsoft.MicrosoftOfficeHub_8wekyb3d8bbwe" })
+            {
+                var bga = @"Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications\" + pkg;
+                SetUserDwordAllHives(bga, "DisabledByUser", 1);
+                SetUserDwordAllHives(bga, "SleepDisabled", 1);
+            }
+            SetUserDwordAllHives(
+                @"Software\Microsoft\Windows\CurrentVersion\Explorer\AutoInstalledPWAs",
+                "CopilotPWAPreinstallCompleted", 1);
+            SetUserDwordAllHives(
+                @"Software\Microsoft\Windows\CurrentVersion\Explorer\AutoInstalledPWAs",
+                "Microsoft.Copilot_8wekyb3d8bbwe", 1);
+            SetUserDwordAllHives(
+                @"Software\Microsoft\Windows\CurrentVersion\SettingSync\WindowsSettingHandlers",
+                "A9HomeContentEnabled", 0);
             // NVIDIA telemetry opt-out RIDs (winscript)
             using (var fts = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                        @"SOFTWARE\NVIDIA Corporation\Global\FTS"))
@@ -3346,6 +3372,7 @@ public static class RegistryGuard
         "LetAppsAccessGenerativeAI", "LetAppsAccessCalendar",
         "LetAppsAccessGraphicsCaptureProgrammatic",
         "LetAppsAccessGraphicsCaptureWithoutBorder",
+        "LetAppsAccessSystemAIModels",
     };
 
     /// <summary>Layer 26: force-deny conservative AppPrivacy set.</summary>
@@ -3364,6 +3391,28 @@ public static class RegistryGuard
             using var findMy = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                 @"SOFTWARE\Policies\Microsoft\FindMyDevice");
             findMy?.SetValue("AllowFindMyDevice", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // systemAIModels consent-store usage recording off (zoicware)
+            using (var cam = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                       @"SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\Capabilities\systemAIModels"))
+                cam?.SetValue("RecordUsageData", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // Paint targeting opt-out + getting-started suppression (zoicware)
+            const string paintView =
+                @"Software\Microsoft\Windows\CurrentVersion\Applets\Paint\View";
+            SetUserDwordAllHives(paintView, "IsSignedUpForTargetingService", 0);
+            SetUserDwordAllHives(paintView, "LeftTargetingService", 1);
+            SetUserDwordAllHives(paintView, "IsNotInterestedInTargetingService", 1);
+            foreach (var pvf in new[] {
+                "GettingStartedWelcomePageViewed",
+                "GettingStartedStickerGeneratorPageViewed",
+                "GettingStartedGenerativeImageEditPageViewed",
+                "GettingStartedGenerativeErasePageViewed",
+                "GettingStartedGenerativeFillPageViewed",
+                "GettingStartedImageCreatorPageViewed",
+                "GettingStartedCocreatorPageViewed" })
+                SetUserDwordAllHives(paintView, pvf, 1);
+            // Notepad store banner off (zoicware)
+            SetUserDwordAllHives(
+                @"Software\Microsoft\Notepad", "ShowStoreBanner", 0);
             GuardLogger.Info($"Applied: DisableAppPermissions ({AppPrivacyDenies.Length} force-denied + ad-ID/FindMyDevice policies)");
         }
         catch (Exception ex)
@@ -3486,6 +3535,7 @@ public static class RegistryGuard
         @"SOFTWARE\Policies\Microsoft\EdgeUpdate",
         @"SYSTEM\CurrentControlSet\Services\nvlddmkm\Global\Startup",
         @"SYSTEM\CurrentControlSet\Services\nvlddmkm\Parameters\Global\Startup",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\Capabilities\systemAIModels",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\Deprovisioned",
         @"SOFTWARE\Policies\Microsoft\Windows\Appx\RemoveDefaultMicrosoftStorePackages",
                 @"SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing",
@@ -3602,6 +3652,10 @@ public static class RegistryGuard
         @"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer",
         @"Software\Microsoft\Windows\CurrentVersion\Privacy",
         @"Software\Microsoft\Windows\CurrentVersion\Search",
+        @"Software\Microsoft\Windows\CurrentVersion\Explorer\Taskband\AuxilliaryPins",
+        @"Software\Microsoft\Windows\CurrentVersion\Explorer\AutoInstalledPWAs",
+        @"Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications",
+        @"Software\Microsoft\Windows\CurrentVersion\Applets\Paint\View",
         @"Software\Microsoft\Windows\CurrentVersion\SearchSettings",
         @"Software\Microsoft\Windows\CurrentVersion\SearchSettings\WebSearchPro",
         @"Software\Microsoft\Windows\CurrentVersion\WindowsCopilot",
@@ -3611,6 +3665,7 @@ public static class RegistryGuard
         @"Software\Microsoft\Paint",
         @"Software\Microsoft\Windows\CurrentVersion\Photos",
         @"Software\Microsoft\Windows\CurrentVersion\SettingSync",
+        @"Software\Microsoft\Windows\CurrentVersion\SettingSync\WindowsSettingHandlers",
         @"Software\Microsoft\Windows\CurrentVersion\Start\Companions\Microsoft.YourPhone_8wekyb3d8bbwe",
         @"Software\Microsoft\Windows\CurrentVersion\SystemSettings\AccountNotifications",
         @"Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement",

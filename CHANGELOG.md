@@ -5,6 +5,17 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- zoicware per-user/registry re-diff: DisableCopilot
+  +Copilot/Recall taskbar pins +TaskbarCompanion
+  +PWA-preinstall flag +background-app kills
+  (Copilot/OfficeHub DisabledByUser+SleepDisabled)
+  +A9HomeContentEnabled sync handler; DisableAppPermissions
+  +LetAppsAccessSystemAIModels +systemAIModels
+  RecordUsageData +Paint targeting opt-out/get-started
+  suppression (10 values) +Notepad ShowStoreBanner.
+  Backup 106->109, user backup 62->66. Skipped: Office
+  training/content-safety subkeys, VoiceAccess runtime,
+  BrandedKey remap, file-assoc deletion, IFEO hijack.
 - zoicware/RemoveWindowsAI re-diff (2026 updates):
   blacklist +7 -> 197 (Office.ActionsServer, WritingAssistant,
   Ink.Handwriting, Copilot+ AI component names Voiess/Speion/
