@@ -5,6 +5,12 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- Khotyz/WGO diff: DataCollection
+  +LimitDiagnosticDataConfigurationSet; DisableCloudClipboard
+  +per-user CloudClipboardAutomaticUpload; Edge
+  +ConfigureTelemetryForDesktop. Skipped: location/sensor
+  kills, WU pause, gaming TCP/visual tuning, DoH,
+  Defender/SmartScreen/UAC, RemoveWindowsStore.
 - Residual host diff (BSI list + hagezi microsoft.txt):
   hosts +6 -> 196 (events.data.microsoft.com universal
   ingest, pipe.dev.trafficmanager.net, Office

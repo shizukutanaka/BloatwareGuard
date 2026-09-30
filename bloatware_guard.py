@@ -1848,7 +1848,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             data_collection = (
                 r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection")
             for name in ("LimitDiagnosticLogCollection", "LimitDumpCollection",
-                         "LimitEnhancedDiagnosticDataWindowsAnalytics"):
+                         "LimitEnhancedDiagnosticDataWindowsAnalytics",
+                         # Limit optional-diagnostic configuration set (WGO)
+                         "LimitDiagnosticDataConfigurationSet"):
                 set_registry_dword("HKLM", data_collection, name, 1)
             # MRT infection reports off
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\MRT",
@@ -2222,7 +2224,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                          # (winutil tweaks.json Edge group)
                          "UrlKeyedAnonymizedDataCollectionEnabled",
                          # Edge Surf game (Aegis-Win11)
-                         "AllowSurfGame"):
+                         "AllowSurfGame",
+                         # Edge desktop-analytics telemetry (WGO)
+                         "ConfigureTelemetryForDesktop"):
                 set_registry_dword("HKLM", edge_pol, name, 0)
             set_registry_dword("HKLM", edge_pol, "StartupBoostEnabled", 0)
             set_registry_dword("HKLM", edge_pol, "AllowPrelaunch", 0)
@@ -2493,6 +2497,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_user_dword_all_hives(
                 r"Software\Microsoft\Clipboard",
                 "EnableClipboardHistory", 0, logger)
+            # No automatic upload of clipboard contents (WGO)
+            set_user_dword_all_hives(
+                r"Software\Microsoft\Clipboard",
+                "CloudClipboardAutomaticUpload", 0, logger)
             logger.info("Applied: DisableCloudClipboard")
 
         except Exception as e:

@@ -2378,6 +2378,8 @@ public static class RegistryGuard
                     dcl.SetValue("LimitDiagnosticLogCollection", 1, Microsoft.Win32.RegistryValueKind.DWord);
                     dcl.SetValue("LimitDumpCollection", 1, Microsoft.Win32.RegistryValueKind.DWord);
                     dcl.SetValue("LimitEnhancedDiagnosticDataWindowsAnalytics", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                    // Limit optional-diagnostic configuration set (WGO)
+                    dcl.SetValue("LimitDiagnosticDataConfigurationSet", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 }
             }
             catch { }
@@ -2881,7 +2883,9 @@ public static class RegistryGuard
                     // URL-keyed "anonymized" browsing-data uploads (winutil)
                     "UrlKeyedAnonymizedDataCollectionEnabled" ,
                     // Edge Surf game (Aegis-Win11)
-                    "AllowSurfGame" })
+                    "AllowSurfGame",
+                    // Edge desktop-analytics telemetry (WGO)
+                    "ConfigureTelemetryForDesktop" })
                 key?.SetValue(n, 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("StartupBoostEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("AllowPrelaunch", 0, Microsoft.Win32.RegistryValueKind.DWord);
@@ -3737,6 +3741,9 @@ public static class RegistryGuard
                           Microsoft.Win32.RegistryValueKind.DWord);
             SetUserDwordAllHives(@"Software\Microsoft\Clipboard",
                                  "EnableClipboardHistory", 0);
+            // No automatic upload of clipboard contents (WGO)
+            SetUserDwordAllHives(@"Software\Microsoft\Clipboard",
+                                 "CloudClipboardAutomaticUpload", 0);
             GuardLogger.Info("Applied: DisableCloudClipboard");
         }
         catch (Exception ex)
