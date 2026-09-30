@@ -1153,6 +1153,7 @@ _BACKUP_KEY_PATHS = (
     r"SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Server",
     r"SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Client",
     r"SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Server",
+    r"SOFTWARE\Policies\Microsoft\Notepad",
 )
 _registry_backup_done = False
 
@@ -1298,6 +1299,7 @@ _USER_BACKUP_KEY_PATHS = (
     r"Software\Policies\Microsoft\Windows\WorkplaceJoin",
     r"System\GameConfigStore",
     r"Software\Microsoft\Windows\CurrentVersion\CrossDeviceResume\Configuration",
+    r"Software\Policies\Microsoft\Windows\WindowsNotepad",
 )
 
 
@@ -1664,6 +1666,13 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 set_registry_dword("HKLM", paint_pol, name, 1)
             set_registry_dword("HKLM", r"SOFTWARE\Policies\WindowsNotepad",
                                "DisableAIFeatures", 1)
+            # Secondary Notepad policy namespace + per-user variant
+            # (0Ai-Windows-Hardening): some Store builds honor these
+            set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Notepad",
+                               "DisableAIFeatures", 1)
+            set_user_dword_all_hives(
+                r"Software\Policies\Microsoft\Windows\WindowsNotepad",
+                "DisableAIFeatures", 1, logger)
             for vid, state in _VELOCITY_AI_IDS:
                 set_registry_dword("HKLM", _VELOCITY_PATH + "\\" + vid,
                                    "EnabledState", state)

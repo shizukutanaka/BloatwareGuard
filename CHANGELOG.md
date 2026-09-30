@@ -5,6 +5,13 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- 0Ai-Windows-Hardening (cervezagua, new source): Notepad
+  AI-disable namespaces — HKLM Policies\Microsoft\Notepad
+  + per-user Policies\Microsoft\Windows\WindowsNotepad
+  DisableAIFeatures (some Store builds read these first).
+  Skipped: ConsentStore systemAIModels Deny (rejected
+  closed-PR category), RestrictedRemoteAdministration
+  (breaks RDP), SmartActionsState (unverifiable).
 - unslop-windows (PyPie-Studio, new source) + Winnow
   (BiosSystem, new source): Cross-Device Resume kill —
   MDM PolicyManager DisableCrossDeviceResume + per-user

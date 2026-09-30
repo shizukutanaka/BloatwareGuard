@@ -2387,6 +2387,14 @@ public static class RegistryGuard
             }
             using (var notepad = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(NotepadPoliciesPath))
                 notepad?.SetValue("DisableAIFeatures", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            // Secondary Notepad policy namespace + per-user variant
+            // (0Ai-Windows-Hardening): some Store builds honor these
+            using (var notepad2 = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Policies\Microsoft\Notepad"))
+                notepad2?.SetValue("DisableAIFeatures", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            SetUserDwordAllHives(
+                @"Software\Policies\Microsoft\Windows\WindowsNotepad",
+                "DisableAIFeatures", 1);
             foreach (var (id, state) in VelocityAiIds)
                 SetHiveDword(Microsoft.Win32.Registry.LocalMachine,
                              VelocityOverridesPath + @"\" + id, "EnabledState", state);
@@ -3874,6 +3882,7 @@ public static class RegistryGuard
         @"SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Server",
         @"SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Client",
         @"SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Server",
+        @"SOFTWARE\Policies\Microsoft\Notepad",
     };
     private static readonly string[] ExtraBackupServiceNames =
     {
@@ -3960,6 +3969,7 @@ public static class RegistryGuard
         @"Software\Policies\Microsoft\Windows\WorkplaceJoin",
         @"System\GameConfigStore",
         @"Software\Microsoft\Windows\CurrentVersion\CrossDeviceResume\Configuration",
+        @"Software\Policies\Microsoft\Windows\WindowsNotepad",
     };
     private static bool _backupDone;
 
