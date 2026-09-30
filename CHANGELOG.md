@@ -5,6 +5,8 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- ReviOS appx diff: blacklist +Flipgrid (Flip education stub,
+  185->186 across all four sites).
 - ReviOS updates.yml: DisableWindowsUpdateBloat +SYSTEM\Setup\
   UpgradeNotification UpgradeAvailable=0 (feature-upgrade offer nag off).
   Backup keys 92->93.

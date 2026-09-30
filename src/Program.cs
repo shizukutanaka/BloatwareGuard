@@ -444,6 +444,7 @@ public static class ConfigLoader
                 // Microsoft bloatware
                 "Microsoft.Xbox",
                 "Microsoft.GamingApp",
+            "Flipgrid",                      // Flip education stub (ReviOS appx.yml)
                 "Microsoft.MicrosoftSolitaireCollection",
                 "Microsoft.People",
                 "Microsoft.WindowsMaps",
