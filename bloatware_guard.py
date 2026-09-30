@@ -1264,6 +1264,12 @@ _MISC_DEMOTE_SERVICES = (
     # NetBIOS-over-TCP/IP — legacy LAN name protocol; pairs with the
     # LLMNR kill in DisableTelemetry (Atlas services.yml)
     "NetBT", "lmhosts",
+    # Debloat-Win11 services diff — app-inventory appraisal (same
+    # AppCompat pipeline as the killed policies), parental-controls
+    # monitor (pairs with the FamilySafety task kills), Phone-Link
+    # messaging backend (app is blacklisted), Game Pass runtime pair
+    "InventorySvc", "WpcMonSvc", "MessagingService",
+    "GamingServices", "GamingServicesNet",
 )
 
 
@@ -3067,7 +3073,8 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             run_cmd(["sc.exe", "stop", "RemoteRegistry"], timeout=15)
             run_cmd(["sc.exe", "config", "RemoteRegistry", "start=", "disabled"], timeout=15)
             logger.info("Applied: DisableMiscBloatServices "
-                        "(51 services -> demand-start, RemoteRegistry disabled)")
+                        f"({len(_MISC_DEMOTE_SERVICES)} services -> "
+                        "demand-start, RemoteRegistry disabled)")
 
         except Exception as e:
             logger.warning(f"DisableMiscBloatServices layer failed: {e}")

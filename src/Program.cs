@@ -4579,9 +4579,14 @@ public static class RegistryGuard
         // Desktop Activity Moderator, Intel telemetry, Event Collector
         // — all disabled by ReviOS services.yml
         "dam", "Telemetry", "Wecsvc",
-        // NetBIOS-over-TCP/IP — legacy LAN name protocol; pairs with
-        // the LLMNR kill in DisableTelemetry (Atlas services.yml)
-        "NetBT",
+        // NetBIOS-over-TCP/IP + LMHOSTS lookup — legacy LAN name
+        // protocols; pair with the LLMNR kill in DisableTelemetry
+        "NetBT", "lmhosts",
+        // Debloat-Win11 services diff — app-inventory appraisal,
+        // parental-controls monitor, Phone-Link messaging backend,
+        // Game Pass runtime pair
+        "InventorySvc", "WpcMonSvc", "MessagingService",
+        "GamingServices", "GamingServicesNet",
     };
 
     public static void DisableMiscBloatServices()
@@ -4597,7 +4602,7 @@ public static class RegistryGuard
             // demand-start, which still leaves it reachable).
             RunToolSilent("sc.exe", "stop RemoteRegistry");
             RunToolSilent("sc.exe", "config RemoteRegistry start= disabled");
-            GuardLogger.Info("Applied: DisableMiscBloatServices (51 services → demand-start, RemoteRegistry disabled)");
+            GuardLogger.Info($"Applied: DisableMiscBloatServices ({MiscBloatServices.Length} services → demand-start, RemoteRegistry disabled)");
         }
         catch (Exception ex)
         {
