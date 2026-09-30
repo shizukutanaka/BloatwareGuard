@@ -1188,6 +1188,7 @@ _BACKUP_KEY_PATHS = (
     r"SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters",
     r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\LSASS.exe",
     r"SOFTWARE\Policies\Microsoft\Notepad",
+    r"SOFTWARE\Policies\Microsoft\Windows\OOBE",
 )
 _registry_backup_done = False
 
@@ -2430,6 +2431,27 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                                "AllowDeviceNameInTelemetry", 0)
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\DataCollection",
                                "MicrosoftEdgeDataOptIn", 0)
+            # Documented Policy-CSP-System DataCollection kills
+            # (hateblo/coolvitto list): analytics-processing + device-
+            # name-in-diag + managed-desktop + update-compliance + WUfB
+            # cloud processing off, diagnostic-data-viewer surface off,
+            # OneSettings auditing off, enhanced-diag-data limited
+            dc = r"SOFTWARE\Policies\Microsoft\Windows\DataCollection"
+            for dn, dv in (("AllowDesktopAnalyticsProcessing", 0),
+                           ("AllowDeviceNameInDiagnosticData", 0),
+                           ("AllowMicrosoftManagedDesktopProcessing", 0),
+                           ("AllowUpdateComplianceProcessing", 0),
+                           ("AllowWUfBCloudProcessing", 0),
+                           ("DisableDiagnosticDataViewer", 1),
+                           ("EnableOneSettingsAuditing", 0),
+                           ("LimitEnhancedDiagnosticDataWindowsAnalytics", 1)):
+                set_registry_dword("HKLM", dc, dn, dv)
+            # Online font-provider downloads off (Policy CSP - System)
+            set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\System",
+                               "EnableFontProviders", 0)
+            # OOBE in-setup update pulls off (Policy CSP - System)
+            set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\OOBE",
+                               "AllowOOBEUpdates", 0)
             # Cap the diagnostic level at Security/Basic even if a component
             # or update re-raises AllowTelemetry later (Sophia Script parity)
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\DataCollection",
