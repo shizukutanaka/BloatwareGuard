@@ -5,6 +5,25 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- tomytate/Win-Debloat7 (new source, full module sweep):
+  telemetry tasks +14 (25H2 AI-subtree — `WindowsAI\RecallSnapshot`
+  /`ModelMaintenance`/`AIPlatformServiceTask`/`WorkloadsHostTask`,
+  `AISystem\AIAnalyzer`/`ModelUpdateTask`/`SemanticIndexTask`,
+  `NarrativeFlows\UserJourneyTracker`, `Flighting\OneSettings\*
+  RefreshCache`/`QuerySettings`, `AppxDeploymentClient\UcpdVelocity`,
+  `UNP\RunCampaignManager`, `Setup\EOSNotify`/`EOSNotify2`);
+  `DisableRecall` +`DisableScreenSemanticAnalysis`=1 (on-device
+  screen semantic analysis CSP); `DisableTelemetry` +3 documented
+  policies — RPC `EnableAuthEpResolution`, Kernel-DMA
+  `DeviceEnumerationPolicy`, dump `EnableDumpEncryption`; misc
+  demote +`SensorDataService`; HKLM backup +3 paths
+- coolvitto 25H2 service list (hateblo, Japanese source): misc
+  demote +`whesvc` (Windows Health and Optimized Experiences —
+  PC-health/optimizer suggestion feed), +`dptftcs`/`ipfsvc`
+  (Intel Dynamic Tuning telemetry + Innovation Platform Framework)
+- `DisableCloudContent`: `SettingsPageVisibility` merged —
+  `hide:home` → `hide:home;aicomponents;appactions` (hides the
+  25H2 AI Components + App Actions settings pages)
 - SysAdminDoc/Debloat-Win11 (new source, full modular
   sweep — PolicyCatalog/AppX/Services/Tasks/OEM/Edge/
   Privacy triaged): telemetry tasks +2
