@@ -5,6 +5,12 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- winscript round 2 + Aegis-Win11: NVIDIA driver
+  SendTelemetryData off (both Global\Startup forms);
+  Search policy +PreventRemoteQueries; Edge +AllowSurfGame.
+  Skipped: Defender scan tuning, WU service/service-name
+  sweeps, Office QMEnable/VerboseLogging (vendor
+  boundary), CCleaner, WMP UsageTracking (closed-PR).
 - flick9000/winscript diff (large): DisableCopilot
   +CopilotDisabledReason region-fail trick +per-user
   AllowCopilotRuntime +NVIDIA FTS RID telemetry opt-outs;

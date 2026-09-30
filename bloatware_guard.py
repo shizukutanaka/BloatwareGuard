@@ -1048,6 +1048,8 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Microsoft\Windows\Shell\Copilot",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Search",
     r"SOFTWARE\NVIDIA Corporation\Global\FTS",
+    r"SYSTEM\CurrentControlSet\Services\nvlddmkm\Global\Startup",
+    r"SYSTEM\CurrentControlSet\Services\nvlddmkm\Parameters\Global\Startup",
     r"SOFTWARE\Policies\Microsoft\Windows\Appx"
     r"\RemoveDefaultMicrosoftStorePackages",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing",
@@ -1504,6 +1506,16 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             _nv_fts = r"SOFTWARE\NVIDIA Corporation\Global\FTS"
             for _rid in ("EnableRID44231", "EnableRID64640", "EnableRID66610"):
                 set_registry_dword("HKLM", _nv_fts, _rid, 0)
+            # NVIDIA driver telemetry upload off (winscript)
+            set_registry_dword(
+                "HKLM",
+                r"SYSTEM\CurrentControlSet\Services\nvlddmkm\Global\Startup",
+                "SendTelemetryData", 0)
+            # default-value form under Parameters\Global\Startup
+            set_registry_string(
+                "HKLM",
+                r"SYSTEM\CurrentControlSet\Services\nvlddmkm\Parameters\Global\Startup",
+                "SendTelemetryData", "0")
             set_user_dword_all_hives(_USER_SHELL_COPILOT, "IsCopilotAvailable", 0, logger)
             set_user_dword_all_hives(_USER_SHELL_COPILOT_BINGCHAT, "IsUserEligible", 0, logger)
             # Copilot voice-agent activation off (all user hives)
@@ -1624,6 +1636,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_user_dword_all_hives(
                 r"Software\Microsoft\Windows\CurrentVersion\Search",
                 "DeviceHistoryEnabled", 0, logger)
+            # Block remote query results entering the index (winscript)
+            set_registry_dword(
+                "HKLM", search_pol, "PreventRemoteQueries", 1)
             # Location-aware search results leak the device location to Bing
             set_registry_dword("HKLM", search_pol, "AllowSearchToUseLocation", 0)
             # AAD work/school-account Cortana + OOBE-path variants
@@ -2201,7 +2216,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                          "EdgeReadingModeServiceBasedExtractionEnabled",
                          # URL-keyed "anonymized" browsing-data uploads
                          # (winutil tweaks.json Edge group)
-                         "UrlKeyedAnonymizedDataCollectionEnabled"):
+                         "UrlKeyedAnonymizedDataCollectionEnabled",
+                         # Edge Surf game (Aegis-Win11)
+                         "AllowSurfGame"):
                 set_registry_dword("HKLM", edge_pol, name, 0)
             set_registry_dword("HKLM", edge_pol, "StartupBoostEnabled", 0)
             set_registry_dword("HKLM", edge_pol, "AllowPrelaunch", 0)

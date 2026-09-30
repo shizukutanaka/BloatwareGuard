@@ -2008,6 +2008,13 @@ public static class RegistryGuard
                 fts?.SetValue("EnableRID64640", 0, Microsoft.Win32.RegistryValueKind.DWord);
                 fts?.SetValue("EnableRID66610", 0, Microsoft.Win32.RegistryValueKind.DWord);
             }
+            // NVIDIA driver telemetry upload off (winscript)
+            using (var nv1 = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                       @"SYSTEM\CurrentControlSet\Services\nvlddmkm\Global\Startup"))
+                nv1?.SetValue("SendTelemetryData", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            using (var nv2 = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                       @"SYSTEM\CurrentControlSet\Services\nvlddmkm\Parameters\Global\Startup"))
+                nv2?.SetValue("SendTelemetryData", "0");
             SetUserDwordAllHives(UserShellCopilotPath, "IsCopilotAvailable", 0);
             SetUserDwordAllHives(UserShellCopilotPath + @"\BingChat", "IsUserEligible", 0);
             // Copilot voice-agent activation off (all user hives)
@@ -2152,6 +2159,8 @@ public static class RegistryGuard
             SetUserDwordAllHives(
                 @"Software\Microsoft\Windows\CurrentVersion\Search",
                 "DeviceHistoryEnabled", 0);
+            // Block remote query results entering the index (winscript)
+            key?.SetValue("PreventRemoteQueries", 1, Microsoft.Win32.RegistryValueKind.DWord);
             // AAD work/school-account Cortana + OOBE-path variants
             // (ReviOS search.yml)
             key?.SetValue("AllowCortanaInAAD", 0, Microsoft.Win32.RegistryValueKind.DWord);
@@ -2860,7 +2869,9 @@ public static class RegistryGuard
                     "VisualSearchEnabled", "AddressBarTrendingSuggestEnabled",
                     "EdgeReadingModeServiceBasedExtractionEnabled",
                     // URL-keyed "anonymized" browsing-data uploads (winutil)
-                    "UrlKeyedAnonymizedDataCollectionEnabled" })
+                    "UrlKeyedAnonymizedDataCollectionEnabled" ,
+                    // Edge Surf game (Aegis-Win11)
+                    "AllowSurfGame" })
                 key?.SetValue(n, 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("StartupBoostEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("AllowPrelaunch", 0, Microsoft.Win32.RegistryValueKind.DWord);
@@ -3418,6 +3429,8 @@ public static class RegistryGuard
         @"SOFTWARE\Microsoft\Windows\Shell\Copilot",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Search",
         @"SOFTWARE\NVIDIA Corporation\Global\FTS",
+        @"SYSTEM\CurrentControlSet\Services\nvlddmkm\Global\Startup",
+        @"SYSTEM\CurrentControlSet\Services\nvlddmkm\Parameters\Global\Startup",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\Deprovisioned",
         @"SOFTWARE\Policies\Microsoft\Windows\Appx\RemoveDefaultMicrosoftStorePackages",
                 @"SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing",
