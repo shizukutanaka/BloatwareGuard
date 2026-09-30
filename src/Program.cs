@@ -2841,6 +2841,22 @@ public static class RegistryGuard
                 using var wcn = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Windows\WCN\Registrars");
                 wcn?.SetValue("DisableUPnPRegistrar", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                // Peer-to-peer networking service kill, credential-delegation
+                // lock-down and cert padding check (DebloatAndSecurizeW11)
+                using var peernet = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Peernet");
+                peernet?.SetValue("Disabled", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                using var credDel = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\CredentialsDelegation");
+                credDel?.SetValue("AllowDefaultCredentials", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                credDel?.SetValue("AllowProtectedCreds", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                foreach (var certPath in new[] {
+                    @"SOFTWARE\Microsoft\Cryptography\Wintrust\Config",
+                    @"SOFTWARE\Wow6432Node\Microsoft\Cryptography\Wintrust\Config" })
+                {
+                    using var certKey = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(certPath);
+                    certKey?.SetValue("EnableCertPaddingCheck", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                }
                 using var ep = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer");
                 ep?.SetValue("NoOnlinePrintsWizard", 1, Microsoft.Win32.RegistryValueKind.DWord);
@@ -4000,6 +4016,11 @@ public static class RegistryGuard
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\RunNotification",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\Deprovisioned",
         @"SOFTWARE\Policies\Microsoft\MicrosoftEdge\SearchScopes",
+        @"SOFTWARE\Policies\Microsoft\Peernet",
+        @"SOFTWARE\Policies\Microsoft\Messenger\Client",
+        @"SOFTWARE\Policies\Microsoft\Windows\CredentialsDelegation",
+        @"SOFTWARE\Microsoft\Cryptography\Wintrust\Config",
+        @"SOFTWARE\Wow6432Node\Microsoft\Cryptography\Wintrust\Config",
         @"SOFTWARE\Policies\Microsoft\Windows\WCN\Registrars",
         @"SOFTWARE\Policies\Microsoft\Windows\Appx",
         @"SOFTWARE\Policies\Microsoft\Windows\Appx\RemoveDefaultMicrosoftStorePackages",

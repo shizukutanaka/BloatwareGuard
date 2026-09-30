@@ -1088,6 +1088,10 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\generativeAI",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\RunNotification",
     r"SOFTWARE\Policies\Microsoft\MicrosoftEdge\SearchScopes",
+    r"SOFTWARE\Policies\Microsoft\Peernet",
+    r"SOFTWARE\Policies\Microsoft\Windows\CredentialsDelegation",
+    r"SOFTWARE\Microsoft\Cryptography\Wintrust\Config",
+    r"SOFTWARE\Wow6432Node\Microsoft\Cryptography\Wintrust\Config",
     r"SOFTWARE\Policies\Microsoft\Windows\WCN\Registrars",
     r"SOFTWARE\Policies\Microsoft\Windows\Appx",
     r"SOFTWARE\Policies\Microsoft\Windows\Appx"
@@ -2035,6 +2039,20 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "HKLM",
                 r"SOFTWARE\Policies\Microsoft\Windows\WCN\Registrars",
                 "DisableUPnPRegistrar", 0)
+            # Peer-to-peer networking service kill, credential-delegation
+            # lock-down and cert padding check (DebloatAndSecurizeW11)
+            set_registry_dword(
+                "HKLM", r"SOFTWARE\Policies\Microsoft\Peernet",
+                "Disabled", 1)
+            cred_del = r"SOFTWARE\Policies\Microsoft\Windows\CredentialsDelegation"
+            set_registry_dword(
+                "HKLM", cred_del, "AllowDefaultCredentials", 0)
+            set_registry_dword(
+                "HKLM", cred_del, "AllowProtectedCreds", 1)
+            for root in (r"SOFTWARE\Microsoft\Cryptography\Wintrust\Config",
+                         r"SOFTWARE\Wow6432Node\Microsoft\Cryptography\Wintrust\Config"):
+                set_registry_dword(
+                    "HKLM", root, "EnableCertPaddingCheck", 1)
             # Explorer online wizards (ReviOS privacy.yml; HKLM + per-user below)
             exp_pol = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer"
             for v in ("NoOnlinePrintsWizard", "NoPublishingWizard",
