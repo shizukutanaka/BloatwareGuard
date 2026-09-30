@@ -5,6 +5,13 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- VDOT (Virtual-Desktop-Optimization-Tool) diff: blacklist
+  +Microsoft.USNationalParks (theme-pack stub, 186->187); misc
+  services +BcastDVRUserService/autotimesvc/SmsRouter/icssvc
+  (GameDVR broadcast template, cellular time, SMS router, ICS —
+  demand-start keeps invocation). Skipped: VSS/defrag/RmSvc/
+  MessagingService (functional; restore points need VSS),
+  LanManWorkstation SMB tuning (perf).
 - ReviOS privacy/misc diff: DisableTelemetry +machine-side input
   kills (Input\Settings InsightsEnabled/EnableHwkbTextPrediction,
   Input\TIPC Enabled) + WiFi Sense family (WcmSvc PaidWifi/

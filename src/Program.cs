@@ -464,6 +464,7 @@ public static class ConfigLoader
                 "Microsoft.PowerAutomateDesktop",
                 "Microsoft.Todos",
                 "Microsoft.Windows.Photos",
+            "Microsoft.USNationalParks",        // theme/content pack stub (VDOT appx)
                 "Microsoft.WindowsAlarms",
                 "Microsoft.ScreenSketch",
                 "Microsoft.Clipchamp",
@@ -3610,6 +3611,10 @@ public static class RegistryGuard
         // Distributed Link Tracking — NTFS cross-volume link chasing,
         // Microsoft 'OK to disable' per IoT/VDI guidance (Atlas services.yml)
         "TrkWks",
+            // VDOT services.json diff: GameDVR broadcast per-user
+            // template, cellular time sync, SMS router, ICS —
+            // demand-start keeps invocation working
+            "BcastDVRUserService", "autotimesvc", "SmsRouter", "icssvc",
         // WER control-panel support — companion to the disabled WerSvc
         // (Atlas services.yml; the error-report pipeline is already off)
         "wercplsupport",
