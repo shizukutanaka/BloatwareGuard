@@ -563,7 +563,8 @@ public static class ConfigLoader
                 "OneCalendar", "PhototasticCollage",
                 "PolarrPhotoEditorAcademicEdition", "Sidia.LiveWallpaper",
                 "SlingTV", "TuneInRadio", "WinZipUniversal",
-                "flaregamesGmbH.RoyalRevolt", "iHeartRadio",
+                "flaregamesGmbH.RoyalRevolt", "CandyCrush",
+            "MarchofEmpires", "Plex", "Viber", "iHeartRadio",
                 // OEM vendor appx bundles — publisher prefixes: 21 HP apps,
                 // 3 Dell apps, 2 Lenovo entries (Win11Debloat optional)
                 "AD2F1837.",

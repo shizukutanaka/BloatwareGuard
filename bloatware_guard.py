@@ -213,6 +213,10 @@ DEFAULT_BLACKLIST = [
     "TuneInRadio",
     "WinZipUniversal",
     "flaregamesGmbH.RoyalRevolt",
+    "CandyCrush",
+    "MarchofEmpires",
+    "Plex",
+    "Viber",
     "iHeartRadio",
     # OEM vendor appx bundles — entire publisher prefixes: all 21 HP apps
     # (SupportAssistant, JumpStarts, QuickDrop, PowerManager, Welcome,

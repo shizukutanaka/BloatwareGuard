@@ -6,6 +6,13 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 
 ### Added
 - Reclaim (jonax1337/Reclaim, Tauri debloat tool, new
+  source): blacklist +5 consumer bloat — CandyCrush,
+  MarchofEmpires, Plex, Viber, Royal Revolt was already
+  covered by flaregamesGmbH. Skipped: Paint/Store/
+  Terminal/Calculator/Camera/OneNote/Notepad/MeetNow/
+  RemoteDesktop/FamilySafety removals (system components
+  this tool keeps by design).
+- Reclaim (jonax1337/Reclaim, Tauri debloat tool, new
   source): per-user +3 — Notepad `ShowStoreRecommendation`=0
   (store promo banner), Explorer `StartupNotify`=0
   (startup-impact toast), GameBar `GamePanelStartupTipIndex`=3
