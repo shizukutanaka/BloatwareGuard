@@ -5,6 +5,10 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- `DisableEdgeUpdateBloat` EdgeUpdate shortcut suppression (Sophia
+  Script `PreventEdgeShortcutCreation`): `CreateDesktopShortcut{GUID}`
+  = 0 for all four channel product GUIDs — the installer previously
+  re-dropped a desktop Edge shortcut on every update.
 - `DisableEdgeBloat` +18 policy disables (privacy.sexy
   SetEdgePolicyViaRegistry diff): `BingAdsSuppression`,
   `DiscoverPageContextEnabled`, `EdgeDiscoverEnabled`,

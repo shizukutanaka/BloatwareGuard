@@ -1748,8 +1748,18 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                      "MicrosoftEdgeUpdateTaskMachineUA",
                      "MicrosoftEdgeUpdateBrowserReplacementTask"):
             run_cmd(["schtasks.exe", "/Change", "/TN", task, "/DISABLE"], timeout=15)
+        # EdgeUpdate channel GUIDs — installer drops desktop shortcuts on
+        # every update; the policy suppresses them (Sophia Script
+        # PreventEdgeShortcutCreation)
+        edgeupd = r"SOFTWARE\Policies\Microsoft\EdgeUpdate"
+        for guid in ("{56EB18F8-B008-4CBD-B6D2-8C97FE7E9062}",
+                     "{2CD8A007-E189-409D-A2C8-9AF4EF3C72AA}",
+                     "{0D50BFEC-CD6A-4F9A-964C-C7416E3ACB10}",
+                     "{65C35B14-6C1D-4122-AC46-7148CC9D6497}"):
+            set_registry_dword("HKLM", edgeupd, f"CreateDesktopShortcut{guid}", 0)
         logger.info("Applied: DisableEdgeUpdateBloat "
-                    "(edgeupdate/edgeupdatem/elevation → demand, update tasks off)")
+                    "(edgeupdate/edgeupdatem/elevation → demand, update tasks off, "
+                    "shortcut creation suppressed)")
 
     if prev.get("BlockOemDriverUpdates", True):
         set_registry_dword("HKLM",
