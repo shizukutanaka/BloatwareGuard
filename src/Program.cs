@@ -4119,7 +4119,6 @@ public static class RegistryGuard
         @"Software\Microsoft\Windows\CurrentVersion\SearchSettings\WebSearchPro",
         @"Software\Microsoft\Windows\CurrentVersion\WindowsCopilot",
         @"Software\Microsoft\Windows\CurrentVersion\WindowsBackup",
-        @"Software\Microsoft\Windows\CurrentVersion\Search",
         @"Software\Microsoft\Windows\CurrentVersion\Internet Settings\Wpad",
         @"Software\Microsoft\Notepad",
         @"Software\Microsoft\Paint",
