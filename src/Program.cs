@@ -2159,6 +2159,10 @@ public static class RegistryGuard
             SetUserDwordAllHives(
                 @"Software\Microsoft\Windows\CurrentVersion\Search",
                 "DeviceHistoryEnabled", 0);
+            // Per-user search voice shortcut (winscript)
+            SetUserDwordAllHives(
+                @"Software\Microsoft\Windows\CurrentVersion\Search",
+                "VoiceShortcut", 0);
             // Block remote query results entering the index (winscript)
             key?.SetValue("PreventRemoteQueries", 1, Microsoft.Win32.RegistryValueKind.DWord);
             // AAD work/school-account Cortana + OOBE-path variants

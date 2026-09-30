@@ -1636,6 +1636,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_user_dword_all_hives(
                 r"Software\Microsoft\Windows\CurrentVersion\Search",
                 "DeviceHistoryEnabled", 0, logger)
+            # Per-user search voice shortcut (winscript)
+            set_user_dword_all_hives(
+                r"Software\Microsoft\Windows\CurrentVersion\Search",
+                "VoiceShortcut", 0, logger)
             # Block remote query results entering the index (winscript)
             set_registry_dword(
                 "HKLM", search_pol, "PreventRemoteQueries", 1)

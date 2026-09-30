@@ -5,6 +5,10 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- winscript VoiceShortcut per-user kill; GTweak
+  audited (Defender/SmartScreen/MRT only -- boundary);
+  Aegis-Win11 audited (Brave/Edge-feature/UI/UAC --
+  boundary). winscript source exhausted.
 - winscript round 2 + Aegis-Win11: NVIDIA driver
   SendTelemetryData off (both Global\Startup forms);
   Search policy +PreventRemoteQueries; Edge +AllowSurfGame.
