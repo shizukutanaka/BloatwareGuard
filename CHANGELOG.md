@@ -5,6 +5,12 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- DebloatAndSecurizeW11 (JulienVB, new source): velocity
+  overrides +3 AI feature IDs (3189581453, 3552646797,
+  450471565 via phantomofearth velocity lists). Skipped:
+  ConsentStore denies (rejected category), office AI-
+  training keys (vendor), DisableSR/EnableLUA (boundary),
+  WU pause UX times (functional).
 - 0Ai-Windows-Hardening (cervezagua, new source): Notepad
   AI-disable namespaces — HKLM Policies\Microsoft\Notepad
   + per-user Policies\Microsoft\Windows\WindowsNotepad

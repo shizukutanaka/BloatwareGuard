@@ -1213,6 +1213,9 @@ public static class RegistryGuard
     {
         // AI Actions in Explorer; 1646260367 hides the entry when no action exists
         ("1853569164", 1), ("4098520719", 1), ("929719951", 1), ("1646260367", 2),
+        // Additional AI velocity IDs (DebloatAndSecurizeW11 / phantomofearth
+        // velocity feature lists)
+        ("3189581453", 1), ("3552646797", 1), ("450471565", 1),
     };
     private const string UserSearchPath = @"Software\Microsoft\Windows\CurrentVersion\Search";
     private const string UserSearchSettingsPath = @"Software\Microsoft\Windows\CurrentVersion\SearchSettings";
