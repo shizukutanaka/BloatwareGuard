@@ -2771,6 +2771,10 @@ public static class RegistryGuard
             SetUserDwordAllHives(
                 @"Software\Microsoft\Windows\CurrentVersion\CDP",
                 "CdpSessionUserAuthzPolicy", 0);
+            // Share drag tray off (Raphire 2026.06)
+            SetUserDwordAllHives(
+                @"Software\Microsoft\Windows\CurrentVersion\CDP",
+                "DragTrayEnabled", 0);
             SetUserDwordAllHives(
                 @"Software\Microsoft\Windows\CurrentVersion\CDP",
                 "RomeSdkChannelUserAuthzPolicy", 0);

@@ -5,6 +5,10 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- Raphire/Win11Debloat 2026.06 re-diff: per-user
+  DragTrayEnabled=0 (CDP share drag tray); the rest of
+  the new reg-file set already covered. Backup: CDP
+  already in user backup list.
 - SysAdminDoc/Debloat-Win11 (new source, v2.3.11):
   per-user WindowsBackup NotificationDisabled=1;
   rest of its 57-policy catalog already covered.
