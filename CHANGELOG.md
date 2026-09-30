@@ -5,6 +5,46 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- SysAdminDoc/Debloat-Win11 (new source, full modular
+  sweep — PolicyCatalog/AppX/Services/Tasks/OEM/Edge/
+  Privacy triaged): telemetry tasks +2
+  (`Shell\FamilySafetyUpload`, `XblGameSave\XblGameSaveTask`
+  — family-safety upload + Xbox save-sync collectors);
+  OEM task patterns +5 (`Intel|Realtek|Waves|MSI|Razer`
+  vendor needles); blacklist +13 OEM/feed needles
+  (WavesAudio, DragonCenter, MysticLight, MSIAfterburner,
+  ROGLiveService, ArmouryCrate, MyASUS, ASUSPCAssistant,
+  Razer, AcerQuickAccess, LenovoUtility,
+  `Microsoft.WidgetsPlatformRuntime`,
+  `Microsoft.StartExperiencesApp`); misc demote services
+  +5 (`InventorySvc`, `WpcMonSvc`, `MessagingService`,
+  `GamingServices`, `GamingServicesNet`) + `lmhosts`
+  cs-side parity fix + dynamic service counts in logs;
+  Edge policy +10 (`EdgeCopilotEnabled`,
+  `NewTabPageBingAIPromptEnabled`, `CrashReportingMode`,
+  `EdgeWalletEnabled`, `EdgeWalletCheckoutEnabled`,
+  `GamerModeEnabled`, `TravelAssistanceEnabled`,
+  `ShowBrowserMigrationPrompt`,
+  `ShowOfficeShortcutInFavoritesBar`,
+  `QuickSearchShowMiniMenu`); Smart Clipboard kills
+  (`EnableSmartClipboard`=0 policy + per-user
+  SmartClipboard `Disabled`=1); `EnableRecall`=0 per-user
+  shell toggle; WindowsBackup `DisableBackupUI`=1 policy;
+  toast-above-lock kills
+  (`NOC_GLOBAL_SETTING_ALLOW_(CRITICAL_)TOASTS_ABOVE_LOCK`);
+  startup-bloat needles +3 (Razer, Synapse, Cortex).
+  Skipped: UI/pref surfaces, WU deferral/UX, AutoRun
+  duplicates, service wholesale kills, vendor uninstallers.
+- Microsoft official new policies (windowslatest +
+  Microsoft Japan blog): `RemoveMicrosoftCopilotApp`=1
+  per-user WindowsAI (April 2026 "Remove Microsoft Copilot
+  app" — auto-removes Copilot + M365 Copilot when not
+  user-installed and unused >28 days); CopilotKeyboard
+  admin policies ×3 per-user (`TurnOffSendTelementryData`
+  — Microsoft's literal misspelling — usage data upload,
+  `TurnOffCloudCandidate` — cloud text candidates,
+  `TurnOffInternetIntegration` — Bing search/character/
+  update nags), per Microsoft Japan June 2026 guidance.
 - Qiita 24H2 new-policy list (Microsoft Group Policy
   Settings Reference): `DisableTelemetry` +3 under existing
   AppCompat backup — 24H2 app-inventory collectors
