@@ -2353,6 +2353,35 @@ public static class RegistryGuard
             // Copilot auto-open on large screens (notification channel,
             // privacy.sexy) — per-user
             SetUserDwordAllHives(UserNotificationSettingsPath, "AutoOpenCopilotLargeScreens", 0);
+            // Copilot hardware-key remap (WindowsCopilot ADMX, zoicware)
+            SetUserDwordAllHives(
+                @"Software\Policies\Microsoft\Windows\CopilotKey",
+                "SetCopilotHardwareKey", 0);
+            // M365 Copilot auto-start delay + companion window (zoicware)
+            SetUserDwordAllHives(
+                @"Software\Microsoft\Windows\CurrentVersion\M365Copilot",
+                "AutoStartDelayEnabled", 0);
+            SetUserDwordAllHives(
+                @"Software\Microsoft\Windows\CurrentVersion\M365Copilot",
+                "IsCompanionWindowAvailable", 0);
+            // Copilot auto-launch on startup (RunNotification entry)
+            using (var runNoti = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                       @"SOFTWARE\Microsoft\Windows\CurrentVersion\RunNotification"))
+                runNoti?.SetValue("MicrosoftCopilotAutoLaunch", 0,
+                                  Microsoft.Win32.RegistryValueKind.DWord);
+            // generativeAI consent store: deny access + stop usage recording
+            using (var gen = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                       @"SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\generativeAI"))
+                gen?.SetValue("Value", "Deny", Microsoft.Win32.RegistryValueKind.String);
+            using (var sam = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                       @"SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\systemAIModels"))
+                sam?.SetValue("Value", "Deny", Microsoft.Win32.RegistryValueKind.String);
+            using (var capGen = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                       @"SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\Capabilities\generativeAI"))
+                capGen?.SetValue("RecordUsageData", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            using (var capSam = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                       @"SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\Capabilities\systemAIModels"))
+                capSam?.SetValue("RecordUsageData", 0, Microsoft.Win32.RegistryValueKind.DWord);
             foreach (var (id, state) in VelocityCopilotIds)
                 SetHiveDword(Microsoft.Win32.Registry.LocalMachine,
                              VelocityOverridesPath + @"\" + id, "EnabledState", state);
@@ -3940,6 +3969,10 @@ public static class RegistryGuard
         @"SYSTEM\CurrentControlSet\Services\nvlddmkm\Global\Startup",
         @"SYSTEM\CurrentControlSet\Services\nvlddmkm\Parameters\Global\Startup",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\Capabilities\systemAIModels",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\Capabilities\generativeAI",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\systemAIModels",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\generativeAI",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\RunNotification",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\Deprovisioned",
         @"SOFTWARE\Policies\Microsoft\Windows\Appx\RemoveDefaultMicrosoftStorePackages",
                 @"SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing",
@@ -4050,6 +4083,8 @@ public static class RegistryGuard
         @"Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo",
         @"Software\Microsoft\Windows\CurrentVersion\CDP",
         @"Software\Microsoft\Windows\CurrentVersion\CDP\SettingsPage",
+        @"Software\Microsoft\Windows\CurrentVersion\M365Copilot",
+        @"Software\Policies\Microsoft\Windows\CopilotKey",
         @"Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager",
         @"Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager\Context\CloudExperienceHostIntent\Wireless",
         @"Software\Microsoft\Windows\CurrentVersion\DeliveryOptimization\Settings",

@@ -5,6 +5,23 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- zoicware/RemoveWindowsAI (new source, actively maintained
+  AI-removal suite): `DisableCopilot` +`SetCopilotHardwareKey`
+  (CopilotKey policy — hardware-key remap), M365Copilot
+  auto-start kills (`AutoStartDelayEnabled`/
+  `IsCompanionWindowAvailable`), `MicrosoftCopilotAutoLaunch`
+  (HKLM RunNotification — startup auto-open), generativeAI +
+  systemAIModels ConsentStore `Value=Deny` + Capabilities
+  `RecordUsageData=0` (usage recording off). Backup +5
+  (ConsentStore generativeAI/systemAIModels, Capabilities
+  generativeAI, RunNotification) + user backup +2
+  (M365Copilot, CopilotKey). Skipped: Office 16.0 AI rows
+  (vendor scope), Edge Local-State labs-flags edit (runtime
+  file mutation), package/file deletion, Xbox GamingAI reg
+  row (gaming feature), SettingsPageVisibility (its `hide:home`
+  already written — merging `aicomponents;appactions` would
+  need string merge; documented as follow-up), velocity ID
+  58375086 (AI-fabric dep — explorer bug noted by source).
 - burakarslan0110/WinToolify (new source, PS catalog):
   `DisableCopilot` +`HideAIActionsMenu` (HKLM Explorer policy —
   Explorer "AI actions" context-menu group) + voice-agent extras

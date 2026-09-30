@@ -1079,6 +1079,10 @@ _BACKUP_KEY_PATHS = (
     r"SYSTEM\CurrentControlSet\Services\nvlddmkm\Global\Startup",
     r"SYSTEM\CurrentControlSet\Services\nvlddmkm\Parameters\Global\Startup",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\Capabilities\systemAIModels",
+    r"SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\Capabilities\generativeAI",
+    r"SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\systemAIModels",
+    r"SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\generativeAI",
+    r"SOFTWARE\Microsoft\Windows\CurrentVersion\RunNotification",
     r"SOFTWARE\Policies\Microsoft\Windows\Appx"
     r"\RemoveDefaultMicrosoftStorePackages",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing",
@@ -1269,6 +1273,8 @@ _USER_BACKUP_KEY_PATHS = (
     r"Software\Microsoft\Speech_OneCore\Settings\VoiceActivation\UserPreferenceForAllApps",
     r"Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo",
     r"Software\Microsoft\Windows\CurrentVersion\CDP",
+    r"Software\Microsoft\Windows\CurrentVersion\M365Copilot",
+    r"Software\Policies\Microsoft\Windows\CopilotKey",
     r"Software\Microsoft\Windows\CurrentVersion\CDP\SettingsPage",
     r"Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager",
     r"Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager\Context\CloudExperienceHostIntent\Wireless",
@@ -1640,6 +1646,40 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             # WinToolify diff: Explorer "AI actions" context-menu group
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\Explorer",
                                "HideAIActionsMenu", 1)
+            # Copilot hardware-key remap (WindowsCopilot ADMX, zoicware)
+            _copilot_key = (r"Software\Policies\Microsoft\Windows"
+                            r"\CopilotKey")
+            set_user_dword_all_hives(_copilot_key,
+                                     "SetCopilotHardwareKey", 0, logger)
+            # M365 Copilot auto-start delay + companion window (zoicware)
+            _m365 = (r"Software\Microsoft\Windows\CurrentVersion"
+                     r"\M365Copilot")
+            set_user_dword_all_hives(_m365, "AutoStartDelayEnabled", 0, logger)
+            set_user_dword_all_hives(_m365,
+                                     "IsCompanionWindowAvailable", 0, logger)
+            # Copilot auto-launch on startup (RunNotification entry)
+            set_registry_dword("HKLM",
+                               r"SOFTWARE\Microsoft\Windows\CurrentVersion"
+                               r"\RunNotification",
+                               "MicrosoftCopilotAutoLaunch", 0)
+            # generativeAI consent store: deny prompt-level access + stop
+            # usage recording at the Capabilities layer (zoicware)
+            _consent = (r"SOFTWARE\Microsoft\Windows\CurrentVersion"
+                        r"\CapabilityAccessManager\ConsentStore")
+            set_registry_string("HKLM",
+                                _consent + r"\generativeAI",
+                                "Value", "Deny")
+            set_registry_string("HKLM",
+                                _consent + r"\systemAIModels",
+                                "Value", "Deny")
+            _caps = (r"SOFTWARE\Microsoft\Windows\CurrentVersion"
+                     r"\CapabilityAccessManager\Capabilities")
+            set_registry_dword("HKLM",
+                               _caps + r"\generativeAI",
+                               "RecordUsageData", 0)
+            set_registry_dword("HKLM",
+                               _caps + r"\systemAIModels",
+                               "RecordUsageData", 0)
             # Copilot auto-open on large screens (notification channel,
             # privacy.sexy) — per-user
             set_user_dword_all_hives(_USER_NOTIFICATION_SETTINGS, "AutoOpenCopilotLargeScreens", 0, logger)
