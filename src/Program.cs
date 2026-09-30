@@ -2437,6 +2437,29 @@ public static class RegistryGuard
             // Cross-device Collections + Follow feeds
             key?.SetValue("EdgeCollectionsEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("EdgeFollowEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // privacy.sexy Edge-policy diff — promo/feed/telemetry
+            // surfaces: ads suppression, Discover/enhance feeds, metrics
+            // reporting, site-info upload, rewards/sign-in nags, NTP
+            // spotlight, sidebar variant, games menu, in-app support,
+            // Acrobat promo, web widget autostart, searchbar, ECS
+            key?.SetValue("BingAdsSuppression", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("DiscoverPageContextEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("EdgeDiscoverEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("EdgeEnhanceImagesEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("MetricsReportingEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("RelatedMatchesCloudServiceEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("SendSiteInfoToImproveServices", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("ShowMicrosoftRewards", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("SignInCtaOnNtpEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("SpotlightExperiencesAndRecommendationsEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("StandaloneHubsSidebarEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("AllowGamesMenu", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("InAppSupportEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("ShowAcrobatSubscriptionButton", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("WebWidgetIsEnabledOnStartup", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("SearchbarAllowed", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("SearchbarIsEnabledOnStartup", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("ExperimentationAndConfigurationServiceControl", 0, Microsoft.Win32.RegistryValueKind.DWord);
             // Edge Drop syncs files to OneDrive; crypto wallet + asset
             // delivery service are promo/feature-download surfaces
             key?.SetValue("DropEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
@@ -4048,7 +4071,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.59.2-mvp");
+                    Console.WriteLine("BloatwareGuard v1.60.1-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -4134,7 +4157,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.59.2-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.60.1-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -4315,8 +4338,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 8;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.59.2-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.59.2-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.60.1-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.60.1-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try

@@ -2,7 +2,26 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
-## [Unreleased] — v1.59.2-mvp: deploy/docstaleness + exe metadata
+## [Unreleased] — v1.60.1-mvp: Edge policy expansion
+
+### Added
+- `DisableEdgeBloat` +18 policy disables (privacy.sexy
+  SetEdgePolicyViaRegistry diff): `BingAdsSuppression`,
+  `DiscoverPageContextEnabled`, `EdgeDiscoverEnabled`,
+  `EdgeEnhanceImagesEnabled`, `MetricsReportingEnabled`,
+  `RelatedMatchesCloudServiceEnabled`, `SendSiteInfoToImproveServices`
+  (deprecated but still read), `ShowMicrosoftRewards`,
+  `SignInCtaOnNtpEnabled`, `SpotlightExperiencesAndRecommendationsEnabled`,
+  `StandaloneHubsSidebarEnabled`, `AllowGamesMenu`, `InAppSupportEnabled`,
+  `ShowAcrobatSubscriptionButton`, `WebWidgetIsEnabledOnStartup`,
+  `SearchbarAllowed`/`SearchbarIsEnabledOnStartup`, and
+  `ExperimentationAndConfigurationServiceControl` (ECS experiments).
+  Deliberately skipped: the whole SmartScreen family (protection
+  boundary), `FamilySafetySettingsEnabled` (functional), autofill
+  toggles (convenience, not telemetry), cookie/tracking policies
+  (browsing-behavior changes), NTP cosmetic settings.
+
+## [Released] — v1.59.2-mvp: deploy/docstaleness + exe metadata
 
 ### Fixed
 - `deploy_verify.bat` was three versions stale (v1.56.0 header), hardcoded a

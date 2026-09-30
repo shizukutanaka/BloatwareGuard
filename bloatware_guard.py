@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.59.2-mvp - Python prototype
+BloatwareGuard v1.60.1-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -35,7 +35,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.59.2-mvp"
+APP_VERSION = "1.60.1-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -1663,7 +1663,26 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                      "SiteSafetyServicesEnabled",
                      # Cross-device collection/Follow feeds
                      "EdgeCollectionsEnabled",
-                     "EdgeFollowEnabled"):
+                     "EdgeFollowEnabled",
+                     # privacy.sexy Edge-policy diff — promo/feed/telemetry
+                     # surfaces: ads suppression, Discover/enhance feeds,
+                     # metrics reporting, site-info upload (deprecated but
+                     # still read), rewards/sign-in nags, NTP spotlight,
+                     # sidebar variant, games menu, in-app support,
+                     # Acrobat promo, web widget autostart, searchbar,
+                     # ECS experimentation
+                     "BingAdsSuppression", "DiscoverPageContextEnabled",
+                     "EdgeDiscoverEnabled", "EdgeEnhanceImagesEnabled",
+                     "MetricsReportingEnabled",
+                     "RelatedMatchesCloudServiceEnabled",
+                     "SendSiteInfoToImproveServices",
+                     "ShowMicrosoftRewards", "SignInCtaOnNtpEnabled",
+                     "SpotlightExperiencesAndRecommendationsEnabled",
+                     "StandaloneHubsSidebarEnabled", "AllowGamesMenu",
+                     "InAppSupportEnabled", "ShowAcrobatSubscriptionButton",
+                     "WebWidgetIsEnabledOnStartup", "SearchbarAllowed",
+                     "SearchbarIsEnabledOnStartup",
+                     "ExperimentationAndConfigurationServiceControl"):
             set_registry_dword("HKLM", edge_pol, name, 0)
         # 2 = never predict/pre-resolve via Microsoft web service
         set_registry_dword("HKLM", edge_pol, "NetworkPredictionOptions", 2)
