@@ -2062,7 +2062,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                          "CopilotNewTabPageEnabled",
                          "AllowBrowsingWithCopilot",
                          "M365LinksAutoOpenCopilotEnabled",
-                         "VisualSearchEnabled"):
+                         "VisualSearchEnabled",
+                         # Address-bar trending suggestions + reading-mode
+                         # cloud extraction upload (noid-privacy EdgePolicies)
+                         "AddressBarTrendingSuggestEnabled",
+                         "EdgeReadingModeServiceBasedExtractionEnabled"):
                 set_registry_dword("HKLM", edge_pol, name, 0)
             set_registry_dword("HKLM", edge_pol, "StartupBoostEnabled", 0)
             set_registry_dword("HKLM", edge_pol, "AllowPrelaunch", 0)

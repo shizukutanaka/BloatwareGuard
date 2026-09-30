@@ -5,6 +5,11 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- noid-privacy EdgePolicies diff: +AddressBarTrendingSuggestEnabled
+  (trending suggestions) +EdgeReadingModeServiceBasedExtractionEnabled
+  (cloud content extraction upload) in DisableEdgeBloat. Skipped:
+  SmartScreen override, auth schemes, IE-mode, ABE, SwiftShader,
+  codec-pack removals (functional/security boundary).
 - noid-privacy AntiAI diff (25H2 WindowsCopilot ADMX): DisableRecall
   +AllowRecallExport=0 +app/URI deny-lists (browsers/terminals/
   password managers/RDP; account/login/mail/payment URIs);

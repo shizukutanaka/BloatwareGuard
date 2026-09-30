@@ -2693,7 +2693,8 @@ public static class RegistryGuard
             foreach (var n in new[] { "Microsoft365CopilotChatIconEnabled",
                     "CopilotAddressBarSuggestionsEnabled", "CopilotNewTabPageEnabled",
                     "AllowBrowsingWithCopilot", "M365LinksAutoOpenCopilotEnabled",
-                    "VisualSearchEnabled" })
+                    "VisualSearchEnabled", "AddressBarTrendingSuggestEnabled",
+                    "EdgeReadingModeServiceBasedExtractionEnabled" })
                 key?.SetValue(n, 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("StartupBoostEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("AllowPrelaunch", 0, Microsoft.Win32.RegistryValueKind.DWord);
