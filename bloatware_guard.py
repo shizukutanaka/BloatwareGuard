@@ -138,7 +138,6 @@ DEFAULT_BLACKLIST = [
     "SynapticsIncorporated",
     "BytedancePte.Ltd.TikTok",
     "KING.COM.",                       # CandyCrush + all King.com promo games
-    "D5EA27B7.Duolingo-LearnLanguagesforFree",
     "PandoraMediaInc.",
     "Facebook.",
     "WhatsApp",
@@ -205,6 +204,8 @@ DEFAULT_BLACKLIST = [
     # M365 companion suite promo (24H2) + Meta Instagram stubs
     "Microsoft.M365Companions",
     "Instagram",
+    "D5EA27B7.",            # publisher: Duolingo (privacy.sexy)
+    "Microsoft.GroupMe10",
     # TronScript Metro diff — dead/promo/game-demo Microsoft appx
     "Microsoft.Advertising.JavaScript", "Microsoft.Advertising.Xaml",
     "Microsoft.ConnectivityStore", "Microsoft.HelpAndTips",

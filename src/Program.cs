@@ -513,7 +513,6 @@ public static class ConfigLoader
                 "BytedancePte.Ltd.TikTok",
                 "KING.COM.",                       // CandyCrush + all King.com promo games
                 "A278AB0D.",
-                "D5EA27B7.Duolingo-LearnLanguagesforFree",
                 "PandoraMediaInc.",
                 "Facebook.",
                 "WhatsApp",
@@ -565,6 +564,8 @@ public static class ConfigLoader
                 // M365 companion suite promo (24H2) + Meta Instagram stubs
                 "Microsoft.M365Companions",
                 "Instagram",
+                "D5EA27B7.",            // publisher: Duolingo (privacy.sexy)
+                "Microsoft.GroupMe10",
                 // TronScript Metro diff — dead/promo/game-demo Microsoft appx
                 "Microsoft.Advertising.JavaScript", "Microsoft.Advertising.Xaml",
                 "Microsoft.ConnectivityStore", "Microsoft.HelpAndTips",

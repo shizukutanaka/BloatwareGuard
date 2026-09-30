@@ -48,6 +48,12 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   (flighted feature trials, not just preview builds).
 - Backup list +3 keys (Software Protection Platform, InputPersonalization,
   CurrentVersion\Search) so the new policy writes stay restorable.
+- Blacklist 175→176: `D5EA27B7.` publisher namespace (Duolingo — the
+  enumerated `D5EA27B7.Duolingo-LearnLanguagesforFree` entry folds into
+  it) + `Microsoft.GroupMe10` (bundled social app) per privacy.sexy.
+  Skipped: all system-component removals it performs (Search, CXH, CDM,
+  LockApp, SecHealthUI, Edge, codec extensions, captive-portal app) —
+  destructive vs. our policy-neutering design.
 - Telemetry tasks 83→93: `AitAgent` (Application Impact Telemetry),
   `BthSQM` (Bluetooth SQM), CEIP `Server\` tasks ×3, `ErrorDetails`
   `EnableErrorDetailsUpdate`, and `UpdateOrchestrator\StartOobeAppsScan*`
