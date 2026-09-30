@@ -1824,6 +1824,7 @@ public static class RegistryGuard
                 "SubscribedContent-88000326Enabled", // Edge/app promotions (Optimizer diff)
                 "RotatingLockScreenEnabled",        // lock-screen spotlight
                 "RotatingLockScreenOverlayEnabled", // lock-screen overlay ads
+                "ShowWindowsWelcomeExperience",     // post-update welcome promos
                 "PreInstalledAppsEnabled",          // OEM app seeding
                 "PreInstalledAppsEverEnabled",      // OEM app seeding (sticky)
                 "OemPreInstalledAppsEnabled",       // OEM app seeding (OEM channel)
@@ -2150,6 +2151,13 @@ public static class RegistryGuard
         {
             using var dc = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(DataCollectionPath);
             dc?.SetValue("AllowTelemetry", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // Opt-in notification/UX suppression (documented DataCollection)
+            using var dcPol = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Policies\Microsoft\Windows\DataCollection");
+            dcPol?.SetValue("ConfigureTelemetryOptInChangeNotification", 1,
+                            Microsoft.Win32.RegistryValueKind.DWord);
+            dcPol?.SetValue("ConfigureTelemetryOptInSettingsUx", 2,
+                            Microsoft.Win32.RegistryValueKind.DWord);
             using var sys = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(SystemPolicyPath);
             sys?.SetValue("PublishUserActivities", 0, Microsoft.Win32.RegistryValueKind.DWord);
             sys?.SetValue("UploadUserActivities", 0, Microsoft.Win32.RegistryValueKind.DWord);
@@ -3635,6 +3643,8 @@ public static class RegistryGuard
                 @"SOFTWARE\Microsoft\WindowsSelfHost\UI\Visibility");
             sh?.SetValue("HideInsiderPage", 1,
                          Microsoft.Win32.RegistryValueKind.DWord);
+            pb?.SetValue("ManagePreviewBuildsPolicyValue", 0,
+                         Microsoft.Win32.RegistryValueKind.DWord);
             GuardLogger.Info("Applied: BlockInsiderPreview");
         }
         catch (Exception ex)
@@ -3744,6 +3754,9 @@ public static class RegistryGuard
             SetUserDwordAllHives(
                 @"Software\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers",
                 "BackgroundType", 0);
+            SetUserDwordAllHives(
+                @"Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement",
+                "ShowSpotlightOnWelcome", 0);
             // Per-hive CloudContent policies: block Spotlight features and
             // the per-user data collection that feeds them
             SetUserDwordAllHives(

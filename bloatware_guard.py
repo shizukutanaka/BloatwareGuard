@@ -1386,6 +1386,8 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "SubscribedContent-88000326Enabled",  # Edge/app promotions (Optimizer diff)
                 "RotatingLockScreenEnabled",         # lock-screen spotlight
                 "RotatingLockScreenOverlayEnabled",  # lock-screen overlay ads
+                "ShowWindowsWelcomeExperience",      # post-update welcome
+                # (experience promos)
                 "PreInstalledAppsEnabled",           # OEM app seeding
                 "PreInstalledAppsEverEnabled",       # OEM app seeding (sticky)
                 "OemPreInstalledAppsEnabled",        # OEM app seeding (OEM channel)
@@ -1648,6 +1650,14 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword(
                 "HKLM", r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
                 "AllowTelemetry", 0)
+            # Opt-in notification/UX suppression (documented
+            # DataCollection policies)
+            set_registry_dword(
+                "HKLM", r"SOFTWARE\Policies\Microsoft\Windows\DataCollection",
+                "ConfigureTelemetryOptInChangeNotification", 1)
+            set_registry_dword(
+                "HKLM", r"SOFTWARE\Policies\Microsoft\Windows\DataCollection",
+                "ConfigureTelemetryOptInSettingsUx", 2)
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\System",
                                "PublishUserActivities", 0)
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\System",
@@ -2430,6 +2440,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword("HKLM",
                                r"SOFTWARE\Microsoft\WindowsSelfHost\UI\Visibility",
                                "HideInsiderPage", 1)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Policies\Microsoft\Windows\PreviewBuilds",
+                "ManagePreviewBuildsPolicyValue", 0)
             logger.info("Applied: BlockInsiderPreview")
 
         except Exception as e:
@@ -2481,6 +2495,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_user_dword_all_hives(
                 r"Software\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers",
                 "BackgroundType", 0, logger)
+            # Spotlight-on-welcome onboarding surface
+            set_user_dword_all_hives(
+                r"Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement",
+                "ShowSpotlightOnWelcome", 0, logger)
             # Per-hive CloudContent policies — block Spotlight features + the
             # per-user collection feeding them
             cloud = r"Software\Policies\Microsoft\Windows\CloudContent"
