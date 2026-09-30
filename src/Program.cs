@@ -952,7 +952,10 @@ public static class AppxManager
 
     /// <summary>Windows 11 25H2 policy: the OS removes the listed default Store
     /// packages at first sign-in of NEW user profiles. Unknown entries are
-    /// ignored by older builds — harmless forward-compat.</summary>
+    /// ignored by older builds — harmless forward-compat. The documented
+    /// mechanism is a subkey per package family name with RemovePackage=1,
+    /// plus DynamicRemovalList (REG_MULTI_SZ) for families the GPO UI does
+    /// not enumerate.</summary>
     public static void ApplyRemoveDefaultStorePackages(IEnumerable<string> familyNames)
     {
         var families = familyNames.ToArray();
@@ -964,11 +967,24 @@ public static class AppxManager
                 return;
             // Merge with existing entries — a family removed in an earlier
             // scan must stay listed or new users get it re-provisioned.
-            var prior = key.GetValue("PackageList") as string[] ?? Array.Empty<string>();
+            var prior = key.GetValue("DynamicRemovalList") as string[] ?? Array.Empty<string>();
             var merged = prior.Concat(families)
                 .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
             key.SetValue("Enabled", 1, Microsoft.Win32.RegistryValueKind.DWord);
-            key.SetValue("PackageList", merged, Microsoft.Win32.RegistryValueKind.MultiString);
+            key.SetValue("DynamicRemovalList", merged, Microsoft.Win32.RegistryValueKind.MultiString);
+            // Older builds of this tool wrote a non-standard PackageList
+            // value — drop it so only the documented mechanism remains.
+            try { key.DeleteValue("PackageList", throwOnMissingValue: false); }
+            catch { }
+            foreach (var family in merged)
+            {
+                try
+                {
+                    using var sub = key.CreateSubKey(family);
+                    sub?.SetValue("RemovePackage", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                }
+                catch { }
+            }
             families = merged;
             GuardLogger.Info($"Applied: RemoveDefaultStorePackages ({families.Length} families listed)");
         }

@@ -3370,7 +3370,12 @@ def mark_deprovisioned(family_names, logger: logging.Logger) -> int:
 def apply_remove_default_store_packages(family_names, logger: logging.Logger) -> bool:
     """Windows 11 25H2 policy: the OS itself removes the listed default Store
     packages at first sign-in of NEW user profiles. Unknown entries are ignored
-    by older builds — harmless forward-compat."""
+    by older builds — harmless forward-compat.
+
+    The documented mechanism is a subkey per package family name with
+    RemovePackage=1, plus DynamicRemovalList (REG_MULTI_SZ) for families the
+    GPO UI does not enumerate (zoicware/RemoveWindowsAI, appxpackagemanager
+    .admx)."""
     import winreg
     try:
         key = winreg.CreateKeyEx(winreg.HKEY_LOCAL_MACHINE,
@@ -3379,7 +3384,7 @@ def apply_remove_default_store_packages(family_names, logger: logging.Logger) ->
         # Merge with existing entries — a family removed in an earlier scan
         # must stay listed or new users get it re-provisioned.
         try:
-            prior = list(winreg.QueryValueEx(key, "PackageList")[0])
+            prior = list(winreg.QueryValueEx(key, "DynamicRemovalList")[0])
         except OSError:
             prior = []
         # Case-insensitive dedup (family names are case-insensitive in Appx
@@ -3391,7 +3396,22 @@ def apply_remove_default_store_packages(family_names, logger: logging.Logger) ->
                 seen.add(f.lower())
                 merged.append(f)
         winreg.SetValueEx(key, "Enabled", 0, winreg.REG_DWORD, 1)
-        winreg.SetValueEx(key, "PackageList", 0, winreg.REG_MULTI_SZ, merged)
+        winreg.SetValueEx(key, "DynamicRemovalList", 0,
+                          winreg.REG_MULTI_SZ, merged)
+        # Older builds of this tool wrote a non-standard PackageList value —
+        # drop it so only the documented mechanism remains.
+        try:
+            winreg.DeleteValue(key, "PackageList")
+        except OSError:
+            pass
+        for family in merged:
+            try:
+                sub = winreg.CreateKey(key, family)
+                winreg.SetValueEx(sub, "RemovePackage", 0,
+                                  winreg.REG_DWORD, 1)
+                sub.Close()
+            except OSError:
+                continue
         winreg.CloseKey(key)
         logger.info(f"Applied: RemoveDefaultStorePackages "
                     f"({len(merged)} families listed)")
