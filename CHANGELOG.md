@@ -5,6 +5,12 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- BSI (German federal SiSyPHuS work package) endpoint list
+  diff (via craiu/mobiletrackers): hosts 137->151 —
+  asimov/db5/geo settings-win akadns mirrors, au/de/uk
+  vortex-win + v20 events ingest, sandbox ingest variants.
+  Skipped: AppCenter/CodePush (per-app SDK telemetry, not OS),
+  trafficmanager dev endpoint.
 - TronScript (bmrf/tron) diff: blacklist +FrenchRiviera/
   Lucille/SeaofThieves stubs (187->190);
   DisableSearchSuggestions +AllowCortanaAboveLock.

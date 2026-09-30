@@ -2885,6 +2885,23 @@ _TELEMETRY_HOSTS = (
     # Experiences service — vortex-win.data.microsoft.com above is the
     # CNAME base, the live endpoints carry v10/v20 prefixes
     "v10.vortex-win.data.microsoft.com", "v20.vortex-win.data.microsoft.com",
+    # BSI (German federal) telemetry endpoint list — vortex/ARIA
+    # ingest regional + akadns + sandbox variants
+    "asimov-win.settings.data.microsoft.com.akadns.net",
+    "db5.settings-win.data.microsoft.com.akadns.net",
+    "db5-eap.settings-win.data.microsoft.com.akadns.net",
+    "geo.settings-win.data.microsoft.com.akadns.net",
+    "db5.vortex.data.microsoft.com.akadns.net",
+    "geo.vortex.data.microsoft.com.akadns.net",
+    "v10-win.vortex.data.microsoft.com.akadns.net",
+    "au-v20.events.data.microsoft.com",
+    "de-v20.events.data.microsoft.com",
+    "uk-v20.events.data.microsoft.com",
+    "au.vortex-win.data.microsoft.com",
+    "de.vortex-win.data.microsoft.com",
+    "uk.vortex-win.data.microsoft.com",
+    "events-sandbox.data.microsoft.com",
+    "vortex-win-sandbox.data.microsoft.com",
     # Desktop/Edge counterpart of the mobile ARIA pipe above
     "browser.pipe.aria.microsoft.com",
     # More WER/event-ingest names on the same events.data.microsoft.com pipe
