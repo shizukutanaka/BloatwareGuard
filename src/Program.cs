@@ -2111,7 +2111,7 @@ public static class RegistryGuard
             key?.SetValue("DisableConsumerAccountStateContent", 1, Microsoft.Win32.RegistryValueKind.DWord);
             // Settings "Home" page — the Microsoft 365 / account promo card
             using var exp = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(ExplorerPoliciesHklmPath);
-            exp?.SetValue("SettingsPageVisibility", "hide:home");
+            exp?.SetValue("SettingsPageVisibility", "hide:home;aicomponents;appactions");
             // Third-party content suggestions surface (sponsored tiles/ads)
             key?.SetValue("DisableThirdPartySuggestions", 1, Microsoft.Win32.RegistryValueKind.DWord);
             // App notifications must not show on the lock screen

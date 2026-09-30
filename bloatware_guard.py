@@ -1452,7 +1452,8 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                                "DisableConsumerAccountStateContent", 1)
             # Settings "Home" page — the Microsoft 365 / account promo card
             set_registry_string("HKLM", _EXPLORER_POLICIES_HKLM,
-                                "SettingsPageVisibility", "hide:home")
+                                "SettingsPageVisibility",
+                                "hide:home;aicomponents;appactions")
             # Third-party content suggestions surface (sponsored tiles/ads)
             set_registry_dword("HKLM", cloud_content, "DisableThirdPartySuggestions", 1)
             # App notifications must not show on the lock screen
