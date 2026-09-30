@@ -231,6 +231,13 @@ DEFAULT_BLACKLIST = [
     "COOKINGFEVER",
     "E046963F.LenovoCompanion",
     "LenovoCompanyLimited.LenovoVantageService",
+    # Debloat-Win11 diff — remaining OEM utility suites (audio/RGB/
+    # control-center promo ware) + Widgets platform runtime + the Start
+    # 'experiences' companion feed host
+    "WavesAudio", "DragonCenter", "MysticLight", "MSIAfterburner",
+    "ROGLiveService", "ArmouryCrate", "MyASUS", "ASUSPCAssistant",
+    "Razer", "AcerQuickAccess", "LenovoUtility",
+    "Microsoft.WidgetsPlatformRuntime", "Microsoft.StartExperiencesApp",
     # M365 companion suite promo (24H2) + stable Instagram (only the Beta
     # family was listed before)
     "Microsoft.M365Companions",

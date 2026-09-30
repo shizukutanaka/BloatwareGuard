@@ -576,6 +576,12 @@ public static class ConfigLoader
                 "COOKINGFEVER",
                 "E046963F.LenovoCompanion",
                 "LenovoCompanyLimited.LenovoVantageService",
+                // Debloat-Win11 diff — OEM utility suites (audio/RGB/
+                // control-center promo ware) + Widgets runtime + Start feed host
+                "WavesAudio", "DragonCenter", "MysticLight", "MSIAfterburner",
+                "ROGLiveService", "ArmouryCrate", "MyASUS", "ASUSPCAssistant",
+                "Razer", "AcerQuickAccess", "LenovoUtility",
+                "Microsoft.WidgetsPlatformRuntime", "Microsoft.StartExperiencesApp",
                 // M365 companion suite promo (24H2) + stable Instagram
                 "Microsoft.M365Companions",
                 "Facebook.Instagram",
