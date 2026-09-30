@@ -14,6 +14,15 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   `Prevention.DisableLegacyFeatures`. Skipped: Hyper-V (functional
   opt-in), WMP/MediaPlayback, SearchEngine package (search kept
   usable by design), PrintToPDF, SmbDirect (datacenter).
+- `DisableAppPermissions` ConsentStore runtime denies +26
+  (privacy.sexy BlockUWPAccessViaConsentStore diff): writes
+  `CapabilityAccessManager\ConsentStore\<cap>` `Value="Deny"` beneath
+  the existing AppPrivacy policies — account info, call history,
+  contacts, email, chat, motion/activity, notifications, phone, radios,
+  tasks, bluetooth sync, diagnostics, gaze/HID/presence/spatial
+  sensors, screen capture, appointments, broad file-system + media
+  libraries. Camera/mic/location deliberately left alone (same rule
+  as the policy set — legit apps need them).
 - `RemoveOptionalCapabilities` 6→17 entries (privacy.sexy
   UninstallCapability diff): `App.Support.QuickAssist` (inbox stub —
   Store successor is already blacklisted), deprecated

@@ -2805,6 +2805,20 @@ public static class RegistryGuard
         "LetAppsActivateWithVoice", "LetAppsActivateWithVoiceAboveLock",
     };
 
+    // ConsentStore capabilities denied at runtime (privacy.sexy diff).
+    // Camera/microphone/location excluded — legit apps still need them.
+    private static readonly string[] ConsentStoreDenies = {
+        "userAccountInformation", "phoneCallHistory", "contacts",
+        "email", "chat", "activity", "userNotificationListener",
+        "phoneCall", "radios", "userDataTasks", "bluetoothSync",
+        "bluetooth", "appDiagnostics", "gazeInput",
+        "graphicsCaptureProgrammatic", "graphicsCaptureWithoutBorder",
+        "humanInterfaceDevice", "humanPresence", "spatialPerception",
+        "backgroundSpatialPerception", "appointments",
+        "broadFileSystemAccess", "documentsLibrary",
+        "picturesLibrary", "musicLibrary", "videosLibrary",
+    };
+
     /// <summary>Layer 26: force-deny conservative AppPrivacy set.</summary>
     public static void DisableAppPermissions()
     {
@@ -2821,7 +2835,16 @@ public static class RegistryGuard
             using var findMy = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                 @"SOFTWARE\Policies\Microsoft\FindMyDevice");
             findMy?.SetValue("AllowFindMyDevice", 0, Microsoft.Win32.RegistryValueKind.DWord);
-            GuardLogger.Info($"Applied: DisableAppPermissions ({AppPrivacyDenies.Length} force-denied + ad-ID/FindMyDevice policies)");
+            // ConsentStore runtime denies — enforcement layer beneath the
+            // AppPrivacy policies above (privacy.sexy). Camera/mic/location
+            // deliberately left alone, same as the policy set.
+            foreach (var cap in ConsentStoreDenies)
+            {
+                using var capKey = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\" + cap);
+                capKey?.SetValue("Value", "Deny", Microsoft.Win32.RegistryValueKind.String);
+            }
+            GuardLogger.Info($"Applied: DisableAppPermissions ({AppPrivacyDenies.Length} force-denied + {ConsentStoreDenies.Length} ConsentStore denies + ad-ID/FindMyDevice policies)");
         }
         catch (Exception ex)
         {

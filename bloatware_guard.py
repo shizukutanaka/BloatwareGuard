@@ -1820,8 +1820,30 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_registry_dword("HKLM",
                            r"SOFTWARE\Policies\Microsoft\FindMyDevice",
                            "AllowFindMyDevice", 0)
+        # ConsentStore runtime denies — enforcement layer beneath the
+        # AppPrivacy policies above (privacy.sexy). Camera/mic/location
+        # deliberately left alone, same as the policy set: legitimate
+        # apps still need them.
+        consent_store = (
+            "userAccountInformation", "phoneCallHistory", "contacts",
+            "email", "chat", "activity", "userNotificationListener",
+            "phoneCall", "radios", "userDataTasks", "bluetoothSync",
+            "bluetooth", "appDiagnostics", "gazeInput",
+            "graphicsCaptureProgrammatic", "graphicsCaptureWithoutBorder",
+            "humanInterfaceDevice", "humanPresence", "spatialPerception",
+            "backgroundSpatialPerception", "appointments",
+            "broadFileSystemAccess", "documentsLibrary",
+            "picturesLibrary", "musicLibrary", "videosLibrary",
+        )
+        for cap in consent_store:
+            set_registry_string(
+                "HKLM",
+                r"SOFTWARE\Microsoft\Windows\CurrentVersion"
+                r"\CapabilityAccessManager\ConsentStore" + "\\" + cap,
+                "Value", "Deny")
         logger.info(f"Applied: DisableAppPermissions ({len(app_privacy)} "
-                    "force-denied + ad-ID/FindMyDevice policies)")
+                    f"force-denied + {len(consent_store)} ConsentStore denies + "
+                    "ad-ID/FindMyDevice policies)")
 
     if prev.get("DisablePrintSpooler", False):
         # Opt-in — kills the PrintNightmare surface but breaks printing
