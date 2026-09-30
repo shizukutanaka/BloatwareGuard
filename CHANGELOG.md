@@ -5,6 +5,9 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- T12 fix: py-side extraction now tolerates multi-line
+  set_registry_*( "HKLM", ... ) calls — the same blind spot that hid
+  the 2 misses it had just caught.
 - Self-test T12: HKLM write-path backup coverage — every literal-path
   registry write is asserted covered by _BACKUP_KEY_PATHS (both impls),
   turning the manual audit that found the gap into a permanent gate.

@@ -3554,7 +3554,7 @@ def run_self_test() -> int:
         backup = {p.lower() for p in _BACKUP_KEY_PATHS}
         py_writes = set()
         for m in re.finditer(
-                r'set_registry_(?:dword|string|qword)\("HKLM",\s*'
+                r'set_registry_(?:dword|string|qword)\(\s*"HKLM",\s*'
                 r'(?:r?"([^"]+)"|([a-zA-Z_]+))', src):
             t = m.group(1) or vars_.get(m.group(2))
             if t:
