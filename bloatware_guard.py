@@ -1013,6 +1013,8 @@ _BACKUP_KEY_PATHS = (
     r"SYSTEM\CurrentControlSet\Control\Diagnostics\Performance",
     r"SYSTEM\CurrentControlSet\Control\Lsa",
     r"SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters",
+    r"SOFTWARE\Microsoft\PolicyManager\current\device\Bluetooth",
+    r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\TextInput",
     r"SYSTEM\CurrentControlSet\Control\WMI\AutoLogger\AutoLogger-Diagtrack-Listener",
     r"SYSTEM\CurrentControlSet\Control\Session Manager",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\ReserveManager",
@@ -3537,6 +3539,50 @@ def run_self_test() -> int:
 
     check("T11: registry value-name parity (py <-> cs)",
           t_registry_value_parity)
+
+    def t_backup_path_coverage():
+        """Every HKLM key path the tool writes must be exported by
+        _BACKUP_KEY_PATHS (or by a parent/child of an entry) so `restore`
+        can revert it. A write without a backup is a one-way door — this
+        gate caught 15 such paths when first run manually. Resolves
+        simple `name = r"..."` path variables before checking; cs side
+        does the same against BackupKeyPaths. Repo checkouts only."""
+        src = Path(__file__).read_text(encoding="utf-8")
+        # module-level + function-local `name = r"..."` assignments
+        vars_ = dict(re.findall(r'^\s*([a-zA-Z_]+)\s*=\s*r?"([^"]+)"',
+                                src, re.M))
+        backup = {p.lower() for p in _BACKUP_KEY_PATHS}
+        py_writes = set()
+        for m in re.finditer(
+                r'set_registry_(?:dword|string|qword)\("HKLM",\s*'
+                r'(?:r?"([^"]+)"|([a-zA-Z_]+))', src):
+            t = m.group(1) or vars_.get(m.group(2))
+            if t:
+                py_writes.add(t.lower())
+        miss = sorted(w for w in py_writes
+                      if not any(w.startswith(b) or b.startswith(w)
+                                 for b in backup))
+        assert not miss, f"HKLM write paths with no backup: {miss}"
+        # cs: every literal-path CreateSubKey on LocalMachine must be
+        # covered by BackupKeyPaths (containment either direction)
+        cs = Path(__file__).parent / "src" / "Program.cs"
+        if not cs.exists():
+            return
+        cs_src = cs.read_text(encoding="utf-8", errors="ignore")
+        i = cs_src.find("BackupKeyPaths")
+        cs_backup = {p.lower() for p in re.findall(
+            r'@"([^"]+)"', cs_src[i:cs_src.find("};", i)])}
+        cs_writes = set(re.findall(
+            r'(?:LocalMachine|Registry\.LocalMachine)\.CreateSubKey'
+            r'\(\s*@?"([^"]+)"', cs_src))
+        miss_cs = sorted(
+            w.lower() for w in cs_writes
+            if not any(w.lower().startswith(b) or b.startswith(w.lower())
+                       for b in cs_backup))
+        assert not miss_cs, \
+            f"HKLM write paths in Program.cs with no backup: {miss_cs}"
+
+    check("T12: HKLM write-path backup coverage", t_backup_path_coverage)
 
     print()
     passed = 0

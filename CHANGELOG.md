@@ -5,6 +5,11 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- Self-test T12: HKLM write-path backup coverage — every literal-path
+  registry write is asserted covered by _BACKUP_KEY_PATHS (both impls),
+  turning the manual audit that found the gap into a permanent gate.
+  It immediately caught 2 more misses (TextInput + Bluetooth PolicyManager
+  from the hellzerg diff) — added (84->86).
 - Backup coverage fix: 15 HKLM write paths were not in
   _BACKUP_KEY_PATHS, so `restore` could not revert them — CBS
   deprovision marker, DiagTrack EventTranscriptKey, Explorer

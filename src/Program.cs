@@ -3108,6 +3108,8 @@ public static class RegistryGuard
                 @"SYSTEM\CurrentControlSet\Control\Diagnostics\Performance",
                 @"SYSTEM\CurrentControlSet\Control\Lsa",
                 @"SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters",
+                @"SOFTWARE\Microsoft\PolicyManager\current\device\Bluetooth",
+                @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\TextInput",
         // --- coverage completion (audit: every HKLM write path backed up) ---
         @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\UnattendSettings\SQMClient",
         @"SOFTWARE\Microsoft\WindowsRuntime\ActivatableClassId",
