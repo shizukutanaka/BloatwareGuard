@@ -2844,7 +2844,7 @@ public static class RegistryGuard
 
                 // Deprecated TLS 1.0/1.1 protocols off (Winnow/BSI guidance):
                 // Enabled=0 + DisabledByDefault=1 removes weak-protocol surface
-                foreach (var tls in new[] { "TLS 1.0", "TLS 1.1" })
+                foreach (var tls in new[] { "SSL 2.0", "SSL 3.0", "TLS 1.0", "TLS 1.1" })
                     foreach (var end in new[] { "Client", "Server" })
                     {
                         using var sch = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
@@ -2878,6 +2878,23 @@ public static class RegistryGuard
                 // hashes, NTLMv2-only, DMA-under-lock off
                 lsa?.SetValue("NoLMHash", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 lsa?.SetValue("LmCompatibilityLevel", 5, Microsoft.Win32.RegistryValueKind.DWord);
+                lsa?.SetValue("EveryoneIncludesAnonymous", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                lsa?.SetValue("NoDefaultAdminOwner", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                lsa?.SetValue("LimitBlankPasswordUse", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                lsa?.SetValue("SCENoApplyLegacyAuditPolicy", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // NTLM traffic restrict + audit (MSV1_0, RegiLattice)
+                using var msv = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0");
+                msv?.SetValue("RestrictSendingNTLMTraffic", 2, Microsoft.Win32.RegistryValueKind.DWord);
+                msv?.SetValue("AuditReceivingNTLMTraffic", 2, Microsoft.Win32.RegistryValueKind.DWord);
+                // Command line in process-creation audit events
+                using var audit = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Audit");
+                audit?.SetValue("ProcessCreationIncludeCmdLine_Enabled", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // LMHOSTS lookup off (NetBT side-channel)
+                using var netbt = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SYSTEM\CurrentControlSet\Services\NetBT\Parameters");
+                netbt?.SetValue("EnableLMHOSTS", 0, Microsoft.Win32.RegistryValueKind.DWord);
                 using var fve = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\FVE");
                 fve?.SetValue("DisableExternalDMAUnderLock", 1, Microsoft.Win32.RegistryValueKind.DWord);
@@ -3865,6 +3882,7 @@ public static class RegistryGuard
         @"SOFTWARE\Policies\Microsoft\Dsh",
         @"SOFTWARE\Policies\Microsoft\Windows\Windows Feeds",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Audit",
         @"SOFTWARE\Policies\Microsoft\Windows\System",
         @"SOFTWARE\Policies\Microsoft\Edge",
         @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\ClientTelemetry",
@@ -3881,6 +3899,7 @@ public static class RegistryGuard
         @"SOFTWARE\Policies\Microsoft\WindowsInkWorkspace",
         @"SYSTEM\CurrentControlSet\Control\WMI\AutoLogger\AutoLogger-Diagtrack-Listener",
         @"SYSTEM\CurrentControlSet\Control\Session Manager",
+        @"SYSTEM\CurrentControlSet\Services\NetBT\Parameters",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\ReserveManager",
         @"SYSTEM\CurrentControlSet\Control\Remote Assistance",
         @"SOFTWARE\Policies\Microsoft\Windows\PreviewBuilds",

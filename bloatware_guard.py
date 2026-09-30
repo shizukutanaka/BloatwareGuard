@@ -1054,6 +1054,7 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Policies\Microsoft\Dsh",
     r"SOFTWARE\Policies\Microsoft\Windows\Windows Feeds",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
+    r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Audit",
     r"SOFTWARE\Policies\Microsoft\Windows\System",
     r"SOFTWARE\Policies\Microsoft\Edge",
     r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\ClientTelemetry",
@@ -1110,6 +1111,7 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Policies\Microsoft\Windows\Windows Chat",
     r"SYSTEM\CurrentControlSet\Control\WMI\AutoLogger\AutoLogger-Diagtrack-Listener",
     r"SYSTEM\CurrentControlSet\Control\Session Manager",
+    r"SYSTEM\CurrentControlSet\Services\NetBT\Parameters",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\ReserveManager",
     r"SYSTEM\CurrentControlSet\Control\Remote Assistance",
     r"SOFTWARE\Policies\Microsoft\Windows\PreviewBuilds",
@@ -2045,6 +2047,38 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword("HKLM",
                                r"SYSTEM\CurrentControlSet\Control\Lsa",
                                "LmCompatibilityLevel", 5)
+            # Lsa anonymous-access + blank-password hardening (RegiLattice)
+            set_registry_dword("HKLM",
+                               r"SYSTEM\CurrentControlSet\Control\Lsa",
+                               "EveryoneIncludesAnonymous", 0)
+            set_registry_dword("HKLM",
+                               r"SYSTEM\CurrentControlSet\Control\Lsa",
+                               "NoDefaultAdminOwner", 1)
+            set_registry_dword("HKLM",
+                               r"SYSTEM\CurrentControlSet\Control\Lsa",
+                               "LimitBlankPasswordUse", 1)
+            set_registry_dword("HKLM",
+                               r"SYSTEM\CurrentControlSet\Control\Lsa",
+                               "SCENoApplyLegacyAuditPolicy", 1)
+            # NTLM traffic restrict + audit (MSV1_0)
+            set_registry_dword(
+                "HKLM",
+                r"SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0",
+                "RestrictSendingNTLMTraffic", 2)
+            set_registry_dword(
+                "HKLM",
+                r"SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0",
+                "AuditReceivingNTLMTraffic", 2)
+            # Command line in process-creation audit events
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Audit",
+                "ProcessCreationIncludeCmdLine_Enabled", 1)
+            # LMHOSTS lookup off (NetBT name-resolution side-channel)
+            set_registry_dword(
+                "HKLM",
+                r"SYSTEM\CurrentControlSet\Services\NetBT\Parameters",
+                "EnableLMHOSTS", 0)
             set_registry_dword(
                 "HKLM",
                 r"SOFTWARE\Policies\Microsoft\FVE",
@@ -2334,7 +2368,7 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                         "privacy surfaces set)")
             # Deprecated TLS 1.0/1.1 protocols off (Winnow/BSI guidance):
             # weak-protocol surface removal — Enabled=0 + DisabledByDefault=1
-            for _tls in ("TLS 1.0", "TLS 1.1"):
+            for _tls in ("SSL 2.0", "SSL 3.0", "TLS 1.0", "TLS 1.1"):
                 for _end in ("Client", "Server"):
                     _p = (r"SYSTEM\CurrentControlSet\Control\SecurityProviders"
                           r"\SCHANNEL\Protocols" + "\\" + _tls + "\\" + _end)

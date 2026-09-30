@@ -5,6 +5,17 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- RajwanYair/RegiLattice security packs (same source):
+  protocol/account hardening +9 — SSL 2.0/3.0 kill (extends
+  TLS deprecation loop), Lsa `EveryoneIncludesAnonymous`=0 /
+  `NoDefaultAdminOwner`=1 / `LimitBlankPasswordUse`=1 /
+  `SCENoApplyLegacyAuditPolicy`=1, MSV1_0 NTLM
+  `RestrictSendingNTLMTraffic`=2 + `AuditReceivingNTLMTraffic`=2,
+  `Audit\ProcessCreationIncludeCmdLine`=1, `NetBT\Parameters\
+  EnableLMHOSTS`=0. backup 103→105. Skipped: RunAsPPL/
+  LsaCfgFlags (PPL boundary), Defender Spynet, FIPS mode,
+  RestrictedAdmin (RDP functional), RestrictAnonymous=2
+  (enumeration-upgrade risk over current =1).
 - RajwanYair/RegiLattice (new source, 7,718-tweak registry
   toolkit): telemetry surface +5 — `DevDrive\DisableTelemetry`=1
   (Dev Drive telemetry), `Lxss\EnableTelemetry`=0 (WSL),
