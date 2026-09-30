@@ -5,6 +5,9 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- C# service ops: install/stop/delete waited with 60/30s timeouts
+  (stop now completes before delete fires), `sc query` output read
+  bounded instead of an unbounded synchronous `ReadToEnd`.
 - Service install/uninstall/status shell-outs now go through `run_cmd`
   (30s timeout) instead of bare `subprocess.run` — a hung SCM or missing
   NSSM can no longer stall the admin CLI paths.

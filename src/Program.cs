@@ -4308,7 +4308,7 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
             UseShellExecute = true,
             Verb = "runas"
         };
-        Process.Start(psi);
+        Process.Start(psi)?.WaitForExit(60000);
         GuardLogger.Info("Service installed (idempotent, restart-on-failure: 60s/60s/5min). Use 'sc start BloatwareGuard' to start.");
     }
 
@@ -4323,7 +4323,7 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
             UseShellExecute = true,
             Verb = "runas"
         };
-        Process.Start(stopPsi);
+        Process.Start(stopPsi)?.WaitForExit(30000);
         var psi = new ProcessStartInfo
         {
             FileName = "sc.exe",
@@ -4331,7 +4331,7 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
             UseShellExecute = true,
             Verb = "runas"
         };
-        Process.Start(psi);
+        Process.Start(psi)?.WaitForExit(30000);
         GuardLogger.Info("Service uninstalled.");
 
         // The hosts block is tool-owned runtime state that outlives the
@@ -4354,7 +4354,14 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
             CreateNoWindow = true
         };
         using var proc = Process.Start(psi);
-        Console.WriteLine(proc?.StandardOutput.ReadToEnd());
+        if (proc != null)
+        {
+            var outTask = proc.StandardOutput.ReadToEndAsync();
+            proc.WaitForExit(30000);
+            outTask.Wait(5000);
+            Console.WriteLine(outTask.Status == TaskStatus.RanToCompletion
+                ? outTask.Result : "");
+        }
     }
 
     /// <summary>Re-register staged AppxPackages recorded in the removal ledger.
