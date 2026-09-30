@@ -5,6 +5,8 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- T6 now asserts all 46 prevention keys exist in Program.cs —
+  a py-only toggle would otherwise skip silently on the C# build.
 - T9 now asserts root `config.json` == `src/config.json` — the C#
   build ships the src copy, which had drifted unnoticed before.
 - T11 now asserts both directions: cs-only names (e.g. a value name

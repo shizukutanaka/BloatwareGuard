@@ -3213,6 +3213,13 @@ def run_self_test() -> int:
                     "DisableModernStandbyNetworking"]
         missing = [k for k in required if k not in prev]
         assert not missing, f"missing prevention keys: {missing}"
+        # every prevention key must exist in the C# mirror too
+        cs = Path(__file__).parent / "src" / "Program.cs"
+        if cs.exists():
+            cs_src = cs.read_text(encoding="utf-8", errors="ignore")
+            miss_cs = [k for k in required if k not in cs_src]
+            assert not miss_cs, \
+                f"prevention keys missing from Program.cs: {miss_cs}"
 
     def t_removal_ledger():
         with tempfile.TemporaryDirectory() as td:
