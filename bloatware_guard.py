@@ -1123,6 +1123,8 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\UnattendSettings\SQMClient",
     r"SOFTWARE\Microsoft\WindowsRuntime\ActivatableClassId",
     r"SOFTWARE\Microsoft\WindowsSelfHost\UI\Visibility",
+    r"SOFTWARE\Microsoft\WindowsSelfHost\UI\Strings",
+    r"SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsStore\WindowsUpdate",
     r"SOFTWARE\Microsoft\WindowsUpdate\Orchestrator",
     r"SOFTWARE\Microsoft\WindowsUpdate\UX\Settings",
     r"SYSTEM\Setup\UpgradeNotification",
@@ -2186,6 +2188,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             store = r"SOFTWARE\Policies\Microsoft\WindowsStore"
             set_registry_dword("HKLM", store, "AutoDownload", 4)
             set_registry_dword("HKLM", store, "DisableOSUpgrade", 1)
+            # Legacy (non-policy) sibling for pre-policy hosts (speedup-windows10)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsStore\WindowsUpdate",
+                "AutoDownload", 2)
             # Block the OOBE updater that pushes "New Outlook" via WU
             # (ReviOS updates.yml)
             set_registry_string(
@@ -2689,6 +2696,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword("HKLM",
                                r"SOFTWARE\Microsoft\WindowsSelfHost\UI\Visibility",
                                "HideInsiderPage", 1)
+            # Insider diagnostic-data nag strings blanked (speedup-windows10)
+            for _sv in ("DiagnosticErrorText", "DiagnosticLinkText"):
+                set_registry_string(
+                    "HKLM", r"SOFTWARE\Microsoft\WindowsSelfHost\UI\Strings",
+                    _sv, "")
             set_registry_dword(
                 "HKLM",
                 r"SOFTWARE\Policies\Microsoft\Windows\PreviewBuilds",

@@ -5,6 +5,13 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- speedup-windows10 (balsamleti, new source): +2 —
+  WindowsSelfHost\UI\Strings DiagnosticErrorText/
+  DiagnosticLinkText blanked (insider diagnostic nag),
+  legacy WindowsStore\WindowsUpdate AutoDownload=2
+  (pre-policy store update suppression). Skipped:
+  NoAutoUpdate/SetACL own-take (WU kill — boundary),
+  AllowLockScreen=0 (UI).
 - Reclaim (jonax1337/Reclaim, Tauri debloat tool, new
   source): hosts +3 (ads.yahoo.com, advertising.yahoo.com,
   feedback.microsoft.com). Skipped: msftncsi (NCSI —

@@ -3004,6 +3004,10 @@ public static class RegistryGuard
                     @"SOFTWARE\Policies\Microsoft\WindowsStore");
                 store?.SetValue("AutoDownload", 4, Microsoft.Win32.RegistryValueKind.DWord);
                 store?.SetValue("DisableOSUpgrade", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // Legacy (non-policy) sibling for pre-policy hosts
+                using var storeU = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsStore\WindowsUpdate");
+                storeU?.SetValue("AutoDownload", 2, Microsoft.Win32.RegistryValueKind.DWord);
                 // Block the OOBE updater that pushes "New Outlook" via WU
                 using var uoob = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Microsoft\WindowsUpdate\Orchestrator\UScheduler_Oobe");
@@ -3857,6 +3861,8 @@ public static class RegistryGuard
         @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\UnattendSettings\SQMClient",
         @"SOFTWARE\Microsoft\WindowsRuntime\ActivatableClassId",
         @"SOFTWARE\Microsoft\WindowsSelfHost\UI\Visibility",
+        @"SOFTWARE\Microsoft\WindowsSelfHost\UI\Strings",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsStore\WindowsUpdate",
         @"SOFTWARE\Microsoft\WindowsUpdate\Orchestrator",
         @"SOFTWARE\Microsoft\WindowsUpdate\UX\Settings",
         @"SYSTEM\Setup\UpgradeNotification",
@@ -4183,6 +4189,11 @@ public static class RegistryGuard
                 @"SOFTWARE\Microsoft\WindowsSelfHost\UI\Visibility");
             sh?.SetValue("HideInsiderPage", 1,
                          Microsoft.Win32.RegistryValueKind.DWord);
+            // Insider diagnostic-data nag strings blanked (speedup-windows10)
+            using var shs = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Microsoft\WindowsSelfHost\UI\Strings");
+            foreach (var sv in new[] { "DiagnosticErrorText", "DiagnosticLinkText" })
+                shs?.SetValue(sv, "", Microsoft.Win32.RegistryValueKind.String);
             pb?.SetValue("ManagePreviewBuildsPolicyValue", 0,
                          Microsoft.Win32.RegistryValueKind.DWord);
             GuardLogger.Info("Applied: BlockInsiderPreview");
