@@ -2447,6 +2447,10 @@ public static class RegistryGuard
                 using var wuux = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Microsoft\WindowsUpdate\UX\Settings");
                 wuux?.SetValue("HideMCTLink", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // Feature-upgrade offer nag (ReviOS updates.yml)
+                using var upg = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SYSTEM\Setup\UpgradeNotification");
+                upg?.SetValue("UpgradeAvailable", 0, Microsoft.Win32.RegistryValueKind.DWord);
                 // WMP legacy auto-update channel (dead on modern builds)
                 using var wmp = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\WindowsMediaPlayer");
@@ -3209,6 +3213,7 @@ public static class RegistryGuard
         @"SOFTWARE\Microsoft\WindowsSelfHost\UI\Visibility",
         @"SOFTWARE\Microsoft\WindowsUpdate\Orchestrator",
         @"SOFTWARE\Microsoft\WindowsUpdate\UX\Settings",
+        @"SYSTEM\Setup\UpgradeNotification",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Communications",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Device Installer",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\DriverSearching",

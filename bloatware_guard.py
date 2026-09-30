@@ -1086,6 +1086,7 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Microsoft\WindowsSelfHost\UI\Visibility",
     r"SOFTWARE\Microsoft\WindowsUpdate\Orchestrator",
     r"SOFTWARE\Microsoft\WindowsUpdate\UX\Settings",
+    r"SYSTEM\Setup\UpgradeNotification",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Communications",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Device Installer",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\DriverSearching",
@@ -1872,6 +1873,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword("HKLM",
                                r"SOFTWARE\Microsoft\WindowsUpdate\UX\Settings",
                                "HideMCTLink", 1)
+            # Feature-upgrade offer nag (ReviOS updates.yml)
+            set_registry_dword("HKLM",
+                               r"SYSTEM\Setup\UpgradeNotification",
+                               "UpgradeAvailable", 0)
             # WMP legacy auto-update channel (dead on modern builds)
             set_registry_dword("HKLM",
                                r"SOFTWARE\Policies\Microsoft\WindowsMediaPlayer",

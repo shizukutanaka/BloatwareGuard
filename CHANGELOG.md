@@ -5,6 +5,9 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- ReviOS updates.yml: DisableWindowsUpdateBloat +SYSTEM\Setup\
+  UpgradeNotification UpgradeAvailable=0 (feature-upgrade offer nag off).
+  Backup keys 92->93.
 - ReviOS privacy.yml: DisableErrorReporting +PCHealth\HelpSvc
   Headlines/MicrosoftKBSearch=0 (online-help fetch channels off).
   Backup keys 91->92.
