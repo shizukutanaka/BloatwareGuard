@@ -2796,6 +2796,17 @@ public static class RegistryGuard
                     dn?.SetValue("AllowStrongNameBypass", 0, Microsoft.Win32.RegistryValueKind.DWord);
                 }
 
+                // Deprecated TLS 1.0/1.1 protocols off (Winnow/BSI guidance):
+                // Enabled=0 + DisabledByDefault=1 removes weak-protocol surface
+                foreach (var tls in new[] { "TLS 1.0", "TLS 1.1" })
+                    foreach (var end in new[] { "Client", "Server" })
+                    {
+                        using var sch = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                            $@"SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\{tls}\{end}");
+                        sch?.SetValue("Enabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                        sch?.SetValue("DisabledByDefault", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                    }
+
                 // Attack/diagnostics surface hardening (Atlas playbook):
                 // LLMNR off, anonymous SAM / null-session enumeration off,
                 // perf-scenario + RSOP + DiagTrack event-transcript off
@@ -3021,6 +3032,17 @@ public static class RegistryGuard
             SetUserDwordAllHives(
                 @"Software\Microsoft\Windows\CurrentVersion\CDP\SettingsPage",
                 "NearShareChannelUserAuthzPolicy", 0);
+            // Cross-Device Resume off (unslop-windows): MDM PolicyManager
+            // gate stops sihost spawning CrossDeviceResumeHost at logon
+            using var cdr = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Microsoft\PolicyManager\default\Connectivity\DisableCrossDeviceResume");
+            cdr?.SetValue("value", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            SetUserDwordAllHives(
+                @"Software\Microsoft\Windows\CurrentVersion\CrossDeviceResume\Configuration",
+                "IsResumeAllowed", 0);
+            SetUserDwordAllHives(
+                @"Software\Microsoft\Windows\CurrentVersion\CrossDeviceResume\Configuration",
+                "IsOneDriveResumeAllowed", 0);
             SetUserDwordAllHives(
                 @"Software\Policies\Microsoft\Windows\CloudContent",
                 "DisableTailoredExperiencesWithDiagnosticData", 1);
@@ -3847,6 +3869,11 @@ public static class RegistryGuard
         @"SOFTWARE\Policies\Microsoft\Windows\TabletPC",
         @"SOFTWARE\Policies\Microsoft\WindowsNotepad",
         @"SYSTEM\CurrentControlSet\Control\FeatureManagement\Overrides\8",
+        @"SOFTWARE\Microsoft\PolicyManager\default\Connectivity\DisableCrossDeviceResume",
+        @"SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Client",
+        @"SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Server",
+        @"SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Client",
+        @"SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Server",
     };
     private static readonly string[] ExtraBackupServiceNames =
     {
@@ -3932,6 +3959,7 @@ public static class RegistryGuard
         @"Software\Policies\Microsoft\OneDrive",
         @"Software\Policies\Microsoft\Windows\WorkplaceJoin",
         @"System\GameConfigStore",
+        @"Software\Microsoft\Windows\CurrentVersion\CrossDeviceResume\Configuration",
     };
     private static bool _backupDone;
 

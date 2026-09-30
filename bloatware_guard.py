@@ -1148,6 +1148,11 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Policies\Microsoft\Windows\TabletPC",
     r"SOFTWARE\Policies\Microsoft\WindowsNotepad",
     r"SYSTEM\CurrentControlSet\Control\FeatureManagement\Overrides\8",
+    r"SOFTWARE\Microsoft\PolicyManager\default\Connectivity\DisableCrossDeviceResume",
+    r"SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Client",
+    r"SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Server",
+    r"SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Client",
+    r"SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Server",
 )
 _registry_backup_done = False
 
@@ -1292,6 +1297,7 @@ _USER_BACKUP_KEY_PATHS = (
     r"Software\Policies\Microsoft\OneDrive",
     r"Software\Policies\Microsoft\Windows\WorkplaceJoin",
     r"System\GameConfigStore",
+    r"Software\Microsoft\Windows\CurrentVersion\CrossDeviceResume\Configuration",
 )
 
 
@@ -2200,6 +2206,15 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             # Nearby Share consent — same CDP auth-policy family
             set_user_dword_all_hives(cdp + r"\SettingsPage",
                                      "NearShareChannelUserAuthzPolicy", 0, logger)
+            # Cross-Device Resume off (unslop-windows): MDM PolicyManager
+            # gate stops sihost spawning CrossDeviceResumeHost at logon
+            set_registry_dword("HKLM",
+                               r"SOFTWARE\Microsoft\PolicyManager\default\Connectivity\DisableCrossDeviceResume",
+                               "value", 1)
+            resume = (r"Software\Microsoft\Windows\CurrentVersion"
+                      r"\CrossDeviceResume\Configuration")
+            set_user_dword_all_hives(resume, "IsResumeAllowed", 0, logger)
+            set_user_dword_all_hives(resume, "IsOneDriveResumeAllowed", 0, logger)
             # Per-user policy stragglers (ReviOS privacy.yml): Explorer online
             # wizards, Help & Support feedback channel, EdgeUI MFU tracking,
             # NVIDIA CEIP opt-out
@@ -2219,6 +2234,14 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "OptInOrOutPreference", 0, logger)
             logger.info("Applied: DisableTelemetry (AllowTelemetry=0, DiagTrack off, "
                         "privacy surfaces set)")
+            # Deprecated TLS 1.0/1.1 protocols off (Winnow/BSI guidance):
+            # weak-protocol surface removal — Enabled=0 + DisabledByDefault=1
+            for _tls in ("TLS 1.0", "TLS 1.1"):
+                for _end in ("Client", "Server"):
+                    _p = (r"SYSTEM\CurrentControlSet\Control\SecurityProviders"
+                          r"\SCHANNEL\Protocols" + "\\" + _tls + "\\" + _end)
+                    set_registry_dword("HKLM", _p, "Enabled", 0)
+                    set_registry_dword("HKLM", _p, "DisabledByDefault", 1)
 
         except Exception as e:
             logger.warning(f"DisableTelemetry layer failed: {e}")

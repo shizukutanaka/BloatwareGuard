@@ -5,6 +5,15 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- unslop-windows (PyPie-Studio, new source) + Winnow
+  (BiosSystem, new source): Cross-Device Resume kill —
+  MDM PolicyManager DisableCrossDeviceResume + per-user
+  IsResumeAllowed/IsOneDriveResumeAllowed (stops sihost
+  spawning CrossDeviceResumeHost at logon, 24H2+); TLS
+  1.0/1.1 deprecation (SCHANNEL Enabled=0 +
+  DisabledByDefault=1, Client+Server both). Skipped:
+  Office Copilot policy (vendor), RDP/GPU-scheduler/
+  BitLocker (functional/security boundary).
 - 5cover/WinClean (new source): blacklist +2
   (BethesdaSoftworks.FalloutShelter, Microsoft.Advertising).
   Sycnex-derived scripts otherwise fully covered.
