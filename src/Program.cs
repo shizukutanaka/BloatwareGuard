@@ -2836,6 +2836,11 @@ public static class RegistryGuard
                     @"SOFTWARE\Policies\Microsoft\Windows NT\Printers");
                 pr?.SetValue("DisableHTTPPrinting", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 pr?.SetValue("DisableWebPnPDownload", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // UPnP device registrar kill — legacy network-device discovery
+                // surface (soswod/Windows-On-Reins)
+                using var wcn = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\WCN\Registrars");
+                wcn?.SetValue("DisableUPnPRegistrar", 0, Microsoft.Win32.RegistryValueKind.DWord);
                 using var ep = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer");
                 ep?.SetValue("NoOnlinePrintsWizard", 1, Microsoft.Win32.RegistryValueKind.DWord);
@@ -3072,6 +3077,8 @@ public static class RegistryGuard
                 @"SOFTWARE\Microsoft\WcmSvc\wifinetworkmanager\features", true);
             wcmf?.SetValue("PaidWifi", 0, RegistryValueKind.DWord);
             wcmf?.SetValue("WiFiSenseOpen", 0, RegistryValueKind.DWord);
+            // Wi-Fi Sense credential sharing (soswod/Windows-On-Reins)
+            wcmf?.SetValue("WiFiSenseCredShared", 0, RegistryValueKind.DWord);
             using var wcmc = Registry.LocalMachine.CreateSubKey(
                 @"SOFTWARE\Microsoft\WcmSvc\wifinetworkmanager\config", true);
             wcmc?.SetValue("AutoConnectAllowedOEM", 0, RegistryValueKind.DWord);
@@ -3383,6 +3390,10 @@ public static class RegistryGuard
             key?.SetValue("StartupBoostEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("AllowPrelaunch", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("HideFirstRunExperience", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            // Edge search-provider suggestions upload (soswod SearchScopes)
+            using var searchScopes = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Policies\Microsoft\MicrosoftEdge\SearchScopes");
+            searchScopes?.SetValue("ShowSearchSuggestionsGlobal", 0, Microsoft.Win32.RegistryValueKind.DWord);
             // Shopping assistant, content recommendations, error-page web
             // service calls and user feedback — all upload/suggestion surfaces
             key?.SetValue("EdgeShoppingAssistantEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
@@ -3983,6 +3994,8 @@ public static class RegistryGuard
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\generativeAI",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\RunNotification",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\Deprovisioned",
+        @"SOFTWARE\Policies\Microsoft\MicrosoftEdge\SearchScopes",
+        @"SOFTWARE\Policies\Microsoft\Windows\WCN\Registrars",
         @"SOFTWARE\Policies\Microsoft\Windows\Appx",
         @"SOFTWARE\Policies\Microsoft\Windows\Appx\RemoveDefaultMicrosoftStorePackages",
                 @"SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing",

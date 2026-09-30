@@ -1087,6 +1087,8 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\systemAIModels",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\generativeAI",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\RunNotification",
+    r"SOFTWARE\Policies\Microsoft\MicrosoftEdge\SearchScopes",
+    r"SOFTWARE\Policies\Microsoft\Windows\WCN\Registrars",
     r"SOFTWARE\Policies\Microsoft\Windows\Appx",
     r"SOFTWARE\Policies\Microsoft\Windows\Appx"
     r"\RemoveDefaultMicrosoftStorePackages",
@@ -2027,6 +2029,12 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             printers = r"SOFTWARE\Policies\Microsoft\Windows NT\Printers"
             set_registry_dword("HKLM", printers, "DisableHTTPPrinting", 1)
             set_registry_dword("HKLM", printers, "DisableWebPnPDownload", 1)
+            # UPnP device registrar kill — legacy network-device discovery
+            # surface (soswod/Windows-On-Reins)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Policies\Microsoft\Windows\WCN\Registrars",
+                "DisableUPnPRegistrar", 0)
             # Explorer online wizards (ReviOS privacy.yml; HKLM + per-user below)
             exp_pol = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer"
             for v in ("NoOnlinePrintsWizard", "NoPublishingWizard",
@@ -2282,6 +2290,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             wcm = r"SOFTWARE\Microsoft\WcmSvc\wifinetworkmanager"
             for v in ("PaidWifi", "WiFiSenseOpen"):
                 set_registry_dword("HKLM", wcm + r"\features", v, 0)
+            # Wi-Fi Sense credential sharing (soswod/Windows-On-Reins)
+            set_registry_dword(
+                "HKLM", wcm + r"\features", "WiFiSenseCredShared", 0)
             set_registry_dword("HKLM", wcm + r"\config",
                                "AutoConnectAllowedOEM", 0)
             wifi = r"SOFTWARE\Microsoft\PolicyManager\default\WiFi"
@@ -2552,6 +2563,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                          # Edge desktop-analytics telemetry (WGO)
                          "ConfigureTelemetryForDesktop"):
                 set_registry_dword("HKLM", edge_pol, name, 0)
+            # Edge search-provider suggestions upload (soswod SearchScopes)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Policies\Microsoft\MicrosoftEdge\SearchScopes",
+                "ShowSearchSuggestionsGlobal", 0)
             set_registry_dword("HKLM", edge_pol, "StartupBoostEnabled", 0)
             set_registry_dword("HKLM", edge_pol, "AllowPrelaunch", 0)
             set_registry_dword("HKLM", edge_pol, "HideFirstRunExperience", 1)
