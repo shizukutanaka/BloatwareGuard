@@ -2,6 +2,13 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.59.3-mvp: verify_scan_sys.ps1 parse fix
+
+### Fixed
+- `verify_scan_sys.ps1` ended with a stray unterminated `"` — the whole file
+  failed PowerShell parsing, so the SYSTEM-context verification path could
+  not execute at all. Trailing character removed.
+
 ## [Unreleased] — v1.59.2-mvp: deploy/docstaleness + exe metadata
 
 ### Fixed

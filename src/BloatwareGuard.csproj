@@ -14,8 +14,8 @@
     <TrimmerRemoveSymbols>true</TrimmerRemoveSymbols>
     <RootNamespace>BloatwareGuard</RootNamespace>
     <AssemblyName>BloatwareGuard</AssemblyName>
-    <Version>1.59.2</Version>
-    <InformationalVersion>1.59.2-mvp</InformationalVersion>
+    <Version>1.59.3</Version>
+    <InformationalVersion>1.59.3-mvp</InformationalVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 

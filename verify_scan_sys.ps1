@@ -56,4 +56,3 @@ fc C:\temp\before.reg C:\temp\after.reg | findstr /i "CloudContent\|Consumer\|Di
 "Reboot required. After reboot + 10min, check:" | Out-File -Append $log
 "  Get-AppxPackage | Where-Object { `$_.Name -like '*Xbox*' }" | Out-File -Append $log
 "  Get-AppxProvisionedPackage" | Out-File -Append $log
-"
