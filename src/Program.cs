@@ -868,6 +868,7 @@ public static class AppxManager
     internal static bool IsPackageNameSafe(string name) =>
         !string.IsNullOrEmpty(name) && PackageNamePattern.IsMatch(name);
 
+
     /// <summary>Get-AppxProvisionedPackage returns no PublisherId — the
     /// publisher is the last '_' segment of PackageName. PackageName is
     /// Name_version_arch_[resourceid_]_publisher, and the name itself may
@@ -3892,6 +3893,9 @@ public static class WingetGuard
     private static readonly Regex WingetIdPattern =
         new(@"^[A-Za-z0-9_.\-]+$", RegexOptions.Compiled);
 
+    internal static bool WingetIdIsMatch(string name) =>
+        !string.IsNullOrEmpty(name) && WingetIdPattern.IsMatch(name);
+
     /// <summary>Uninstall blacklist entries that look like winget package ids
     /// via `winget uninstall --silent --disable-interactivity`. Catches Store
     /// apps winget can see but Get-AppxPackage can't. No-op when winget is absent.</summary>
@@ -4616,6 +4620,33 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
                 else
                 {
                     GuardLogger.Warn($"Restore failed: {name} — reinstall via Microsoft Store");
+                    manual++;
+                }
+            }
+            else if (kind == "winget" && !string.IsNullOrEmpty(name))
+            {
+                if (!WingetGuard.WingetIdIsMatch(name))
+                {
+                    manual++;
+                    continue;
+                }
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "winget",
+                    Arguments = $"install -e --id {name} --silent "
+                        + "--disable-interactivity --accept-source-agreements "
+                        + "--accept-package-agreements",
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                if (Proc.Wait(psi, 300000) == 0)
+                {
+                    GuardLogger.Info($"Restored via winget: {name}");
+                    restored++;
+                }
+                else
+                {
+                    GuardLogger.Warn($"winget restore failed: {name}");
                     manual++;
                 }
             }

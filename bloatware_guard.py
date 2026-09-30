@@ -549,6 +549,21 @@ def run_restore(config: dict, logger: logging.Logger) -> int:
             else:
                 logger.warning(f"Restore failed: {name} — reinstall via Microsoft Store")
                 manual += 1
+        elif entry.get("kind") == "winget" and name:
+            if (not _WINGET_ID_RE.fullmatch(name)
+                    or shutil.which("winget") is None):
+                manual += 1
+                continue
+            _, rc = run_cmd(
+                ["winget", "install", "-e", "--id", name, "--silent",
+                 "--disable-interactivity", "--accept-source-agreements",
+                 "--accept-package-agreements"], timeout=300)
+            if rc == 0:
+                logger.info(f"Restored via winget: {name}")
+                restored += 1
+            else:
+                logger.warning(f"winget restore failed: {name}")
+                manual += 1
         elif entry.get("kind") == "capability" and name:
             if not _safe_pkg_name(name):
                 logger.warning(f"Ledger entry with unsafe name skipped: {name!r}")

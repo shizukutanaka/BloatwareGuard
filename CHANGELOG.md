@@ -5,6 +5,9 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- --restore now covers winget removals: kind="winget" ledger entries
+  reinstall via `winget install -e --id` (id-charset checked,
+  300s-bounded, no-op without winget) instead of reporting manual.
 - Capability removal now restorable: RemoveOptionalCapabilities records
   each removed capability name to the removal ledger (was previously
   unrecorded — invisible to --restore), and --restore reinstalls them
