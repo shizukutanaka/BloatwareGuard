@@ -1056,6 +1056,7 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
     r"SOFTWARE\Policies\Microsoft\Windows\System",
     r"SOFTWARE\Policies\Microsoft\Edge",
+    r"SOFTWARE\Policies\Microsoft\FVE",
     r"SOFTWARE\Policies\Microsoft\Windows\GameDVR",
     r"SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization",
     r"SOFTWARE\Policies\Microsoft\Windows\OneDrive",
@@ -2016,6 +2017,28 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword("HKLM",
                                r"SYSTEM\CurrentControlSet\Control\Lsa",
                                "RestrictAnonymousSAM", 1)
+            # Credential/protocol hardening (milgradesec/windows-settings):
+            # no LM hashes stored, NTLMv2-only, DMA-under-lock off
+            set_registry_dword("HKLM",
+                               r"SYSTEM\CurrentControlSet\Control\Lsa",
+                               "NoLMHash", 1)
+            set_registry_dword("HKLM",
+                               r"SYSTEM\CurrentControlSet\Control\Lsa",
+                               "LmCompatibilityLevel", 5)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Policies\Microsoft\FVE",
+                "DisableExternalDMAUnderLock", 1)
+            # SEHOP (structured-exception chain validation) + safe DLL
+            # search order (session-manager kernel hardening)
+            set_registry_dword(
+                "HKLM",
+                r"SYSTEM\CurrentControlSet\Control\Session Manager\Kernel",
+                "DisableExceptionChainValidation", 0)
+            set_registry_dword(
+                "HKLM",
+                r"SYSTEM\CurrentControlSet\Control\Session Manager",
+                "SafeDllSearchMode", 1)
             # WDigest plaintext-credential caching off + WPAD auto-discovery
             # off (proxy-poisoning vector) — WinRice hardening
             set_registry_dword(

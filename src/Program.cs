@@ -2840,6 +2840,20 @@ public static class RegistryGuard
                     @"SYSTEM\CurrentControlSet\Control\Lsa");
                 lsa?.SetValue("RestrictAnonymous", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 lsa?.SetValue("RestrictAnonymousSAM", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // Credential/protocol hardening (milgradesec): no LM
+                // hashes, NTLMv2-only, DMA-under-lock off
+                lsa?.SetValue("NoLMHash", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                lsa?.SetValue("LmCompatibilityLevel", 5, Microsoft.Win32.RegistryValueKind.DWord);
+                using var fve = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\FVE");
+                fve?.SetValue("DisableExternalDMAUnderLock", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // SEHOP + safe DLL search order (session-manager kernel)
+                using var smk = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SYSTEM\CurrentControlSet\Control\Session Manager\Kernel");
+                smk?.SetValue("DisableExceptionChainValidation", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                using var smgr = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SYSTEM\CurrentControlSet\Control\Session Manager");
+                smgr?.SetValue("SafeDllSearchMode", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 // WDigest plaintext-credential caching off + WPAD
                 // auto-discovery off (WinRice)
                 using var wdigest = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
@@ -3804,6 +3818,7 @@ public static class RegistryGuard
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
         @"SOFTWARE\Policies\Microsoft\Windows\System",
         @"SOFTWARE\Policies\Microsoft\Edge",
+        @"SOFTWARE\Policies\Microsoft\FVE",
         @"SOFTWARE\Policies\Microsoft\Windows\GameDVR",
         @"SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization",
         @"SOFTWARE\Policies\Microsoft\Windows\OneDrive",

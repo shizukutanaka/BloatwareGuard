@@ -5,6 +5,13 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- milgradesec/windows-settings (40★ security config, new
+  source): credential/protocol hardening +5 — Lsa
+  `NoLMHash`=1 + `LmCompatibilityLevel`=5 (NTLMv2-only),
+  FVE `DisableExternalDMAUnderLock`=1 (PCI-DMA under lock),
+  `SafeDllSearchMode`=1, `DisableExceptionChainValidation`=0
+  (SEHOP). Skipped: RunAsPPL (LSA PPL — plugin/auth break
+  risk, boundary), DMA lock SKU caveat noted.
 - Windows-Utility (ZuanCrisp winutil fork, new source):
   +4 — UScheduler_Oobe `WindowsUpdate` sibling (workCompleted
   marker; OOBE updater pass killed alongside Outlook/DevHome),
