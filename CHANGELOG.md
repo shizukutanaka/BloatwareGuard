@@ -5,6 +5,15 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- hagezi/dns-blocklists microsoft.txt + native.winoffice diff:
+  hosts 151->190 — remaining vortex events ingest regions
+  (au/eu/in/jp/uk/us mobile + v20), Office diagnostics
+  endpoints (msa/cjs/entitlement/incidents/logging/
+  supportexperience.diagnostics.office.com), activity-
+  upload endpoints (*.activity.windows.com), trafficmanager
+  ingest fronts, location inference. Skipped: Azure Monitor /
+  App Insights / AppCenter (app-SDK telemetry, not OS),
+  MSN content CDN.
 - BSI (German federal SiSyPHuS work package) endpoint list
   diff (via craiu/mobiletrackers): hosts 137->151 —
   asimov/db5/geo settings-win akadns mirrors, au/de/uk
