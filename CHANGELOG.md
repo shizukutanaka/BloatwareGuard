@@ -5,6 +5,12 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- Disassembler Win10-Initial-Setup-Script diff: Ink Workspace
+  `AllowSuggestedAppsInWindowsInkWorkspace=0` (belt for the existing
+  AllowWindowsInkWorkspace=0), `DisableEdgeDesktopShortcutCreation=1`
+  (update-time Edge shortcut suppression, DisableEdgeUpdateBloat), WMP
+  per-user metadata-retrieval trio (windowsmedia.com lookups off).
+  Skipped: Defender/UAC/audit/security toggles, ~120 UI/power/UX prefs.
 - Telemetry hosts 109->116: ad/feedback ingestion from
   DisableWinTracking's domain diff — DoubleClick ad serving/CDN
   (ad.doubleclick.net, s0/static.2mdn.net), MS ads (b.ads2.msads.net),

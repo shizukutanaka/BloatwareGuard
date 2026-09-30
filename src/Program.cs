@@ -2088,6 +2088,8 @@ public static class RegistryGuard
                 using var ink = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\WindowsInkWorkspace");
                 ink?.SetValue("AllowWindowsInkWorkspace", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                // ... and the suggested-apps surface inside it
+                ink?.SetValue("AllowSuggestedAppsInWindowsInkWorkspace", 0, Microsoft.Win32.RegistryValueKind.DWord);
             }
             catch { }
             // Defender SpyNet — no sample uploads to Microsoft
@@ -2326,6 +2328,12 @@ public static class RegistryGuard
                 using var wmp = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\WindowsMediaPlayer");
                 wmp?.SetValue("DisableAutoUpdate", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // WMP online metadata lookups (windowsmedia.com) — per-user
+                foreach (var v in new[] { "PreventCDDVDMetadataRetrieval",
+                        "PreventMusicFileMetadataRetrieval",
+                        "PreventRadioPresetsRetrieval" })
+                    SetUserDwordAllHives(
+                        @"SOFTWARE\Policies\Microsoft\WindowsMediaPlayer", v, 1);
             }
             catch { }
             // "Share across devices" (Connected Devices Platform) user consent off
@@ -2862,6 +2870,15 @@ public static class RegistryGuard
             {
                 edgeUpd?.SetValue($"CreateDesktopShortcut{guid}", 0, Microsoft.Win32.RegistryValueKind.DWord);
             }
+            // Suppress the Edge desktop shortcut Windows updates recreate
+            // (Disassembler Win10-Initial-Setup-Script)
+            try
+            {
+                using var exp = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer");
+                exp?.SetValue("DisableEdgeDesktopShortcutCreation", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            catch { }
             GuardLogger.Info("Applied: DisableEdgeUpdateBloat (edgeupdate/edgeupdatem/elevation → demand, update tasks off, shortcut creation suppressed)");
         }
         catch (Exception ex)

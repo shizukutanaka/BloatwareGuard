@@ -1439,6 +1439,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_registry_dword("HKLM",
                            r"SOFTWARE\Policies\Microsoft\WindowsInkWorkspace",
                            "AllowWindowsInkWorkspace", 0)
+        # ... and the suggested-apps surface inside it (belt for re-enable)
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Policies\Microsoft\WindowsInkWorkspace",
+                           "AllowSuggestedAppsInWindowsInkWorkspace", 0)
         # Defender SpyNet — no sample uploads to Microsoft
         spynet = r"SOFTWARE\Policies\Microsoft\Windows Defender\Spynet"
         set_registry_dword("HKLM", spynet, "SpynetReporting", 0)
@@ -1629,6 +1633,13 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_registry_dword("HKLM",
                            r"SOFTWARE\Policies\Microsoft\WindowsMediaPlayer",
                            "DisableAutoUpdate", 1)
+        # WMP online metadata lookups (windowsmedia.com) — per-user policy
+        # (Disassembler Win10-Initial-Setup-Script)
+        wmp = r"SOFTWARE\Policies\Microsoft\WindowsMediaPlayer"
+        for _v in ("PreventCDDVDMetadataRetrieval",
+                   "PreventMusicFileMetadataRetrieval",
+                   "PreventRadioPresetsRetrieval"):
+            set_user_dword_all_hives(wmp, _v, 1, logger)
         # "Share across devices" (Connected Devices Platform) consent off
         cdp = r"Software\Microsoft\Windows\CurrentVersion\CDP"
         set_user_dword_all_hives(cdp, "CdpSessionUserAuthzPolicy", 0, logger)
@@ -1837,6 +1848,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                      "{0D50BFEC-CD6A-4F9A-964C-C7416E3ACB10}",
                      "{65C35B14-6C1D-4122-AC46-7148CC9D6497}"):
             set_registry_dword("HKLM", edgeupd, f"CreateDesktopShortcut{guid}", 0)
+        # Suppress the Edge desktop shortcut Windows updates recreate
+        # (Disassembler Win10-Initial-Setup-Script)
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer",
+                           "DisableEdgeDesktopShortcutCreation", 1)
         logger.info("Applied: DisableEdgeUpdateBloat "
                     "(edgeupdate/edgeupdatem/elevation → demand, update tasks off, "
                     "shortcut creation suppressed)")
