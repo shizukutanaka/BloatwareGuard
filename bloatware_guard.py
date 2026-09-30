@@ -4252,6 +4252,23 @@ TELEMETRY_TASK_PATHS = (
     # save sync scheduler (XblGameSave service is already demand-gated)
     "\\Microsoft\\Windows\\Shell\\FamilySafetyUpload",
     "\\Microsoft\\XblGameSave\\XblGameSaveTask",
+    # Win-Debloat7 privacy tasks diff: 25H2 AI-subtree tasks (Copilot+
+    # recall/model/index pipelines) + OneSettings cache pulls + UCPD
+    # velocity config flighting + UNP campaign manager + EOS nag toasts
+    "\\Microsoft\\Windows\\WindowsAI\\RecallSnapshot",
+    "\\Microsoft\\Windows\\WindowsAI\\ModelMaintenance",
+    "\\Microsoft\\Windows\\WindowsAI\\AIPlatformServiceTask",
+    "\\Microsoft\\Windows\\WindowsAI\\WorkloadsHostTask",
+    "\\Microsoft\\Windows\\AISystem\\AIAnalyzer",
+    "\\Microsoft\\Windows\\AISystem\\ModelUpdateTask",
+    "\\Microsoft\\Windows\\AISystem\\SemanticIndexTask",
+    "\\Microsoft\\Windows\\NarrativeFlows\\UserJourneyTracker",
+    "\\Microsoft\\Windows\\Flighting\\OneSettings\\RefreshCache",
+    "\\Microsoft\\Windows\\Flighting\\OneSettings\\QuerySettings",
+    "\\Microsoft\\Windows\\AppxDeploymentClient\\UcpdVelocity",
+    "\\Microsoft\\Windows\\UNP\\RunCampaignManager",
+    "\\Microsoft\\Windows\\Setup\\EOSNotify",
+    "\\Microsoft\\Windows\\Setup\\EOSNotify2",
     # Store push-install login hook + setting-sync uploads (service and
     # policies already off — kill the schedulers too)
     "\\Microsoft\\Windows\\PushToInstall\\LoginCheck",
