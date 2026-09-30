@@ -2157,6 +2157,13 @@ public static class RegistryGuard
                 SetHiveDword(hive, @"Software\Policies\Microsoft\Windows\Explorer", "NoAutoTrayNotify", 1);
                 SetHiveDword(hive, UserAccountNotificationsPath, "EnableAccountNotifications", 0);
                 SetHiveDword(hive, UserSuggestedToastPath, "Enabled", 0);
+                // Sibling promo toasts: startup-impact, account-health,
+                // OneDrive desktop nags (Windows-Utility/winutil)
+                foreach (var toast in new[] { "Windows.SystemToast.StartupApp",
+                                            "Windows.SystemToast.AccountHealth",
+                                            "Microsoft.SkyDrive.Desktop" })
+                    SetHiveDword(hive, UserNotificationSettingsPath + "\\" + toast,
+                        "Enabled", 0);
                 SetHiveDword(hive, UserMobilityPath, "OptedIn", 0);
                 // Mail/Calendar -> "new Outlook" forced migration nudge (winutil)
                 SetHiveDword(hive, UserOutlookMigrationPath, "DoNewOutlookAutoMigration", 0);
@@ -2208,7 +2215,7 @@ public static class RegistryGuard
             // Windows Update does not re-ship them (tiny11builder)
             foreach (var sched in new[] { "UScheduler", "UScheduler_Oobe" })
             {
-                foreach (var upd in new[] { "OutlookUpdate", "DevHomeUpdate" })
+                foreach (var upd in new[] { "OutlookUpdate", "DevHomeUpdate", "WindowsUpdate" })
                 {
                     using var s = Registry.LocalMachine.CreateSubKey(
                         $@"SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Orchestrator\{sched}\{upd}", true);

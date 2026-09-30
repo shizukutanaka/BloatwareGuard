@@ -5,6 +5,12 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- Windows-Utility (ZuanCrisp winutil fork, new source):
+  +4 — UScheduler_Oobe `WindowsUpdate` sibling (workCompleted
+  marker; OOBE updater pass killed alongside Outlook/DevHome),
+  per-user promo toasts `Windows.SystemToast.StartupApp` /
+  `Windows.SystemToast.AccountHealth` / `Microsoft.SkyDrive.
+  Desktop` Enabled=0.
 - Win11Debloater (bunbunconmeow, new source): WindowsAI
   `AllowSnapshotting`=0 — sibling kill switch to
   TurnOffSavingSnapshots in the same CSP key.

@@ -1471,6 +1471,13 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                   "NoAutoTrayNotify", 1)
                 w(_USER_ACCOUNT_NOTIFICATIONS, "EnableAccountNotifications", 0)
                 w(_USER_SUGGESTED_TOAST, "Enabled", 0)
+                # Sibling promo toasts: startup-impact, account-health,
+                # OneDrive desktop nags (Windows-Utility/winutil)
+                for _toast in ("Windows.SystemToast.StartupApp",
+                               "Windows.SystemToast.AccountHealth",
+                               "Microsoft.SkyDrive.Desktop"):
+                    w(_USER_NOTIFICATION_SETTINGS + "\\" + _toast,
+                      "Enabled", 0)
                 w(_USER_MOBILITY, "OptedIn", 0)
                 # Mail/Calendar -> "new Outlook" forced migration nudge (winutil)
                 w(_USER_OUTLOOK_MIGRATION, "DoNewOutlookAutoMigration", 0)
@@ -1513,7 +1520,7 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             # Mark forced new-Outlook/DevHome pushes as already delivered so
             # Windows Update does not re-ship them (tiny11builder)
             for sched in ("UScheduler", "UScheduler_Oobe"):
-                for upd in ("OutlookUpdate", "DevHomeUpdate"):
+                for upd in ("OutlookUpdate", "DevHomeUpdate", "WindowsUpdate"):
                     set_registry_dword(
                         "HKLM",
                         r"SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate"
