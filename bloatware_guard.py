@@ -144,7 +144,13 @@ DEFAULT_BLACKLIST = [
     "Facebook.InstagramBeta",
     "Facebook.Facebook",
     "WhatsApp",
-    "A278AB0D.MarchofEmpires",
+    "A278AB0D.",  # Lenovo apps + MarchofEmpires/DisneyMagicKingdoms
+    "9E2F88E3.",   # Twitter stub apps
+    "613EBCEA.",   # Polarr photo stubs
+    "89006A2E.",   # Autodesk stubs
+    "D52A8D61.",   # FarmVille stubs
+    "DB6EA5DB.",   # CyberLink stubs
+    "NORDCURRENT.",  # CookingFever-family stubs,
     "Disney",                          # Disney+ etc.
     "Amazon.com.Amazon",
     "AmazonVideo.PrimeVideo",
@@ -2463,6 +2469,29 @@ _TELEMETRY_HOSTS = (
     "ad.doubleclick.net", "s0.2mdn.net", "static.2mdn.net",
     "b.ads2.msads.net", "compatexchange.cloudapp.net",
     "feedback.search.microsoft.com", "feedback.windows.com",
+    # bloatbox/W4RH4WK extended-hosts diff: nsatc/akadns aliases,
+    # insider/flighting rings, social services, ad/AN nets
+    "statsfe1.ws.microsoft.com",
+    "onesettings-db5.metron.live.nsatc.net",
+    "vortex-cy2.metron.live.com.nsatc.net",
+    "cy2.vortex.data.microsoft.com.akadns.net",
+    "i1.services.social.microsoft.com",
+    "i1.services.social.microsoft.com.nsatc.net",
+    "insiderservice.microsoft.com",
+    "insiderservice.trafficmanager.net",
+    "insiderppe.cloudapp.net",
+    "flightingserviceweurope.cloudapp.net",
+    "adservice.google.com",
+    "adservice.google.de",
+    "googleads.g.doubleclick.net",
+    "pagead46.l.doubleclick.net",
+    "padgead2.googlesyndication.com",
+    "stats.g.doubleclick.net",
+    "stats.l.doubleclick.net",
+    "www.google-analytics.com",
+    "www-google-analytics.l.google.com",
+    "p.static.ads-twitter.com",
+    "static.ads-twitter.com",
 )
 _HOSTS_BLOCK_BEGIN = "# >>> BloatwareGuard telemetry block"
 _HOSTS_BLOCK_END = "# <<< BloatwareGuard telemetry block"

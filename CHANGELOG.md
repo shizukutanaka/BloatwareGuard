@@ -5,6 +5,19 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- bloatbox (W4RH4WK extended hosts) diff: telemetry hosts 116->137 —
+  nsatc/akadns CDN aliases (vortex cy2, OneSettings db5, social
+  services i1), insider/flighting ring endpoints
+  (insiderservice.trafficmanager/insiderppe/flightingserviceweurope),
+  Google/Twitter ad-analytics nets (adservice.google.{com,de},
+  googleads/pagead46/stats doubleclick, googlesyndication,
+  google-analytics, ads-twitter), statsfe1.ws. Skipped: NCSI probes,
+  login.live/Skype/Hotmail/XboxLive/Store/WU/Defender-cloud/OCSP/
+  corporate-STS/Edge+Akamai+MSN CDNs, WNS push, live tiles (functional
+  or auth-bearing). Blacklist 178->184 — publisher namespaces:
+  A278AB0D. (absorbs MarchofEmpires entry), 9E2F88E3. (Twitter),
+  613EBCEA. (Polarr), 89006A2E. (Autodesk), D52A8D61. (FarmVille),
+  DB6EA5DB. (CyberLink), NORDCURRENT. (CookingFever family).
 - hellzerg/Optimizer diff: `AllowCloudSearch`=0 (Windows Search cloud
   master), SettingSync per-category kills (app-setting + credential sync,
   both overrides), `AllowLinguisticDataCollection`=0 (TextInput),
