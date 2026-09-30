@@ -4593,6 +4593,9 @@ public static class RegistryGuard
         "diagnosticshub.standardcollector.service",
         "CDPSvc", "NvTelemetryContainer",
         "esrv_svc", "ESRV_SVC_QUEENCREEK",
+        // Intel Dynamic Tuning telemetry + Innovation Platform
+        // Framework service (vendor telemetry — coolvitto 25H2 list)
+        "dptftcs", "ipfsvc",
         "PushToInstall", "SEMgrSvc", "PhoneSvc",
         "SysMain", "TabletInputService",
         "WSearch",                   // indexer — resident file scan; demand-start keeps search working
@@ -4640,6 +4643,9 @@ public static class RegistryGuard
         "AIFabricUserSvc", "ModelCatalogUserSvc",
         "SemanticSearchUserSvc", "NarrativeFlows",
         "OneSettingsClientUserSvc",
+        // Windows Health and Optimized Experiences — ships the
+        // PC-health / optimizer suggestion feed (coolvitto 25H2 list)
+        "whesvc",
         // Distributed Link Tracking — NTFS cross-volume link chasing,
         // Microsoft 'OK to disable' per IoT/VDI guidance (Atlas services.yml)
         "TrkWks",

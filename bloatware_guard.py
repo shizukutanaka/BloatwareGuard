@@ -1217,6 +1217,9 @@ _MISC_DEMOTE_SERVICES = (
     "diagnosticshub.standardcollector.service",
     "CDPSvc", "NvTelemetryContainer",
     "esrv_svc", "ESRV_SVC_QUEENCREEK",
+    # Intel Dynamic Tuning telemetry + Innovation Platform Framework
+    # service (vendor telemetry — coolvitto 25H2 service list)
+    "dptftcs", "ipfsvc",
     "PushToInstall", "SEMgrSvc", "PhoneSvc",
     "SysMain", "TabletInputService",
     "WSearch",                # indexer — resident file scan
@@ -1262,6 +1265,9 @@ _MISC_DEMOTE_SERVICES = (
     "AIFabricUserSvc", "ModelCatalogUserSvc",
     "SemanticSearchUserSvc", "NarrativeFlows",
     "OneSettingsClientUserSvc",
+    # Windows Health and Optimized Experiences — ships the PC-health /
+    # optimizer suggestion feed (coolvitto 25H2 service list)
+    "whesvc",
     # Distributed Link Tracking — NTFS cross-volume link chasing,
     # Microsoft 'OK to disable' per IoT/VDI guidance (Atlas services.yml)
     "TrkWks",
