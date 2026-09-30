@@ -9,6 +9,10 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   source): credential/protocol hardening +5 — Lsa
   `NoLMHash`=1 + `LmCompatibilityLevel`=5 (NTLMv2-only),
   FVE `DisableExternalDMAUnderLock`=1 (PCI-DMA under lock),
+  `.NETFramework\v2.0.50727` SchUseStrongCrypto mirrors
+  (legacy runtime TLS opt-in, 64/32), `AppCompat\
+  VDMDisallowed`=1 (NTVDM kill — same class as
+  DisableLegacyFeatures),
   `SafeDllSearchMode`=1, `DisableExceptionChainValidation`=0
   (SEHOP). Skipped: RunAsPPL (LSA PPL — plugin/auth break
   risk, boundary), DMA lock SKU caveat noted.

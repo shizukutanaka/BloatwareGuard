@@ -1970,6 +1970,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "HKLM",
                 r"SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
                 "AllowTelemetry", 0)
+            # NTVDM kill policy (same layer as legacy-feature off)
+            set_registry_dword("HKLM",
+                               r"SOFTWARE\Policies\Microsoft\Windows\AppCompat",
+                               "VDMDisallowed", 1)
             set_registry_dword(
                 "HKLM",
                 r"SOFTWARE\Microsoft\PolicyManager\default\System\AllowTelemetry",
@@ -2005,6 +2009,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                             r"SOFTWARE\Wow6432Node\Microsoft\.NETFramework\v4.0.30319"):
                 set_registry_dword("HKLM", dn_root, "SchUseStrongCrypto", 1)
                 set_registry_dword("HKLM", dn_root, "AllowStrongNameBypass", 0)
+            # .NET v2.0.50727 sibling mirror — legacy runtime TLS opt-in
+            # (milgradesec/windows-settings)
+            for dn2 in (r"SOFTWARE\Microsoft\.NETFramework\v2.0.50727",
+                        r"SOFTWARE\Wow6432Node\Microsoft\.NETFramework\v2.0.50727"):
+                set_registry_dword("HKLM", dn2, "SchUseStrongCrypto", 1)
             # Attack/diagnostics surface hardening (Atlas playbook): LLMNR off
             # (mDNS-spoofing vector), anonymous SAM/null-session enumeration off,
             # perf-scenario + RSOP + DiagTrack event-transcript data off

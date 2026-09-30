@@ -2818,6 +2818,17 @@ public static class RegistryGuard
                     dn?.SetValue("SchUseStrongCrypto", 1, Microsoft.Win32.RegistryValueKind.DWord);
                     dn?.SetValue("AllowStrongNameBypass", 0, Microsoft.Win32.RegistryValueKind.DWord);
                 }
+                // .NET v2.0.50727 sibling mirror — legacy runtime TLS
+                // opt-in (milgradesec/windows-settings)
+                foreach (var dn2 in new[]
+                {
+                    @"SOFTWARE\Microsoft\.NETFramework\v2.0.50727",
+                    @"SOFTWARE\Wow6432Node\Microsoft\.NETFramework\v2.0.50727",
+                })
+                {
+                    using var dn = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(dn2);
+                    dn?.SetValue("SchUseStrongCrypto", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                }
 
                 // Deprecated TLS 1.0/1.1 protocols off (Winnow/BSI guidance):
                 // Enabled=0 + DisabledByDefault=1 removes weak-protocol surface
@@ -2836,6 +2847,11 @@ public static class RegistryGuard
                 using var dns = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Windows NT\DNSClient");
                 dns?.SetValue("EnableMulticast", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                // NTVDM kill policy (milgradesec — same layer as
+                // legacy-feature off)
+                using var appc = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\AppCompat");
+                appc?.SetValue("VDMDisallowed", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 using var lsa = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SYSTEM\CurrentControlSet\Control\Lsa");
                 lsa?.SetValue("RestrictAnonymous", 1, Microsoft.Win32.RegistryValueKind.DWord);
