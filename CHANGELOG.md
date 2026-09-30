@@ -5,6 +5,11 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- tiny11builder diff: blacklist +AppUp.IntelManagementandSecurityStatus
+  (Intel IMSS OEM support stub, 184->185); DisableChatTaskbar now also
+  writes the HKLM 'Windows Chat' ChatIcon=3 policy — the taskbar toggle
+  alone only hides the icon, the policy kills the Chat integration
+  (backup key added, 86->87).
 - Per-layer fault isolation also inside apply_registry_prevention:
   all 33 inline `if prev.get(...)` layer blocks now run under try/except
   (cs ApplyAll was already per-method isolated in the previous commit).

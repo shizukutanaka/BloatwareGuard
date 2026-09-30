@@ -499,6 +499,8 @@ public static class ConfigLoader
                 "SpotifyAB.SpotifyMusic",
                 "Netflix",
                 "Dolby",
+                // Intel Management & Security Status (IMSS) — OEM support stub
+                "AppUp.IntelManagementandSecurityStatus",
                 "RealtekSemiconductor",
                 "SynapticsIncorporated",
                 "BytedancePte.Ltd.TikTok",
@@ -2582,7 +2584,14 @@ public static class RegistryGuard
             SetUserDwordAllHives(UserExplorerPoliciesBasePath, "HideSCAMeetNow", 1);
             // "My People" taskbar button (contact-promo surface)
             SetUserDwordAllHives(UserExplorerAdvancedPath, "PeopleBand", 0);
-            GuardLogger.Info("Applied: DisableChatTaskbar (TaskbarMn=0, HideSCAMeetNow=1, PeopleBand=0)");
+            try
+            {
+                using var chat = Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\Windows Chat", true);
+                chat?.SetValue("ChatIcon", 3, RegistryValueKind.DWord);
+            }
+            catch { }
+            GuardLogger.Info("Applied: DisableChatTaskbar (TaskbarMn=0, HideSCAMeetNow=1, PeopleBand=0, ChatIcon=3)");
         }
         catch (Exception ex)
         {
@@ -3162,6 +3171,7 @@ public static class RegistryGuard
                 @"SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters",
                 @"SOFTWARE\Microsoft\PolicyManager\current\device\Bluetooth",
                 @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\TextInput",
+                @"SOFTWARE\Policies\Microsoft\Windows\Windows Chat",
         // --- coverage completion (audit: every HKLM write path backed up) ---
         @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\UnattendSettings\SQMClient",
         @"SOFTWARE\Microsoft\WindowsRuntime\ActivatableClassId",

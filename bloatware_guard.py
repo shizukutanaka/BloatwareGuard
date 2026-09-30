@@ -135,6 +135,9 @@ DEFAULT_BLACKLIST = [
     "SpotifyAB.SpotifyMusic",
     "Netflix",
     "Dolby",
+    # Intel Management & Security Status (IMSS) — OEM support stub
+    # (tiny11builder removal list)
+    "AppUp.IntelManagementandSecurityStatus",
     "RealtekSemiconductor",
     "SynapticsIncorporated",
     "BytedancePte.Ltd.TikTok",
@@ -1056,6 +1059,7 @@ _BACKUP_KEY_PATHS = (
     r"SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters",
     r"SOFTWARE\Microsoft\PolicyManager\current\device\Bluetooth",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\TextInput",
+    r"SOFTWARE\Policies\Microsoft\Windows\Windows Chat",
     r"SYSTEM\CurrentControlSet\Control\WMI\AutoLogger\AutoLogger-Diagtrack-Listener",
     r"SYSTEM\CurrentControlSet\Control\Session Manager",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\ReserveManager",
@@ -1943,7 +1947,12 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_user_dword_all_hives(_USER_POLICIES_EXPLORER, "HideSCAMeetNow", 1, logger)
             # "My People" taskbar button (contact-promo surface)
             set_user_dword_all_hives(_USER_EXPLORER_ADV, "PeopleBand", 0, logger)
-            logger.info("Applied: DisableChatTaskbar (TaskbarMn=0, HideSCAMeetNow=1, PeopleBand=0)")
+            # Machine policy kills the Chat integration itself (icon toggle
+            # only hides it) — tiny11builder Windows Chat policy
+            set_registry_dword(
+                "HKLM", r"SOFTWARE\Policies\Microsoft\Windows\Windows Chat",
+                "ChatIcon", 3)
+            logger.info("Applied: DisableChatTaskbar (TaskbarMn=0, HideSCAMeetNow=1, PeopleBand=0, ChatIcon=3)")
 
         except Exception as e:
             logger.warning(f"DisableChatTaskbar layer failed: {e}")
