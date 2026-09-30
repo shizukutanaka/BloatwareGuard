@@ -3248,6 +3248,13 @@ def run_self_test() -> int:
         assert not missing and not extra, f"defaults/config drift: -{missing} +{extra}"
         missing_bl = set(cfg["Blacklist"]) - set(DEFAULT_BLACKLIST)
         assert not missing_bl, f"defaults missing blacklist entries: {missing_bl}"
+        # src/config.json ships with the C# build — silent drift from the
+        # root config means the two impls run different defaults
+        src_cfg_path = Path(__file__).parent / "src" / "config.json"
+        if src_cfg_path.exists():
+            src_cfg = json.loads(src_cfg_path.read_text(encoding="utf-8-sig"))
+            assert src_cfg == cfg, \
+                "src/config.json diverged from root config.json"
         # version parity with the C# implementation (repo checkouts only —
         # src/Program.cs is absent on end-user machines)
         cs = Path(__file__).parent / "src" / "Program.cs"

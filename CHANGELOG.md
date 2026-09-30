@@ -5,6 +5,8 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- T9 now asserts root `config.json` == `src/config.json` — the C#
+  build ships the src copy, which had drifted unnoticed before.
 - T11 now asserts both directions: cs-only names (e.g. a value name
   written in Program.cs but never in py) fail the gate; C# line
   comments are stripped before extraction so quoted words in
