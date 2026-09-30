@@ -5,6 +5,13 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- noid-privacy AntiAI diff (25H2 WindowsCopilot ADMX): DisableRecall
+  +AllowRecallExport=0 +app/URI deny-lists (browsers/terminals/
+  password managers/RDP; account/login/mail/payment URIs);
+  DisableCopilot +agent framework kills (Agent connectors/workspaces
+  force-deny, consent duration/policy minimum) +LetAppsAccessGenerativeAI
+  force-deny +DisableRecallDataProviders (per-user); DisableEdgeBloat
+  +6 Copilot-in-Edge surface kills.
 - VDOT (Virtual-Desktop-Optimization-Tool) diff: blacklist
   +Microsoft.USNationalParks (theme-pack stub, 186->187); misc
   services +BcastDVRUserService/autotimesvc/SmsRouter/icssvc

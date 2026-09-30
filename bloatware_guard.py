@@ -1497,9 +1497,31 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword("HKLM", ai_pol, "DisableClickToDo", 1)
             # 25H2 "Agent in Settings" (Settings AI agent)
             set_registry_dword("HKLM", ai_pol, "DisableSettingsAgent", 1)
+            # Recall export + app/URI deny-lists (noid-privacy AntiAI —
+            # documented 25H2 WindowsCopilot ADMX values)
+            set_registry_dword("HKLM", ai_pol, "AllowRecallExport", 0)
+            set_registry_dword("HKLM", ai_pol, "SetDenyAppListForRecall", 1)
+            set_registry_string(
+                "HKLM", ai_pol, "DenyAppListForRecall",
+                "msedge.exe;chrome.exe;firefox.exe;WindowsTerminal.exe;"
+                "KeePassXC.exe;KeePass.exe;1Password.exe;mstsc.exe;msrdc.exe")
+            set_registry_dword("HKLM", ai_pol, "SetDenyUriListForRecall", 1)
+            set_registry_string(
+                "HKLM", ai_pol, "DenyUriListForRecall",
+                "https://account.microsoft.com;https://login.live.com;"
+                "https://outlook.live.com;https://accounts.google.com;"
+                "https://mail.google.com;https://www.paypal.com")
+            # Copilot agent connector/workspace kills (25H2 agent
+            # framework — noid-privacy AntiAI)
+            for name in ("DisableAgentConnectors", "ConfigureAgentConnectors",
+                         "DisableAgentWorkspaces", "DisableRemoteAgentConnectors"):
+                set_registry_dword("HKLM", ai_pol, name, 2)
+            set_registry_dword("HKLM", ai_pol, "AgentConnectorMinimumPolicy", 1)
+            set_registry_dword("HKLM", ai_pol, "AgentConsentDuration", 1)
             set_user_dword_all_hives(_USER_WINDOWS_AI, "DisableAIDataAnalysis", 1, logger)
             set_user_dword_all_hives(_USER_WINDOWS_AI, "DisableClickToDo", 1, logger)
             set_user_dword_all_hives(_USER_WINDOWS_AI, "DisableSettingsAgent", 1, logger)
+            set_user_dword_all_hives(_USER_WINDOWS_AI, "DisableRecallDataProviders", 1, logger)
             # ClickToDo user preference (policy alone still leaves the shell entry)
             set_user_dword_all_hives(_USER_CLICK_TO_DO, "DisableClickToDo", 1, logger)
             # Per-app AI features: Paint (image creator/cocreator/fill/erase/
@@ -2032,6 +2054,16 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         try:
             edge_pol = r"SOFTWARE\Policies\Microsoft\Edge"
             set_registry_dword("HKLM", edge_pol, "HubsSidebarEnabled", 0)
+            # Copilot surfaces inside Edge — chat icon, address-bar/NTP
+            # suggestions, browse-with-Copilot, M365 link interception,
+            # visual search (noid-privacy AntiAI edge group)
+            for name in ("Microsoft365CopilotChatIconEnabled",
+                         "CopilotAddressBarSuggestionsEnabled",
+                         "CopilotNewTabPageEnabled",
+                         "AllowBrowsingWithCopilot",
+                         "M365LinksAutoOpenCopilotEnabled",
+                         "VisualSearchEnabled"):
+                set_registry_dword("HKLM", edge_pol, name, 0)
             set_registry_dword("HKLM", edge_pol, "StartupBoostEnabled", 0)
             set_registry_dword("HKLM", edge_pol, "AllowPrelaunch", 0)
             set_registry_dword("HKLM", edge_pol, "HideFirstRunExperience", 1)
@@ -2227,6 +2259,7 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "LetAppsAccessTasks", "LetAppsAccessTrustedDevices",
                 "LetAppsSyncWithDevices", "LetAppsGetDiagnosticInfo",
                 "LetAppsActivateWithVoice", "LetAppsActivateWithVoiceAboveLock",
+                "LetAppsAccessGenerativeAI",
             )
             for name in app_privacy:
                 set_registry_dword("HKLM",

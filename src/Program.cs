@@ -1965,11 +1965,29 @@ public static class RegistryGuard
             key?.SetValue("DisableClickToDo", 1, Microsoft.Win32.RegistryValueKind.DWord);
             // 25H2 "Agent in Settings" (Settings AI agent)
             key?.SetValue("DisableSettingsAgent", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            // Recall export + app/URI deny-lists (noid-privacy AntiAI —
+            // documented 25H2 WindowsCopilot ADMX values)
+            key?.SetValue("AllowRecallExport", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("SetDenyAppListForRecall", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("DenyAppListForRecall",
+                "msedge.exe;chrome.exe;firefox.exe;WindowsTerminal.exe;KeePassXC.exe;KeePass.exe;1Password.exe;mstsc.exe;msrdc.exe",
+                Microsoft.Win32.RegistryValueKind.String);
+            key?.SetValue("SetDenyUriListForRecall", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("DenyUriListForRecall",
+                "https://account.microsoft.com;https://login.live.com;https://outlook.live.com;https://accounts.google.com;https://mail.google.com;https://www.paypal.com",
+                Microsoft.Win32.RegistryValueKind.String);
+            // Copilot agent connector/workspace kills (25H2 agent framework)
+            foreach (var n in new[] { "DisableAgentConnectors", "ConfigureAgentConnectors",
+                    "DisableAgentWorkspaces", "DisableRemoteAgentConnectors" })
+                key?.SetValue(n, 2, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("AgentConnectorMinimumPolicy", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("AgentConsentDuration", 1, Microsoft.Win32.RegistryValueKind.DWord);
             ForEachUserHive(hive =>
             {
                 SetHiveDword(hive, UserWindowsAiPath, "DisableAIDataAnalysis", 1);
                 SetHiveDword(hive, UserWindowsAiPath, "DisableClickToDo", 1);
                 SetHiveDword(hive, UserWindowsAiPath, "DisableSettingsAgent", 1);
+                SetHiveDword(hive, UserWindowsAiPath, "DisableRecallDataProviders", 1);
                 // ClickToDo user preference (policy alone leaves the shell entry)
                 SetHiveDword(hive, UserClickToDoPath, "DisableClickToDo", 1);
             });
@@ -2671,6 +2689,12 @@ public static class RegistryGuard
         {
             using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(EdgePolicyPath);
             key?.SetValue("HubsSidebarEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // Copilot surfaces inside Edge (noid-privacy AntiAI edge group)
+            foreach (var n in new[] { "Microsoft365CopilotChatIconEnabled",
+                    "CopilotAddressBarSuggestionsEnabled", "CopilotNewTabPageEnabled",
+                    "AllowBrowsingWithCopilot", "M365LinksAutoOpenCopilotEnabled",
+                    "VisualSearchEnabled" })
+                key?.SetValue(n, 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("StartupBoostEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("AllowPrelaunch", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("HideFirstRunExperience", 1, Microsoft.Win32.RegistryValueKind.DWord);
@@ -3088,6 +3112,7 @@ public static class RegistryGuard
         "LetAppsAccessTasks", "LetAppsAccessTrustedDevices",
         "LetAppsSyncWithDevices", "LetAppsGetDiagnosticInfo",
         "LetAppsActivateWithVoice", "LetAppsActivateWithVoiceAboveLock",
+        "LetAppsAccessGenerativeAI",
     };
 
     /// <summary>Layer 26: force-deny conservative AppPrivacy set.</summary>
