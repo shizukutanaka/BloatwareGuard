@@ -5,6 +5,13 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- Residual host diff (BSI list + hagezi microsoft.txt):
+  hosts +6 -> 196 (events.data.microsoft.com universal
+  ingest, pipe.dev.trafficmanager.net, Office
+  diagnostics.front azurefd, arc.msn.com +
+  arc.trafficmanager.net MSN ad-analytics). Skipped:
+  AppCenter/AppInsights/Azure Monitor/LogAnalytics SDK
+  endpoints (app-SDK boundary).
 - winscript VoiceShortcut per-user kill; GTweak
   audited (Defender/SmartScreen/MRT only -- boundary);
   Aegis-Win11 audited (Brave/Edge-feature/UI/UAC --

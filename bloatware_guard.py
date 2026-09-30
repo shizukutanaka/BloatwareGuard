@@ -2974,6 +2974,13 @@ _TELEMETRY_HOSTS = (
     "uk.vortex-win.data.microsoft.com",
     "events-sandbox.data.microsoft.com",
     "vortex-win-sandbox.data.microsoft.com",
+    # universal events ingest + Office diagnostics fronts + MSN arc
+    "events.data.microsoft.com",
+    "pipe.dev.trafficmanager.net",
+    "diagnostics.office.com",
+    "cjs-diagnostics-office-com-gvdhgwfwbbfsd9g3.z01.azurefd.net",
+    "arc.msn.com",
+    "arc.trafficmanager.net",
     "api.msa.diagnostics.office.com",
     "assets.activity.windows.com",
     "atm-settingsfe-prod-geo2.trafficmanager.net",
