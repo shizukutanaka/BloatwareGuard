@@ -1990,6 +1990,13 @@ public static class RegistryGuard
                 SetHiveDword(hive, UserWindowsAiPath, "DisableRecallDataProviders", 1);
                 // ClickToDo user preference (policy alone leaves the shell entry)
                 SetHiveDword(hive, UserClickToDoPath, "DisableClickToDo", 1);
+                // App-level AI toggles (WinRice): Notepad cowriter, Paint
+                // cocreator/image-creator, Photos AI features
+                SetHiveDword(hive, @"Software\Microsoft\Notepad", "EnableCowriter", 0);
+                SetHiveDword(hive, @"Software\Microsoft\Paint", "EnableCocreator", 0);
+                SetHiveDword(hive, @"Software\Microsoft\Paint", "EnableImageCreator", 0);
+                SetHiveDword(hive, @"Software\Microsoft\Windows\CurrentVersion\Photos",
+                    "EnableAIFeatures", 0);
             });
             // Per-app AI features: Paint (image creator/cocreator/fill/erase/
             // background) and Notepad (Rewrite) — documented policy keys
@@ -2389,6 +2396,14 @@ public static class RegistryGuard
                     @"SYSTEM\CurrentControlSet\Control\Lsa");
                 lsa?.SetValue("RestrictAnonymous", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 lsa?.SetValue("RestrictAnonymousSAM", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // WDigest plaintext-credential caching off + WPAD
+                // auto-discovery off (WinRice)
+                using var wdigest = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SYSTEM\CurrentControlSet\Control\SecurityProviders\Wdigest");
+                wdigest?.SetValue("UseLogonCredential", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                using var wpad = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Microsoft\Windows\CurrentVersion\Internet Settings\Wpad");
+                wpad?.SetValue("WpadOverride", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 using var lanman = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SYSTEM\CurrentControlSet\Services\LanManServer\Parameters");
                 lanman?.SetValue("RestrictNullSessAccess", 1, Microsoft.Win32.RegistryValueKind.DWord);
@@ -2562,6 +2577,9 @@ public static class RegistryGuard
             SetUserDwordAllHives(
                 @"Software\Policies\Microsoft\Windows\CloudContent",
                 "DisableTailoredExperiencesWithDiagnosticData", 1);
+            SetUserDwordAllHives(
+                @"Software\Microsoft\Windows\CurrentVersion\Internet Settings\Wpad",
+                "WpadOverride", 1);
             // Per-user policy stragglers (ReviOS privacy.yml)
             foreach (var v in new[] { "NoOnlinePrintsWizard", "NoPublishingWizard", "NoWebServices" })
                 SetUserDwordAllHives(
@@ -3296,6 +3314,8 @@ public static class RegistryGuard
                 @"SOFTWARE\Policies\WindowsNotepad",
                 @"SYSTEM\CurrentControlSet\Control\Diagnostics\Performance",
                 @"SYSTEM\CurrentControlSet\Control\Lsa",
+        @"SYSTEM\CurrentControlSet\Control\SecurityProviders\Wdigest",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Internet Settings\Wpad",
                 @"SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters",
                 @"SOFTWARE\Microsoft\PolicyManager\current\device\Bluetooth",
                 @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\TextInput",
@@ -3395,6 +3415,10 @@ public static class RegistryGuard
         @"Software\Microsoft\Windows\CurrentVersion\Search",
         @"Software\Microsoft\Windows\CurrentVersion\SearchSettings",
         @"Software\Microsoft\Windows\CurrentVersion\SearchSettings\WebSearchPro",
+        @"Software\Microsoft\Windows\CurrentVersion\Internet Settings\Wpad",
+        @"Software\Microsoft\Notepad",
+        @"Software\Microsoft\Paint",
+        @"Software\Microsoft\Windows\CurrentVersion\Photos",
         @"Software\Microsoft\Windows\CurrentVersion\SettingSync",
         @"Software\Microsoft\Windows\CurrentVersion\Start\Companions\Microsoft.YourPhone_8wekyb3d8bbwe",
         @"Software\Microsoft\Windows\CurrentVersion\SystemSettings\AccountNotifications",

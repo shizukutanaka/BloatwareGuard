@@ -5,6 +5,14 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- WinRice diff: DisableTelemetry +Wdigest UseLogonCredential=0
+  (plaintext credential caching off) +WPAD WpadOverride=1
+  HKLM+all users (proxy auto-discovery poisoning vector);
+  DisableRecall per-user +Notepad EnableCowriter +Paint
+  EnableCocreator/EnableImageCreator +Photos EnableAIFeatures
+  (app-level AI toggles beneath the policy kills). Backup
+  99->101, user backup 52->56. Skipped: VBS toggle, UI prefs,
+  WPAD functional concern none (kills attack surface only).
 - winutil v2 tweaks.json diff (re-mine): DisableEdgeBloat
   +UrlKeyedAnonymizedDataCollectionEnabled (URL-keyed browsing
   data uploads); misc services +SharedAccess (ICS — demand-start).

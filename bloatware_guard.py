@@ -1059,6 +1059,8 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Policies\WindowsNotepad",
     r"SYSTEM\CurrentControlSet\Control\Diagnostics\Performance",
     r"SYSTEM\CurrentControlSet\Control\Lsa",
+    r"SYSTEM\CurrentControlSet\Control\SecurityProviders\Wdigest",
+    r"SOFTWARE\Microsoft\Windows\CurrentVersion\Internet Settings\Wpad",
     r"SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters",
     r"SOFTWARE\Microsoft\PolicyManager\current\device\Bluetooth",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\TextInput",
@@ -1232,6 +1234,10 @@ _USER_BACKUP_KEY_PATHS = (
     r"Software\Microsoft\Windows\CurrentVersion\Search",
     r"Software\Microsoft\Windows\CurrentVersion\SearchSettings",
     r"Software\Microsoft\Windows\CurrentVersion\SearchSettings\WebSearchPro",
+    r"Software\Microsoft\Windows\CurrentVersion\Internet Settings\Wpad",
+    r"Software\Microsoft\Notepad",
+    r"Software\Microsoft\Paint",
+    r"Software\Microsoft\Windows\CurrentVersion\Photos",
     r"Software\Microsoft\Windows\CurrentVersion\SettingSync",
     r"Software\Microsoft\Windows\CurrentVersion\Start\Companions\Microsoft.YourPhone_8wekyb3d8bbwe",
     r"Software\Microsoft\Windows\CurrentVersion\SystemSettings\AccountNotifications",
@@ -1527,6 +1533,16 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_user_dword_all_hives(_USER_WINDOWS_AI, "DisableRecallDataProviders", 1, logger)
             # ClickToDo user preference (policy alone still leaves the shell entry)
             set_user_dword_all_hives(_USER_CLICK_TO_DO, "DisableClickToDo", 1, logger)
+            # App-level AI toggles (WinRice): Notepad cowriter, Paint
+            # cocreator/image-creator, Photos AI features
+            set_user_dword_all_hives(
+                r"Software\Microsoft\Notepad", "EnableCowriter", 0, logger)
+            _paint_user = r"Software\Microsoft\Paint"
+            for _v in ("EnableCocreator", "EnableImageCreator"):
+                set_user_dword_all_hives(_paint_user, _v, 0, logger)
+            set_user_dword_all_hives(
+                r"Software\Microsoft\Windows\CurrentVersion\Photos",
+                "EnableAIFeatures", 0, logger)
             # Per-app AI features: Paint (image creator/cocreator/fill/erase/
             # background) and Notepad (Rewrite) — documented policy keys
             paint_pol = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Paint"
@@ -1822,6 +1838,19 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword("HKLM",
                                r"SYSTEM\CurrentControlSet\Control\Lsa",
                                "RestrictAnonymousSAM", 1)
+            # WDigest plaintext-credential caching off + WPAD auto-discovery
+            # off (proxy-poisoning vector) — WinRice hardening
+            set_registry_dword(
+                "HKLM",
+                r"SYSTEM\CurrentControlSet\Control\SecurityProviders\Wdigest",
+                "UseLogonCredential", 0)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Microsoft\Windows\CurrentVersion\Internet Settings\Wpad",
+                "WpadOverride", 1)
+            set_user_dword_all_hives(
+                r"Software\Microsoft\Windows\CurrentVersion\Internet Settings\Wpad",
+                "WpadOverride", 1, logger)
             set_registry_dword("HKLM",
                                r"SYSTEM\CurrentControlSet\Services\LanManServer\Parameters",
                                "RestrictNullSessAccess", 1)
