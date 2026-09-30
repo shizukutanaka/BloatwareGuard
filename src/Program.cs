@@ -4746,7 +4746,8 @@ public static class ScheduledTaskGuard
     private static readonly string[] OemTaskPatterns = {
         "OEM", "Dell", "HPInc", "HPA", "Lenovo", "ASUS", "Acer", "McAfee", "Norton",
         "SupportAssist", "Vantage", "Armoury", "Crate", "CustomerExperienceImprovement",
-        "Customer Experience Improvement", "Reinstall", "Restore", "Bloatware"
+        "Customer Experience Improvement", "Reinstall", "Restore", "Bloatware",
+        "Intel", "Realtek", "Waves", "MSI", "Razer"
     };
 
     // Microsoft system tasks that MUST NEVER be disabled (TaskPath prefixes)
@@ -4892,6 +4893,10 @@ public static class ScheduledTaskGuard
         @"\Microsoft\Windows\Device Information\Device User",
         @"\Microsoft\Windows\Shell\FamilySafetyMonitor",
         @"\Microsoft\Windows\Shell\FamilySafetyRefreshTask",
+        // Family Safety usage-data upload (Debloat-Win11 diff) + Xbox cloud
+        // save sync scheduler (XblGameSave service is already demand-gated)
+        @"\Microsoft\Windows\Shell\FamilySafetyUpload",
+        @"\Microsoft\XblGameSave\XblGameSaveTask",
         // Store push-install login hook + setting-sync uploads (service and
         // policies already off — kill the schedulers too)
         @"\Microsoft\Windows\PushToInstall\LoginCheck",

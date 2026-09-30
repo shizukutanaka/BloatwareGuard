@@ -4058,7 +4058,8 @@ def disable_oem_scheduled_tasks(logger: logging.Logger):
     patterns = (
         "OEM|Dell|HPInc|HPA|Lenovo|ASUS|Acer|McAfee|Norton|"
         "SupportAssist|Vantage|Armoury|Crate|CustomerExperienceImprovement|"
-        "Customer Experience Improvement|Reinstall|Restore|Bloatware"
+        "Customer Experience Improvement|Reinstall|Restore|Bloatware|"
+        "Intel|Realtek|Waves|MSI|Razer"
     )
     ps_cmd = (
         f"Get-ScheduledTask | "
@@ -4149,6 +4150,10 @@ TELEMETRY_TASK_PATHS = (
     "\\Microsoft\\Windows\\Device Information\\Device User",
     "\\Microsoft\\Windows\\Shell\\FamilySafetyMonitor",
     "\\Microsoft\\Windows\\Shell\\FamilySafetyRefreshTask",
+    # Family Safety usage-data upload (Debloat-Win11 diff) + Xbox cloud
+    # save sync scheduler (XblGameSave service is already demand-gated)
+    "\\Microsoft\\Windows\\Shell\\FamilySafetyUpload",
+    "\\Microsoft\\XblGameSave\\XblGameSaveTask",
     # Store push-install login hook + setting-sync uploads (service and
     # policies already off — kill the schedulers too)
     "\\Microsoft\\Windows\\PushToInstall\\LoginCheck",
