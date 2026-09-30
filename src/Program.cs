@@ -1867,7 +1867,9 @@ public static class RegistryGuard
                 "www-google-analytics.l.google.com",
                 "p.static.ads-twitter.com",
                 "static.ads-twitter.com",
-    };
+        "ads.yahoo.com",
+        "advertising.yahoo.com",
+        "feedback.microsoft.com",};
     private const string HostsBlockBegin = "# >>> BloatwareGuard telemetry block";
     private const string HostsBlockEnd = "# <<< BloatwareGuard telemetry block";
 

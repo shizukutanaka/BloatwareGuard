@@ -6,6 +6,12 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 
 ### Added
 - Reclaim (jonax1337/Reclaim, Tauri debloat tool, new
+  source): hosts +3 (ads.yahoo.com, advertising.yahoo.com,
+  feedback.microsoft.com). Skipped: msftncsi (NCSI —
+  captive-portal, same class as prior revert), WU/Edge
+  delivery CDNs, corp STS/ADFS, Office Nexus/CDN, msn.com
+  content portals.
+- Reclaim (jonax1337/Reclaim, Tauri debloat tool, new
   source): blacklist +5 consumer bloat — CandyCrush,
   MarchofEmpires, Plex, Viber, Royal Revolt was already
   covered by flaregamesGmbH. Skipped: Paint/Store/

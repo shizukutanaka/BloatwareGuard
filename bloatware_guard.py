@@ -3484,6 +3484,9 @@ _TELEMETRY_HOSTS = (
     "www.msads.net",
     "www.telecommandsvc.microsoft.com",
     "zmetrics.msn.com",
+    "ads.yahoo.com",
+    "advertising.yahoo.com",
+    "feedback.microsoft.com",
 )
 _HOSTS_BLOCK_BEGIN = "# >>> BloatwareGuard telemetry block"
 _HOSTS_BLOCK_END = "# <<< BloatwareGuard telemetry block"
