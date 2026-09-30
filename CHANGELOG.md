@@ -5,6 +5,13 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- Raphire/Win11Debloat diff: Edge policies `CopilotCDPPageContext`,
+  `NewTabPageBingChatEnabled`, `NewTabPageContentEnabled`,
+  `TabServicesEnabled`, `DefaultBrowserSettingsCampaignEnabled` =0 and
+  `NewTabPageHideDefaultTopSites`=1; per-user `Start_AccountNotifications`=0
+  (Start account promo toasts). Skipped: Brave/vendor policies, ~120
+  explorer/taskbar/snap/theme/context-menu UI prefs, BitLocker
+  auto-encryption toggle (security boundary).
 - Disassembler Win10-Initial-Setup-Script diff: Ink Workspace
   `AllowSuggestedAppsInWindowsInkWorkspace=0` (belt for the existing
   AllowWindowsInkWorkspace=0), `DisableEdgeDesktopShortcutCreation=1`

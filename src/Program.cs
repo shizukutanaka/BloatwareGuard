@@ -1750,6 +1750,8 @@ public static class RegistryGuard
                     cdm?.SetValue(name, 0, RegistryValueKind.DWord);
 
                 SetHiveDword(hive, UserExplorerAdvancedPath, "Start_IrisRecommendations", 0);
+                // Account-notification promos in Start (Raphire/Win11Debloat)
+                SetHiveDword(hive, UserExplorerAdvancedPath, "Start_AccountNotifications", 0);
                 SetHiveDword(hive, UserExplorerAdvancedPath, "ShowSyncProviderNotifications", 0);
                 SetHiveDword(hive, UserProfileEngagementPath, "ScoobeSystemSettingEnabled", 0);
                 // "Let's finish setting up" second-chance OOBE — mark done
@@ -2565,11 +2567,21 @@ public static class RegistryGuard
             foreach (var name in new[] { "CopilotPageContext", "EdgeEntraCopilotPageContext",
                                          "EdgeHistoryAISearchEnabled", "ComposeInlineEnabled",
                                          "BuiltInAIAPIsEnabled", "AIGenThemesEnabled",
-                                         "ShareBrowsingHistoryWithCopilotSearchAllowed" })
+                                         "ShareBrowsingHistoryWithCopilotSearchAllowed",
+                                         // Copilot+ connected-page context + NTP
+                                         // Bing chat (Raphire/Win11Debloat)
+                                         "CopilotCDPPageContext", "NewTabPageBingChatEnabled" })
                 key?.SetValue(name, 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("DevToolsGenAiSettings", 2, Microsoft.Win32.RegistryValueKind.DWord);
             // 1 = disable the local on-device foundation model used by Edge AI
             key?.SetValue("GenAILocalFoundationalModelSettings", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            // NTP content feed + default-browser campaign nag + tab
+            // services (Raphire/Win11Debloat ads/suggestions diff)
+            foreach (var name in new[] { "NewTabPageContentEnabled", "TabServicesEnabled",
+                                         "DefaultBrowserSettingsCampaignEnabled" })
+                key?.SetValue(name, 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // 1 = hide the sponsored top-sites tile row on new tabs
+            key?.SetValue("NewTabPageHideDefaultTopSites", 1, Microsoft.Win32.RegistryValueKind.DWord);
             GuardLogger.Info("Applied: DisableEdgeBloat (sidebar/startup-boost/prelaunch/first-run/shopping/recommendations/URL-leak/AI surfaces off)");
         }
         catch (Exception ex)

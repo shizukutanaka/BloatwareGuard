@@ -1201,6 +1201,8 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             for n in cdm_zeros:
                 w(_USER_CDM, n, 0)
             w(_USER_EXPLORER_ADV, "Start_IrisRecommendations", 0)
+            # Account-notification promos in Start (Raphire/Win11Debloat)
+            w(_USER_EXPLORER_ADV, "Start_AccountNotifications", 0)
             w(_USER_EXPLORER_ADV, "ShowSyncProviderNotifications", 0)
             w(_USER_PROFILE_ENGAGEMENT, "ScoobeSystemSettingEnabled", 0)
             # "Let's finish setting up" second-chance OOBE — mark done
@@ -1791,11 +1793,21 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         for name in ("CopilotPageContext", "EdgeEntraCopilotPageContext",
                      "EdgeHistoryAISearchEnabled", "ComposeInlineEnabled",
                      "BuiltInAIAPIsEnabled", "AIGenThemesEnabled",
-                     "ShareBrowsingHistoryWithCopilotSearchAllowed"):
+                     "ShareBrowsingHistoryWithCopilotSearchAllowed",
+                     # Copilot+ connected-page context + NTP Bing chat
+                     # (Raphire/Win11Debloat Edge AI diff)
+                     "CopilotCDPPageContext", "NewTabPageBingChatEnabled"):
             set_registry_dword("HKLM", edge_pol, name, 0)
         set_registry_dword("HKLM", edge_pol, "DevToolsGenAiSettings", 2)
         # 1 = disable the local on-device foundation model used by Edge AI
         set_registry_dword("HKLM", edge_pol, "GenAILocalFoundationalModelSettings", 1)
+        # NTP content feed + default-browser campaign nag + tab services
+        # (Raphire/Win11Debloat Edge ads/suggestions diff)
+        for name in ("NewTabPageContentEnabled", "TabServicesEnabled",
+                     "DefaultBrowserSettingsCampaignEnabled"):
+            set_registry_dword("HKLM", edge_pol, name, 0)
+        # 1 = hide the sponsored top-sites tile row on new tabs
+        set_registry_dword("HKLM", edge_pol, "NewTabPageHideDefaultTopSites", 1)
         logger.info("Applied: DisableEdgeBloat (sidebar/startup-boost/"
                     "prelaunch/first-run/shopping/recommendations/AI off)")
 
