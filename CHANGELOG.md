@@ -5,6 +5,8 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- T9 now also pins the hosts-block begin/end markers to the C#
+  copy — mismatched markers would duplicate the telemetry block.
 - T6 now asserts all 46 prevention keys exist in Program.cs —
   a py-only toggle would otherwise skip silently on the C# build.
 - T9 now asserts root `config.json` == `src/config.json` — the C#

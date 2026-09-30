@@ -3303,7 +3303,11 @@ def run_self_test() -> int:
                                   ("_USER_SUGGESTED_TOAST",
                                    (_USER_SUGGESTED_TOAST,)),
                                   ("_USER_VOICE_ACTIVATION",
-                                   (_USER_VOICE_ACTIVATION,))):
+                                   (_USER_VOICE_ACTIVATION,)),
+                                  ("_HOSTS_BLOCK_BEGIN",
+                                   (_HOSTS_BLOCK_BEGIN,)),
+                                  ("_HOSTS_BLOCK_END",
+                                   (_HOSTS_BLOCK_END,))):
                 miss = []
                 for e in entries:
                     # structured entries ((subkey, value) pairs) — verify each
