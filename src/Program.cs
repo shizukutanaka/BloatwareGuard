@@ -3144,6 +3144,22 @@ public static class RegistryGuard
         @"SOFTWARE\Policies\Microsoft\WindowsNotepad",
         @"SYSTEM\CurrentControlSet\Control\FeatureManagement\Overrides\8",
     };
+    private static readonly string[] ExtraBackupServiceNames =
+    {
+        "DiagTrack",
+        "RetailDemo",
+        "WerSvc",
+        "Spooler",
+        "RemoteRegistry",
+        "DoSvc",
+        "edgeupdate",
+        "edgeupdatem",
+        "MicrosoftEdgeElevationService",
+        "XblAuthManager",
+        "XblGameSave",
+        "XboxNetApiSvc",
+        "XboxGipSvc",
+    };
     private static readonly string[] UserBackupKeyPaths =
     {
         @"Control Panel\International\User Profile",
@@ -3222,6 +3238,14 @@ public static class RegistryGuard
                 RunToolSilent("reg.exe", $"export \"HKLM\\{path}\" \"{file}\" /y");
                 if (!File.Exists(file))
                     File.Delete(file);  // no-op guard — keep dir clean
+            }
+            foreach (var svc in MiscBloatServices.Concat(ExtraBackupServiceNames))
+            {
+                var file = Path.Combine(dir, $"{stamp}-s{exported++}.reg");
+                RunToolSilent("reg.exe",
+                    $"export \"HKLM\\SYSTEM\\CurrentControlSet\\Services\\{svc}\" \"{file}\" /y");
+                if (!File.Exists(file))
+                    File.Delete(file);
             }
             var roots = new List<string> { "HKCU" };
             try
@@ -3451,7 +3475,7 @@ public static class RegistryGuard
         "wercplsupport",
         // Desktop Activity Moderator, Intel telemetry, Event Collector
         // — all disabled by ReviOS services.yml
-        "dam", "Telemetry", "Wecsvc",
+        "dam", "Telemetry", "Wecsvc", "wercplsupport",
         // NetBIOS-over-TCP/IP — legacy LAN name protocol; pairs with
         // the LLMNR kill in DisableTelemetry (Atlas services.yml)
         "NetBT",

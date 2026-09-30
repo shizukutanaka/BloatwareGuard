@@ -5,6 +5,13 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- BackupRegistry now covers service config too: every
+  Services\<name> key for the demoted/disabled services (misc list +
+  _EXTRA_BACKUP_SERVICES for the 13 named demotes/disables) is
+  exported so original Start values survive. T12 asserts named
+  demote/disable calls stay covered — it immediately caught that
+  wercplsupport was demoted in Program.cs but absent from the cs
+  misc list (parity gap — now demoted+backed up on both).
 - BackupRegistry now covers per-user writes: _USER_BACKUP_KEY_PATHS
   (51 paths — every path written through the per-user hive writers)
   exported under each loaded interactive SID + HKCU alongside the

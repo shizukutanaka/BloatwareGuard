@@ -1122,6 +1122,16 @@ _MISC_DEMOTE_SERVICES = (
 )
 
 
+_EXTRA_BACKUP_SERVICES = (
+    # Services demoted/disabled by name outside _MISC_DEMOTE_SERVICES —
+    # their Services\<name> keys are exported too so the original
+    # Start/config survives in the backup net.
+    "DiagTrack", "RetailDemo", "WerSvc", "Spooler", "RemoteRegistry",
+    "DoSvc", "edgeupdate", "edgeupdatem", "MicrosoftEdgeElevationService",
+    "XblAuthManager", "XblGameSave", "XboxNetApiSvc", "XboxGipSvc",
+)
+
+
 _USER_BACKUP_KEY_PATHS = (
     # Per-user key paths written through for_each_user_hive /
     # set_user_dword_all_hives — exported under every loaded
@@ -1207,6 +1217,12 @@ def backup_registry_keys(logger: logging.Logger):
             roots += [f"HKU\\{sid}" for sid in sids if _USER_SID_RE.match(sid)]
         except Exception:
             pass
+        for svc in _MISC_DEMOTE_SERVICES + _EXTRA_BACKUP_SERVICES:
+            run_cmd(["reg.exe", "export",
+                     f"HKLM\\SYSTEM\\CurrentControlSet\\Services\\{svc}",
+                     os.path.join(backup_dir, f"{stamp}-s{i}.reg"), "/y"],
+                    timeout=15)
+            i += 1
         j = 0
         for root in roots:
             for path in _USER_BACKUP_KEY_PATHS:
@@ -3645,7 +3661,7 @@ def run_self_test() -> int:
         if not cs.exists():
             return
         cs_src = cs.read_text(encoding="utf-8", errors="ignore")
-        i = cs_src.find("BackupKeyPaths")
+        i = re.search(r'BackupKeyPaths\s*=\s*\{', cs_src).start()
         cs_backup = {p.lower() for p in re.findall(
             r'@"([^"]+)"', cs_src[i:cs_src.find("};", i)])}
         cs_writes = set(re.findall(
@@ -3697,7 +3713,7 @@ def run_self_test() -> int:
         cs_consts = dict(re.findall(
             r'(?:private const string|static readonly string)\s+(\w+)'
             r'\s*=\s*@?"([^"]+)"', cs_src))
-        i2 = cs_src.find("UserBackupKeyPaths")
+        i2 = re.search(r'UserBackupKeyPaths\s*=\s*\{', cs_src).start()
         cs_ubackup = {p.lower() for p in re.findall(
             r'@"([^"]+)"', cs_src[i2:cs_src.find("};", i2)])}
         cs_user = set()
@@ -3720,6 +3736,38 @@ def run_self_test() -> int:
         miss_ucs = sorted(p for p in cs_user if p not in cs_ubackup)
         assert not miss_ucs, \
             f"per-user write paths in Program.cs with no backup: {miss_ucs}"
+
+        # Service coverage: every service demoted/disabled by name must
+        # be in _MISC_DEMOTE_SERVICES ∪ _EXTRA_BACKUP_SERVICES so its
+        # Services\<name> key is exported for the backup net.
+        svc_backup = {s.lower() for s in
+                      _MISC_DEMOTE_SERVICES + _EXTRA_BACKUP_SERVICES}
+        py_svc = set(re.findall(r'demote_service\("([^"]+)"', src))
+        py_svc |= set(re.findall(
+            r'"sc\.exe",\s*"config",\s*"([^"]+)"', src))
+        for m in re.finditer(r'for\s+svc\s+in\s*\(([^)]*)\)', src):
+            py_svc |= set(re.findall(r'"([^"]+)"', m.group(1)))
+        miss_svc = sorted(s for s in py_svc if s.lower() not in svc_backup)
+        assert not miss_svc, \
+            f"demoted/disabled services with no backup: {miss_svc}"
+        # cs side: DemoteService literals, sc config names, new[] svc
+        # arrays ⊆ MiscBloatServices ∪ ExtraBackupServiceNames
+        cs_svc_backup = set()
+        for arr in ("MiscBloatServices", "ExtraBackupServiceNames"):
+            i3 = re.search(arr + r'\s*=\s*\{', cs_src).start()
+            cs_svc_backup |= {s.lower() for s in re.findall(
+                r'"([A-Za-z][\w.]*)"', cs_src[i3:cs_src.find("};", i3)])}
+        cs_svc = set(re.findall(r'DemoteService\("([^"]+)"', cs_src))
+        cs_svc |= set(re.findall(
+            r'config\s+([A-Za-z][\w.]*)\s+start=', cs_src))
+        for m in re.finditer(
+                r'foreach\s*\(var\s+svc\s+in\s+new\[\]\s*\{([^}]*)\}',
+                cs_src):
+            cs_svc |= set(re.findall(r'"([^"]+)"', m.group(1)))
+        miss_scs = sorted(s for s in cs_svc
+                          if s.lower() not in cs_svc_backup)
+        assert not miss_scs, \
+            f"demoted/disabled services in Program.cs with no backup: {miss_scs}"
 
     check("T12: HKLM write-path backup coverage", t_backup_path_coverage)
 
