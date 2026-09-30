@@ -1352,6 +1352,8 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         # as the Bing/suggestion switches above, one level deeper)
         set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\Windows Search",
                            "DisableWebSearch", 1)
+        # Dynamic web content inside the search box itself (Atlas)
+        set_registry_dword("HKLM", search_pol, "EnableDynamicContentInWSB", 0)
         logger.info("Applied: DisableSearchSuggestions (Bing/search suggestions + Cortana off, all hives)")
 
     if prev.get("DisableWidgets", True):
@@ -1519,6 +1521,65 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                         r"SOFTWARE\Wow6432Node\Microsoft\.NETFramework\v4.0.30319"):
             set_registry_dword("HKLM", dn_root, "SchUseStrongCrypto", 1)
             set_registry_dword("HKLM", dn_root, "AllowStrongNameBypass", 0)
+        # Attack/diagnostics surface hardening (Atlas playbook): LLMNR off
+        # (mDNS-spoofing vector), anonymous SAM/null-session enumeration off,
+        # perf-scenario + RSOP + DiagTrack event-transcript data off
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Policies\Microsoft\Windows NT\DNSClient",
+                           "EnableMulticast", 0)
+        set_registry_dword("HKLM",
+                           r"SYSTEM\CurrentControlSet\Control\Lsa",
+                           "RestrictAnonymous", 1)
+        set_registry_dword("HKLM",
+                           r"SYSTEM\CurrentControlSet\Control\Lsa",
+                           "RestrictAnonymousSAM", 1)
+        set_registry_dword("HKLM",
+                           r"SYSTEM\CurrentControlSet\Services\LanManServer\Parameters",
+                           "RestrictNullSessAccess", 1)
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Policies\Microsoft\Windows\WDI\{9c5a40da-b965-4fc3-8781-88dd50a6299d}",
+                           "ScenarioExecutionEnabled", 0)
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Policies\Microsoft\Windows\System",
+                           "RSoPLogging", 0)
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Microsoft\Windows\CurrentVersion\Diagnostics\DiagTrack\EventTranscriptKey",
+                           "EnableEventTranscript", 0)
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Microsoft\Windows\CurrentVersion\Diagnostics\DiagTrack\EventTranscriptKey",
+                           "MiniTraceSlotEnabled", 0)
+        set_registry_dword("HKLM",
+                           r"SYSTEM\CurrentControlSet\Control\Diagnostics\Performance",
+                           "DisableDiagnosticTracing", 1)
+        # Device Health Attestation + speech-model auto-download +
+        # cloud message-sync channels off
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Policies\Microsoft\DeviceHealthAttestationService",
+                           "EnableDeviceHealthAttestationService", 0)
+        set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Speech",
+                           "AllowSpeechModelUpdate", 0)
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Policies\Microsoft\Windows\Messaging",
+                           "AllowMessageSync", 0)
+        # SettingSync extras — deeper kills on the same toggle
+        ss = r"SOFTWARE\Policies\Microsoft\Windows\SettingSync"
+        set_registry_dword("HKLM", ss, "DisableSettingSyncUserOverride", 1)
+        set_registry_dword("HKLM", ss, "DisableSyncOnPaidNetwork", 1)
+        set_registry_dword("HKLM", ss, "DisableWindowsSettingSync", 2)
+        set_user_dword_all_hives(
+            r"Software\Microsoft\Windows\CurrentVersion\SettingSync",
+            "SyncPolicy", 5, logger)
+        # Per-user stragglers: CDM master switches + usage instrumentation +
+        # handwriting/typing insight collection
+        cdm = r"Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
+        set_user_dword_all_hives(cdm, "FeatureManagementEnabled", 0, logger)
+        set_user_dword_all_hives(cdm, "SubscribedContentEnabled", 0, logger)
+        set_user_dword_all_hives(
+            r"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer",
+            "NoInstrumentation", 1, logger)
+        set_user_dword_all_hives(
+            r"Software\Microsoft\Input\Settings",
+            "InsightsEnabled", 0, logger)
         # CEIP policy + feedback nag prompts
         set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\SQMClient\Windows",
                            "CEIPEnable", 0)
@@ -1740,6 +1801,16 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_user_dword_all_hives(_USER_WER, "Disabled", 1, logger)
         set_user_dword_all_hives(_USER_WER, "DontShowUI", 1, logger)
         set_user_dword_all_hives(_USER_WER, "LoggingDisabled", 1, logger)
+        # PCHealth reporting + CBS/drive-install WER spill channels (Atlas)
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Policies\Microsoft\PCHealth\ErrorReporting",
+                           "DoReport", 0)
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing",
+                           "DisableWerReporting", 1)
+        di = r"SOFTWARE\Policies\Microsoft\Windows\DeviceInstall\Settings"
+        set_registry_dword("HKLM", di, "DisableSendGenericDriverNotFoundToWER", 1)
+        set_registry_dword("HKLM", di, "DisableSendRequestAdditionalSoftwareToWER", 1)
         # WER support service + companion → demand-start
         for svc in ("wercplsupport",):
             demote_service(svc)
@@ -1920,7 +1991,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         cloud = r"Software\Policies\Microsoft\Windows\CloudContent"
         for name in ("DisableWindowsSpotlightFeatures",
                      "DisableSpotlightCollectionOnDesktop",
-                     "DisableSoftLanding"):
+                     "DisableSoftLanding",
+                     # Welcome experience / Action Center / Settings pages
+                     "DisableWindowsSpotlightWindowsWelcomeExperience",
+                     "DisableWindowsSpotlightOnActionCenter",
+                     "DisableWindowsSpotlightOnSettings"):
             set_user_dword_all_hives(cloud, name, 1, logger)
         logger.info("Applied: DisableSpotlight "
                     "(DesktopSpotlight + wallpaper + per-hive CloudContent)")

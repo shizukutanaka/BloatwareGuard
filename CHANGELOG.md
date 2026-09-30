@@ -5,6 +5,25 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- Atlas-OS playbook diff — 165-value audit, adopted the in-scope
+  privacy/hardening set across existing layers:
+  - `DisableTelemetry`: LLMNR off (`EnableMulticast`), anonymous
+    SAM/null-session enumeration off (`RestrictAnonymous`,
+    `RestrictAnonymousSAM`, `RestrictNullSessAccess`), WDI
+    `ScenarioExecutionEnabled`, `RSoPLogging`, DiagTrack
+    `EnableEventTranscript`/`MiniTraceSlotEnabled`,
+    `DisableDiagnosticTracing`, Device Health Attestation,
+    speech-model auto-download, cloud message sync, SettingSync
+    extras, per-user CDM master switches + `NoInstrumentation` +
+    input `InsightsEnabled`/`SyncPolicy`.
+  - `DisableErrorReporting`: PCHealth `DoReport`, CBS
+    `DisableWerReporting`, device-install WER spill sends.
+  - `DisableSpotlight`: per-user Spotlight policy +
+    welcome-experience/action-center/settings kills.
+  - `DisableSearchSuggestions`: `EnableDynamicContentInWSB`.
+  - Skipped: UAC secure-desktop off (weakens security), MS-account
+    block, kernel/page/MMCSS perf tweaks, ~100 Explorer/UX
+    preference values, crash-dump disables, Office/vendor telemetry.
 - `DisableTelemetry` .NET hardening (simeononsecurity
   Windows-Optimize-Harden-Debloat): `SchUseStrongCrypto` = 1 and
   `AllowStrongNameBypass` = 0 under both 64/32-bit .NET v4

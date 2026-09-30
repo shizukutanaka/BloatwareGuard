@@ -1950,6 +1950,8 @@ public static class RegistryGuard
             // Policy kill for web results in Start (Optimizer diff — one
             // level deeper than the Bing/suggestion switches)
             key?.SetValue("DisableWebSearch", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            // Dynamic web content inside the search box itself (Atlas)
+            key?.SetValue("EnableDynamicContentInWSB", 0, Microsoft.Win32.RegistryValueKind.DWord);
 
             ForEachUserHive(hive =>
             {
@@ -2222,6 +2224,60 @@ public static class RegistryGuard
                     dn?.SetValue("SchUseStrongCrypto", 1, Microsoft.Win32.RegistryValueKind.DWord);
                     dn?.SetValue("AllowStrongNameBypass", 0, Microsoft.Win32.RegistryValueKind.DWord);
                 }
+
+                // Attack/diagnostics surface hardening (Atlas playbook):
+                // LLMNR off, anonymous SAM / null-session enumeration off,
+                // perf-scenario + RSOP + DiagTrack event-transcript off
+                using var dns = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows NT\DNSClient");
+                dns?.SetValue("EnableMulticast", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                using var lsa = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SYSTEM\CurrentControlSet\Control\Lsa");
+                lsa?.SetValue("RestrictAnonymous", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                lsa?.SetValue("RestrictAnonymousSAM", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                using var lanman = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SYSTEM\CurrentControlSet\Services\LanManServer\Parameters");
+                lanman?.SetValue("RestrictNullSessAccess", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                using var wdi = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\WDI\{9c5a40da-b965-4fc3-8781-88dd50a6299d}");
+                wdi?.SetValue("ScenarioExecutionEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                using var rsop = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\System");
+                rsop?.SetValue("RSoPLogging", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                using var etk = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Microsoft\Windows\CurrentVersion\Diagnostics\DiagTrack\EventTranscriptKey");
+                etk?.SetValue("EnableEventTranscript", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                etk?.SetValue("MiniTraceSlotEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                using var diagp = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SYSTEM\CurrentControlSet\Control\Diagnostics\Performance");
+                diagp?.SetValue("DisableDiagnosticTracing", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // Device Health Attestation + speech-model auto-download +
+                // cloud message-sync channels off
+                using var dha = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\DeviceHealthAttestationService");
+                dha?.SetValue("EnableDeviceHealthAttestationService", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                using var speech = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Speech");
+                speech?.SetValue("AllowSpeechModelUpdate", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                using var msg = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\Messaging");
+                msg?.SetValue("AllowMessageSync", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                // SettingSync extras — deeper kills on the same toggle
+                using var ss = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\SettingSync");
+                ss?.SetValue("DisableSettingSyncUserOverride", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                ss?.SetValue("DisableSyncOnPaidNetwork", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                ss?.SetValue("DisableWindowsSettingSync", 2, Microsoft.Win32.RegistryValueKind.DWord);
+                ForEachUserHive(hive =>
+                {
+                    SetHiveDword(hive, @"Software\Microsoft\Windows\CurrentVersion\SettingSync", "SyncPolicy", 5);
+                    // CDM master switches + usage instrumentation +
+                    // handwriting/typing insight collection
+                    SetHiveDword(hive, @"Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager", "FeatureManagementEnabled", 0);
+                    SetHiveDword(hive, @"Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager", "SubscribedContentEnabled", 0);
+                    SetHiveDword(hive, @"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer", "NoInstrumentation", 1);
+                    SetHiveDword(hive, @"Software\Microsoft\Input\Settings", "InsightsEnabled", 0);
+                });
 
                 // CEIP policy + feedback nag prompts
                 using var sqm = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
@@ -2747,6 +2803,18 @@ public static class RegistryGuard
                 SetHiveDword(hive, UserWerPath, "DontShowUI", 1);
                 SetHiveDword(hive, UserWerPath, "LoggingDisabled", 1);
             });
+            // PCHealth reporting + CBS / device-install WER spill channels
+            // (Atlas playbook)
+            using var pchealth = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Policies\Microsoft\PCHealth\ErrorReporting");
+            pchealth?.SetValue("DoReport", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            using var cbs = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing");
+            cbs?.SetValue("DisableWerReporting", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            using var devinst = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Policies\Microsoft\Windows\DeviceInstall\Settings");
+            devinst?.SetValue("DisableSendGenericDriverNotFoundToWER", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            devinst?.SetValue("DisableSendRequestAdditionalSoftwareToWER", 1, Microsoft.Win32.RegistryValueKind.DWord);
             // WER control-panel support service → demand-start
             DemoteService("wercplsupport");
             GuardLogger.Info("Applied: DisableErrorReporting (WER uploads + UI + logging off)");
@@ -3258,6 +3326,16 @@ public static class RegistryGuard
             SetUserDwordAllHives(
                 @"Software\Policies\Microsoft\Windows\CloudContent",
                 "DisableSoftLanding", 1);
+            // Welcome experience / Action Center / Settings Spotlight pages
+            SetUserDwordAllHives(
+                @"Software\Policies\Microsoft\Windows\CloudContent",
+                "DisableWindowsSpotlightWindowsWelcomeExperience", 1);
+            SetUserDwordAllHives(
+                @"Software\Policies\Microsoft\Windows\CloudContent",
+                "DisableWindowsSpotlightOnActionCenter", 1);
+            SetUserDwordAllHives(
+                @"Software\Policies\Microsoft\Windows\CloudContent",
+                "DisableWindowsSpotlightOnSettings", 1);
             GuardLogger.Info("Applied: DisableSpotlight (DesktopSpotlight + wallpaper type + per-hive CloudContent policies)");
         }
         catch (Exception ex)
