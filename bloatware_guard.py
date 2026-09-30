@@ -3071,34 +3071,29 @@ def install_service():
               f'/RL HIGHEST /TR "\\"{pythonw}\\" \\"{script_path}\\" --service"')
         return False
 
-    subprocess.run(["sc", "stop", SERVICE_NAME], capture_output=True)
-    subprocess.run(["sc", "delete", SERVICE_NAME], capture_output=True)
-    subprocess.run([nssm, "remove", SERVICE_NAME, "confirm"], capture_output=True)
+    run_cmd(["sc", "stop", SERVICE_NAME])
+    run_cmd(["sc", "delete", SERVICE_NAME])
+    run_cmd([nssm, "remove", SERVICE_NAME, "confirm"])
     time.sleep(2)
 
-    result = subprocess.run(
-        [nssm, "install", SERVICE_NAME, str(pythonw), str(script_path), "--service"],
-        capture_output=True, text=True
-    )
-    print(result.stdout)
-    if result.returncode != 0:
-        print(f"Error: {result.stderr}")
+    out, rc = run_cmd(
+        [nssm, "install", SERVICE_NAME, str(pythonw), str(script_path), "--service"])
+    print(out)
+    if rc != 0:
         return False
 
-    subprocess.run([nssm, "set", SERVICE_NAME, "Start", "SERVICE_AUTO_START"],
-                   capture_output=True)
-    subprocess.run(
-        [nssm, "set", SERVICE_NAME, "AppStdout", str(LOG_DIR / "service-stdout.log")],
-        capture_output=True)
+    run_cmd([nssm, "set", SERVICE_NAME, "Start", "SERVICE_AUTO_START"])
+    run_cmd(
+        [nssm, "set", SERVICE_NAME, "AppStdout", str(LOG_DIR / "service-stdout.log")])
     print(f"Service '{SERVICE_NAME}' installed via NSSM. "
           f"Use 'sc start {SERVICE_NAME}' to start.")
     return True
 
 
 def uninstall_service():
-    subprocess.run(["sc", "stop", SERVICE_NAME], capture_output=True)
-    result = subprocess.run(["sc", "delete", SERVICE_NAME], capture_output=True, text=True)
-    print(result.stdout)
+    run_cmd(["sc", "stop", SERVICE_NAME])
+    out, _ = run_cmd(["sc", "delete", SERVICE_NAME])
+    print(out)
     # The hosts block is tool-owned runtime state that outlives the service —
     # strip it so an uninstalled tool leaves no stale null-routes. Registry
     # policies and deprovision/startup markers intentionally persist: they are
@@ -3462,8 +3457,8 @@ def main():
         sys.exit(run_self_test())
 
     if args.status:
-        result = subprocess.run(["sc", "query", SERVICE_NAME], capture_output=True, text=True)
-        print(result.stdout)
+        out, _ = run_cmd(["sc", "query", SERVICE_NAME])
+        print(out)
         return
 
     if args.install:

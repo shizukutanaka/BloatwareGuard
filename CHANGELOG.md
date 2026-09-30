@@ -5,6 +5,9 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- Service install/uninstall/status shell-outs now go through `run_cmd`
+  (30s timeout) instead of bare `subprocess.run` — a hung SCM or missing
+  NSSM can no longer stall the admin CLI paths.
 - `T11` self-test: registry value-name parity (py → cs). Every value
   name the Python impl writes (call args, loop variables, (name, value)
   tuple loops) must appear in Program.cs — drift between the mirrored
