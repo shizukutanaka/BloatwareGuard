@@ -1188,6 +1188,12 @@ public static class RegistryGuard
     private const string UserGameConfigStorePath = @"System\GameConfigStore";
     private const string UserGameDvrPath = @"Software\Microsoft\Windows\CurrentVersion\GameDVR";
     private const string UserDeliveryOptimizationPath = @"Software\Microsoft\Windows\CurrentVersion\DeliveryOptimization\Settings";
+    private const string UserDeliveryOptRootPath = @"Software\Microsoft\Windows\CurrentVersion\DeliveryOptimization";
+    private const string UserBackgroundAppsPath = @"Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications";
+    private const string UserSpeechPrefsPath = @"Software\Microsoft\Speech_OneCore\Preferences";
+    private const string UserEdgeUiPolicyPath = @"Software\Policies\Microsoft\Windows\EdgeUI";
+    private const string UserMediaPlayerPath = @"Software\Microsoft\MediaPlayer\Preferences";
+    private const string UserClipboardPath = @"Software\Microsoft\Clipboard";
     private const string UserExplorerPoliciesBasePath = @"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer";
     private const string UserOneDriveClsidPath = @"Software\Classes\CLSID\{018D5C66-4533-4307-9B53-224DE2ED1FE6}";
     private const string UserAccountNotificationsPath = @"Software\Microsoft\Windows\CurrentVersion\SystemSettings\AccountNotifications";
@@ -2017,6 +2023,17 @@ public static class RegistryGuard
                 SetHiveDword(hive, UserSearchSettingsPath, "IsAADCloudSearchEnabled", 0);
                 SetHiveDword(hive, UserSearchSettingsPath, "IsMSACloudSearchEnabled", 0);
                 SetHiveDword(hive, UserSearchSettingsPath, "IsDeviceSearchHistoryEnabled", 0);
+                // Remaining per-user Search/Cortana killswitches (privacy.sexy)
+                SetHiveDword(hive, UserSearchPath, "CanCortanaBeEnabled", 0);
+                SetHiveDword(hive, UserSearchPath, "HistoryViewEnabled", 0);
+                SetHiveDword(hive, UserSearchPath, "DeviceHistoryEnabled", 0);
+                SetHiveDword(hive, UserSearchPath, "VoiceShortcut", 0);
+                SetHiveDword(hive, UserExplorerAdvancedPath, "ShowCortanaButton", 0);
+                // Voice activation user-side killswitches (matches HKLM
+                // VoiceActivationDefaultOn above)
+                SetHiveDword(hive, UserVoiceActivationPath, "AgentActivationOnLockScreenEnabled", 0);
+                SetHiveDword(hive, UserSpeechPrefsPath, "VoiceActivationOn", 0);
+                SetHiveDword(hive, UserSpeechPrefsPath, "VoiceActivationEnableAboveLockscreen", 0);
             });
             GuardLogger.Info("Applied: DisableSearchSuggestions (Bing/search suggestions + Cortana + cloud search off, all hives)");
         }
@@ -2316,6 +2333,14 @@ public static class RegistryGuard
                 using var wmp = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\WindowsMediaPlayer");
                 wmp?.SetValue("DisableAutoUpdate", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // WMP metadata/usage pipeline (privacy.sexy)
+                wmp?.SetValue("PreventCDDVDMetadataRetrieval", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                wmp?.SetValue("PreventMusicFileMetadataRetrieval", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                wmp?.SetValue("PreventRadioPresetsRetrieval", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                ForEachUserHive(hive =>
+                {
+                    SetHiveDword(hive, UserMediaPlayerPath, "UsageTracking", 0);
+                });
             }
             catch { }
             // "Share across devices" (Connected Devices Platform) user consent off
@@ -2402,6 +2427,8 @@ public static class RegistryGuard
             key?.SetValue("DODownloadMode", 0, Microsoft.Win32.RegistryValueKind.DWord);
 
             SetUserDwordAllHives(UserDeliveryOptimizationPath, "DownloadMode", 0);
+            // User-facing download-mode setting mirrors the policy (privacy.sexy)
+            SetUserDwordAllHives(UserDeliveryOptRootPath, "SystemSettingsDownloadMode", 0);
             // The Delivery Optimization service reads the NETWORK SERVICE hive
             // (S-1-5-20) — write it explicitly too.
             try
@@ -2841,6 +2868,15 @@ public static class RegistryGuard
             using var findMy = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                 @"SOFTWARE\Policies\Microsoft\FindMyDevice");
             findMy?.SetValue("AllowFindMyDevice", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // Background-app access master switch (user setting matching the
+            // LetAppsRunInBackground force-deny) + share-pane recent-apps
+            // leak policies (privacy.sexy)
+            ForEachUserHive(hive =>
+            {
+                SetHiveDword(hive, UserBackgroundAppsPath, "GlobalUserDisabled", 1);
+                SetHiveDword(hive, UserEdgeUiPolicyPath, "DisableRecentApps", 1);
+                SetHiveDword(hive, UserEdgeUiPolicyPath, "TurnOffBackstack", 1);
+            });
             GuardLogger.Info($"Applied: DisableAppPermissions ({AppPrivacyDenies.Length} force-denied + ad-ID/FindMyDevice policies)");
         }
         catch (Exception ex)
@@ -3120,6 +3156,8 @@ public static class RegistryGuard
                           Microsoft.Win32.RegistryValueKind.DWord);
             SetUserDwordAllHives(@"Software\Microsoft\Clipboard",
                                  "EnableClipboardHistory", 0);
+            // Cloud-upload switch too — history stays local, nothing roams
+            SetUserDwordAllHives(UserClipboardPath, "CloudClipboardAutomaticUpload", 0);
             GuardLogger.Info("Applied: DisableCloudClipboard");
         }
         catch (Exception ex)

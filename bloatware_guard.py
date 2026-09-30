@@ -880,6 +880,12 @@ _USER_GAME_DVR = r"Software\Microsoft\Windows\CurrentVersion\GameDVR"
 _USER_DELIVERY_OPT = (r"Software\Microsoft\Windows\CurrentVersion"
                       r"\DeliveryOptimization\Settings")
 _USER_POLICIES_EXPLORER = r"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer"
+_USER_BACKGROUND_APPS = (r"Software\Microsoft\Windows\CurrentVersion"
+                         r"\BackgroundAccessApplications")
+_USER_SPEECH_PREFS = r"Software\Microsoft\Speech_OneCore\Preferences"
+_USER_EDGEUI_POLICY = r"Software\Policies\Microsoft\Windows\EdgeUI"
+_USER_MEDIAPLAYER = r"Software\Microsoft\MediaPlayer\Preferences"
+_USER_CLIPBOARD = r"Software\Microsoft\Clipboard"
 _USER_ONEDRIVE_CLSID = r"Software\Classes\CLSID\{018D5C66-4533-4307-9B53-224DE2ED1FE6}"
 _USER_WER = r"Software\Microsoft\Windows\Windows Error Reporting"
 
@@ -1392,6 +1398,18 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_user_dword_all_hives(_USER_SEARCH_SETTINGS, "IsMSACloudSearchEnabled", 0, logger)
         set_user_dword_all_hives(_USER_SEARCH_SETTINGS, "IsDeviceSearchHistoryEnabled", 0, logger)
         set_user_dword_all_hives(_USER_SEARCH, "CortanaConsent", 0, logger)
+        # Remaining per-user Search/Cortana killswitches (privacy.sexy)
+        for name in ("CanCortanaBeEnabled", "HistoryViewEnabled",
+                     "DeviceHistoryEnabled", "VoiceShortcut"):
+            set_user_dword_all_hives(_USER_SEARCH, name, 0, logger)
+        set_user_dword_all_hives(_USER_EXPLORER_ADV, "ShowCortanaButton", 0, logger)
+        # Voice activation user-side killswitches (matches the HKLM
+        # VoiceActivationDefaultOn policy above)
+        set_user_dword_all_hives(_USER_VOICE_ACTIVATION,
+                                 "AgentActivationOnLockScreenEnabled", 0, logger)
+        set_user_dword_all_hives(_USER_SPEECH_PREFS, "VoiceActivationOn", 0, logger)
+        set_user_dword_all_hives(_USER_SPEECH_PREFS,
+                                 "VoiceActivationEnableAboveLockscreen", 0, logger)
         # Policy kill for web results in Start (Optimizer diff — same spirit
         # as the Bing/suggestion switches above, one level deeper)
         set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\Windows Search",
@@ -1643,6 +1661,14 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_registry_dword("HKLM",
                            r"SOFTWARE\Policies\Microsoft\WindowsMediaPlayer",
                            "DisableAutoUpdate", 1)
+        # WMP metadata/usage pipeline (privacy.sexy)
+        for name in ("PreventCDDVDMetadataRetrieval",
+                     "PreventMusicFileMetadataRetrieval",
+                     "PreventRadioPresetsRetrieval"):
+            set_registry_dword("HKLM",
+                               r"SOFTWARE\Policies\Microsoft\WindowsMediaPlayer",
+                               name, 1)
+        set_user_dword_all_hives(_USER_MEDIAPLAYER, "UsageTracking", 0, logger)
         # "Share across devices" (Connected Devices Platform) consent off
         cdp = r"Software\Microsoft\Windows\CurrentVersion\CDP"
         set_user_dword_all_hives(cdp, "CdpSessionUserAuthzPolicy", 0, logger)
@@ -1697,6 +1723,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization",
                            "DODownloadMode", 0)
         set_user_dword_all_hives(_USER_DELIVERY_OPT, "DownloadMode", 0, logger)
+        # User-facing download-mode setting mirrors the policy (privacy.sexy)
+        set_user_dword_all_hives(
+            r"Software\Microsoft\Windows\CurrentVersion\DeliveryOptimization",
+            "SystemSettingsDownloadMode", 0, logger)
         # The DoSvc service still auto-starts for CDN fetches — demote it too
         demote_service("DoSvc")
         # The Delivery Optimization service reads the NETWORK SERVICE hive (S-1-5-20)
@@ -1860,6 +1890,13 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_registry_dword("HKLM",
                            r"SOFTWARE\Policies\Microsoft\FindMyDevice",
                            "AllowFindMyDevice", 0)
+        # Background-app access master switch (user setting matching the
+        # LetAppsRunInBackground force-deny above) + share-pane recent-apps
+        # leak policies (privacy.sexy)
+        set_user_dword_all_hives(_USER_BACKGROUND_APPS,
+                                 "GlobalUserDisabled", 1, logger)
+        set_user_dword_all_hives(_USER_EDGEUI_POLICY, "DisableRecentApps", 1, logger)
+        set_user_dword_all_hives(_USER_EDGEUI_POLICY, "TurnOffBackstack", 1, logger)
         logger.info(f"Applied: DisableAppPermissions ({len(app_privacy)} "
                     "force-denied + ad-ID/FindMyDevice policies)")
 
@@ -1904,6 +1941,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_user_dword_all_hives(
             r"Software\Microsoft\Clipboard",
             "EnableClipboardHistory", 0, logger)
+        # Cloud-upload switch too — history stays local, nothing roams
+        set_user_dword_all_hives(_USER_CLIPBOARD,
+                                 "CloudClipboardAutomaticUpload", 0, logger)
         logger.info("Applied: DisableCloudClipboard")
 
     if prev.get("DisableRemoteAssistance", True):
@@ -3295,7 +3335,17 @@ def run_self_test() -> int:
                                    (_USER_SUGGESTED_TOAST,)),
                                   ("_USER_VOICE_ACTIVATION",
                                    (_USER_VOICE_ACTIVATION,)),
-                                  ("_USER_RECALL", (_USER_RECALL,))):
+                                  ("_USER_RECALL", (_USER_RECALL,)),
+                                  ("_USER_BACKGROUND_APPS",
+                                   (_USER_BACKGROUND_APPS,)),
+                                  ("_USER_SPEECH_PREFS",
+                                   (_USER_SPEECH_PREFS,)),
+                                  ("_USER_EDGEUI_POLICY",
+                                   (_USER_EDGEUI_POLICY,)),
+                                  ("_USER_MEDIAPLAYER",
+                                   (_USER_MEDIAPLAYER,)),
+                                  ("_USER_CLIPBOARD",
+                                   (_USER_CLIPBOARD,))):
                 miss = []
                 for e in entries:
                     # structured entries ((subkey, value) pairs) — verify each

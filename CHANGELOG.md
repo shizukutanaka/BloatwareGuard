@@ -48,6 +48,16 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   (flighted feature trials, not just preview builds).
 - Backup list +3 keys (Software Protection Platform, InputPersonalization,
   CurrentVersion\Search) so the new policy writes stay restorable.
+- Per-user mirrors (privacy.sexy HKCU diff): Search `CanCortanaBeEnabled`/
+  `HistoryViewEnabled`/`DeviceHistoryEnabled`/`VoiceShortcut`, Explorer
+  `ShowCortanaButton`, voice-activation `AgentActivationOnLockScreenEnabled`/
+  `VoiceActivationOn`/`VoiceActivationEnableAboveLockscreen`,
+  `GlobalUserDisabled` background-apps master switch, EdgeUI share-pane
+  `DisableRecentApps`/`TurnOffBackstack`, DO `SystemSettingsDownloadMode`,
+  clipboard `CloudClipboardAutomaticUpload`, WMP `UsageTracking` + 3
+  metadata-retrieval policies.
+- Skipped from the HKCU diff: Office/VS/CCleaner/IE vendor keys, Narrator/
+  Snipping UI toggles.
 - Deliberately skipped from the same source: Defender/firewall/WU-control
   keys (security boundary), NCSI probe keys (captive-portal regression —
   same class as the reverted `EnableActiveProbing`), per-category SettingSync
