@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.59.2-mvp - Python prototype
+BloatwareGuard v1.60.0-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -35,7 +35,7 @@ from typing import List, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.59.2-mvp"
+APP_VERSION = "1.60.0-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -565,17 +565,23 @@ def remove_provisioned_package(package_name: str) -> bool:
 
 def remove_optional_capabilities(logger: logging.Logger) -> bool:
     """Remove deprecated/legacy optional capabilities (IE mode, Steps Recorder,
-    WordPad). Requires admin; non-present entries are skipped by PowerShell."""
+    WordPad, QuickAssist, PowerShell ISE, IrDA/RIP/SNMP legacy networking,
+    dev/packaging tools). Requires admin; non-present entries are skipped by
+    PowerShell."""
     pattern = ("Browser.InternetExplorer|App.StepsRecorder|"
                "Microsoft.Windows.WordPad|XPS.Viewer|Print.Fax.Scan|"
-               "App.WirelessDisplay.Connect")
+               "App.WirelessDisplay.Connect|App.Support.QuickAssist|"
+               "Microsoft.Windows.PowerShell.ISE|Microsoft.WebDriver|"
+               "Msix.PackagingTool.Driver|Network.Irda|OneCoreUAP.OneSync|"
+               "RIP.Listener|RasCMAK.Client|SNMP.Client|"
+               "Analog.Holographic.Desktop|Windows.Desktop.EMS-SAC.Tools")
     _, _, rc = run_powershell(
         "Get-WindowsCapability -Online | Where-Object "
         f"{{$_.Name -match '{pattern}' -and $_.State -eq 'Installed'}} | "
         "Remove-WindowsCapability -Online -ErrorAction SilentlyContinue | Out-Null",
         timeout=180)
     if rc == 0:
-        logger.info("Applied: RemoveOptionalCapabilities (IE/StepsRecorder/WordPad)")
+        logger.info("Applied: RemoveOptionalCapabilities (legacy/dev/dead-net)")
     else:
         logger.warning("RemoveOptionalCapabilities: no capabilities removed "
                        "(absent or admin required)")

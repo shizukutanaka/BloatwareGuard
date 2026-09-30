@@ -2,7 +2,23 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
-## [Unreleased] — v1.59.2-mvp: deploy/docstaleness + exe metadata
+## [Unreleased] — v1.60.0-mvp: optional-capability expansion
+
+### Added
+- `RemoveOptionalCapabilities` 6→17 entries (privacy.sexy
+  UninstallCapability diff): `App.Support.QuickAssist` (inbox stub —
+  Store successor is already blacklisted), deprecated
+  `Microsoft.Windows.PowerShell.ISE`, test/dev tooling
+  (`Microsoft.WebDriver`, `Msix.PackagingTool.Driver`,
+  `Windows.Desktop.EMS-SAC.Tools`), dead legacy networking
+  (`Network.Irda`, `RIP.Listener`, `RasCMAK.Client`, `SNMP.Client`),
+  `OneCoreUAP.OneSync` sync host (matches demoted OneSyncSvc),
+  `Analog.Holographic.Desktop` MR shell. Deliberately skipped: RSAT
+  ×20 (admin opt-in tools), OpenSSH client/server, NetFX3, print
+  infrastructure, Braille/MathRecognizer (functional/accessibility),
+  storage management backends.
+
+## [Released] — v1.59.2-mvp: deploy/docstaleness + exe metadata
 
 ### Fixed
 - `deploy_verify.bat` was three versions stale (v1.56.0 header), hardcoded a

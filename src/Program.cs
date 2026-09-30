@@ -695,7 +695,7 @@ public static class AppxManager
     /// Requires admin; non-admin/non-present entries are skipped by PowerShell.</summary>
     public static void RemoveOptionalCapabilities()
     {
-        var pattern = "Browser.InternetExplorer|App.StepsRecorder|Microsoft.Windows.WordPad|XPS.Viewer|Print.Fax.Scan|App.WirelessDisplay.Connect";
+        var pattern = "Browser.InternetExplorer|App.StepsRecorder|Microsoft.Windows.WordPad|XPS.Viewer|Print.Fax.Scan|App.WirelessDisplay.Connect|App.Support.QuickAssist|Microsoft.Windows.PowerShell.ISE|Microsoft.WebDriver|Msix.PackagingTool.Driver|Network.Irda|OneCoreUAP.OneSync|RIP.Listener|RasCMAK.Client|SNMP.Client|Analog.Holographic.Desktop|Windows.Desktop.EMS-SAC.Tools";
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
@@ -706,7 +706,7 @@ public static class AppxManager
             CreateNoWindow = true
         };
         if (Proc.Wait(psi, 180000) == 0)  // DISM ops can be slow
-            GuardLogger.Info("Applied: RemoveOptionalCapabilities (IE/StepsRecorder/WordPad)");
+            GuardLogger.Info("Applied: RemoveOptionalCapabilities (legacy/dev/dead-net)");
         else
             GuardLogger.Warn("RemoveOptionalCapabilities: no capabilities removed (absent or admin required)");
     }
@@ -4048,7 +4048,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.59.2-mvp");
+                    Console.WriteLine("BloatwareGuard v1.60.0-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -4134,7 +4134,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.59.2-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.60.0-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -4315,8 +4315,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 8;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.59.2-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.59.2-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.60.0-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.60.0-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try
