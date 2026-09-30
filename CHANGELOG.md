@@ -5,6 +5,13 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- Backup coverage fix: 15 HKLM write paths were not in
+  _BACKUP_KEY_PATHS, so `restore` could not revert them — CBS
+  deprovision marker, DiagTrack EventTranscriptKey, Explorer
+  (Edge-shortcut suppression), SmartGlass, DeviceHealthAttestation,
+  PCHealth WER, Speech, DNSClient, DeviceInstall settings, Messaging,
+  WDI GUID, WindowsNotepad, Diagnostics Performance, Lsa,
+  LanmanServer. All now exported before first write (69->84).
 - bloatbox (W4RH4WK extended hosts) diff: telemetry hosts 116->137 —
   nsatc/akadns CDN aliases (vortex cy2, OneSettings db5, social
   services i1), insider/flighting ring endpoints
