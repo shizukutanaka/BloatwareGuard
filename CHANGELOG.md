@@ -5,6 +5,52 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- coolvitto hateblo (new source, Policy CSP - System full
+  list): `DisableTelemetry` +10 — DataCollection processing
+  kills (`AllowDesktopAnalyticsProcessing`/
+  `AllowDeviceNameInDiagnosticData`/
+  `AllowMicrosoftManagedDesktopProcessing`/
+  `AllowUpdateComplianceProcessing`/`AllowWUfBCloudProcessing`/
+  `DisableDiagnosticDataViewer`/`EnableOneSettingsAuditing`/
+  `LimitEnhancedDiagnosticDataWindowsAnalytics`), System
+  `EnableFontProviders`=0 (online font downloads),
+  `AllowOOBEUpdates`=0 (OOBE in-setup update pulls). Backup
+  +`Policies\Microsoft\Windows\OOBE`. Skipped:
+  `DisableDeviceDelete` (inverse polarity — kills the delete
+  capability itself), `DisableFileSyncNGSC` (OneDrive kill —
+  rejected class), `DisableSR`/FileHistory `Disabled`
+  (functional feature kills), ELAM `DriverLoadPolicy`
+  (security boundary), `AllowLocation` (per-app design),
+  `HideUnsupportedHardwareNotifications`=0 (shows warnings —
+  opposite direction), TelemetryProxy (no proxy to set),
+  MDM-only entries (no registry surface).
+- atlantsecurity/windows-hardening-scripts (cmd suite, new
+  source): `DisableTelemetry` +5 — `DisableSmartNameResolution`/
+  `EnableICMPRedirect`/`DisableIPSourceRouting` (Tcpip +
+  Tcpip6)/`DontDisplayNetworkSelectionUI`/`AuditLevel`
+  (LSASS access auditing). Backup +3 (Tcpip/Tcpip6
+  Parameters, LSASS.exe IFEO). Skipped: `EnableLUA`
+  (UAC boundary), WSH `DisplayLogo`/Office macro rows
+  (vendor/UI), `EnableOcspStaplingForSni` (commented out in
+  source), `AuditLevel` PowerShell `EnableModuleLogging`
+  (logging surface), printer `DisableWebPnPDownload` (already
+  covered).
+- ledg/WinDebloatTools (new source): `DisableSpotlight`
+  +`IncludeEnterpriseSpotlight`=0 (Enterprise Spotlight
+  content — inverse polarity, =0 disables), `DisableWidgets`
+  +`ShellFeedsTaskbarOpenOnHover`=0 (taskbar feeds
+  open-on-hover). Skipped: `NoAutoUpdate`/`ShowSleepOption`/
+  `EnableMtcUvc`/`EnableMmx`/`DisableLocationScripting`
+  (boundary/UI/location kills).
+- Winnow (BiosSystem, second pass): `DisableCopilot`
+  +`OnlineVoicesEnabled`=0 (Narrator\NoRoam — online voice
+  downloads), `DisableCloudClipboard`
+  +`EnableSuggestedClipboardActions`=0 (clipboard AI
+  actions). User backup +`Narrator\NoRoam` (70→71).
+- CoPilot-Cleaner (new source): `DisableEdgeBloat`
+  +`DiscoverHubEnabled`=0 (Edge Discover-hub kill —
+  value=0 sibling of `DefaultBingContextMenuEnabled`).
+
 - LeDragoX/Win-Debloat-Tools (new source): blacklist +3 —
   `SAMSUNGELECTRONICS` (OEM stub namespace covering both
   publisher spellings), `4AE8B7C2.` (Booking.com stub
