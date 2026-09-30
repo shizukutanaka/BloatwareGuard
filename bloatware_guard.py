@@ -2406,6 +2406,10 @@ _TELEMETRY_HOSTS = (
     "aidps.atdmt.com", "c.atdmt.com", "cdn.atdmt.com",
     "db3aqu.atdmt.com", "ec.atdmt.com", "view.atdmt.com",
     "aka-cdn-ns.adtech.de", "pre.footprintpredict.com",
+    # Ad/feedback ingestion (DisableWinTracking diff)
+    "ad.doubleclick.net", "s0.2mdn.net", "static.2mdn.net",
+    "b.ads2.msads.net", "compatexchange.cloudapp.net",
+    "feedback.search.microsoft.com", "feedback.windows.com",
 )
 _HOSTS_BLOCK_BEGIN = "# >>> BloatwareGuard telemetry block"
 _HOSTS_BLOCK_END = "# <<< BloatwareGuard telemetry block"

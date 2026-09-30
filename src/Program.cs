@@ -1470,6 +1470,10 @@ public static class RegistryGuard
         "aidps.atdmt.com", "c.atdmt.com", "cdn.atdmt.com",
         "db3aqu.atdmt.com", "ec.atdmt.com", "view.atdmt.com",
         "aka-cdn-ns.adtech.de", "pre.footprintpredict.com",
+        // Ad/feedback ingestion (DisableWinTracking diff)
+        "ad.doubleclick.net", "s0.2mdn.net", "static.2mdn.net",
+        "b.ads2.msads.net", "compatexchange.cloudapp.net",
+        "feedback.search.microsoft.com", "feedback.windows.com",
     };
     private const string HostsBlockBegin = "# >>> BloatwareGuard telemetry block";
     private const string HostsBlockEnd = "# <<< BloatwareGuard telemetry block";

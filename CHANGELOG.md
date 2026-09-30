@@ -5,6 +5,12 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- Telemetry hosts 109->116: ad/feedback ingestion from
+  DisableWinTracking's domain diff — DoubleClick ad serving/CDN
+  (ad.doubleclick.net, s0/static.2mdn.net), MS ads (b.ads2.msads.net),
+  compat-exchange endpoint, search/Windows feedback endpoints.
+  Skipped: NCSI (active-probing), Skype/Hotmail/MSN content, Edge/WU
+  CDNs, DNS infrastructure (functional).
 - Win32 uninstall scan: per-subkey `winreg` handles now released via
   `with` instead of relying on GC finalizers between iterations.
 - Dispose the `BingChat` subkey handle opened inline in DisableCopilot —
