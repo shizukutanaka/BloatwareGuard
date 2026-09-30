@@ -1452,6 +1452,7 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "SoftLandingEnabled",                # soft landing tips
                 "SubscribedContent-310093Enabled",   # Windows welcome experience
                 "SubscribedContent-338387Enabled",   # lock-screen spotlight ads
+                "SubscribedContent-410400Enabled",   # additional sponsored feed
                 "SubscribedContent-338388Enabled",   # Start suggestions
                 "SubscribedContent-338389Enabled",   # tips while using Windows
                 "SubscribedContent-338393Enabled",   # Settings suggestions
@@ -1712,6 +1713,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword("HKLM", ai_pol, "DisableClickToDo", 1)
             # 25H2 "Agent in Settings" (Settings AI agent)
             set_registry_dword("HKLM", ai_pol, "DisableSettingsAgent", 1)
+            # WindowsAI model management — block on-device AI model
+            # downloads and background updates (win-debloat Security module)
+            mm = ai_pol + r"\ModelManagement"
+            set_registry_dword("HKLM", mm, "DisableModelDownload", 1)
+            set_registry_dword("HKLM", mm, "DisableBackgroundModelUpdates", 1)
             # Recall export + app/URI deny-lists (noid-privacy AntiAI —
             # documented 25H2 WindowsCopilot ADMX values)
             set_registry_dword("HKLM", ai_pol, "AllowRecallExport", 0)

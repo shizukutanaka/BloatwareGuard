@@ -2137,6 +2137,7 @@ public static class RegistryGuard
                 "SoftLandingEnabled",               // soft landing tips
                 "SubscribedContent-310093Enabled",  // Windows welcome experience
                 "SubscribedContent-338387Enabled",  // lock-screen spotlight ads
+                "SubscribedContent-410400Enabled",  // additional sponsored feed
                 "SubscribedContent-338388Enabled",  // Start suggestions
                 "SubscribedContent-338389Enabled",  // tips while using Windows
                 "SubscribedContent-338393Enabled",  // Settings suggestions
@@ -2413,6 +2414,12 @@ public static class RegistryGuard
             key?.SetValue("DisableClickToDo", 1, Microsoft.Win32.RegistryValueKind.DWord);
             // 25H2 "Agent in Settings" (Settings AI agent)
             key?.SetValue("DisableSettingsAgent", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            // WindowsAI model management — block on-device AI model
+            // downloads and background updates (win-debloat Security module)
+            using var modelMgmt = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                WindowsAiPath + @"\ModelManagement");
+            modelMgmt?.SetValue("DisableModelDownload", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            modelMgmt?.SetValue("DisableBackgroundModelUpdates", 1, Microsoft.Win32.RegistryValueKind.DWord);
             // Recall export + app/URI deny-lists (noid-privacy AntiAI —
             // documented 25H2 WindowsCopilot ADMX values)
             key?.SetValue("AllowRecallExport", 0, Microsoft.Win32.RegistryValueKind.DWord);
