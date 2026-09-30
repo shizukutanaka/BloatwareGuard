@@ -78,6 +78,9 @@ DEFAULT_BLACKLIST = [
     "Microsoft.Xbox",
     "Microsoft.GamingApp",
     "Flipgrid",                      # Flip education stub (ReviOS appx.yml)
+    "Microsoft.FrenchRiviera",       # scenic/spotlight stub (TronScript)
+    "Microsoft.Lucille",             # inbox demo stub (TronScript)
+    "Microsoft.SeaofThieves",        # game stub (TronScript)
     "Microsoft.MicrosoftSolitaireCollection",
     "Microsoft.People",
     "Microsoft.WindowsMaps",
@@ -1583,6 +1586,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             search_pol = r"SOFTWARE\Policies\Microsoft\Windows\Windows Search"
             set_registry_dword("HKLM", search_pol, "AllowCortana", 0)
             set_registry_dword("HKLM", search_pol, "CortanaConsent", 0)
+            # Cortana/voice access above the lock screen (TronScript)
+            set_registry_dword(
+                "HKLM", search_pol, "AllowCortanaAboveLock", 0)
             # Location-aware search results leak the device location to Bing
             set_registry_dword("HKLM", search_pol, "AllowSearchToUseLocation", 0)
             # AAD work/school-account Cortana + OOBE-path variants

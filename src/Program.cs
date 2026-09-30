@@ -445,6 +445,9 @@ public static class ConfigLoader
                 "Microsoft.Xbox",
                 "Microsoft.GamingApp",
             "Flipgrid",                      // Flip education stub (ReviOS appx.yml)
+            "Microsoft.FrenchRiviera",       // scenic/spotlight stub (TronScript)
+            "Microsoft.Lucille",             // inbox demo stub (TronScript)
+            "Microsoft.SeaofThieves",        // game stub (TronScript)
                 "Microsoft.MicrosoftSolitaireCollection",
                 "Microsoft.People",
                 "Microsoft.WindowsMaps",
@@ -2060,6 +2063,8 @@ public static class RegistryGuard
         {
             using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(WindowsSearchPath);
             key?.SetValue("AllowCortana", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // Cortana/voice above the lock screen (TronScript)
+            key?.SetValue("AllowCortanaAboveLock", 0, Microsoft.Win32.RegistryValueKind.DWord);
             // AAD work/school-account Cortana + OOBE-path variants
             // (ReviOS search.yml)
             key?.SetValue("AllowCortanaInAAD", 0, Microsoft.Win32.RegistryValueKind.DWord);

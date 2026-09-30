@@ -5,6 +5,13 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- TronScript (bmrf/tron) diff: blacklist +FrenchRiviera/
+  Lucille/SeaofThieves stubs (187->190);
+  DisableSearchSuggestions +AllowCortanaAboveLock.
+  Skipped: task-file deletions (design disables, not deletes),
+  WiFi-Sense values (feature removed 2017), Defender Spynet,
+  ~750 user-installed-app wildcards, language packs,
+  BioEnrollment/camera/DDV/BrowserChoice (functional).
 - Microsoft documented-policy gap fill: DisableTelemetry
   +ConfigureTelemetryOptInChangeNotification/
   ConfigureTelemetryOptInSettingsUx (opt-in prompt/UX
