@@ -3198,18 +3198,14 @@ public static class RegistryGuard
                 // compliance + WUfB cloud processing off, diagnostic-
                 // data-viewer surface off, OneSettings auditing off,
                 // enhanced-diag-data limited
-                foreach (var (dn, dv) in new (string, int)[]
-                {
-                    ("AllowDesktopAnalyticsProcessing", 0),
-                    ("AllowDeviceNameInDiagnosticData", 0),
-                    ("AllowMicrosoftManagedDesktopProcessing", 0),
-                    ("AllowUpdateComplianceProcessing", 0),
-                    ("AllowWUfBCloudProcessing", 0),
-                    ("DisableDiagnosticDataViewer", 1),
-                    ("EnableOneSettingsAuditing", 0),
-                    ("LimitEnhancedDiagnosticDataWindowsAnalytics", 1),
-                })
-                    fdb?.SetValue(dn, dv, Microsoft.Win32.RegistryValueKind.DWord);
+                fdb?.SetValue("AllowDesktopAnalyticsProcessing", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                fdb?.SetValue("AllowDeviceNameInDiagnosticData", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                fdb?.SetValue("AllowMicrosoftManagedDesktopProcessing", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                fdb?.SetValue("AllowUpdateComplianceProcessing", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                fdb?.SetValue("AllowWUfBCloudProcessing", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                fdb?.SetValue("DisableDiagnosticDataViewer", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                fdb?.SetValue("EnableOneSettingsAuditing", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                fdb?.SetValue("LimitEnhancedDiagnosticDataWindowsAnalytics", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 // Online font-provider downloads off (Policy CSP - System)
                 using (var sysf = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                            @"SOFTWARE\Policies\Microsoft\Windows\System"))
@@ -4163,6 +4159,7 @@ public static class RegistryGuard
         @"SYSTEM\CurrentControlSet\Services\Tcpip\Parameters",
         @"SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters",
         @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\LSASS.exe",
+        @"SOFTWARE\Policies\Microsoft\Windows\OOBE",
     };
     private static readonly string[] ExtraBackupServiceNames =
     {
