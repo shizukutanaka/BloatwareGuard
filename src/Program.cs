@@ -701,20 +701,37 @@ public static class AppxManager
     /// Conservative list: IE compatibility mode (Edge covers IE-mode), Steps
     /// Recorder (deprecated), WordPad (removed by MS in 24H2 anyway).
     /// Requires admin; non-admin/non-present entries are skipped by PowerShell.</summary>
-    public static void RemoveOptionalCapabilities()
+    public static void RemoveOptionalCapabilities(GuardConfig config)
     {
         var pattern = "Browser.InternetExplorer|App.StepsRecorder|Microsoft.Windows.WordPad|XPS.Viewer|Print.Fax.Scan|App.WirelessDisplay.Connect";
+        var query = $"Get-WindowsCapability -Online | Where-Object {{$_.Name -match '{pattern}' -and $_.State -eq 'Installed'}}";
+        var namesPsi = new ProcessStartInfo
+        {
+            FileName = "powershell.exe",
+            Arguments = $"-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"{query} | Select-Object -ExpandProperty Name\"",
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        var names = Proc.Capture(namesPsi, 60000).Stdout
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Select(n => n.Trim())
+            .Where(AppxManager.IsPackageNameSafe)
+            .ToList();
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = $"-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"Get-WindowsCapability -Online | Where-Object {{$_.Name -match '{pattern}' -and $_.State -eq 'Installed'}} | Remove-WindowsCapability -Online -ErrorAction SilentlyContinue | Out-Null\"",
+            Arguments = $"-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"{query} | Remove-WindowsCapability -Online -ErrorAction SilentlyContinue | Out-Null\"",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true
         };
         if (Proc.Wait(psi, 180000) == 0)  // DISM ops can be slow
-            GuardLogger.Info("Applied: RemoveOptionalCapabilities (IE/StepsRecorder/WordPad)");
+        {
+            foreach (var n in names)
+                RemovalLedger.Record(config, "capability", n);
+            GuardLogger.Info($"Applied: RemoveOptionalCapabilities ({names.Count} capabilities)");
+        }
         else
             GuardLogger.Warn("RemoveOptionalCapabilities: no capabilities removed (absent or admin required)");
     }
@@ -4208,7 +4225,7 @@ public class GuardService : BackgroundService
             if (dryRun)
                 GuardLogger.Info("[DRY-RUN] Would remove optional capabilities (IE/StepsRecorder/WordPad) [requires admin]");
             else
-                AppxManager.RemoveOptionalCapabilities();
+                AppxManager.RemoveOptionalCapabilities(_config);
         }
 
         // 2.6 Remove Win32 programs matching blacklist — the primary OEM
@@ -4599,6 +4616,32 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
                 else
                 {
                     GuardLogger.Warn($"Restore failed: {name} — reinstall via Microsoft Store");
+                    manual++;
+                }
+            }
+            else if (kind == "capability" && !string.IsNullOrEmpty(name))
+            {
+                if (!AppxManager.IsPackageNameSafe(name))
+                {
+                    GuardLogger.Warn($"Ledger entry with unsafe name skipped: {name}");
+                    manual++;
+                    continue;
+                }
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "powershell.exe",
+                    Arguments = $"-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"Add-WindowsCapability -Online -Name '{name}' -ErrorAction SilentlyContinue | Out-Null\"",
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                if (Proc.Wait(psi, 180000) == 0)
+                {
+                    GuardLogger.Info($"Restored capability: {name}");
+                    restored++;
+                }
+                else
+                {
+                    GuardLogger.Warn($"Capability restore failed: {name} (Settings → Optional features)");
                     manual++;
                 }
             }

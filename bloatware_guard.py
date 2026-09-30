@@ -549,6 +549,21 @@ def run_restore(config: dict, logger: logging.Logger) -> int:
             else:
                 logger.warning(f"Restore failed: {name} — reinstall via Microsoft Store")
                 manual += 1
+        elif entry.get("kind") == "capability" and name:
+            if not _safe_pkg_name(name):
+                logger.warning(f"Ledger entry with unsafe name skipped: {name!r}")
+                manual += 1
+                continue
+            _, _, rc = run_powershell(
+                f"Add-WindowsCapability -Online -Name '{name}' "
+                "-ErrorAction SilentlyContinue | Out-Null", timeout=180)
+            if rc == 0:
+                logger.info(f"Restored capability: {name}")
+                restored += 1
+            else:
+                logger.warning(f"Capability restore failed: {name} "
+                               "(Settings → Optional features)")
+                manual += 1
         else:
             logger.info(
                 f"Manual restore needed: {name or entry.get('family', '?')} "
@@ -572,19 +587,30 @@ def remove_provisioned_package(package_name: str) -> bool:
     return rc == 0
 
 
-def remove_optional_capabilities(logger: logging.Logger) -> bool:
+def remove_optional_capabilities(logger: logging.Logger,
+                                 config: dict = None) -> bool:
     """Remove deprecated/legacy optional capabilities (IE mode, Steps Recorder,
-    WordPad). Requires admin; non-present entries are skipped by PowerShell."""
+    WordPad). Requires admin; non-present entries are skipped by PowerShell.
+    Removed names go to the removal ledger — `--restore` reinstalls them via
+    Add-WindowsCapability."""
     pattern = ("Browser.InternetExplorer|App.StepsRecorder|"
                "Microsoft.Windows.WordPad|XPS.Viewer|Print.Fax.Scan|"
                "App.WirelessDisplay.Connect")
+    query = ("Get-WindowsCapability -Online | Where-Object "
+             f"{{$_.Name -match '{pattern}' -and $_.State -eq 'Installed'}}")
+    out, _, _ = run_powershell(
+        f"{query} | Select-Object -ExpandProperty Name", timeout=60)
+    names = [n.strip() for n in (out or "").splitlines()
+             if _safe_pkg_name(n.strip())]
     _, _, rc = run_powershell(
-        "Get-WindowsCapability -Online | Where-Object "
-        f"{{$_.Name -match '{pattern}' -and $_.State -eq 'Installed'}} | "
-        "Remove-WindowsCapability -Online -ErrorAction SilentlyContinue | Out-Null",
-        timeout=180)
+        f"{query} | Remove-WindowsCapability -Online "
+        "-ErrorAction SilentlyContinue | Out-Null", timeout=180)
     if rc == 0:
-        logger.info("Applied: RemoveOptionalCapabilities (IE/StepsRecorder/WordPad)")
+        if config is not None:
+            for n in names:
+                record_removal(config, {"kind": "capability", "name": n})
+        logger.info("Applied: RemoveOptionalCapabilities "
+                    f"({len(names)} capabilities)")
     else:
         logger.warning("RemoveOptionalCapabilities: no capabilities removed "
                        "(absent or admin required)")
@@ -3030,7 +3056,7 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
         if dry_run:
             logger.info("[DRY-RUN] Would remove optional capabilities (IE/StepsRecorder/WordPad) [requires admin]")
         else:
-            remove_optional_capabilities(logger)
+            remove_optional_capabilities(logger, config)
 
     # 2.6 Remove Win32 programs matching blacklist — primary OEM preinstall
     # channel (McAfee/Norton are Win32, not Appx). MSI silent only.

@@ -5,6 +5,10 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- Capability removal now restorable: RemoveOptionalCapabilities records
+  each removed capability name to the removal ledger (was previously
+  unrecorded — invisible to --restore), and --restore reinstalls them
+  via Add-WindowsCapability (safe-name checked, 180s-bounded).
 - BackupRegistry now covers service config too: every
   Services\<name> key for the demoted/disabled services (misc list +
   _EXTRA_BACKUP_SERVICES for the 13 named demotes/disables) is
