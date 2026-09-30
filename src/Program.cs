@@ -3448,6 +3448,8 @@ public static class RegistryGuard
             key?.SetValue("BingAdsSuppressionEnabled", 1, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("DiscoverPageContextEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("EdgeDiscoverEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // Discover hub kill (CoPilot-Cleaner)
+            key?.SetValue("DiscoverHubEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("EdgeEnhanceImagesEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("MetricsReportingEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("RelatedMatchesCloudServiceEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);

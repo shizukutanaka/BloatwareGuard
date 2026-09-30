@@ -2625,6 +2625,8 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                          # ECS experimentation
                          "DiscoverPageContextEnabled",
                          "EdgeDiscoverEnabled", "EdgeEnhanceImagesEnabled",
+                         # Discover hub kill (CoPilot-Cleaner)
+                         "DiscoverHubEnabled",
                          "MetricsReportingEnabled",
                          "RelatedMatchesCloudServiceEnabled",
                          "SendSiteInfoToImproveServices",
