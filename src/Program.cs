@@ -4623,6 +4623,12 @@ public static class RegistryGuard
         "WalletService", "wisvc",
         "lmhosts",
         "SharedRealitySvc", "perceptionsimulation", "Spectrum",
+        // Mixed Reality OpenXR runtime — dead stack once VR/MR
+        // unused (Trachti/windows-debloat Balanced tier)
+        "MixedRealityOpenXRSvc",
+        // Legacy Fax service — fax feature already in the
+        // capability kill list (Trachti/windows-debloat)
+        "Fax",
         "AJRouter", "SCardSvr", "ScDeviceEnum", "CertPropSvc",
         // Location tracking + sensor monitoring stack — SensorDataService
         // aggregates sensor feeds for apps (Win-Debloat7 services.json)
