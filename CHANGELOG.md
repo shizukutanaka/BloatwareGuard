@@ -38,6 +38,9 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   built-in defaults, leaving the broken file for manual repair. Python
   defaults construction extracted to `_default_config()` so the fallback and
   the first-run writer share one source (the safety whitelist survives).
+  Field types are validated too — a wrong-typed field (e.g. `"Blacklist":
+  "abc"`) previously degraded silently (py iterated the string per-char as
+  needles); both impls now fall back like C#'s JsonException path.
 - `verify_scan_sys.ps1` ended with a stray unterminated `"` — the whole file
   failed PowerShell parsing, so the SYSTEM-context verification path could
   not execute at all. Trailing character removed.

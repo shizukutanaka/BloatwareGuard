@@ -347,6 +347,20 @@ def load_config(path: Path) -> dict:
         if config is not None:
             print("WARN: config.json is not a JSON object; using built-in defaults")
         return _default_config()
+    # Field-type validation mirrors the C# JsonException → defaults path:
+    # a wrong-typed field (e.g. "Blacklist": "abc") must not silently
+    # degrade — py would iterate the string per-character as needles.
+    fields_ok = (
+        isinstance(config.get("Blacklist", []), list)
+        and all(isinstance(s, str) for s in config.get("Blacklist", []))
+        and isinstance(config.get("Whitelist", []), list)
+        and all(isinstance(s, str) for s in config.get("Whitelist", []))
+        and isinstance(config.get("Prevention", {}), dict)
+        and isinstance(config.get("DryRun", False), bool)
+    )
+    if not fields_ok:
+        print("WARN: config.json field types invalid; using built-in defaults")
+        return _default_config()
     return config
 
 
