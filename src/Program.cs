@@ -2795,6 +2795,12 @@ public static class RegistryGuard
                 // (ReviOS app-compat.yml)
                 ac?.SetValue("DisableEngine", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 ac?.SetValue("DisableUAR", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // 24H2 app-inventory collectors: API sampling / app footprint /
+                // Win32 backup scan (DisableAPISamping is Microsoft's literal
+                // ADMX spelling)
+                ac?.SetValue("DisableAPISamping", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                ac?.SetValue("DisableApplicationFootprint", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                ac?.SetValue("DisableWin32AppBackup", 1, Microsoft.Win32.RegistryValueKind.DWord);
             }
             catch { }
             // CEIP stragglers + EventViewer online links + help-sticker +

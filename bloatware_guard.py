@@ -2026,6 +2026,12 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             # AppCompat engine + User-Access-Reporting off (ReviOS app-compat.yml)
             set_registry_dword("HKLM", appc, "DisableEngine", 1)
             set_registry_dword("HKLM", appc, "DisableUAR", 1)
+            # 24H2 app-inventory collectors: API sampling / app footprint /
+            # Win32 backup scan (Qiita 24H2 new-policy list; DisableAPISamping
+            # is Microsoft's literal ADMX spelling)
+            set_registry_dword("HKLM", appc, "DisableAPISamping", 1)
+            set_registry_dword("HKLM", appc, "DisableApplicationFootprint", 1)
+            set_registry_dword("HKLM", appc, "DisableWin32AppBackup", 1)
             # CEIP stragglers: App-V, Messenger client, unattend SQM
             # (ReviOS ceip.yml)
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\AppV\CEIP",
