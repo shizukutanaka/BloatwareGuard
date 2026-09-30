@@ -5,6 +5,9 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- Per-layer fault isolation also inside apply_registry_prevention:
+  all 33 inline `if prev.get(...)` layer blocks now run under try/except
+  (cs ApplyAll was already per-method isolated in the previous commit).
 - Per-layer fault isolation: each prevention layer invocation now runs
   in its own try/catch (34 sites in ApplyAll + task/winget/capability/
   registry calls in scan+service+RunOnce; 9 sites py). Previously one
