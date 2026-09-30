@@ -2033,6 +2033,19 @@ public static class RegistryGuard
         {
             using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(WindowsSearchPath);
             key?.SetValue("AllowCortana", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // AAD work/school-account Cortana + OOBE-path variants
+            // (ReviOS search.yml)
+            key?.SetValue("AllowCortanaInAAD", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("AllowCortanaInAADPathOOBE", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // WinRT activation class for the Store-driven search task
+            try
+            {
+                using var wst = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Microsoft\WindowsRuntime\ActivatableClassId\WinStore.Tasks.WindowsSearchTask");
+                wst?.SetValue("ActivationType", unchecked((int)0xFFFFFFFF), Microsoft.Win32.RegistryValueKind.DWord);
+                wst?.SetValue("Server", "", Microsoft.Win32.RegistryValueKind.String);
+            }
+            catch { }
             key?.SetValue("CortanaConsent", 0, Microsoft.Win32.RegistryValueKind.DWord);
             // Location-aware search results leak the device location to Bing
             key?.SetValue("AllowSearchToUseLocation", 0, Microsoft.Win32.RegistryValueKind.DWord);

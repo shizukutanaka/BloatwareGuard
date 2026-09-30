@@ -5,6 +5,9 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- ReviOS search.yml diff: DisableSearchSuggestions +AAD Cortana
+  kills (AllowCortanaInAAD/PathOOBE) + WinRT activation neuter for
+  WinStore.Tasks.WindowsSearchTask (Store-driven search task).
 - ReviOS appx diff: blacklist +Flipgrid (Flip education stub,
   185->186 across all four sites).
 - ReviOS updates.yml: DisableWindowsUpdateBloat +SYSTEM\Setup\

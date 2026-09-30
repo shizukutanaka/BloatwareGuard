@@ -1533,6 +1533,16 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword("HKLM", search_pol, "CortanaConsent", 0)
             # Location-aware search results leak the device location to Bing
             set_registry_dword("HKLM", search_pol, "AllowSearchToUseLocation", 0)
+            # AAD work/school-account Cortana + OOBE-path variants
+            # (ReviOS search.yml)
+            for v in ("AllowCortanaInAAD", "AllowCortanaInAADPathOOBE"):
+                set_registry_dword("HKLM", search_pol, v, 0)
+            # WinRT activation class for the Store-driven search task —
+            # same neuter as the GamingAI host (ReviOS search.yml)
+            wst = (r"SOFTWARE\Microsoft\WindowsRuntime\ActivatableClassId"
+                   r"\WinStore.Tasks.WindowsSearchTask")
+            set_registry_dword("HKLM", wst, "ActivationType", 0xFFFFFFFF)
+            set_registry_string("HKLM", wst, "Server", "")
             # Explorer-search web lookups off too (separate nag surface)
             set_registry_dword("HKLM", _EXPLORER_POLICIES_HKLM, "NoSearchInternet", 1)
             set_user_dword_all_hives(_USER_EXPLORER_POLICIES, "DisableSearchBoxSuggestions", 1, logger)
