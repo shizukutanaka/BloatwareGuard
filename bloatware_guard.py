@@ -1057,6 +1057,8 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Policies\Microsoft\Windows\System",
     r"SOFTWARE\Policies\Microsoft\Edge",
     r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\ClientTelemetry",
+    r"SOFTWARE\Microsoft\Windows\CurrentVersion\DevDrive",
+    r"SOFTWARE\Microsoft\Windows\CurrentVersion\Lxss",
     r"SOFTWARE\Policies\Microsoft\FVE",
     r"SOFTWARE\Policies\Microsoft\Windows\GameDVR",
     r"SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization",
@@ -2047,6 +2049,28 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "HKLM",
                 r"SOFTWARE\Policies\Microsoft\FVE",
                 "DisableExternalDMAUnderLock", 1)
+            # RegiLattice diff: Dev Drive + WSL + cloud-TTS telemetry off,
+            # no telemetry cache, no auto app archiving
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Microsoft\Windows\CurrentVersion\DevDrive",
+                "DisableTelemetry", 1)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Microsoft\Windows\CurrentVersion\Lxss",
+                "EnableTelemetry", 0)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Policies\Microsoft\Speech",
+                "AllowCloudTTS", 0)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Policies\Microsoft\Windows\DataCollection",
+                "MaxTelemetryCacheSize", 0)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Policies\Microsoft\Windows\Appx",
+                "AllowAutomaticAppArchiving", 0)
             # SEHOP (structured-exception chain validation) + safe DLL
             # search order (session-manager kernel hardening)
             set_registry_dword(

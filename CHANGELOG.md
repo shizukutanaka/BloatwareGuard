@@ -5,6 +5,14 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- RajwanYair/RegiLattice (new source, 7,718-tweak registry
+  toolkit): telemetry surface +5 — `DevDrive\DisableTelemetry`=1
+  (Dev Drive telemetry), `Lxss\EnableTelemetry`=0 (WSL),
+  `Policies\Microsoft\Speech\AllowCloudTTS`=0 (cloud TTS),
+  `DataCollection\MaxTelemetryCacheSize`=0 (telemetry cache),
+  `Appx\AllowAutomaticAppArchiving`=0 (auto-archive bloat).
+  backup 101→103. Skipped: vendor telemetry (VS/VSCode/Office/
+  Firefox/Skype), StorageSense (functional), perf/UI pack.
 - bitlogik/HushWin (new source): `AppCompatFlags\
   ClientTelemetry` +3 — `IsCensusDisabled`/`DontRetryOnError`/
   `TaskEnableRun`=1 (CEIP census upload + retry + task-run

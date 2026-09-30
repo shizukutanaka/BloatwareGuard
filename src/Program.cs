@@ -2881,6 +2881,20 @@ public static class RegistryGuard
                 using var fve = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\FVE");
                 fve?.SetValue("DisableExternalDMAUnderLock", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // RegiLattice diff: Dev Drive + WSL + cloud-TTS telemetry
+                // off, no telemetry cache, no auto app archiving
+                using var devd = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Microsoft\Windows\CurrentVersion\DevDrive");
+                devd?.SetValue("DisableTelemetry", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                using var lxss = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Microsoft\Windows\CurrentVersion\Lxss");
+                lxss?.SetValue("EnableTelemetry", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                using var dc2 = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\DataCollection");
+                dc2?.SetValue("MaxTelemetryCacheSize", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                using var appx2 = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\Appx");
+                appx2?.SetValue("AllowAutomaticAppArchiving", 0, Microsoft.Win32.RegistryValueKind.DWord);
                 // SEHOP + safe DLL search order (session-manager kernel)
                 using var smk = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SYSTEM\CurrentControlSet\Control\Session Manager\Kernel");
@@ -2920,6 +2934,7 @@ public static class RegistryGuard
                 using var speech = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Speech");
                 speech?.SetValue("AllowSpeechModelUpdate", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                speech?.SetValue("AllowCloudTTS", 0, Microsoft.Win32.RegistryValueKind.DWord);
                 using var msg = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Windows\Messaging");
                 msg?.SetValue("AllowMessageSync", 0, Microsoft.Win32.RegistryValueKind.DWord);
@@ -3853,6 +3868,8 @@ public static class RegistryGuard
         @"SOFTWARE\Policies\Microsoft\Windows\System",
         @"SOFTWARE\Policies\Microsoft\Edge",
         @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\ClientTelemetry",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\DevDrive",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Lxss",
         @"SOFTWARE\Policies\Microsoft\FVE",
         @"SOFTWARE\Policies\Microsoft\Windows\GameDVR",
         @"SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization",
