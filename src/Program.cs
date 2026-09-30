@@ -2963,6 +2963,11 @@ public static class RegistryGuard
             using var pchealth = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                 @"SOFTWARE\Policies\Microsoft\PCHealth\ErrorReporting");
             pchealth?.SetValue("DoReport", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // ReviOS privacy.yml: HelpSvc online-help fetch channels off
+            using var helpsvc = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Policies\Microsoft\PCHealth\HelpSvc");
+            helpsvc?.SetValue("Headlines", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            helpsvc?.SetValue("MicrosoftKBSearch", 0, Microsoft.Win32.RegistryValueKind.DWord);
             using var cbs = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                 @"SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing");
             cbs?.SetValue("DisableWerReporting", 1, Microsoft.Win32.RegistryValueKind.DWord);
@@ -3181,6 +3186,7 @@ public static class RegistryGuard
                 @"SOFTWARE\Microsoft\Windows\CurrentVersion\SmartGlass",
                 @"SOFTWARE\Policies\Microsoft\DeviceHealthAttestationService",
                 @"SOFTWARE\Policies\Microsoft\PCHealth\ErrorReporting",
+                @"SOFTWARE\Policies\Microsoft\PCHealth\HelpSvc",
                 @"SOFTWARE\Policies\Microsoft\Speech",
                 @"SOFTWARE\Policies\Microsoft\Windows NT\DNSClient",
                 @"SOFTWARE\Policies\Microsoft\Windows\DeviceInstall\Settings",

@@ -1048,6 +1048,7 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\SmartGlass",
     r"SOFTWARE\Policies\Microsoft\DeviceHealthAttestationService",
     r"SOFTWARE\Policies\Microsoft\PCHealth\ErrorReporting",
+    r"SOFTWARE\Policies\Microsoft\PCHealth\HelpSvc",
     r"SOFTWARE\Policies\Microsoft\Speech",
     r"SOFTWARE\Policies\Microsoft\Windows NT\DNSClient",
     r"SOFTWARE\Policies\Microsoft\Windows\DeviceInstall\Settings",
@@ -2100,6 +2101,12 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword("HKLM",
                                r"SOFTWARE\Policies\Microsoft\PCHealth\ErrorReporting",
                                "DoReport", 0)
+            # ReviOS privacy.yml: HelpSvc online-help fetch channels off
+            for name in ("Headlines", "MicrosoftKBSearch"):
+                set_registry_dword(
+                    "HKLM",
+                    r"SOFTWARE\Policies\Microsoft\PCHealth\HelpSvc",
+                    name, 0)
             set_registry_dword("HKLM",
                                r"SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing",
                                "DisableWerReporting", 1)

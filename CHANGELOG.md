@@ -5,6 +5,9 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- ReviOS privacy.yml: DisableErrorReporting +PCHealth\HelpSvc
+  Headlines/MicrosoftKBSearch=0 (online-help fetch channels off).
+  Backup keys 91->92.
 - ReviOS playbook diff (telemetry.yml/ceip.yml): DisableTelemetry +5 —
   Wow6432Node AllowTelemetry mirror, PolicyManager default-provider
   node, CPSS DevicePolicy/Store overrides (survive CSP re-sync),
