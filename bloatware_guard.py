@@ -1213,6 +1213,12 @@ _MISC_DEMOTE_SERVICES = (
     # keeps apps working without the resident listener (Win11Debloat
     # DisableAISvcAutoStart / winutil)
     "WSAIFabricSvc",
+    # Win-Debloat services.json diff: AI-fabric user-side listeners —
+    # model catalog, semantic-search orchestration, Recall narrative
+    # flow, OneSettings pull client
+    "AIFabricUserSvc", "ModelCatalogUserSvc",
+    "SemanticSearchUserSvc", "NarrativeFlows",
+    "OneSettingsClientUserSvc",
     # Distributed Link Tracking — NTFS cross-volume link chasing,
     # Microsoft 'OK to disable' per IoT/VDI guidance (Atlas services.yml)
     "TrkWks",

@@ -5,6 +5,13 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- tomytate/Win-Debloat (new source): misc services +5 —
+  `AIFabricUserSvc`/`ModelCatalogUserSvc`/`SemanticSearchUserSvc`/
+  `NarrativeFlows`/`OneSettingsClientUserSvc` demoted (AI-fabric
+  user listeners: model catalog, Copilot semantic-search
+  orchestration, Recall narrative flow, OneSettings pull
+  client). Skipped: `lltdsvc`/`upnphost` (functional LAN),
+  `WbioSrvc` (biometric sign-in), `WSearch`/SysMain (perf).
 - RajwanYair/RegiLattice security packs (same source):
   protocol/account hardening +9 — SSL 2.0/3.0 kill (extends
   TLS deprecation loop), Lsa `EveryoneIncludesAnonymous`=0 /
