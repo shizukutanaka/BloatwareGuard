@@ -251,88 +251,103 @@ DEFAULT_BLACKLIST = [
 ]
 
 
+def _default_config() -> dict:
+    return {
+        "ScanIntervalSeconds": 300,
+        "LogFilePath": str(LOG_FILE),
+        "Blacklist": DEFAULT_BLACKLIST,
+        "Whitelist": [
+            "Microsoft.WindowsStore",
+            "Microsoft.WindowsCalculator",
+            "Microsoft.WindowsNotepad",
+            "Microsoft.WindowsTerminal",
+            "Microsoft.Windows.ShellExperienceHost",
+            "Microsoft.Windows.Cortana",
+            "Microsoft.Windows.SecHealthUI",
+            "Microsoft.Windows.Apprep.ChxApp",
+            # Xbox/Troubleshooter framework packages the broad
+            # "Microsoft.Xbox"/"Microsoft.GetHelp" blacklist prefixes
+            # would otherwise hit — removing them breaks the Store,
+            # Photos, some games, and speech-to-text overlay
+            # (Win11Debloat "unsafe" list)
+            "Microsoft.Xbox.TCUI",
+            "Microsoft.XboxIdentityProvider",
+            "Microsoft.XboxSpeechToTextOverlay",
+            "Microsoft.GetHelp",
+        ],
+        "Prevention": {
+            "RemoveAppxPackages": True,
+            "RemoveProvisionedPackages": True,
+            "DisableConsumerExperiences": True,
+            "DisableCloudContent": True,
+            "PreventDeviceMetadata": True,
+            "DisableOemScheduledTasks": True,
+            "BlockProvisioning": True,
+            "ReinstallMonitor": True,
+            "DisableCopilot": True,
+            "DisableRecall": True,
+            "DisableSearchSuggestions": True,
+            "DisableWidgets": True,
+            "DisableTelemetry": True,
+            "DisableGameDvr": True,
+            "DisableDeliveryOptimization": True,
+            "DisableOneDrive": False,
+            "DisableChatTaskbar": True,
+            "DisableEdgeBloat": True,
+            "RemoveOptionalCapabilities": True,
+            "RemoveWin32Programs": True,
+            "CreateRestorePoint": True,
+            "DisableTelemetryTasks": True,
+            "DisableStartupBloat": True,
+            "DisableErrorReporting": True,
+            "DisableEdgeUpdateBloat": True,
+            "BlockOemDriverUpdates": True,
+            "DisableAppPermissions": True,
+            "DisableXboxServices": True,
+            "BackupRegistry": True,
+            "DisablePrintSpooler": False,
+            "DisableModernStandbyNetworking": False,
+            "BlockOemWpbtExecution": True,
+            "DisableReservedStorage": True,
+            "DisableCloudClipboard": True,
+            "DisableRemoteAssistance": True,
+            "BlockInsiderPreview": True,
+            "DisableMiscBloatServices": True,
+            "DisableSpotlight": True,
+            "DisableAutoplay": True,
+            "NoForcedReboot": True,
+            "HideStartRecommendations": True,
+            # Layers added post-merge — keep defaults in parity with
+            # config.json so a fresh install (no file) runs them too
+            "MarkDeprovisioned": True,
+            "RemoveDefaultStorePackages": True,
+            "BlockTelemetryEndpoints": True,
+            "WingetSweep": True,
+            "DisableTelemetryAutologgers": True,
+        },
+        "DryRun": False,
+    }
+
+
 def load_config(path: Path) -> dict:
     if not path.exists():
-        config = {
-            "ScanIntervalSeconds": 300,
-            "LogFilePath": str(LOG_FILE),
-            "Blacklist": DEFAULT_BLACKLIST,
-            "Whitelist": [
-                "Microsoft.WindowsStore",
-                "Microsoft.WindowsCalculator",
-                "Microsoft.WindowsNotepad",
-                "Microsoft.WindowsTerminal",
-                "Microsoft.Windows.ShellExperienceHost",
-                "Microsoft.Windows.Cortana",
-                "Microsoft.Windows.SecHealthUI",
-                "Microsoft.Windows.Apprep.ChxApp",
-                # Xbox/Troubleshooter framework packages the broad
-                # "Microsoft.Xbox"/"Microsoft.GetHelp" blacklist prefixes
-                # would otherwise hit — removing them breaks the Store,
-                # Photos, some games, and speech-to-text overlay
-                # (Win11Debloat "unsafe" list)
-                "Microsoft.Xbox.TCUI",
-                "Microsoft.XboxIdentityProvider",
-                "Microsoft.XboxSpeechToTextOverlay",
-                "Microsoft.GetHelp",
-            ],
-            "Prevention": {
-                "RemoveAppxPackages": True,
-                "RemoveProvisionedPackages": True,
-                "DisableConsumerExperiences": True,
-                "DisableCloudContent": True,
-                "PreventDeviceMetadata": True,
-                "DisableOemScheduledTasks": True,
-                "BlockProvisioning": True,
-                "ReinstallMonitor": True,
-                "DisableCopilot": True,
-                "DisableRecall": True,
-                "DisableSearchSuggestions": True,
-                "DisableWidgets": True,
-                "DisableTelemetry": True,
-                "DisableGameDvr": True,
-                "DisableDeliveryOptimization": True,
-                "DisableOneDrive": False,
-                "DisableChatTaskbar": True,
-                "DisableEdgeBloat": True,
-                "RemoveOptionalCapabilities": True,
-                "RemoveWin32Programs": True,
-                "CreateRestorePoint": True,
-                "DisableTelemetryTasks": True,
-                "DisableStartupBloat": True,
-                "DisableErrorReporting": True,
-                "DisableEdgeUpdateBloat": True,
-                "BlockOemDriverUpdates": True,
-                "DisableAppPermissions": True,
-                "DisableXboxServices": True,
-                "BackupRegistry": True,
-                "DisablePrintSpooler": False,
-                "DisableModernStandbyNetworking": False,
-                "BlockOemWpbtExecution": True,
-                "DisableReservedStorage": True,
-                "DisableCloudClipboard": True,
-                "DisableRemoteAssistance": True,
-                "BlockInsiderPreview": True,
-                "DisableMiscBloatServices": True,
-                "DisableSpotlight": True,
-                "DisableAutoplay": True,
-                "NoForcedReboot": True,
-                "HideStartRecommendations": True,
-                # Layers added post-merge — keep defaults in parity with
-                # config.json so a fresh install (no file) runs them too
-                "MarkDeprovisioned": True,
-                "RemoveDefaultStorePackages": True,
-                "BlockTelemetryEndpoints": True,
-                "WingetSweep": True,
-                "DisableTelemetryAutologgers": True,
-            },
-            "DryRun": False,
-        }
+        config = _default_config()
         path.write_text(json.dumps(config, indent=2, ensure_ascii=False), encoding="utf-8")
         return config
 
-    # utf-8-sig tolerates a BOM (Notepad saves UTF-8 with BOM by default)
-    return json.loads(path.read_text(encoding="utf-8-sig"))
+    # utf-8-sig tolerates a BOM (Notepad saves UTF-8 with BOM by default).
+    # A corrupt config must not crash the service — fall back to defaults
+    # and leave the broken file for manual repair.
+    try:
+        config = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError) as e:
+        print(f"WARN: config.json unreadable ({e}); using built-in defaults")
+        config = None
+    if not isinstance(config, dict):
+        if config is not None:
+            print("WARN: config.json is not a JSON object; using built-in defaults")
+        return _default_config()
+    return config
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────

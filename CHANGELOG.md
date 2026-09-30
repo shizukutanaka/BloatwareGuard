@@ -33,6 +33,11 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   entries with strictly wider coverage.
 
 ### Fixed
+- Corrupt `config.json` crashed both impls at startup (`json.loads` /
+  `JsonSerializer.Deserialize` unhandled) — both now warn and fall back to
+  built-in defaults, leaving the broken file for manual repair. Python
+  defaults construction extracted to `_default_config()` so the fallback and
+  the first-run writer share one source (the safety whitelist survives).
 - `verify_scan_sys.ps1` ended with a stray unterminated `"` — the whole file
   failed PowerShell parsing, so the SYSTEM-context verification path could
   not execute at all. Trailing character removed.

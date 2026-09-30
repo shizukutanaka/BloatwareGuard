@@ -418,10 +418,19 @@ public static class ConfigLoader
             return defaultConfig;
         }
 
-        var json = File.ReadAllText(path);
-        var config = JsonSerializer.Deserialize(json, GuardJsonContext.Default.GuardConfig);
-
-        return config ?? CreateDefault();
+        // A corrupt config must not crash the service — fall back to
+        // defaults and leave the broken file for manual repair.
+        try
+        {
+            var json = File.ReadAllText(path);
+            var config = JsonSerializer.Deserialize(json, GuardJsonContext.Default.GuardConfig);
+            return config ?? CreateDefault();
+        }
+        catch (Exception ex) when (ex is JsonException || ex is IOException)
+        {
+            GuardLogger.Warn($"config.json unreadable ({ex.Message}); using built-in defaults");
+            return CreateDefault();
+        }
     }
 
     public static void Save(string path, GuardConfig config)
