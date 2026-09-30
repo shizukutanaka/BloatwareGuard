@@ -1,4 +1,4 @@
-# BloatwareGuard v1.59.1-mvp
+# BloatwareGuard v1.59.2-mvp
 
 ## What It Does
 
@@ -63,7 +63,7 @@ also apply correctly when the tool runs as a SYSTEM service and for users create
 
 ### Self-Contained C# EXE (Recommended)
 
-No .NET runtime installation needed — the C# binary includes the full .NET 8 runtime in a single 11.3MB file.
+No .NET runtime installation needed — the C# binary includes the full .NET 8 runtime in a single file.
 
 ```bash
 # Build
@@ -174,8 +174,8 @@ dotnet publish src/BloatwareGuard.csproj -c Release -r win-x64 --self-contained 
 ## Version
 
 ```bash
-python bloatware_guard.py --version   # BloatwareGuard v1.59.1-mvp
-BloatwareGuard.exe --version          # BloatwareGuard v1.59.1-mvp
+python bloatware_guard.py --version   # BloatwareGuard v1.59.2-mvp
+BloatwareGuard.exe --version          # BloatwareGuard v1.59.2-mvp
 ```
 
 ---

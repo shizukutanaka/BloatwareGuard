@@ -1,17 +1,17 @@
 @echo off
-REM BloatwareGuard v1.56.0-mvp - Deployment Verification Script
+REM BloatwareGuard v1.59.1-mvp - Deployment Verification Script
 REM Requirements:
 REM   1. Windows 11 (self-contained C# build - NO .NET runtime needed)
 REM   2. Run as Administrator for C# dry-run (UAC manifest requests admin)
 REM   3. Reboot after execution
 REM
-REM NOTE: The C# EXE self-contains .NET 8 runtime (11.3MB single file).
+REM NOTE: The C# EXE self-contains .NET 8 runtime (single file).
 REM       Admin rights are required by the UAC manifest even for --version.
 
 setlocal enabledelayedexpansion
 
 echo ========================================
-echo BloatwareGuard v1.56.0-mvp - Deploy Verify
+echo BloatwareGuard v1.59.1-mvp - Deploy Verify
 echo ========================================
 echo.
 
@@ -72,14 +72,14 @@ echo.
 REM --- Summary ---
 echo [5/5] Deployment Summary
 echo ========================================
-echo Self-contained EXE: 11.3MB single file (no .NET runtime needed)
+echo Self-contained EXE: single file (no .NET runtime needed)
 echo Python dry-run:    PASS (full scan with SystemApp detection)
 echo C# build:          PASS (0 errors, 0 warnings)
 echo C# dry-run:        !cs_exit! (0=PASS, non-0=admin required)
 echo.
 echo Next steps:
 echo   1. Reboot system after running removal mode
-echo   2. Run as Administrator for full removal layers 2-6
+echo   2. Run as Administrator for full removal + prevention layers
 echo   3. Check Windows Apps settings for removed packages
 echo ========================================
 

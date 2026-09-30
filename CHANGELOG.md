@@ -2,6 +2,17 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.59.2-mvp: deploy/docstaleness + exe metadata
+
+### Fixed
+- `deploy_verify.bat` was three versions stale (v1.56.0 header), hardcoded a
+  build-dependent binary size, and referenced obsolete "layers 2-6" wording —
+  version strings, size claim, and layer phrasing brought current.
+- `BloatwareGuard.exe` had no PE version metadata (right-click → Details
+  showed nothing, and tools like winget/SCCM can't inventory the install) —
+  csproj now carries `Version`/`InformationalVersion`.
+- README repeated the hardcoded binary size — genericized like the bat.
+
 ## [Unreleased] — v1.59.1-mvp: WindowsSpyBlocker hosts diff + diagnostics task
 
 ### Added
