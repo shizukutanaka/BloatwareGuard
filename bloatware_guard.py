@@ -3071,7 +3071,10 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
         if dry_run:
             logger.info("[DRY-RUN] Would remove optional capabilities (IE/StepsRecorder/WordPad) [requires admin]")
         else:
-            remove_optional_capabilities(logger, config)
+            try:
+                remove_optional_capabilities(logger, config)
+            except Exception as e:
+                logger.warning(f"RemoveOptionalCapabilities layer failed: {e}")
 
     # 2.6 Remove Win32 programs matching blacklist — primary OEM preinstall
     # channel (McAfee/Norton are Win32, not Appx). MSI silent only.
@@ -3119,28 +3122,40 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
     if dry_run:
         logger.info("[DRY-RUN] Would apply registry prevention")
     else:
-        apply_registry_prevention(config, logger)
+        try:
+            apply_registry_prevention(config, logger)
+        except Exception as e:
+            logger.warning(f"RegistryPrevention layer failed: {e}")
 
     # 4. Disable OEM tasks
     if prev.get("DisableOemScheduledTasks", True):
         if dry_run:
             logger.info("[DRY-RUN] Would disable OEM scheduled tasks")
         else:
-            disable_oem_scheduled_tasks(logger)
+            try:
+                disable_oem_scheduled_tasks(logger)
+            except Exception as e:
+                logger.warning(f"DisableOemScheduledTasks layer failed: {e}")
 
     # 4.5 Disable Microsoft telemetry/CEIP tasks (CompatTelRunner etc.)
     if prev.get("DisableTelemetryTasks", True):
         if dry_run:
             logger.info("[DRY-RUN] Would disable Microsoft telemetry tasks")
         else:
-            disable_telemetry_tasks(logger)
+            try:
+                disable_telemetry_tasks(logger)
+            except Exception as e:
+                logger.warning(f"DisableTelemetryTasks layer failed: {e}")
 
     # 4.6 Boot-time ETW autologgers (diagtrack listener etc.)
     if prev.get("DisableTelemetryAutologgers", True):
         if dry_run:
             logger.info("[DRY-RUN] Would disable telemetry ETW autologgers")
         else:
-            disable_telemetry_autologgers(logger)
+            try:
+                disable_telemetry_autologgers(logger)
+            except Exception as e:
+                logger.warning(f"DisableTelemetryAutologgers layer failed: {e}")
 
     # 4.7 hosts-file null-route for pure telemetry endpoints (reversible).
     # Called unconditionally so toggling off removes a previously written block.
@@ -3154,7 +3169,10 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
         if dry_run:
             logger.info("[DRY-RUN] Would run winget uninstall sweep")
         else:
-            winget_sweep(config, logger)
+            try:
+                winget_sweep(config, logger)
+            except Exception as e:
+                logger.warning(f"WingetSweep layer failed: {e}")
 
     logger.info(f"Scan complete. {matched} packages matched blacklist; removed {removed}.")
     return removed
@@ -3197,11 +3215,20 @@ def run_service(config: dict, logger: logging.Logger):
     else:
         if not is_admin():
             logger.warning("Running without admin rights — some prevention may fail.")
-        apply_registry_prevention(config, logger)
+        try:
+            apply_registry_prevention(config, logger)
+        except Exception as e:
+            logger.warning(f"RegistryPrevention layer failed: {e}")
         if prev.get("DisableOemScheduledTasks", True):
-            disable_oem_scheduled_tasks(logger)
+            try:
+                disable_oem_scheduled_tasks(logger)
+            except Exception as e:
+                logger.warning(f"DisableOemScheduledTasks layer failed: {e}")
         if prev.get("DisableTelemetryTasks", True):
-            disable_telemetry_tasks(logger)
+            try:
+                disable_telemetry_tasks(logger)
+            except Exception as e:
+                logger.warning(f"DisableTelemetryTasks layer failed: {e}")
 
     while True:
         try:

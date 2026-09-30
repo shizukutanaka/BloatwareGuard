@@ -1277,106 +1277,140 @@ public static class RegistryGuard
                                 List<string> blacklist, List<string> whitelist)
     {
         if (layers.BackupRegistry)
-            BackupRegistryKeys();
+            try { BackupRegistryKeys(); }
+            catch (Exception ex) { GuardLogger.Warn($"BackupRegistry layer failed: {ex.Message}"); }
 
         if (layers.DisableConsumerExperiences)
-            DisableConsumerExperiences();
+            try { DisableConsumerExperiences(); }
+            catch (Exception ex) { GuardLogger.Warn($"DisableConsumerExperiences layer failed: {ex.Message}"); }
 
         if (layers.DisableCloudContent)
-            DisableCloudContent();
+            try { DisableCloudContent(); }
+            catch (Exception ex) { GuardLogger.Warn($"DisableCloudContent layer failed: {ex.Message}"); }
 
         if (layers.PreventDeviceMetadata)
-            PreventDeviceMetadata();
+            try { PreventDeviceMetadata(); }
+            catch (Exception ex) { GuardLogger.Warn($"PreventDeviceMetadata layer failed: {ex.Message}"); }
 
         if (layers.BlockProvisioning)
-            BlockProvisioning();
+            try { BlockProvisioning(); }
+            catch (Exception ex) { GuardLogger.Warn($"BlockProvisioning layer failed: {ex.Message}"); }
 
         if (layers.DisableCopilot)
-            DisableCopilot();
+            try { DisableCopilot(); }
+            catch (Exception ex) { GuardLogger.Warn($"DisableCopilot layer failed: {ex.Message}"); }
 
         if (layers.DisableRecall)
-            DisableRecall();
+            try { DisableRecall(); }
+            catch (Exception ex) { GuardLogger.Warn($"DisableRecall layer failed: {ex.Message}"); }
 
         if (layers.DisableSearchSuggestions)
-            DisableSearchSuggestions();
+            try { DisableSearchSuggestions(); }
+            catch (Exception ex) { GuardLogger.Warn($"DisableSearchSuggestions layer failed: {ex.Message}"); }
 
         if (layers.DisableWidgets)
-            DisableWidgets();
+            try { DisableWidgets(); }
+            catch (Exception ex) { GuardLogger.Warn($"DisableWidgets layer failed: {ex.Message}"); }
 
         if (layers.DisableTelemetry)
-            DisableTelemetry();
+            try { DisableTelemetry(); }
+            catch (Exception ex) { GuardLogger.Warn($"DisableTelemetry layer failed: {ex.Message}"); }
 
         if (layers.DisableGameDvr)
-            DisableGameDvr();
+            try { DisableGameDvr(); }
+            catch (Exception ex) { GuardLogger.Warn($"DisableGameDvr layer failed: {ex.Message}"); }
 
         if (layers.DisableDeliveryOptimization)
-            DisableDeliveryOptimization();
+            try { DisableDeliveryOptimization(); }
+            catch (Exception ex) { GuardLogger.Warn($"DisableDeliveryOptimization layer failed: {ex.Message}"); }
 
         if (layers.DisableOneDrive)
-            DisableOneDrive();
+            try { DisableOneDrive(); }
+            catch (Exception ex) { GuardLogger.Warn($"DisableOneDrive layer failed: {ex.Message}"); }
 
         if (layers.DisableChatTaskbar)
-            DisableChatTaskbar();
+            try { DisableChatTaskbar(); }
+            catch (Exception ex) { GuardLogger.Warn($"DisableChatTaskbar layer failed: {ex.Message}"); }
 
         if (layers.DisableEdgeBloat)
-            DisableEdgeBloat();
+            try { DisableEdgeBloat(); }
+            catch (Exception ex) { GuardLogger.Warn($"DisableEdgeBloat layer failed: {ex.Message}"); }
 
         if (layers.DisableStartupBloat)
-            DisableStartupBloat(blacklist, whitelist);
+            try { DisableStartupBloat(blacklist, whitelist); }
+            catch (Exception ex) { GuardLogger.Warn($"DisableStartupBloat layer failed: {ex.Message}"); }
 
         if (layers.DisableErrorReporting)
-            DisableErrorReporting();
+            try { DisableErrorReporting(); }
+            catch (Exception ex) { GuardLogger.Warn($"DisableErrorReporting layer failed: {ex.Message}"); }
 
         if (layers.DisableEdgeUpdateBloat)
-            DisableEdgeUpdateBloat();
+            try { DisableEdgeUpdateBloat(); }
+            catch (Exception ex) { GuardLogger.Warn($"DisableEdgeUpdateBloat layer failed: {ex.Message}"); }
 
         if (layers.BlockOemDriverUpdates)
-            BlockOemDriverUpdates();
+            try { BlockOemDriverUpdates(); }
+            catch (Exception ex) { GuardLogger.Warn($"BlockOemDriverUpdates layer failed: {ex.Message}"); }
 
         if (layers.DisableAppPermissions)
-            DisableAppPermissions();
+            try { DisableAppPermissions(); }
+            catch (Exception ex) { GuardLogger.Warn($"DisableAppPermissions layer failed: {ex.Message}"); }
 
         if (layers.DisableXboxServices)
-            DisableXboxServices();
+            try { DisableXboxServices(); }
+            catch (Exception ex) { GuardLogger.Warn($"DisableXboxServices layer failed: {ex.Message}"); }
 
         if (layers.DisablePrintSpooler)
-            DisablePrintSpooler();
+            try { DisablePrintSpooler(); }
+            catch (Exception ex) { GuardLogger.Warn($"DisablePrintSpooler layer failed: {ex.Message}"); }
 
         if (layers.DisableModernStandbyNetworking)
-            DisableModernStandbyNetworking();
+            try { DisableModernStandbyNetworking(); }
+            catch (Exception ex) { GuardLogger.Warn($"DisableModernStandbyNetworking layer failed: {ex.Message}"); }
 
         if (layers.BlockOemWpbtExecution)
-            BlockOemWpbtExecution();
+            try { BlockOemWpbtExecution(); }
+            catch (Exception ex) { GuardLogger.Warn($"BlockOemWpbtExecution layer failed: {ex.Message}"); }
 
         if (layers.DisableReservedStorage)
-            DisableReservedStorage();
+            try { DisableReservedStorage(); }
+            catch (Exception ex) { GuardLogger.Warn($"DisableReservedStorage layer failed: {ex.Message}"); }
 
         if (layers.DisableCloudClipboard)
-            DisableCloudClipboard();
+            try { DisableCloudClipboard(); }
+            catch (Exception ex) { GuardLogger.Warn($"DisableCloudClipboard layer failed: {ex.Message}"); }
 
         if (layers.DisableRemoteAssistance)
-            DisableRemoteAssistance();
+            try { DisableRemoteAssistance(); }
+            catch (Exception ex) { GuardLogger.Warn($"DisableRemoteAssistance layer failed: {ex.Message}"); }
 
         if (layers.BlockInsiderPreview)
-            BlockInsiderPreview();
+            try { BlockInsiderPreview(); }
+            catch (Exception ex) { GuardLogger.Warn($"BlockInsiderPreview layer failed: {ex.Message}"); }
 
         if (layers.DisableMiscBloatServices)
-            DisableMiscBloatServices();
+            try { DisableMiscBloatServices(); }
+            catch (Exception ex) { GuardLogger.Warn($"DisableMiscBloatServices layer failed: {ex.Message}"); }
 
         if (layers.DisableSpotlight)
-            DisableSpotlight();
+            try { DisableSpotlight(); }
+            catch (Exception ex) { GuardLogger.Warn($"DisableSpotlight layer failed: {ex.Message}"); }
 
         if (layers.DisableAutoplay)
-            DisableAutoplay();
+            try { DisableAutoplay(); }
+            catch (Exception ex) { GuardLogger.Warn($"DisableAutoplay layer failed: {ex.Message}"); }
 
         if (layers.NoForcedReboot)
-            NoForcedReboot();
+            try { NoForcedReboot(); }
+            catch (Exception ex) { GuardLogger.Warn($"NoForcedReboot layer failed: {ex.Message}"); }
 
         if (layers.HideStartRecommendations)
-            HideStartRecommendations();
+            try { HideStartRecommendations(); }
+            catch (Exception ex) { GuardLogger.Warn($"HideStartRecommendations layer failed: {ex.Message}"); }
 
         if (layers.DisableTelemetryAutologgers)
-            DisableTelemetryAutologgers();
+            try { DisableTelemetryAutologgers(); }
+            catch (Exception ex) { GuardLogger.Warn($"DisableTelemetryAutologgers layer failed: {ex.Message}"); }
 
         // Toggling off must REMOVE the block — call unconditionally so the
         // false path clears previously written entries.
@@ -3987,17 +4021,20 @@ public class GuardService : BackgroundService
         else
         {
             GuardLogger.Info("Applying registry-based prevention layers...");
-            RegistryGuard.ApplyAll(_config.Prevention, _config.Blacklist, _config.Whitelist);
+            try { RegistryGuard.ApplyAll(_config.Prevention, _config.Blacklist, _config.Whitelist); }
+            catch (Exception ex) { GuardLogger.Warn($"RegistryPrevention layer failed: {ex.Message}"); }
 
             if (_config.Prevention.DisableOemScheduledTasks)
             {
                 GuardLogger.Info("Disabling OEM scheduled tasks...");
-                ScheduledTaskGuard.DisableOemTasks();
+                try { ScheduledTaskGuard.DisableOemTasks(); }
+                catch (Exception ex) { GuardLogger.Warn($"DisableOemTasks layer failed: {ex.Message}"); }
             }
             if (_config.Prevention.DisableTelemetryTasks)
             {
                 GuardLogger.Info("Disabling Microsoft telemetry tasks...");
-                ScheduledTaskGuard.DisableTelemetryTasks();
+                try { ScheduledTaskGuard.DisableTelemetryTasks(); }
+                catch (Exception ex) { GuardLogger.Warn($"DisableTelemetryTasks layer failed: {ex.Message}"); }
             }
         }
 
@@ -4229,7 +4266,8 @@ public class GuardService : BackgroundService
             if (dryRun)
                 GuardLogger.Info("[DRY-RUN] Would remove optional capabilities (IE/StepsRecorder/WordPad) [requires admin]");
             else
-                AppxManager.RemoveOptionalCapabilities(_config);
+                try { AppxManager.RemoveOptionalCapabilities(_config); }
+                catch (Exception ex) { GuardLogger.Warn($"RemoveOptionalCapabilities layer failed: {ex.Message}"); }
         }
 
         // 2.6 Remove Win32 programs matching blacklist — the primary OEM
@@ -4302,19 +4340,23 @@ public class GuardService : BackgroundService
             if (dryRun)
                 GuardLogger.Info("[DRY-RUN] Would run winget uninstall sweep");
             else
-                WingetGuard.Sweep(_config);
+                try { WingetGuard.Sweep(_config); }
+                catch (Exception ex) { GuardLogger.Warn($"WingetSweep layer failed: {ex.Message}"); }
         }
 
         // 3. Re-apply registry settings (they can be reset by Windows Update)
         if (!dryRun)
         {
-            RegistryGuard.ApplyAll(_config.Prevention, _config.Blacklist, _config.Whitelist);
+            try { RegistryGuard.ApplyAll(_config.Prevention, _config.Blacklist, _config.Whitelist); }
+            catch (Exception ex) { GuardLogger.Warn($"RegistryPrevention layer failed: {ex.Message}"); }
             // OEM updaters re-enable their tasks between boots — re-disable
             // every scan, same as the Python scan loop.
             if (_config.Prevention.DisableOemScheduledTasks)
-                ScheduledTaskGuard.DisableOemTasks();
+                try { ScheduledTaskGuard.DisableOemTasks(); }
+                catch (Exception ex) { GuardLogger.Warn($"DisableOemTasks layer failed: {ex.Message}"); }
             if (_config.Prevention.DisableTelemetryTasks)
-                ScheduledTaskGuard.DisableTelemetryTasks();
+                try { ScheduledTaskGuard.DisableTelemetryTasks(); }
+                catch (Exception ex) { GuardLogger.Warn($"DisableTelemetryTasks layer failed: {ex.Message}"); }
         }
         else
             GuardLogger.Info("[DRY-RUN] Would re-apply registry prevention settings");
@@ -4447,11 +4489,14 @@ public class Program
 
         if (!dryRun)
         {
-            RegistryGuard.ApplyAll(config.Prevention, config.Blacklist, config.Whitelist);
+            try { RegistryGuard.ApplyAll(config.Prevention, config.Blacklist, config.Whitelist); }
+            catch (Exception ex) { GuardLogger.Warn($"RegistryPrevention layer failed: {ex.Message}"); }
             if (config.Prevention.DisableOemScheduledTasks)
-                ScheduledTaskGuard.DisableOemTasks();
+                try { ScheduledTaskGuard.DisableOemTasks(); }
+                catch (Exception ex) { GuardLogger.Warn($"DisableOemTasks layer failed: {ex.Message}"); }
             if (config.Prevention.DisableTelemetryTasks)
-                ScheduledTaskGuard.DisableTelemetryTasks();
+                try { ScheduledTaskGuard.DisableTelemetryTasks(); }
+                catch (Exception ex) { GuardLogger.Warn($"DisableTelemetryTasks layer failed: {ex.Message}"); }
         }
         else
         {

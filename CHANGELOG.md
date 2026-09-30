@@ -5,6 +5,12 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- Per-layer fault isolation: each prevention layer invocation now runs
+  in its own try/catch (34 sites in ApplyAll + task/winget/capability/
+  registry calls in scan+service+RunOnce; 9 sites py). Previously one
+  layer raising an exception aborted every later layer that cycle —
+  now it logs and continues (a persistent fault no longer starves
+  the rest of the pipeline between scan intervals).
 - --restore now covers winget removals: kind="winget" ledger entries
   reinstall via `winget install -e --id` (id-charset checked,
   300s-bounded, no-op without winget) instead of reporting manual.
