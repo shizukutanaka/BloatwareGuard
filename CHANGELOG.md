@@ -5,6 +5,8 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- Win32 uninstall scan: per-subkey `winreg` handles now released via
+  `with` instead of relying on GC finalizers between iterations.
 - Dispose the `BingChat` subkey handle opened inline in DisableCopilot —
   the only registry key opened without `using` in the codebase.
 - C# PowerShell invocations now pass `-NonInteractive` (11 sites) —

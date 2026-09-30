@@ -656,27 +656,27 @@ def get_blacklisted_win32(blacklist, whitelist):
                 except OSError:
                     break
                 try:
-                    sk = winreg.OpenKey(key, sub)
-                    display = winreg.QueryValueEx(sk, "DisplayName")[0]
-                    uninstall = winreg.QueryValueEx(sk, "UninstallString")[0]
-                    if not display or not uninstall:
-                        continue
-                    try:
-                        if winreg.QueryValueEx(sk, "SystemComponent")[0] == 1:
+                    with winreg.OpenKey(key, sub) as sk:
+                        display = winreg.QueryValueEx(sk, "DisplayName")[0]
+                        uninstall = winreg.QueryValueEx(sk, "UninstallString")[0]
+                        if not display or not uninstall:
                             continue
-                    except OSError:
-                        pass
-                    try:
-                        quiet = winreg.QueryValueEx(sk, "QuietUninstallString")[0] or ""
-                    except OSError:
-                        quiet = ""
-                    if not is_target_package(
-                            display, blacklist + list(_WIN32_BLOAT_NAMES),
-                            whitelist):
-                        continue
-                    if display.lower() not in seen:
-                        seen.add(display.lower())
-                        results.append((display, uninstall, quiet, user_hive))
+                        try:
+                            if winreg.QueryValueEx(sk, "SystemComponent")[0] == 1:
+                                continue
+                        except OSError:
+                            pass
+                        try:
+                            quiet = winreg.QueryValueEx(sk, "QuietUninstallString")[0] or ""
+                        except OSError:
+                            quiet = ""
+                        if not is_target_package(
+                                display, blacklist + list(_WIN32_BLOAT_NAMES),
+                                whitelist):
+                            continue
+                        if display.lower() not in seen:
+                            seen.add(display.lower())
+                            results.append((display, uninstall, quiet, user_hive))
                 except OSError:
                     continue
         finally:
