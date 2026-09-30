@@ -3522,6 +3522,27 @@ public static class ScheduledTaskGuard
         @"\Microsoft\Windows\WindowsAI\Recall\InitialConfiguration",
         @"\Microsoft\Windows\WindowsAI\Recall\PolicyConfiguration",
         @"\Microsoft\Office\Office Actions Server",
+        // AI system + flighting/UNP + setup-nag tasks (Win-Debloat diff)
+        @"\Microsoft\Windows\WindowsAI\ClickToDo",
+        @"\Microsoft\Windows\WindowsAI\RecallSnapshot",
+        @"\Microsoft\Windows\WindowsAI\ModelMaintenance",
+        @"\Microsoft\Windows\WindowsAI\ModelDownloadTask",
+        @"\Microsoft\Windows\WindowsAI\AIPlatformServiceTask",
+        @"\Microsoft\Windows\WindowsAI\WorkloadsHostTask",
+        @"\Microsoft\Windows\AISystem\AIAnalyzer",
+        @"\Microsoft\Windows\AISystem\ModelUpdateTask",
+        @"\Microsoft\Windows\AISystem\SemanticIndexTask",
+        @"\Microsoft\Windows\NarrativeFlows\UserJourneyTracker",
+        @"\Microsoft\Windows\Flighting\OneSettings\RefreshCache",
+        @"\Microsoft\Windows\Flighting\OneSettings\QuerySettings",
+        @"\Microsoft\Windows\UNP\RunCampaignManager",
+        @"\Microsoft\Windows\Setup\EOSNotify",
+        @"\Microsoft\Windows\Setup\EOSNotify2",
+        @"\Microsoft\Windows\License Manager\TempSignedLicenseExchange",
+        @"\Microsoft\Windows\CloudExperienceHost\CreateObjectTask",
+        @"\Microsoft\Windows\AppxDeploymentClient\UcpdVelocity",
+        @"\Microsoft\Windows\Application Experience\PautoRequest",
+        @"\Microsoft\XblGameSave\XblGameSaveTask",
     };
 
     /// <summary>Disable the known Microsoft telemetry/CEIP scheduled tasks.</summary>

@@ -5,6 +5,15 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.59.3-mvp: verify_scan_sys.ps1 parse fix
 
 ### Added
+- Telemetry tasks 63→83 (tomytate/Win-Debloat task-set diff): WindowsAI
+  subtasks (ClickToDo, RecallSnapshot, ModelMaintenance, ModelDownloadTask,
+  AIPlatformServiceTask, WorkloadsHostTask), AISystem (AIAnalyzer,
+  ModelUpdateTask, SemanticIndexTask), NarrativeFlows UserJourneyTracker,
+  Flighting OneSettings (RefreshCache, QuerySettings), UNP campaign manager,
+  EOSNotify EOS nag, TempSignedLicenseExchange, CloudExperienceHost
+  CreateObjectTask, AppxDeploymentClient UcpdVelocity, PautoRequest,
+  XblGameSaveTask. Nonexistent tasks on a given build are skipped silently
+  (established pattern — names come from the published task list).
 - `DisableRecall` deepened (tomytate/Win-Debloat Privacy diff):
   `WindowsAI\ModelManagement` `DisableModelDownload`/`DisableBackgroundModelUpdates`
   (Copilot+ can't fetch the on-device models Recall/ClickToDo need),
