@@ -3227,6 +3227,8 @@ public static class RegistryGuard
     private static readonly string[] MiscBloatServices = {
         "dmwappushservice", "MapsBroker", "WMPNetworkSvc",
         "diagnosticshub.standardcollector.service",
+        // Clipboard User Service — cloud-clipboard sync carrier (privacy.sexy)
+        "cbdhsvc",
         "CDPSvc", "NvTelemetryContainer",
         "esrv_svc", "ESRV_SVC_QUEENCREEK",
         "PushToInstall", "SEMgrSvc", "PhoneSvc",
@@ -3289,7 +3291,7 @@ public static class RegistryGuard
             // demand-start, which still leaves it reachable).
             RunToolSilent("sc.exe", "stop RemoteRegistry");
             RunToolSilent("sc.exe", "config RemoteRegistry start= disabled");
-            GuardLogger.Info("Applied: DisableMiscBloatServices (51 services → demand-start, RemoteRegistry disabled)");
+            GuardLogger.Info("Applied: DisableMiscBloatServices (52 services → demand-start, RemoteRegistry disabled)");
         }
         catch (Exception ex)
         {
@@ -3542,6 +3544,19 @@ public static class ScheduledTaskGuard
         @"\Microsoft\Windows\Customer Experience Improvement Program\Consolidator",
         @"\Microsoft\Windows\Customer Experience Improvement Program\UsbCeip",
         @"\Microsoft\Windows\Customer Experience Improvement Program\KernelCeipTask",
+        @"\Microsoft\Windows\Customer Experience Improvement Program\BthSQM",
+        @"\Microsoft\Windows\Customer Experience Improvement Program\Server\ServerCeipAssistant",
+        @"\Microsoft\Windows\Customer Experience Improvement Program\Server\ServerRoleCollector",
+        @"\Microsoft\Windows\Customer Experience Improvement Program\Server\ServerRoleUsageCollector",
+        // Application Impact Telemetry agent + WER error-details upload
+        // (privacy.sexy windows.yaml)
+        @"\Microsoft\Windows\Application Experience\AitAgent",
+        @"\Microsoft\Windows\ErrorDetails\EnableErrorDetailsUpdate",
+        // OOBE suggested-apps scans (provisioned bloat push channel)
+        @"\Microsoft\Windows\UpdateOrchestrator\StartOobeAppsScan",
+        @"\Microsoft\Windows\UpdateOrchestrator\StartOobeAppsScan_LicenseAccepted",
+        @"\Microsoft\Windows\UpdateOrchestrator\StartOobeAppsScan_OobeAppReady",
+        @"\Microsoft\Windows\UpdateOrchestrator\StartOobeAppsScanAfterUpdate",
         @"\Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticDataCollector",
         @"\Microsoft\Windows\Feedback\Siuf\DmClient",
         @"\Microsoft\Windows\Feedback\Siuf\DmClientOnScenarioDownload",

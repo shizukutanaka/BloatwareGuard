@@ -48,6 +48,12 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   (flighted feature trials, not just preview builds).
 - Backup list +3 keys (Software Protection Platform, InputPersonalization,
   CurrentVersion\Search) so the new policy writes stay restorable.
+- Telemetry tasks 83→93: `AitAgent` (Application Impact Telemetry),
+  `BthSQM` (Bluetooth SQM), CEIP `Server\` tasks ×3, `ErrorDetails`
+  `EnableErrorDetailsUpdate`, and `UpdateOrchestrator\StartOobeAppsScan*`
+  ×4 (OOBE suggested-apps scans). Services +`cbdhsvc` (cloud-clipboard
+  carrier → demand-start, 51→52). Skipped: all Defender/WU-recovery/vendor
+  updater names (boundaries), NCSI/WpnUser/MessagingService (functional).
 - Per-user mirrors (privacy.sexy HKCU diff): Search `CanCortanaBeEnabled`/
   `HistoryViewEnabled`/`DeviceHistoryEnabled`/`VoiceShortcut`, Explorer
   `ShowCortanaButton`, voice-activation `AgentActivationOnLockScreenEnabled`/

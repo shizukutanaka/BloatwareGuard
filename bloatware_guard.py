@@ -1082,6 +1082,8 @@ _registry_backup_done = False
 _MISC_DEMOTE_SERVICES = (
     "dmwappushservice", "MapsBroker", "WMPNetworkSvc",
     "diagnosticshub.standardcollector.service",
+    # Clipboard User Service — cloud-clipboard sync carrier (privacy.sexy)
+    "cbdhsvc",
     "CDPSvc", "NvTelemetryContainer",
     "esrv_svc", "ESRV_SVC_QUEENCREEK",
     "PushToInstall", "SEMgrSvc", "PhoneSvc",
@@ -2687,6 +2689,19 @@ TELEMETRY_TASK_PATHS = (
     "\\Microsoft\\Windows\\Customer Experience Improvement Program\\Consolidator",
     "\\Microsoft\\Windows\\Customer Experience Improvement Program\\UsbCeip",
     "\\Microsoft\\Windows\\Customer Experience Improvement Program\\KernelCeipTask",
+    "\\Microsoft\\Windows\\Customer Experience Improvement Program\\BthSQM",
+    "\\Microsoft\\Windows\\Customer Experience Improvement Program\\Server\\ServerCeipAssistant",
+    "\\Microsoft\\Windows\\Customer Experience Improvement Program\\Server\\ServerRoleCollector",
+    "\\Microsoft\\Windows\\Customer Experience Improvement Program\\Server\\ServerRoleUsageCollector",
+    # Application Impact Telemetry agent + WER error-details upload
+    # (privacy.sexy windows.yaml)
+    "\\Microsoft\\Windows\\Application Experience\\AitAgent",
+    "\\Microsoft\\Windows\\ErrorDetails\\EnableErrorDetailsUpdate",
+    # OOBE suggested-apps scans (provisioned bloat push channel)
+    "\\Microsoft\\Windows\\UpdateOrchestrator\\StartOobeAppsScan",
+    "\\Microsoft\\Windows\\UpdateOrchestrator\\StartOobeAppsScan_LicenseAccepted",
+    "\\Microsoft\\Windows\\UpdateOrchestrator\\StartOobeAppsScan_OobeAppReady",
+    "\\Microsoft\\Windows\\UpdateOrchestrator\\StartOobeAppsScanAfterUpdate",
     "\\Microsoft\\Windows\\DiskDiagnostic\\Microsoft-Windows-DiskDiagnosticDataCollector",
     "\\Microsoft\\Windows\\Feedback\\Siuf\\DmClient",
     "\\Microsoft\\Windows\\Feedback\\Siuf\\DmClientOnScenarioDownload",
