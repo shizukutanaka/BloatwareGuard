@@ -1060,6 +1060,7 @@ def set_user_dword_all_hives(path: str, name: str, value: int, logger: logging.L
 # change is restorable with a double-click.
 _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Policies\Microsoft\Windows\CloudContent",
+    r"SOFTWARE\Policies\Microsoft\Windows\Personalization",
     r"SOFTWARE\Policies\Microsoft\Windows\Device Metadata",
     r"SOFTWARE\Policies\Microsoft\Windows\AppCompat",
     r"SOFTWARE\Policies\Microsoft\Windows\Windows Search",
@@ -1444,6 +1445,17 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                                 "SettingsPageVisibility", "hide:home")
             # Third-party content suggestions surface (sponsored tiles/ads)
             set_registry_dword("HKLM", cloud_content, "DisableThirdPartySuggestions", 1)
+            # App notifications must not show on the lock screen
+            # (WinOpt) — documented CloudContent policy
+            set_registry_dword("HKLM", cloud_content,
+                               "DisableLockScreenAppNotifications", 1)
+            # Camera trigger removed from the lock screen (WinOpt) —
+            # prevents unauthenticated camera activation; app camera
+            # permissions untouched
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Policies\Microsoft\Windows\Personalization",
+                "NoLockScreenCamera", 1)
             logger.info("Applied: DisableSoftLanding + DisableCloudOptimizedContent = 1 "
                         "+ Settings Home promo page hidden")
 

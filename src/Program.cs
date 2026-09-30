@@ -2111,6 +2111,15 @@ public static class RegistryGuard
             exp?.SetValue("SettingsPageVisibility", "hide:home");
             // Third-party content suggestions surface (sponsored tiles/ads)
             key?.SetValue("DisableThirdPartySuggestions", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            // App notifications must not show on the lock screen
+            // (WinOpt) — documented CloudContent policy
+            key?.SetValue("DisableLockScreenAppNotifications", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            // Camera trigger removed from the lock screen (WinOpt) —
+            // prevents unauthenticated camera activation; app camera
+            // permissions untouched
+            using var perso = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Policies\Microsoft\Windows\Personalization");
+            perso?.SetValue("NoLockScreenCamera", 1, Microsoft.Win32.RegistryValueKind.DWord);
             GuardLogger.Info("Applied: DisableSoftLanding + DisableCloudOptimizedContent = 1 + Settings Home promo hidden");
         }
         catch (Exception ex)
@@ -4096,6 +4105,7 @@ public static class RegistryGuard
     // every change is restorable with a double-click.
     private static readonly string[] BackupKeyPaths = {
         @"SOFTWARE\Policies\Microsoft\Windows\CloudContent",
+        @"SOFTWARE\Policies\Microsoft\Windows\Personalization",
         @"SOFTWARE\Policies\Microsoft\Windows\Device Metadata",
         @"SOFTWARE\Policies\Microsoft\Windows\AppCompat",
         @"SOFTWARE\Policies\Microsoft\Windows\Windows Search",
