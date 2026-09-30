@@ -2345,6 +2345,8 @@ public static class RegistryGuard
             using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(WindowsAiPath);
             key?.SetValue("DisableAIDataAnalysis", 1, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("TurnOffSavingSnapshots", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            // Win11Debloater: sibling snapshotting kill switch (same CSP key)
+            key?.SetValue("AllowSnapshotting", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("AllowRecallEnablement", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("DisableClickToDo", 1, Microsoft.Win32.RegistryValueKind.DWord);
             // 25H2 "Agent in Settings" (Settings AI agent)

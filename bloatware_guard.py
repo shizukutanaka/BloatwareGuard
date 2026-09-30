@@ -1626,6 +1626,8 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             ai_pol = r"SOFTWARE\Policies\Microsoft\Windows\WindowsAI"
             set_registry_dword("HKLM", ai_pol, "DisableAIDataAnalysis", 1)
             set_registry_dword("HKLM", ai_pol, "TurnOffSavingSnapshots", 1)
+            # Win11Debloater: sibling snapshotting kill switch (same CSP key)
+            set_registry_dword("HKLM", ai_pol, "AllowSnapshotting", 0)
             set_registry_dword("HKLM", ai_pol, "AllowRecallEnablement", 0)
             set_registry_dword("HKLM", ai_pol, "DisableClickToDo", 1)
             # 25H2 "Agent in Settings" (Settings AI agent)

@@ -5,6 +5,9 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- Win11Debloater (bunbunconmeow, new source): WindowsAI
+  `AllowSnapshotting`=0 — sibling kill switch to
+  TurnOffSavingSnapshots in the same CSP key.
 - speedup-windows10 (balsamleti, new source): +2 —
   WindowsSelfHost\UI\Strings DiagnosticErrorText/
   DiagnosticLinkText blanked (insider diagnostic nag),
