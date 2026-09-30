@@ -3335,13 +3335,17 @@ def run_self_test() -> int:
         writes are the tool's actual payload. Extracts py names from
         set_registry_*/set_user_dword_all_hives call args (including names
         fed through for-loop variables and (name, value) tuple loops) and
-        checks each appears in the C# source. cs→py direction is not
-        asserted — C# arrays also carry task/service names, making the
-        reverse check ambiguous. Repo checkouts only."""
+        checks each appears in the C# source. The reverse direction is
+        asserted too: any quoted name extracted from C# that has no py
+        string literal is drift (task/service/package/path strings in
+        new[] literals are all mirrored, so they pass as literals).
+        Repo checkouts only."""
         cs = Path(__file__).parent / "src" / "Program.cs"
         if not cs.exists():
             return
         cs_src = cs.read_text(encoding="utf-8", errors="ignore")
+        # strip line comments — quoted words in comments are not writes
+        cs_src = re.sub(r'//[^\n]*', '', cs_src)
         cs_names = set(re.findall(r'SetValue\(\s*"([^"]+)"', cs_src))
         cs_names |= set(re.findall(
             r'SetUserDwordAllHives\([^,]+,\s*\n?\s*"([^"]+)"', cs_src))
@@ -3402,8 +3406,17 @@ def run_self_test() -> int:
         miss = sorted(py_names - cs_names)
         assert not miss, \
             f"registry value names missing from Program.cs: {miss}"
+        # cs -> py: every string literal anywhere in the py source is a
+        # valid match — names shared via task/service/package/path lists
+        # are mirrored, so only a genuine cs-only name fails here.
+        py_literals = {
+            e.value for e in ast.walk(tree)
+            if isinstance(e, ast.Constant) and isinstance(e.value, str)}
+        miss_rev = sorted(cs_names - py_literals)
+        assert not miss_rev, \
+            f"names in Program.cs with no py counterpart: {miss_rev}"
 
-    check("T11: registry value-name parity (py -> cs)",
+    check("T11: registry value-name parity (py <-> cs)",
           t_registry_value_parity)
 
     print()

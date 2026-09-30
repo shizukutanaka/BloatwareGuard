@@ -5,6 +5,10 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- T11 now asserts both directions: cs-only names (e.g. a value name
+  written in Program.cs but never in py) fail the gate; C# line
+  comments are stripped before extraction so quoted words in
+  comments are not mistaken for writes.
 - `verify_scan.ps1`: appx before/after snapshot used `-contains` for
   exact-name equality that could never match real package names — probes
   for YourPhone/MicrosoftTeams/Zune were dead. Now substring `-like`
