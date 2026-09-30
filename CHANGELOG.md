@@ -5,6 +5,14 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- Microsoft Copilot ADMX docs (CopilotApp.admx +
+  copilotupdate.admx): DisableCopilot +BrowsingEnabled
+  +CopilotCoworkToolActionsEnabled @
+  Policies\Microsoft\Copilot; EdgeUpdate
+  Copilot-distribution guard Install/Update/
+  CopilotUnificationAllowed{C50565E9-...}. Skipped:
+  ComponentUpdatesEnabled (doc warns it can block
+  security fixes), Uninstall/TargetChannel. Backup 104->106.
 - Khotyz/WGO diff: DataCollection
   +LimitDiagnosticDataConfigurationSet; DisableCloudClipboard
   +per-user CloudClipboardAutomaticUpload; Edge

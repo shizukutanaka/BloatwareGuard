@@ -2006,6 +2006,27 @@ public static class RegistryGuard
             SetUserDwordAllHives(
                 @"Software\Microsoft\Windows\CurrentVersion\WindowsCopilot",
                 "AllowCopilotRuntime", 0);
+            // Copilot app ADMX (CopilotApp.admx, v146+): kill in-app web
+            // browsing + Cowork agentic actions. ComponentUpdatesEnabled left
+            // alone — disabling it can block security fixes per doc.
+            using (var capp = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                       @"SOFTWARE\Policies\Microsoft\Copilot"))
+            {
+                capp?.SetValue("BrowsingEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                capp?.SetValue("CopilotCoworkToolActionsEnabled", 0,
+                               Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            // Edge Update Copilot-distribution guard
+            using (var eupd = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                       @"SOFTWARE\Policies\Microsoft\EdgeUpdate"))
+            {
+                eupd?.SetValue("Install{C50565E9-CCCF-44B4-BA15-5AC5C6569197}", 0,
+                               Microsoft.Win32.RegistryValueKind.DWord);
+                eupd?.SetValue("Update{C50565E9-CCCF-44B4-BA15-5AC5C6569197}", 0,
+                               Microsoft.Win32.RegistryValueKind.DWord);
+                eupd?.SetValue("CopilotUnificationAllowed{C50565E9-CCCF-44B4-BA15-5AC5C6569197}",
+                               0, Microsoft.Win32.RegistryValueKind.DWord);
+            }
             // NVIDIA telemetry opt-out RIDs (winscript)
             using (var fts = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                        @"SOFTWARE\NVIDIA Corporation\Global\FTS"))
@@ -3443,6 +3464,8 @@ public static class RegistryGuard
         @"SOFTWARE\Microsoft\Windows\Shell\Copilot",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Search",
         @"SOFTWARE\NVIDIA Corporation\Global\FTS",
+        @"SOFTWARE\Policies\Microsoft\Copilot",
+        @"SOFTWARE\Policies\Microsoft\EdgeUpdate",
         @"SYSTEM\CurrentControlSet\Services\nvlddmkm\Global\Startup",
         @"SYSTEM\CurrentControlSet\Services\nvlddmkm\Parameters\Global\Startup",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\Deprovisioned",

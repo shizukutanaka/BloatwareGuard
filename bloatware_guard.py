@@ -1048,6 +1048,8 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Microsoft\Windows\Shell\Copilot",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Search",
     r"SOFTWARE\NVIDIA Corporation\Global\FTS",
+    r"SOFTWARE\Policies\Microsoft\Copilot",
+    r"SOFTWARE\Policies\Microsoft\EdgeUpdate",
     r"SYSTEM\CurrentControlSet\Services\nvlddmkm\Global\Startup",
     r"SYSTEM\CurrentControlSet\Services\nvlddmkm\Parameters\Global\Startup",
     r"SOFTWARE\Policies\Microsoft\Windows\Appx"
@@ -1502,6 +1504,25 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_user_dword_all_hives(
                 r"Software\Microsoft\Windows\CurrentVersion\WindowsCopilot",
                 "AllowCopilotRuntime", 0, logger)
+            # Copilot app ADMX (CopilotApp.admx, v146+): kill in-app web
+            # browsing + Cowork agentic actions. ComponentUpdatesEnabled left
+            # alone — disabling it can block security fixes per doc.
+            copilot_app = r"SOFTWARE\Policies\Microsoft\Copilot"
+            set_registry_dword("HKLM", copilot_app, "BrowsingEnabled", 0)
+            set_registry_dword("HKLM", copilot_app,
+                               "CopilotCoworkToolActionsEnabled", 0)
+            # Edge Update Copilot-distribution guard: block the updater from
+            # installing/updating Copilot and from Copilot unification.
+            edgeupd_pol = r"SOFTWARE\Policies\Microsoft\EdgeUpdate"
+            set_registry_dword(
+                "HKLM", edgeupd_pol,
+                "Install{C50565E9-CCCF-44B4-BA15-5AC5C6569197}", 0)
+            set_registry_dword(
+                "HKLM", edgeupd_pol,
+                "Update{C50565E9-CCCF-44B4-BA15-5AC5C6569197}", 0)
+            set_registry_dword(
+                "HKLM", edgeupd_pol,
+                "CopilotUnificationAllowed{C50565E9-CCCF-44B4-BA15-5AC5C6569197}", 0)
             # NVIDIA telemetry opt-out RIDs (winscript)
             _nv_fts = r"SOFTWARE\NVIDIA Corporation\Global\FTS"
             for _rid in ("EnableRID44231", "EnableRID64640", "EnableRID66610"):
