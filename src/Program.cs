@@ -3280,6 +3280,9 @@ public static class RegistryGuard
         // Desktop Activity Moderator, Intel telemetry, Event Collector
         // — all disabled by ReviOS services.yml
         "dam", "Telemetry", "Wecsvc",
+        // NetBIOS-over-TCP/IP — legacy LAN name protocol; pairs with
+        // the LLMNR kill in DisableTelemetry (Atlas services.yml)
+        "NetBT",
     };
 
     public static void DisableMiscBloatServices()

@@ -1090,6 +1090,9 @@ _MISC_DEMOTE_SERVICES = (
     # Desktop Activity Moderator (user-activity monitoring driver),
     # Intel telemetry driver, Event Collector — all disabled by ReviOS
     "dam", "Telemetry", "Wecsvc",
+    # NetBIOS-over-TCP/IP — legacy LAN name protocol; pairs with the
+    # LLMNR kill in DisableTelemetry (Atlas services.yml)
+    "NetBT",
 )
 
 

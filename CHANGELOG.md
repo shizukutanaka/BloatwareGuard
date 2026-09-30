@@ -21,6 +21,8 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   - `DisableSpotlight`: per-user Spotlight policy +
     welcome-experience/action-center/settings kills.
   - `DisableSearchSuggestions`: `EnableDynamicContentInWSB`.
+  - `DisableMiscBloatServices`: NetBIOS-over-TCP/IP (`NetBT`) demoted —
+    legacy LAN name protocol matching the LLMNR kill.
   - Skipped: UAC secure-desktop off (weakens security), MS-account
     block, kernel/page/MMCSS perf tweaks, ~100 Explorer/UX
     preference values, crash-dump disables, Office/vendor telemetry.
