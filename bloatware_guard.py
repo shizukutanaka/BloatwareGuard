@@ -298,6 +298,7 @@ def load_config(path: Path) -> dict:
                 "DisableChatTaskbar": True,
                 "DisableEdgeBloat": True,
                 "RemoveOptionalCapabilities": True,
+                "DisableLegacyFeatures": True,
                 "RemoveWin32Programs": True,
                 "CreateRestorePoint": True,
                 "DisableTelemetryTasks": True,
@@ -584,6 +585,43 @@ def remove_optional_capabilities(logger: logging.Logger) -> bool:
         logger.info("Applied: RemoveOptionalCapabilities (legacy/dev/dead-net)")
     else:
         logger.warning("RemoveOptionalCapabilities: no capabilities removed "
+                       "(absent or admin required)")
+    return rc == 0
+
+
+# Optional FEATURES (Disable-WindowsOptionalFeature) — dead legacy components
+# that ship enabled: IE feature, PowerShell 2.0 downgrade surface, SMBv1
+# (WannaCry vector — off by default since 1709, this guarantees it), fax,
+# telnet/TFTP, unix print protocols, WCF port sharing, Work Folders,
+# DirectPlay/NTVDM compat shims. (privacy.sexy DisableWindowsFeature diff)
+_LEGACY_FEATURES = (
+    "Internet-Explorer-Optional-amd64", "Internet-Explorer-Optional-x64",
+    "Internet-Explorer-Optional-x84",
+    "MicrosoftWindowsPowerShellV2", "MicrosoftWindowsPowerShellV2Root",
+    "SMB1Protocol", "SMB1Protocol-Client", "SMB1Protocol-Server",
+    "FaxServicesClientPackage", "TelnetClient", "TFTP",
+    "WCF-TCP-PortSharing45", "WorkFolders-Client",
+    "DirectPlay", "LegacyComponents",
+    "Printing-Foundation-InternetPrinting-Client",
+    "Printing-Foundation-LPDPrintService",
+    "Printing-Foundation-LPRPortMonitor",
+)
+
+
+def disable_legacy_features(logger: logging.Logger) -> bool:
+    """Disable dead legacy Windows optional features. Requires admin;
+    absent/disabled entries are skipped by PowerShell."""
+    pattern = "|".join(_LEGACY_FEATURES)
+    _, _, rc = run_powershell(
+        "Get-WindowsOptionalFeature -Online | Where-Object "
+        f"{{$_.FeatureName -match '{pattern}' -and $_.State -ne 'Disabled'}} | "
+        "Disable-WindowsOptionalFeature -Online -NoRestart "
+        "-ErrorAction SilentlyContinue | Out-Null",
+        timeout=180)
+    if rc == 0:
+        logger.info(f"Applied: DisableLegacyFeatures ({len(_LEGACY_FEATURES)} entries)")
+    else:
+        logger.warning("DisableLegacyFeatures: no features disabled "
                        "(absent or admin required)")
     return rc == 0
 
@@ -2730,6 +2768,13 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
         else:
             remove_optional_capabilities(logger)
 
+    # 2.5b Disable dead legacy Windows optional features
+    if prev.get("DisableLegacyFeatures", True):
+        if dry_run:
+            logger.info("[DRY-RUN] Would disable legacy optional features (IE/PSv2/SMB1/telnet/fax) [requires admin]")
+        else:
+            disable_legacy_features(logger)
+
     # 2.6 Remove Win32 programs matching blacklist — primary OEM preinstall
     # channel (McAfee/Norton are Win32, not Appx). MSI silent only.
     if prev.get("RemoveWin32Programs", True):
@@ -3095,6 +3140,7 @@ def run_self_test() -> int:
                     "DisableDeliveryOptimization", "DisableOneDrive",
                     "DisableChatTaskbar", "DisableEdgeBloat",
                     "RemoveOptionalCapabilities", "RemoveWin32Programs",
+                    "DisableLegacyFeatures",
                     "CreateRestorePoint", "DisableTelemetryTasks",
                     "DisableStartupBloat", "DisableErrorReporting",
                     "DisableEdgeUpdateBloat", "BlockOemDriverUpdates",

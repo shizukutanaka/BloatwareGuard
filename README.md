@@ -27,7 +27,8 @@ also apply correctly when the tool runs as a SYSTEM service and for users create
 || 15. OneDrive sync off + Explorer pin hidden (**opt-in**, default off) | ✅ | ✅ | HKLM needs admin |
 || 16. Teams Chat taskbar button off | ✅ | ✅ | Own hive only |
 || 17. Edge sidebar / startup boost / prelaunch / first-run + AI surface off | ✅ | ✅ | HKLM needs admin |
-|| 18. Optional capabilities removed (IE mode, Steps Recorder, WordPad, XPS Viewer, Fax&Scan, Wireless Display) | ✅ | ✅ | Requires admin |
+|| 18. Optional capabilities removed (IE mode, Steps Recorder, WordPad, XPS Viewer, Fax&Scan, Wireless Display, QuickAssist, PS ISE, IrDA/RIP/SNMP, dev tools) | ✅ | ✅ | Requires admin |
+|| 18b. Dead legacy Windows features disabled (IE, PSv2, SMBv1, fax, telnet/TFTP, unix print, WCF, WorkFolders, DirectPlay — 18 entries) | ✅ | ✅ | Requires admin |
 || 19. Win32 bloatware uninstalled (McAfee/Norton OEM preinstalls — MSI silent) | ✅ | ✅ | Requires admin |
 || 20. Restore point before destructive scans (self-throttles 24h) | ✅ | ✅ | Requires admin |
 || 21. Microsoft telemetry tasks off (63: CompatTelRunner, CEIP, Siuf, Maps, Office CEIP, RetailDemo, Insider flighting, feedback, Device Census, family safety, net-trace, AIT, speech models, disk diagnostics, PCA, location, IME/input sync, PerfTrack, push-install, WDI, WindowsAI Recall, Office AI, power diagnostics) | ✅ | ✅ | Requires admin |

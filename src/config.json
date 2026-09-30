@@ -213,6 +213,7 @@
         "DisableChatTaskbar": true,
         "DisableEdgeBloat": true,
         "RemoveOptionalCapabilities": true,
+        "DisableLegacyFeatures": true,
         "RemoveWin32Programs": true,
         "CreateRestorePoint": true,
         "DisableTelemetryTasks": true,

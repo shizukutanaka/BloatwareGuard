@@ -104,6 +104,10 @@ public class PreventionLayers
 
     /// <summary>Layer 18: Remove optional capabilities (IE mode, Steps Recorder, WordPad)</summary>
     public bool RemoveOptionalCapabilities { get; set; } = true;
+    /// <summary>Disable dead legacy Windows optional features (IE feature,
+    /// PSv2 downgrade surface, SMBv1, fax, telnet/TFTP, unix print protocols,
+    /// WCF port sharing, Work Folders, DirectPlay/NTVDM compat).</summary>
+    public bool DisableLegacyFeatures { get; set; } = true;
 
     /// <summary>Remove Win32 programs (McAfee/Norton OEM preinstalls etc.) whose
     /// DisplayName matches the blacklist — MSI entries get silent uninstall.
@@ -709,6 +713,45 @@ public static class AppxManager
             GuardLogger.Info("Applied: RemoveOptionalCapabilities (legacy/dev/dead-net)");
         else
             GuardLogger.Warn("RemoveOptionalCapabilities: no capabilities removed (absent or admin required)");
+    }
+
+    // Optional FEATURES (Disable-WindowsOptionalFeature) — dead legacy
+    // components that ship enabled: IE feature, PowerShell 2.0 downgrade
+    // surface, SMBv1 (WannaCry vector — off by default since 1709, this
+    // guarantees it), fax, telnet/TFTP, unix print protocols, WCF port
+    // sharing, Work Folders, DirectPlay/NTVDM compat shims.
+    // (privacy.sexy DisableWindowsFeature diff)
+    private static readonly string[] LegacyFeatures = {
+        "Internet-Explorer-Optional-amd64", "Internet-Explorer-Optional-x64",
+        "Internet-Explorer-Optional-x84",
+        "MicrosoftWindowsPowerShellV2", "MicrosoftWindowsPowerShellV2Root",
+        "SMB1Protocol", "SMB1Protocol-Client", "SMB1Protocol-Server",
+        "FaxServicesClientPackage", "TelnetClient", "TFTP",
+        "WCF-TCP-PortSharing45", "WorkFolders-Client",
+        "DirectPlay", "LegacyComponents",
+        "Printing-Foundation-InternetPrinting-Client",
+        "Printing-Foundation-LPDPrintService",
+        "Printing-Foundation-LPRPortMonitor",
+    };
+
+    /// <summary>Disable dead legacy Windows optional features. Requires admin;
+    /// absent/disabled entries are skipped by PowerShell.</summary>
+    public static void DisableLegacyFeatures()
+    {
+        var pattern = string.Join("|", LegacyFeatures);
+        var psi = new ProcessStartInfo
+        {
+            FileName = "powershell.exe",
+            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Get-WindowsOptionalFeature -Online | Where-Object {{$_.FeatureName -match '{pattern}' -and $_.State -ne 'Disabled'}} | Disable-WindowsOptionalFeature -Online -NoRestart -ErrorAction SilentlyContinue | Out-Null\"",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        if (Proc.Wait(psi, 180000) == 0)  // DISM ops can be slow
+            GuardLogger.Info($"Applied: DisableLegacyFeatures ({LegacyFeatures.Length} entries)");
+        else
+            GuardLogger.Warn("DisableLegacyFeatures: no features disabled (absent or admin required)");
     }
 
     /// <summary>Check if a package family name matches any whitelist entry</summary>
@@ -3884,6 +3927,15 @@ public class GuardService : BackgroundService
                 GuardLogger.Info("[DRY-RUN] Would remove optional capabilities (IE/StepsRecorder/WordPad) [requires admin]");
             else
                 AppxManager.RemoveOptionalCapabilities();
+        }
+
+        // 2.5b Disable dead legacy Windows optional features
+        if (_config.Prevention.DisableLegacyFeatures)
+        {
+            if (dryRun)
+                GuardLogger.Info("[DRY-RUN] Would disable legacy optional features (IE/PSv2/SMB1/telnet/fax) [requires admin]");
+            else
+                AppxManager.DisableLegacyFeatures();
         }
 
         // 2.6 Remove Win32 programs matching blacklist — the primary OEM

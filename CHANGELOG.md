@@ -5,6 +5,15 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.0-mvp: optional-capability expansion
 
 ### Added
+- **New layer `DisableLegacyFeatures`** (both impls): disables dead legacy
+  Windows optional features via `Disable-WindowsOptionalFeature` — IE
+  feature, PowerShell 2.0 downgrade surface, SMBv1 (guaranteed off), fax,
+  telnet/TFTP, unix print protocols, WCF port sharing, Work Folders,
+  DirectPlay/NTVDM compat — 18 entries mined from privacy.sexy's
+  DisableWindowsFeature inventory. Opt-out via
+  `Prevention.DisableLegacyFeatures`. Skipped: Hyper-V (functional
+  opt-in), WMP/MediaPlayback, SearchEngine package (search kept
+  usable by design), PrintToPDF, SmbDirect (datacenter).
 - `RemoveOptionalCapabilities` 6→17 entries (privacy.sexy
   UninstallCapability diff): `App.Support.QuickAssist` (inbox stub —
   Store successor is already blacklisted), deprecated
