@@ -2619,6 +2619,8 @@ public static class RegistryGuard
             SetUserDwordAllHives(UserExplorerAdvancedPath, "TaskbarDa", 0);
             // 2 = Feeds view hidden entirely (news/interests flyout off)
             SetUserDwordAllHives(@"Software\Microsoft\Windows\CurrentVersion\Feeds", "ShellFeedsTaskbarViewMode", 2);
+            // Taskbar feeds open-on-hover off (ledr)
+            SetUserDwordAllHives(@"Software\Microsoft\Windows\CurrentVersion\Feeds", "ShellFeedsTaskbarOpenOnHover", 0);
             GuardLogger.Info("Applied: DisableWidgets (AllowNewsAndInterests = 0, TaskbarDa = 0)");
         }
         catch (Exception ex)
@@ -4549,6 +4551,10 @@ public static class RegistryGuard
             SetUserDwordAllHives(
                 @"Software\Policies\Microsoft\Windows\CloudContent",
                 "DisableWindowsSpotlightOnSettings", 1);
+            // Enterprise Spotlight content off — inverse polarity (ledr)
+            SetUserDwordAllHives(
+                @"Software\Policies\Microsoft\Windows\CloudContent",
+                "IncludeEnterpriseSpotlight", 0);
             GuardLogger.Info("Applied: DisableSpotlight (DesktopSpotlight + wallpaper type + per-hive CloudContent policies)");
         }
         catch (Exception ex)

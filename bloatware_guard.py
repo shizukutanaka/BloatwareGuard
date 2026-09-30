@@ -1890,6 +1890,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_user_dword_all_hives(
                 r"Software\Microsoft\Windows\CurrentVersion\Feeds",
                 "ShellFeedsTaskbarViewMode", 2, logger)
+            # Taskbar feeds open-on-hover off (ledr)
+            set_user_dword_all_hives(
+                r"Software\Microsoft\Windows\CurrentVersion\Feeds",
+                "ShellFeedsTaskbarOpenOnHover", 0, logger)
             logger.info("Applied: DisableWidgets (AllowNewsAndInterests = 0, TaskbarDa = 0)")
 
         except Exception as e:
@@ -3013,6 +3017,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                          "DisableWindowsSpotlightOnActionCenter",
                          "DisableWindowsSpotlightOnSettings"):
                 set_user_dword_all_hives(cloud, name, 1, logger)
+            # Enterprise Spotlight content off — inverse polarity (ledr)
+            set_user_dword_all_hives(
+                cloud, "IncludeEnterpriseSpotlight", 0, logger)
             logger.info("Applied: DisableSpotlight "
                         "(DesktopSpotlight + wallpaper + per-hive CloudContent)")
 
