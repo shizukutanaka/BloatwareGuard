@@ -1303,7 +1303,10 @@ public static class RegistryGuard
         "Restoro", "Wondershare", "PCHealth",
         // Razer utilities (Debloat-Win11 OEM purge) — "Synapse" is not a
         // substring of "Synaptics", so pointing-device entries stay safe
-        "Razer", "Synapse", "Cortex"
+        "Razer", "Synapse", "Cortex",
+        // Peripheral-vendor control suites — same class as Armoury/Nahimic
+        // (WinOpt startup audit); marker-based disable is reversible
+        "Corsair", "SteelSeries", "Logitech"
     };
 
     // 0x03 = disabled in StartupApproved (value kept — user can re-enable via Task Manager)

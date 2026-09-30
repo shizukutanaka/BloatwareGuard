@@ -961,6 +961,9 @@ _STARTUP_BLOAT_NAMES = (
     # Razer utilities (Debloat-Win11 OEM purge) — "Synapse" is not a
     # substring of "Synaptics", so pointing-device entries stay safe
     "Razer", "Synapse", "Cortex",
+    # Peripheral-vendor control suites — same class as Armoury/Nahimic
+    # (WinOpt startup audit); marker-based disable is reversible
+    "Corsair", "SteelSeries", "Logitech",
 )
 # 0x03 = disabled in StartupApproved (value kept — re-enableable via Task Manager)
 _STARTUP_DISABLED_MARKER = b"\x03" + b"\x00" * 11
