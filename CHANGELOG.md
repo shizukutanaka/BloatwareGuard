@@ -535,6 +535,30 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   boundary), `FamilySafetySettingsEnabled` (functional), autofill
   toggles (convenience, not telemetry), cookie/tracking policies
   (browsing-behavior changes), NTP cosmetic settings.
+- simeononsecurity/Windows-Optimize-Debloat + gordonbay/
+  Windows-On-Reins (new sources): `DisableTelemetry`
+  +`WiFiSenseCredShared` (WcmSvc features — Wi-Fi Sense credential
+  sharing, sibling to PaidWifi/WiFiSenseOpen); `DisableEdgeBloat`
+  +`ShowSearchSuggestionsGlobal` (Edge SearchScopes policy —
+  search-provider suggestion uploads); `DisableTelemetry`
+  +`DisableUPnPRegistrar` (WCN UPnP device registrar — legacy
+  network-device discovery surface). Backup 109->111
+  (SearchScopes + WCN\Registrars). Skipped: WMP `UsageTracking`
+  (closed-PR #33 content), Defender Spynet reporting
+  (`LocalSettingOverrideSpynetReporting` — AV boundary), CCleaner
+  `CheckTrialOffer` (vendor), camera/mic/location kills,
+  `NoPhysicalCameraLED` (security regression), `EnableActiveProbing`
+  (NCSI — prior revert), UI/perf names.
+
+### Fixed
+- Dedupe: `_USER_BACKUP_KEY_PATHS` listed
+  `Software\Microsoft\Windows\CurrentVersion\Search` twice (both
+  impls) and cs `MiscBloatServices` listed `wercplsupport` twice —
+  removed; T10 extended to the three backup lists so duplicates in
+  them now fail the self-test gate (previously uncovered).
+- T12 follow-up: `AllowAutomaticAppArchiving` writes to
+  `SOFTWARE\Policies\Microsoft\Windows\Appx` had no backup ancestor —
+  added parent key to `_BACKUP_KEY_PATHS`/`BackupKeyPaths`.
 
 ## [Released] — v1.59.2-mvp: deploy/docstaleness + exe metadata
 
