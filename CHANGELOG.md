@@ -5,6 +5,9 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- 5cover/WinClean (new source): blacklist +2
+  (BethesdaSoftworks.FalloutShelter, Microsoft.Advertising).
+  Sycnex-derived scripts otherwise fully covered.
 - privacyfilters/Microsoft-Blocker (new source,
   5,850-entry hosts list): telemetry hosts 197->416 —
   vortex/events-data regional TM aliases, watson/WER

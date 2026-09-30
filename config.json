@@ -199,7 +199,9 @@
         "Uber",
         "WildTangent",
         "SaferVPN",
-        "SymantecCorporation"
+        "SymantecCorporation",
+        "BethesdaSoftworks.FalloutShelter",
+        "Microsoft.Advertising"
     ],
     "Whitelist": [
         "Microsoft.WindowsStore",

@@ -271,6 +271,8 @@ DEFAULT_BLACKLIST = [
     "GAMELOFTSA", "KhanAcademy", "AsanaInc.Asana", "Luminar",
     "DropboxInc.Dropbox", "TripAdvisor", "Uber",
     "WildTangent", "SaferVPN", "SymantecCorporation",
+    "BethesdaSoftworks.FalloutShelter",
+    "Microsoft.Advertising",
 ]
 
 

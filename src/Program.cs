@@ -620,6 +620,8 @@ public static class ConfigLoader
                 // "Lenovo.",
                 // "ASUS",
                 // "Acer",
+                "BethesdaSoftworks.FalloutShelter",
+                "Microsoft.Advertising",
             },
             Whitelist = new List<string>
             {
