@@ -810,6 +810,8 @@ _USER_SHELL_COPILOT_BINGCHAT = r"Software\Microsoft\Windows\Shell\Copilot\BingCh
 _USER_VOICE_ACTIVATION = (r"Software\Microsoft\Speech_OneCore\Settings"
                           + r"\VoiceActivation\UserPreferenceForAllApps")
 _USER_CLICK_TO_DO = r"Software\Microsoft\Windows\Shell\ClickToDo"
+# Recall user preference toggles (non-policy path — the per-user killswitch)
+_USER_RECALL = r"Software\Microsoft\Windows\CurrentVersion\Recall"
 # Feature-management velocity overrides (community-verified IDs — e.g.
 # zoicware/RemoveWindowsAI). EnabledState: 0=default, 1=disabled, 2=enabled.
 _VELOCITY_PATH = r"SYSTEM\CurrentControlSet\Control\FeatureManagement\Overrides\8"
@@ -1170,6 +1172,7 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             "SubscribedContent-353694Enabled",   # Settings suggestions (2)
             "SubscribedContent-353696Enabled",   # Settings suggestions (3)
             "SubscribedContent-353698Enabled",   # Settings suggestions (4)
+            "SubscribedContent-410400Enabled",   # content suggestion slot (Win-Debloat)
             "SubscribedContent-338380Enabled",   # Settings app content ads
             "SubscribedContent-314563Enabled",   # My People suggestions
             "SubscribedContent-314559Enabled",   # OneDrive promotions (ReviOS)
@@ -1292,9 +1295,19 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_registry_dword("HKLM", ai_pol, "DisableClickToDo", 1)
         # 25H2 "Agent in Settings" (Settings AI agent)
         set_registry_dword("HKLM", ai_pol, "DisableSettingsAgent", 1)
+        # ClickToDo semantic screen analysis (Win-Debloat)
+        set_registry_dword("HKLM", ai_pol, "DisableScreenSemanticAnalysis", 1)
+        # Copilot+ model download/update gate — Recall/ClickToDo can't
+        # fetch the on-device models they need
+        mm_pol = ai_pol + r"\ModelManagement"
+        set_registry_dword("HKLM", mm_pol, "DisableModelDownload", 1)
+        set_registry_dword("HKLM", mm_pol, "DisableBackgroundModelUpdates", 1)
         set_user_dword_all_hives(_USER_WINDOWS_AI, "DisableAIDataAnalysis", 1, logger)
         set_user_dword_all_hives(_USER_WINDOWS_AI, "DisableClickToDo", 1, logger)
         set_user_dword_all_hives(_USER_WINDOWS_AI, "DisableSettingsAgent", 1, logger)
+        # Per-user Recall killswitches (policy alone leaves the toggles on)
+        set_user_dword_all_hives(_USER_RECALL, "Enabled", 0, logger)
+        set_user_dword_all_hives(_USER_RECALL, "IsRecallAllowed", 0, logger)
         # ClickToDo user preference (policy alone still leaves the shell entry)
         set_user_dword_all_hives(_USER_CLICK_TO_DO, "DisableClickToDo", 1, logger)
         # Per-app AI features: Paint (image creator/cocreator/fill/erase/
@@ -1324,7 +1337,8 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                      "Microsoft-Windows-AI-Platform/Operational"):
             run_cmd(["wevtutil", "sl", chan, "/e:false"], timeout=15)
         logger.info("Applied: DisableRecall (WindowsAI+SettingsAgent policies, "
-                    "Paint/Notepad AI off, Click to Do off, Recall feature "
+                    "ModelManagement download gate, Paint/Notepad AI off, "
+                    "Click to Do off, Recall user toggles off, Recall feature "
                     "removal attempted, WSAIFabricSvc=demand, AI event-log "
                     "channels off)")
 
@@ -3179,7 +3193,8 @@ def run_self_test() -> int:
                                   ("_USER_SUGGESTED_TOAST",
                                    (_USER_SUGGESTED_TOAST,)),
                                   ("_USER_VOICE_ACTIVATION",
-                                   (_USER_VOICE_ACTIVATION,))):
+                                   (_USER_VOICE_ACTIVATION,)),
+                                  ("_USER_RECALL", (_USER_RECALL,))):
                 miss = []
                 for e in entries:
                     # structured entries ((subkey, value) pairs) — verify each

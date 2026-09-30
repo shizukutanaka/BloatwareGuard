@@ -4,6 +4,15 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 
 ## [Unreleased] — v1.59.3-mvp: verify_scan_sys.ps1 parse fix
 
+### Added
+- `DisableRecall` deepened (tomytate/Win-Debloat Privacy diff):
+  `WindowsAI\ModelManagement` `DisableModelDownload`/`DisableBackgroundModelUpdates`
+  (Copilot+ can't fetch the on-device models Recall/ClickToDo need),
+  `DisableScreenSemanticAnalysis`, and the per-user `CurrentVersion\Recall`
+  killswitches `Enabled`/`IsRecallAllowed` on every hive (policy alone leaves
+  the toggles on).
+- CDM per-user `SubscribedContent-410400Enabled` (content suggestion slot).
+
 ### Changed
 - Blacklist tightened to publisher namespaces (tomytate/Win-Debloat diff):
   `Facebook.` replaces the three individual Meta entries, `PandoraMediaInc.`,

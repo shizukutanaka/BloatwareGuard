@@ -1146,6 +1146,8 @@ public static class RegistryGuard
     private const string UserShellCopilotPath = @"Software\Microsoft\Windows\Shell\Copilot";
     private const string UserVoiceActivationPath = @"Software\Microsoft\Speech_OneCore\Settings\VoiceActivation\UserPreferenceForAllApps";
     private const string UserClickToDoPath = @"Software\Microsoft\Windows\Shell\ClickToDo";
+    // Recall user preference toggles (non-policy path — the per-user killswitch)
+    private const string UserRecallPath = @"Software\Microsoft\Windows\CurrentVersion\Recall";
     private const string PaintPoliciesPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Paint";
     private const string NotepadPoliciesPath = @"SOFTWARE\Policies\WindowsNotepad";
     // Feature-management velocity overrides (community-verified IDs — e.g.
@@ -1724,6 +1726,7 @@ public static class RegistryGuard
                 "SubscribedContent-353694Enabled",  // Settings suggestions (2)
                 "SubscribedContent-353696Enabled",  // Settings suggestions (3)
                 "SubscribedContent-353698Enabled",  // Settings suggestions (4)
+                "SubscribedContent-410400Enabled",  // content suggestion slot (Win-Debloat)
                 "SubscribedContent-338380Enabled",  // Settings app content ads
                 "SubscribedContent-314563Enabled",  // My People suggestions
                 "SubscribedContent-314559Enabled",  // OneDrive promotions (ReviOS)
@@ -1872,6 +1875,15 @@ public static class RegistryGuard
             key?.SetValue("DisableClickToDo", 1, Microsoft.Win32.RegistryValueKind.DWord);
             // 25H2 "Agent in Settings" (Settings AI agent)
             key?.SetValue("DisableSettingsAgent", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            // ClickToDo semantic screen analysis (Win-Debloat)
+            key?.SetValue("DisableScreenSemanticAnalysis", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            // Copilot+ model download/update gate — Recall/ClickToDo can't
+            // fetch the on-device models they need
+            using (var mm = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(WindowsAiPath + @"\ModelManagement"))
+            {
+                mm?.SetValue("DisableModelDownload", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                mm?.SetValue("DisableBackgroundModelUpdates", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            }
             ForEachUserHive(hive =>
             {
                 SetHiveDword(hive, UserWindowsAiPath, "DisableAIDataAnalysis", 1);
@@ -1879,6 +1891,9 @@ public static class RegistryGuard
                 SetHiveDword(hive, UserWindowsAiPath, "DisableSettingsAgent", 1);
                 // ClickToDo user preference (policy alone leaves the shell entry)
                 SetHiveDword(hive, UserClickToDoPath, "DisableClickToDo", 1);
+                // Per-user Recall killswitches (policy alone leaves the toggles on)
+                SetHiveDword(hive, UserRecallPath, "Enabled", 0);
+                SetHiveDword(hive, UserRecallPath, "IsRecallAllowed", 0);
             });
             // Per-app AI features: Paint (image creator/cocreator/fill/erase/
             // background) and Notepad (Rewrite) — documented policy keys
@@ -1925,7 +1940,7 @@ public static class RegistryGuard
                 "Microsoft-Windows-AI-Platform/Operational" })
                 RunToolSilent("wevtutil", $"sl {chan} /e:false");
 
-            GuardLogger.Info("Applied: DisableRecall (WindowsAI+SettingsAgent policies, Paint/Notepad AI off, Click to Do off, Recall feature removal attempted, WSAIFabricSvc=demand, AI event-log channels off)");
+            GuardLogger.Info("Applied: DisableRecall (WindowsAI+SettingsAgent policies, ModelManagement download gate, Paint/Notepad AI off, Click to Do off, Recall user toggles off, Recall feature removal attempted, WSAIFabricSvc=demand, AI event-log channels off)");
         }
         catch (Exception ex)
         {
