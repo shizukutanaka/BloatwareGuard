@@ -5,6 +5,29 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- Qiita 24H2 new-policy list (Microsoft Group Policy
+  Settings Reference): `DisableTelemetry` +3 under existing
+  AppCompat backup — 24H2 app-inventory collectors
+  `DisableAPISamping` (Microsoft's literal ADMX spelling),
+  `DisableApplicationFootprint`, `DisableWin32AppBackup`
+  (API-sampling / registry+file-usage footprint / Win32
+  backup compat scans). Skipped: all Defender-side new
+  policies (boundary), `AllowLegacyURLFields` (IE legacy
+  URL fields — weakening direction).
+- zoicware/RemoveWindowsAI (25H2, second pass):
+  `RemoveDefaultStorePackages` now writes the DOCUMENTED
+  mechanism — per-family subkeys with `RemovePackage`=1 +
+  merged `DynamicRemovalList` REG_MULTI_SZ — replacing the
+  non-standard `PackageList` value (stale value is deleted
+  best-effort). Registry/hosts/tasks/packages otherwise
+  already covered. Skipped: `MicrosoftWindows.Client.Photon`
+  (zoicware itself comments it out — breaks WSAI runtime),
+  IsoEnvBroker Start=4 (wholesale service kill — default
+  is already manual), Office Copilot/content-safety kills
+  (vendor apps), `ConfigureStartPins(JSON)` (user layout
+  override), `CopilotLogonTelemetryTime`/`WakeApp` (value
+  deletions — no write semantics), DefenderAiPlatformHost
+  IFEO (Defender boundary).
 - coolvitto hateblo (new source, Policy CSP - System full
   list): `DisableTelemetry` +10 — DataCollection processing
   kills (`AllowDesktopAnalyticsProcessing`/
