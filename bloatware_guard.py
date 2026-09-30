@@ -1247,7 +1247,7 @@ _MISC_DEMOTE_SERVICES = (
     "dam", "Telemetry", "Wecsvc",
     # NetBIOS-over-TCP/IP — legacy LAN name protocol; pairs with the
     # LLMNR kill in DisableTelemetry (Atlas services.yml)
-    "NetBT",
+    "NetBT", "lmhosts",
 )
 
 
