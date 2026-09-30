@@ -2078,6 +2078,8 @@ public static class RegistryGuard
             key?.SetValue("AllowCloudSearch", 0, Microsoft.Win32.RegistryValueKind.DWord);
             // Dynamic web content inside the search box itself (Atlas)
             key?.SetValue("EnableDynamicContentInWSB", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // Connected-search web results (noid-privacy)
+            key?.SetValue("ConnectedSearchUseWeb", 0, Microsoft.Win32.RegistryValueKind.DWord);
 
             ForEachUserHive(hive =>
             {
@@ -2096,6 +2098,9 @@ public static class RegistryGuard
                 SetHiveDword(hive, UserSearchSettingsPath, "IsAADCloudSearchEnabled", 0);
                 SetHiveDword(hive, UserSearchSettingsPath, "IsMSACloudSearchEnabled", 0);
                 SetHiveDword(hive, UserSearchSettingsPath, "IsDeviceSearchHistoryEnabled", 0);
+                SetHiveDword(hive, UserSearchSettingsPath, "IsGlobalWebSearchProviderToggleEnabled", 0);
+                SetHiveDword(hive, UserSearchSettingsPath + @"\WebSearchPro",
+                    "Microsoft.BingSearch_8wekyb3d8bbwe!App", 0);
             });
             GuardLogger.Info("Applied: DisableSearchSuggestions (Bing/search suggestions + Cortana + cloud search off, all hives)");
         }
@@ -2473,6 +2478,26 @@ public static class RegistryGuard
                 using var fdb = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Windows\DataCollection");
                 fdb?.SetValue("DoNotShowFeedbackNotifications", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // OneSettings download kill at the DataCollection alias
+                // path + recent-items graph off (noid-privacy)
+                fdb?.SetValue("DisableOneSettingsDownloads", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                using var expol = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\Explorer");
+                expol?.SetValue("DisableGraphRecentItems", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // CDP master + Windows Backup cloud-sync kills
+                using var syspol = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\System");
+                syspol?.SetValue("EnableCdp", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                using var ssync = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\SettingSync");
+                ssync?.SetValue("EnableWindowsBackup", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                // OneDrive: feedback/sync-health reporting + pre-sign-in
+                // traffic (policy kills only — OneDrive itself untouched)
+                using var odpol = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\OneDrive");
+                odpol?.SetValue("EnableSyncAdminReports", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                odpol?.SetValue("EnableFeedbackAndSupport", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                odpol?.SetValue("PreventNetworkTrafficPreUserSignIn", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 // Suppress the "your telemetry setting changed" nag + hide
                 // the telemetry level picker UX entirely (ReviOS parity)
                 fdb?.SetValue("DisableTelemetryOptInChangeNotification", 1, Microsoft.Win32.RegistryValueKind.DWord);
@@ -2534,6 +2559,9 @@ public static class RegistryGuard
             SetUserDwordAllHives(
                 @"Software\Microsoft\Windows\CurrentVersion\CDP\SettingsPage",
                 "NearShareChannelUserAuthzPolicy", 0);
+            SetUserDwordAllHives(
+                @"Software\Policies\Microsoft\Windows\CloudContent",
+                "DisableTailoredExperiencesWithDiagnosticData", 1);
             // Per-user policy stragglers (ReviOS privacy.yml)
             foreach (var v in new[] { "NoOnlinePrintsWizard", "NoPublishingWizard", "NoWebServices" })
                 SetUserDwordAllHives(
@@ -3113,7 +3141,9 @@ public static class RegistryGuard
         "LetAppsAccessTasks", "LetAppsAccessTrustedDevices",
         "LetAppsSyncWithDevices", "LetAppsGetDiagnosticInfo",
         "LetAppsActivateWithVoice", "LetAppsActivateWithVoiceAboveLock",
-        "LetAppsAccessGenerativeAI",
+        "LetAppsAccessGenerativeAI", "LetAppsAccessCalendar",
+        "LetAppsAccessGraphicsCaptureProgrammatic",
+        "LetAppsAccessGraphicsCaptureWithoutBorder",
     };
 
     /// <summary>Layer 26: force-deny conservative AppPrivacy set.</summary>
@@ -3304,6 +3334,7 @@ public static class RegistryGuard
         @"SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\PushNotifications",
         @"SOFTWARE\Policies\Microsoft\Windows\DataCollection",
         @"SOFTWARE\Policies\Microsoft\Windows\EdgeUI",
+        @"SOFTWARE\Policies\Microsoft\OneDrive",
         @"SOFTWARE\Policies\Microsoft\Windows\HandwritingErrorReports",
         @"SOFTWARE\Policies\Microsoft\Windows\Maps",
         @"SOFTWARE\Policies\Microsoft\Windows\OneSettings",
@@ -3361,6 +3392,7 @@ public static class RegistryGuard
         @"Software\Microsoft\Windows\CurrentVersion\Privacy",
         @"Software\Microsoft\Windows\CurrentVersion\Search",
         @"Software\Microsoft\Windows\CurrentVersion\SearchSettings",
+        @"Software\Microsoft\Windows\CurrentVersion\SearchSettings\WebSearchPro",
         @"Software\Microsoft\Windows\CurrentVersion\SettingSync",
         @"Software\Microsoft\Windows\CurrentVersion\Start\Companions\Microsoft.YourPhone_8wekyb3d8bbwe",
         @"Software\Microsoft\Windows\CurrentVersion\SystemSettings\AccountNotifications",

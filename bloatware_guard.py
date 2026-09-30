@@ -1114,6 +1114,7 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\PushNotifications",
     r"SOFTWARE\Policies\Microsoft\Windows\DataCollection",
     r"SOFTWARE\Policies\Microsoft\Windows\EdgeUI",
+    r"SOFTWARE\Policies\Microsoft\OneDrive",
     r"SOFTWARE\Policies\Microsoft\Windows\HandwritingErrorReports",
     r"SOFTWARE\Policies\Microsoft\Windows\Maps",
     r"SOFTWARE\Policies\Microsoft\Windows\OneSettings",
@@ -1229,6 +1230,7 @@ _USER_BACKUP_KEY_PATHS = (
     r"Software\Microsoft\Windows\CurrentVersion\Privacy",
     r"Software\Microsoft\Windows\CurrentVersion\Search",
     r"Software\Microsoft\Windows\CurrentVersion\SearchSettings",
+    r"Software\Microsoft\Windows\CurrentVersion\SearchSettings\WebSearchPro",
     r"Software\Microsoft\Windows\CurrentVersion\SettingSync",
     r"Software\Microsoft\Windows\CurrentVersion\Start\Companions\Microsoft.YourPhone_8wekyb3d8bbwe",
     r"Software\Microsoft\Windows\CurrentVersion\SystemSettings\AccountNotifications",
@@ -1596,6 +1598,15 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                                "DisableWebSearch", 1)
             # Dynamic web content inside the search box itself (Atlas)
             set_registry_dword("HKLM", search_pol, "EnableDynamicContentInWSB", 0)
+            # Connected-search web results + global web-search provider
+            # toggle + Bing-as-provider registration (noid-privacy)
+            set_registry_dword("HKLM", search_pol, "ConnectedSearchUseWeb", 0)
+            set_user_dword_all_hives(
+                _USER_SEARCH_SETTINGS,
+                "IsGlobalWebSearchProviderToggleEnabled", 0, logger)
+            set_user_dword_all_hives(
+                _USER_SEARCH_SETTINGS + r"\WebSearchPro",
+                "Microsoft.BingSearch_8wekyb3d8bbwe!App", 0, logger)
             logger.info("Applied: DisableSearchSuggestions (Bing/search suggestions + Cortana off, all hives)")
 
         except Exception as e:
@@ -1896,6 +1907,30 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                                "CEIPEnable", 0)
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\DataCollection",
                                "DoNotShowFeedbackNotifications", 1)
+            # OneSettings download kill at the DataCollection alias path,
+            # recent-items graph off (noid-privacy)
+            set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\DataCollection",
+                               "DisableOneSettingsDownloads", 1)
+            set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\Explorer",
+                               "DisableGraphRecentItems", 1)
+            # Per-user policy-level tailored-experiences lock (stronger
+            # than the setting-level kill — locks the toggle)
+            set_user_dword_all_hives(
+                r"Software\Policies\Microsoft\Windows\CloudContent",
+                "DisableTailoredExperiencesWithDiagnosticData", 1, logger)
+            # CDP master + Windows Backup cloud-sync kills (noid-privacy)
+            sys_pol = r"SOFTWARE\Policies\Microsoft\Windows\System"
+            set_registry_dword("HKLM", sys_pol, "EnableCdp", 0)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Policies\Microsoft\Windows\SettingSync",
+                "EnableWindowsBackup", 0)
+            # OneDrive: feedback/sync-health reporting + pre-sign-in
+            # traffic (policy kills only — OneDrive itself untouched)
+            od_pol = r"SOFTWARE\Policies\Microsoft\OneDrive"
+            set_registry_dword("HKLM", od_pol, "EnableSyncAdminReports", 0)
+            set_registry_dword("HKLM", od_pol, "EnableFeedbackAndSupport", 0)
+            set_registry_dword("HKLM", od_pol, "PreventNetworkTrafficPreUserSignIn", 1)
             # Suppress the "your telemetry setting changed" nag + hide the
             # telemetry level picker UX entirely (ReviOS parity)
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\DataCollection",
@@ -2263,7 +2298,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "LetAppsAccessTasks", "LetAppsAccessTrustedDevices",
                 "LetAppsSyncWithDevices", "LetAppsGetDiagnosticInfo",
                 "LetAppsActivateWithVoice", "LetAppsActivateWithVoiceAboveLock",
-                "LetAppsAccessGenerativeAI",
+                "LetAppsAccessGenerativeAI", "LetAppsAccessCalendar",
+                "LetAppsAccessGraphicsCaptureProgrammatic",
+                "LetAppsAccessGraphicsCaptureWithoutBorder",
             )
             for name in app_privacy:
                 set_registry_dword("HKLM",

@@ -5,6 +5,19 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- noid-privacy Strict/Paranoid profile diff: DisableTelemetry
+  +DisableOneSettingsDownloads (DataCollection alias path)
+  +DisableGraphRecentItems +EnableCdp=0 (CDP master)
+  +EnableWindowsBackup=0 +OneDrive policy kills
+  (sync-admin reports/feedback/pre-signin traffic — OneDrive
+  itself untouched) +user-policy tailored-experiences lock;
+  DisableSearchSuggestions +ConnectedSearchUseWeb +global
+  web-provider toggle +Bing provider registration kill;
+  AppPrivacy +Calendar/GraphicsCaptureProgrammatic/
+  GraphicsCaptureWithoutBorder force-denies. Backup 97->99.
+  Skipped: AllowInputPersonalization (prior closed-PR content),
+  location/mic/cam force-denies, clipboard-history/font-provider
+  feature kills.
 - noid-privacy EdgePolicies diff: +AddressBarTrendingSuggestEnabled
   (trending suggestions) +EdgeReadingModeServiceBasedExtractionEnabled
   (cloud content extraction upload) in DisableEdgeBloat. Skipped:
