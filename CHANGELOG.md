@@ -5,6 +5,10 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- `T11` self-test: registry value-name parity (py → cs). Every value
+  name the Python impl writes (call args, loop variables, (name, value)
+  tuple loops) must appear in Program.cs — drift between the mirrored
+  payloads now fails the gate instead of shipping silently.
 - Atlas-OS playbook diff — 165-value audit, adopted the in-scope
   privacy/hardening set across existing layers:
   - `DisableTelemetry`: LLMNR off (`EnableMulticast`), anonymous

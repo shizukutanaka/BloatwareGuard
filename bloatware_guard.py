@@ -18,6 +18,7 @@ Windowsサービス化可能な常駐型bloatware自動削除ツール
 """
 
 import subprocess
+import ast
 import json
 import os
 import re
@@ -30,7 +31,7 @@ import logging.handlers
 import tempfile
 import shutil
 from pathlib import Path
-from typing import List, Tuple
+from typing import Dict, List, Set, Tuple
 
 # ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -3332,6 +3333,83 @@ def run_self_test() -> int:
             assert not case_dupes, f"{name} has case-variant duplicates: {case_dupes}"
 
     check("T10: shared lists are duplicate-free", t_no_duplicate_entries)
+
+    def t_registry_value_parity():
+        """Every registry value name the Python impl writes must also be
+        written by src/Program.cs — drift here ships silently since the
+        writes are the tool's actual payload. Extracts py names from
+        set_registry_*/set_user_dword_all_hives call args (including names
+        fed through for-loop variables and (name, value) tuple loops) and
+        checks each appears in the C# source. cs→py direction is not
+        asserted — C# arrays also carry task/service names, making the
+        reverse check ambiguous. Repo checkouts only."""
+        cs = Path(__file__).parent / "src" / "Program.cs"
+        if not cs.exists():
+            return
+        cs_src = cs.read_text(encoding="utf-8", errors="ignore")
+        cs_names = set(re.findall(r'SetValue\(\s*"([^"]+)"', cs_src))
+        cs_names |= set(re.findall(
+            r'SetUserDwordAllHives\([^,]+,\s*\n?\s*"([^"]+)"', cs_src))
+        cs_names |= set(re.findall(
+            r'SetHiveDword\([^,]+,[^,]+,\s*\n?\s*"([^"]+)"', cs_src))
+        # names written via loop variables — any quoted string in a
+        # new[] { ... } literal is a candidate value name
+        for m in re.finditer(r'new\[\]\s*\{([^}]*)\}', cs_src):
+            cs_names |= set(re.findall(r'"([^"]+)"', m.group(1)))
+
+        set_fns = {"set_registry_dword", "set_registry_string",
+                   "set_registry_qword", "set_user_dword_all_hives", "w"}
+        src = Path(__file__).read_text(encoding="utf-8")
+        tree = ast.parse(src)
+        loop_vars: Dict[str, List[str]] = {}
+        for node in ast.walk(tree):
+            if not (isinstance(node, ast.For)
+                    and isinstance(node.iter, (ast.Tuple, ast.List))):
+                continue
+            lit_elts = [e.value for e in node.iter.elts
+                        if isinstance(e, ast.Constant)
+                        and isinstance(e.value, str)]
+            pair_elts = [e.elts for e in node.iter.elts
+                         if isinstance(e, ast.Tuple)]
+            has_set = any(isinstance(s, ast.Call)
+                          and isinstance(s.func, ast.Name)
+                          and s.func.id in set_fns
+                          for s in ast.walk(node))
+            if not has_set:
+                continue
+            if isinstance(node.target, ast.Name) and lit_elts:
+                loop_vars.setdefault(node.target.id, []).extend(lit_elts)
+            elif isinstance(node.target, ast.Tuple):
+                # `for name, val in (("a", 0), ("b", 1))` — position i of
+                # the target maps to element i of each pair
+                for i, t in enumerate(node.target.elts):
+                    if isinstance(t, ast.Name):
+                        loop_vars.setdefault(t.id, []).extend(
+                            p[i].value for p in pair_elts
+                            if len(p) > i
+                            and isinstance(p[i], ast.Constant)
+                            and isinstance(p[i].value, str))
+        py_names: Set[str] = set()
+        for node in ast.walk(tree):
+            if not (isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Name)
+                    and node.func.id in set_fns):
+                continue
+            idx = 1 if node.func.id in ("set_user_dword_all_hives", "w") else 2
+            if len(node.args) <= idx:
+                continue
+            arg = node.args[idx]
+            if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+                py_names.add(arg.value)
+            elif isinstance(arg, ast.Name) and arg.id in loop_vars:
+                py_names.update(loop_vars[arg.id])
+        py_names.discard("")
+        miss = sorted(py_names - cs_names)
+        assert not miss, \
+            f"registry value names missing from Program.cs: {miss}"
+
+    check("T11: registry value-name parity (py -> cs)",
+          t_registry_value_parity)
 
     print()
     passed = 0
