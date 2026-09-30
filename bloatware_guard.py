@@ -81,6 +81,10 @@ DEFAULT_BLACKLIST = [
     "Microsoft.FrenchRiviera",       # scenic/spotlight stub (TronScript)
     "Microsoft.Lucille",             # inbox demo stub (TronScript)
     "Microsoft.SeaofThieves",        # game stub (TronScript)
+    # zoicware RemoveWindowsAI 2026 diff — AI component packages
+    "Microsoft.Office.ActionsServer", "Microsoft.WritingAssistant",
+    "Microsoft.Ink.Handwriting", "Voiess", "Speion", "Livtop",
+    "Filons", "WindowsWorkload.",
     "Microsoft.MicrosoftSolitaireCollection",
     "Microsoft.People",
     "Microsoft.WindowsMaps",

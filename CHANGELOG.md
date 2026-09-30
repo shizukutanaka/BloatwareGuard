@@ -5,6 +5,11 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- zoicware/RemoveWindowsAI re-diff (2026 updates):
+  blacklist +7 -> 197 (Office.ActionsServer, WritingAssistant,
+  Ink.Handwriting, Copilot+ AI component names Voiess/Speion/
+  Livtop/Filons, WindowsWorkload.*). WindowsAI registry surface
+  already covered; CBS-store removal stayed out of scope.
 - Devin Review round (PR #35): fix BingAdsSuppression
   inverted write -- documented policy is
   BingAdsSuppressionEnabled and must be 1 to suppress
