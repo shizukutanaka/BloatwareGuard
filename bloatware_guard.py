@@ -1059,6 +1059,10 @@ _BACKUP_KEY_PATHS = (
     r"SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters",
     r"SOFTWARE\Microsoft\PolicyManager\current\device\Bluetooth",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\TextInput",
+    r"SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
+    r"SOFTWARE\Microsoft\PolicyManager\default\System\AllowTelemetry",
+    r"SOFTWARE\Microsoft\Windows\CurrentVersion\CPSS",
+    r"SOFTWARE\Policies\Microsoft\Internet Explorer\SQM",
     r"SOFTWARE\Policies\Microsoft\Windows\Windows Chat",
     r"SYSTEM\CurrentControlSet\Control\WMI\AutoLogger\AutoLogger-Diagtrack-Listener",
     r"SYSTEM\CurrentControlSet\Control\Session Manager",
@@ -1707,6 +1711,31 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             # MRT infection reports off
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\MRT",
                                "DontReportInfectionInformation", 1)
+            # ReviOS telemetry.yml deep coverage: 32-bit policy mirror,
+            # PolicyManager default-provider node, CPSS device/store
+            # overrides (survive CSP re-sync), authenticated-proxy
+            # telemetry block, IE CEIP
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
+                "AllowTelemetry", 0)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Microsoft\PolicyManager\default\System\AllowTelemetry",
+                "value", 0)
+            for sub, name in (("DevicePolicy", "DefaultValue"),
+                              ("Store", "Value")):
+                set_registry_dword(
+                    "HKLM",
+                    r"SOFTWARE\Microsoft\Windows\CurrentVersion\CPSS"
+                    + "\\" + sub + r"\AllowTelemetry", name, 0)
+            set_registry_dword(
+                "HKLM", r"SOFTWARE\Policies\Microsoft\Windows\DataCollection",
+                "DisableEnterpriseAuthProxy", 1)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Policies\Microsoft\Internet Explorer\SQM",
+                "DisableCustomerImprovementProgram", 1)
             # Speech model downloads off (voice data pipeline)
             set_registry_dword("HKLM",
                                r"SOFTWARE\Microsoft\Speech_OneCore\Preferences",

@@ -5,6 +5,11 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- ReviOS playbook diff (telemetry.yml/ceip.yml): DisableTelemetry +5 —
+  Wow6432Node AllowTelemetry mirror, PolicyManager default-provider
+  node, CPSS DevicePolicy/Store overrides (survive CSP re-sync),
+  DisableEnterpriseAuthProxy (authenticated-proxy telemetry),
+  IE SQM DisableCustomerImprovementProgram. Backup keys 87->91.
 - tiny11Coremaker diff: telemetry tasks +Chkdsk\Proxy (event-driven
   disk diagnostic collector, 93->94). Defender service kills / task-file
   deletions / component stripping skipped (security boundary + offline-
