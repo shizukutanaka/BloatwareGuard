@@ -202,6 +202,8 @@ DEFAULT_BLACKLIST = [
     # (Win11Debloat "optional" removals — consumer promo/support-ware)
     "AD2F1837.",
     "DellInc.",
+    "LGElectronics.",
+    "COOKINGFEVER",
     "E046963F.LenovoCompanion",
     "LenovoCompanyLimited.LenovoVantageService",
     # M365 companion suite promo (24H2) + stable Instagram (only the Beta

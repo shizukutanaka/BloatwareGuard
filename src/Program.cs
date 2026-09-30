@@ -551,6 +551,8 @@ public static class ConfigLoader
                 // 3 Dell apps, 2 Lenovo entries (Win11Debloat optional)
                 "AD2F1837.",
                 "DellInc.",
+                "LGElectronics.",
+                "COOKINGFEVER",
                 "E046963F.LenovoCompanion",
                 "LenovoCompanyLimited.LenovoVantageService",
                 // M365 companion suite promo (24H2) + stable Instagram

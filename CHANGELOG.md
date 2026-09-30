@@ -5,6 +5,12 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- Raphire/Win11Debloat appx diff: blacklist 176->178 —
+  `LGElectronics.` namespace (LG OEM stubs) + `COOKINGFEVER` stub game.
+  Everything else already covered by existing needles (AD2F1837./
+  DellInc./KING.COM./Disney/LinkedIn/PicsArt/CyberLink/4DF9E0F8./Facebook.)
+  or functional/whitelisted (Camera/Paint/OneNote/Zune/Xbox/Widgets hosts/
+  OneDrive/Copilot provisioned ids/Edge).
 - Raphire/Win11Debloat diff: Edge policies `CopilotCDPPageContext`,
   `NewTabPageBingChatEnabled`, `NewTabPageContentEnabled`,
   `TabServicesEnabled`, `DefaultBrowserSettingsCampaignEnabled` =0 and
