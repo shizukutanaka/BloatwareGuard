@@ -1488,7 +1488,37 @@ public static class RegistryGuard
         "aidps.atdmt.com", "c.atdmt.com", "cdn.atdmt.com",
         "db3aqu.atdmt.com", "ec.atdmt.com", "view.atdmt.com",
         "aka-cdn-ns.adtech.de", "pre.footprintpredict.com",
-    };
+            // privacy.sexy hosts diff — WER crash-cab uploads, Iris
+        // "experiences" platform, widgets/MSN content-feed endpoints
+        // backing the surfaces this tool disables, telecommand
+        // (targeted notification) siblings, maps/location inference,
+        // ad-creative CDNs
+        "eu-watsonc.events.data.microsoft.com",
+        "watsonc.events.data.microsoft.com",
+        "functional.events.data.microsoft.com",
+        "modern.watson.data.microsoft.com",
+        "co4.telecommand.telemetry.microsoft.com",
+        "www.telecommandsvc.microsoft.com",
+        "fd.api.iris.microsoft.com",
+        "ris.api.iris.microsoft.com",
+        "prod-azurecdn-akamai-iris.azureedge.net",
+        "query.prod.cms.rt.microsoft.com",
+        "config.edge.skype.com",
+        "evoke-windowsservices-tas.msedge.net",
+        "creativecdn.com", "cs11.wpc.v0cdn.net", "cs1137.wpc.gammacdn.net",
+        "edgeassetservice.azureedge.net",
+        "widgetcdn.azureedge.net", "widgetservice.azurefd.net",
+        "api.msn.com", "arc.msn.com", "assets.msn.com", "c.msn.com",
+        "g.msn.com", "ntp.msn.com", "srtb.msn.com", "staticview.msn.com",
+        "maps.windows.com",
+        "ecn.dev.virtualearth.net", "ecn-us.dev.virtualearth.net",
+        "inference.location.live.net", "location-inference-westus.cloudapp.net",
+        "tile-service.weather.microsoft.com",
+        "weathermapdata.blob.core.windows.net",
+        "ceuswatcab01.blob.core.windows.net", "ceuswatcab02.blob.core.windows.net",
+        "eaus2watcab01.blob.core.windows.net", "eaus2watcab02.blob.core.windows.net",
+        "weus2watcab01.blob.core.windows.net", "weus2watcab02.blob.core.windows.net",
+};
     private const string HostsBlockBegin = "# >>> BloatwareGuard telemetry block";
     private const string HostsBlockEnd = "# <<< BloatwareGuard telemetry block";
 

@@ -48,6 +48,19 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   (flighted feature trials, not just preview builds).
 - Backup list +3 keys (Software Protection Platform, InputPersonalization,
   CurrentVersion\Search) so the new policy writes stay restorable.
+- Telemetry hosts 109→148 (privacy.sexy BlockViaHostsFile diff): WER
+  crash-cab upload endpoints (`*watcab*.blob.core.windows.net` ×6,
+  `watsonc/modern.watson` variants), `functional.events.data` ingest,
+  telecommand siblings (`co4.telecommand`, `telecommandsvc`), Iris
+  experiences platform (`iris.microsoft.com` APIs), widgets/MSN
+  content-feed endpoints backing the disabled Widgets/NTP surfaces,
+  telecommand-targeting (`evoke-windowsservices-tas`), ad-creative CDNs,
+  maps/location-inference endpoints, and weather tile services.
+  Deliberately skipped: all NCSI domains (captive-portal detection —
+  same class as the earlier NCSI probe revert), Edge release-ring
+  `*.msedge.net` update CDNs, `www.msn.com`/Bing content CDNs
+  (general browsing), `mucp`/OneNote CDNs (account/functional),
+  Dropbox/Spotify (third-party scope).
 - Blacklist 175→176: `D5EA27B7.` publisher namespace (Duolingo — the
   enumerated `D5EA27B7.Duolingo-LearnLanguagesforFree` entry folds into
   it) + `Microsoft.GroupMe10` (bundled social app) per privacy.sexy.
