@@ -32,6 +32,29 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   as subsumed. Added `LenovoCorporation.LenovoID` and `Instagram`. Net 176→175
   entries with strictly wider coverage.
 
+### Added
+- `DisableTelemetry` +7 values: `AllowUpdateComplianceProcessing`,
+  `AllowDesktopAnalyticsProcessing`, `AllowWUfBCloudProcessing` and
+  `DisableOneSettingsDownloads` under the DataCollection policy,
+  `NoGenTicket` under Software Protection Platform (license telemetry),
+  `AllowInputPersonalization` policy (privacy.sexy windows.yaml).
+- `DisableSearchSuggestions` +13 values: Search policy `AllowCloudSearch`,
+  `ConnectedSearchPrivacy=3`, `PreventRemoteQueries`,
+  `AllowIndexingEncryptedStoresOrItems`, `ConnectedSearchUseWeb`(+metered),
+  `EnableDynamicContentInWSB`, `AllowCortanaAboveLock`; legacy
+  `CurrentVersion\Search` `CortanaEnabled`/`CortanaInAmbientMode`; Explorer
+  `DisableSearchHistory` policy; `VoiceActivationDefaultOn`; OOBE `DisableVoice`.
+- `BlockInsiderPreview` +`EnableExperimentation`/`EnableConfigFlighting`
+  (flighted feature trials, not just preview builds).
+- Backup list +3 keys (Software Protection Platform, InputPersonalization,
+  CurrentVersion\Search) so the new policy writes stay restorable.
+- Deliberately skipped from the same source: Defender/firewall/WU-control
+  keys (security boundary), NCSI probe keys (captive-portal regression —
+  same class as the reverted `EnableActiveProbing`), per-category SettingSync
+  overrides (covered by `DisableSettingSync`), LocationAndSensors system kill
+  (contradicts the deliberate per-app consent approach), NVIDIA/Firefox/VS
+  vendor keys (out of scope).
+
 ### Fixed
 - Corrupt `config.json` crashed both impls at startup (`json.loads` /
   `JsonSerializer.Deserialize` unhandled) — both now warn and fall back to

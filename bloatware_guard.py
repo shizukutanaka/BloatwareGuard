@@ -1063,6 +1063,9 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Policies\Microsoft\Windows\HandwritingErrorReports",
     r"SOFTWARE\Policies\Microsoft\Windows\Maps",
     r"SOFTWARE\Policies\Microsoft\Windows\OneSettings",
+    r"SOFTWARE\Policies\Microsoft\Windows NT\CurrentVersion\Software Protection Platform",
+    r"SOFTWARE\Policies\Microsoft\InputPersonalization",
+    r"SOFTWARE\Microsoft\Windows\CurrentVersion\Search",
     r"SOFTWARE\Policies\Microsoft\Windows\TabletPC",
     r"SOFTWARE\Policies\Microsoft\WindowsNotepad",
     r"SYSTEM\CurrentControlSet\Control\FeatureManagement\Overrides\8",
@@ -1393,6 +1396,29 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         # as the Bing/suggestion switches above, one level deeper)
         set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\Windows Search",
                            "DisableWebSearch", 1)
+        # Remaining Search surface — cloud results, remote index queries,
+        # privacy level, metered/legacy web connectors, dynamic content,
+        # Cortana above lock (privacy.sexy windows.yaml)
+        for name, val in (("AllowCloudSearch", 0),
+                          ("ConnectedSearchPrivacy", 3),
+                          ("PreventRemoteQueries", 1),
+                          ("AllowIndexingEncryptedStoresOrItems", 0),
+                          ("ConnectedSearchUseWeb", 0),
+                          ("ConnectedSearchUseWebOverMeteredConnections", 0),
+                          ("EnableDynamicContentInWSB", 0),
+                          ("AllowCortanaAboveLock", 0)):
+            set_registry_dword("HKLM", search_pol, name, val)
+        # Legacy Cortana killswitches (CurrentVersion\Search, non-policy hive)
+        set_registry_dword("HKLM", r"SOFTWARE\Microsoft\Windows\CurrentVersion\Search",
+                           "CortanaEnabled", 0)
+        set_registry_dword("HKLM", r"SOFTWARE\Microsoft\Windows\CurrentVersion\Search",
+                           "CortanaInAmbientMode", 0)
+        # Machine-level search-history off + voice-activation/OOBE voice off
+        set_registry_dword("HKLM", _EXPLORER_POLICIES_HKLM, "DisableSearchHistory", 1)
+        set_registry_dword("HKLM", r"SOFTWARE\Microsoft\Speech_OneCore\Preferences",
+                           "VoiceActivationDefaultOn", 0)
+        set_registry_dword("HKLM", r"SOFTWARE\Microsoft\Windows\CurrentVersion\OOBE",
+                           "DisableVoice", 1)
         logger.info("Applied: DisableSearchSuggestions (Bing/search suggestions + Cortana off, all hives)")
 
     if prev.get("DisableWidgets", True):
@@ -1578,6 +1604,23 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         # or update re-raises AllowTelemetry later (Sophia Script parity)
         set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\DataCollection",
                            "MaxTelemetryAllowed", 1)
+        # Update Compliance / Desktop Analytics / WUfB cloud processors +
+        # OneSettings config downloads (privacy.sexy windows.yaml)
+        for name in ("AllowUpdateComplianceProcessing",
+                     "AllowDesktopAnalyticsProcessing",
+                     "AllowWUfBCloudProcessing",
+                     "DisableOneSettingsDownloads"):
+            set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\DataCollection",
+                               name, 0 if name != "DisableOneSettingsDownloads" else 1)
+        # License telemetry (Software Protection Platform gen-ticket channel)
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Policies\Microsoft\Windows NT\CurrentVersion\Software Protection Platform",
+                           "NoGenTicket", 1)
+        # Typing personalization policy — machine-level kill switch for the
+        # per-user InputPersonalization values below
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Policies\Microsoft\InputPersonalization",
+                           "AllowInputPersonalization", 0)
         # OneSettings periodic config download (recommendations channel)
         set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\OneSettings",
                            "DisableOneSettingsFileDownloads", 1)
@@ -1877,6 +1920,14 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         set_registry_dword("HKLM",
                            r"SOFTWARE\Policies\Microsoft\Windows\PreviewBuilds",
                            "AllowBuildPreview", 0)
+        # Flighting experiments off too — Insider channel pushes config-driven
+        # feature trials beyond the preview builds themselves (privacy.sexy)
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Policies\Microsoft\Windows\PreviewBuilds",
+                           "EnableExperimentation", 0)
+        set_registry_dword("HKLM",
+                           r"SOFTWARE\Policies\Microsoft\Windows\PreviewBuilds",
+                           "EnableConfigFlighting", 0)
         set_registry_dword("HKLM",
                            r"SOFTWARE\Microsoft\WindowsSelfHost\UI\Visibility",
                            "HideInsiderPage", 1)

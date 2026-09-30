@@ -1974,6 +1974,31 @@ public static class RegistryGuard
             // Policy kill for web results in Start (Optimizer diff — one
             // level deeper than the Bing/suggestion switches)
             key?.SetValue("DisableWebSearch", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            // Remaining Search surface — cloud results, remote index queries,
+            // privacy level, metered/legacy web connectors, dynamic content,
+            // Cortana above lock (privacy.sexy windows.yaml)
+            key?.SetValue("AllowCloudSearch", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("ConnectedSearchPrivacy", 3, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("PreventRemoteQueries", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("AllowIndexingEncryptedStoresOrItems", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("ConnectedSearchUseWeb", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("ConnectedSearchUseWebOverMeteredConnections", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("EnableDynamicContentInWSB", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("AllowCortanaAboveLock", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // Legacy Cortana killswitches (CurrentVersion\Search, non-policy hive)
+            using var cvSearch = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Microsoft\Windows\CurrentVersion\Search");
+            cvSearch?.SetValue("CortanaEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            cvSearch?.SetValue("CortanaInAmbientMode", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // Machine-level search-history off + voice-activation/OOBE voice off
+            using var expHist = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(ExplorerPoliciesHklmPath);
+            expHist?.SetValue("DisableSearchHistory", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            using var speech = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Microsoft\Speech_OneCore\Preferences");
+            speech?.SetValue("VoiceActivationDefaultOn", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            using var oobe = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Microsoft\Windows\CurrentVersion\OOBE");
+            oobe?.SetValue("DisableVoice", 1, Microsoft.Win32.RegistryValueKind.DWord);
 
             ForEachUserHive(hive =>
             {
@@ -2255,6 +2280,20 @@ public static class RegistryGuard
                 // component or update re-raises AllowTelemetry later
                 fdb?.SetValue("MaxTelemetryAllowed", 1, Microsoft.Win32.RegistryValueKind.DWord);
 
+                // Update Compliance / Desktop Analytics / WUfB cloud processors +
+                // OneSettings config downloads (privacy.sexy windows.yaml)
+                fdb?.SetValue("AllowUpdateComplianceProcessing", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                fdb?.SetValue("AllowDesktopAnalyticsProcessing", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                fdb?.SetValue("AllowWUfBCloudProcessing", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                fdb?.SetValue("DisableOneSettingsDownloads", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // License telemetry (Software Protection Platform gen-ticket channel)
+                using var spp = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows NT\CurrentVersion\Software Protection Platform");
+                spp?.SetValue("NoGenTicket", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // Typing personalization policy — machine-level kill switch
+                using var inp = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\InputPersonalization");
+                inp?.SetValue("AllowInputPersonalization", 0, Microsoft.Win32.RegistryValueKind.DWord);
                 // OneSettings periodic config download (recommendations channel)
                 using var ones = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Windows\OneSettings");
@@ -2949,6 +2988,9 @@ public static class RegistryGuard
         @"SOFTWARE\Policies\Microsoft\Windows\HandwritingErrorReports",
         @"SOFTWARE\Policies\Microsoft\Windows\Maps",
         @"SOFTWARE\Policies\Microsoft\Windows\OneSettings",
+        @"SOFTWARE\Policies\Microsoft\Windows NT\CurrentVersion\Software Protection Platform",
+        @"SOFTWARE\Policies\Microsoft\InputPersonalization",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Search",
         @"SOFTWARE\Policies\Microsoft\Windows\TabletPC",
         @"SOFTWARE\Policies\Microsoft\WindowsNotepad",
         @"SYSTEM\CurrentControlSet\Control\FeatureManagement\Overrides\8",
@@ -3117,6 +3159,12 @@ public static class RegistryGuard
             using var pb = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                 @"SOFTWARE\Policies\Microsoft\Windows\PreviewBuilds");
             pb?.SetValue("AllowBuildPreview", 0,
+                         Microsoft.Win32.RegistryValueKind.DWord);
+            // Flighting experiments off too — Insider pushes config-driven
+            // feature trials beyond preview builds (privacy.sexy)
+            pb?.SetValue("EnableExperimentation", 0,
+                         Microsoft.Win32.RegistryValueKind.DWord);
+            pb?.SetValue("EnableConfigFlighting", 0,
                          Microsoft.Win32.RegistryValueKind.DWord);
             using var sh = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                 @"SOFTWARE\Microsoft\WindowsSelfHost\UI\Visibility");
