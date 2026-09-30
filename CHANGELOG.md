@@ -5,6 +5,10 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- `verify_scan.ps1`: appx before/after snapshot used `-contains` for
+  exact-name equality that could never match real package names — probes
+  for YourPhone/MicrosoftTeams/Zune were dead. Now substring `-like`
+  matching across all probe names.
 - C# service ops: install/stop/delete waited with 60/30s timeouts
   (stop now completes before delete fires), `sc query` output read
   bounded instead of an unbounded synchronous `ReadToEnd`.
