@@ -2489,6 +2489,9 @@ public static class RegistryGuard
                 SetHiveDword(hive, @"Software\Microsoft\Paint", "EnableImageCreator", 0);
                 SetHiveDword(hive, @"Software\Microsoft\Windows\CurrentVersion\Photos",
                     "EnableAIFeatures", 0);
+                // User-level Recall toggle (Debloat-Win11) — policy kills
+                // alone leave the per-user shell preference on
+                SetHiveDword(hive, UserExplorerAdvancedPath, "EnableRecall", 0);
             });
             // Per-app AI features: Paint (image creator/cocreator/fill/erase/
             // background) and Notepad (Rewrite) — documented policy keys
@@ -2686,6 +2689,9 @@ public static class RegistryGuard
             sys?.SetValue("PublishUserActivities", 0, Microsoft.Win32.RegistryValueKind.DWord);
             sys?.SetValue("UploadUserActivities", 0, Microsoft.Win32.RegistryValueKind.DWord);
             sys?.SetValue("AllowClipboardHistory", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // Smart Clipboard (Copilot+ AI clipboard suggestions) —
+            // documented System policy (Debloat-Win11)
+            sys?.SetValue("EnableSmartClipboard", 0, Microsoft.Win32.RegistryValueKind.DWord);
             sys?.SetValue("PublishUserActivitiesOnUserConsent", 0, Microsoft.Win32.RegistryValueKind.DWord);
             using var assist = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                 @"SOFTWARE\Policies\Microsoft\Assistance\Client\1.0");
@@ -3201,10 +3207,18 @@ public static class RegistryGuard
                 using var ssync = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Windows\SettingSync");
                 ssync?.SetValue("EnableWindowsBackup", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                // Windows Backup shell UI suppression (Debloat-Win11)
+                using var wbui = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\WindowsBackup");
+                wbui?.SetValue("DisableBackupUI", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 // Windows Backup nag notifications off per user (SysAdminDoc)
                 SetUserDwordAllHives(
                     @"Software\Microsoft\Windows\CurrentVersion\WindowsBackup",
                     "NotificationDisabled", 1);
+                // Smart Clipboard per-user kill (Debloat-Win11)
+                SetUserDwordAllHives(
+                    @"Software\Microsoft\Windows\CurrentVersion\SmartActionPlatform\SmartClipboard",
+                    "Disabled", 1);
                 // OneDrive: feedback/sync-health reporting + pre-sign-in
                 // traffic (policy kills only — OneDrive itself untouched)
                 using var odpol = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
@@ -4104,6 +4118,7 @@ public static class RegistryGuard
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\ReserveManager",
         @"SYSTEM\CurrentControlSet\Control\Remote Assistance",
         @"SOFTWARE\Policies\Microsoft\Windows\PreviewBuilds",
+        @"SOFTWARE\Policies\Microsoft\Windows\WindowsBackup",
         @"SOFTWARE\Policies\Microsoft\Windows Defender\Spynet",
         @"SOFTWARE\Microsoft\PolicyManager\current\device\System",
         @"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU",
@@ -4275,6 +4290,7 @@ public static class RegistryGuard
         @"Software\Microsoft\Windows\CurrentVersion\SearchSettings\WebSearchPro",
         @"Software\Microsoft\Windows\CurrentVersion\WindowsCopilot",
         @"Software\Microsoft\Windows\CurrentVersion\WindowsBackup",
+        @"Software\Microsoft\Windows\CurrentVersion\SmartActionPlatform\SmartClipboard",
         @"Software\Microsoft\Windows\CurrentVersion\Internet Settings\Wpad",
         @"Software\Microsoft\Notepad",
         @"Software\Microsoft\Paint",

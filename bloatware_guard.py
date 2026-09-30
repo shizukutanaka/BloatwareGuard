@@ -1148,6 +1148,7 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo",
     r"SOFTWARE\Policies\Microsoft\FindMyDevice",
     r"SOFTWARE\Policies\Microsoft\Windows\SettingSync",
+    r"SOFTWARE\Policies\Microsoft\Windows\WindowsBackup",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Device Metadata",
     # --- coverage completion (audit: every HKLM write path backed up) ---
     r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\UnattendSettings\SQMClient",
@@ -1325,6 +1326,7 @@ _USER_BACKUP_KEY_PATHS = (
     r"Software\Microsoft\Windows\CurrentVersion\SearchSettings\WebSearchPro",
     r"Software\Microsoft\Windows\CurrentVersion\WindowsCopilot",
     r"Software\Microsoft\Windows\CurrentVersion\WindowsBackup",
+    r"Software\Microsoft\Windows\CurrentVersion\SmartActionPlatform\SmartClipboard",
     r"Software\Microsoft\Windows\CurrentVersion\Explorer\Taskband\AuxilliaryPins",
     r"Software\Microsoft\Windows\CurrentVersion\Explorer\AutoInstalledPWAs",
     r"Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications",
@@ -1795,6 +1797,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_user_dword_all_hives(
                 r"Software\Microsoft\Windows\CurrentVersion\Photos",
                 "EnableAIFeatures", 0, logger)
+            # User-level Recall toggle (Debloat-Win11) — policy kills
+            # alone leave the per-user shell preference on
+            set_user_dword_all_hives(
+                _USER_EXPLORER_ADV, "EnableRecall", 0, logger)
             # Per-app AI features: Paint (image creator/cocreator/fill/erase/
             # background) and Notepad (Rewrite) — documented policy keys
             paint_pol = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Paint"
@@ -1957,6 +1963,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                                "PublishUserActivitiesOnUserConsent", 0)
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\System",
                                "AllowClipboardHistory", 0)
+            # Smart Clipboard (Copilot+ AI clipboard suggestions) —
+            # documented System policy (Debloat-Win11)
+            set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\System",
+                               "EnableSmartClipboard", 0)
             set_registry_dword(
                 "HKLM", r"SOFTWARE\Policies\Microsoft\Assistance\Client\1.0",
                 "NoActiveHelp", 1)
@@ -2432,10 +2442,19 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "HKLM",
                 r"SOFTWARE\Policies\Microsoft\Windows\SettingSync",
                 "EnableWindowsBackup", 0)
+            # Windows Backup shell UI suppression (Debloat-Win11)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Policies\Microsoft\Windows\WindowsBackup",
+                "DisableBackupUI", 1)
             # Windows Backup nag notifications off per user (SysAdminDoc)
             set_user_dword_all_hives(
                 r"Software\Microsoft\Windows\CurrentVersion\WindowsBackup",
                 "NotificationDisabled", 1, logger)
+            # Smart Clipboard per-user kill (Debloat-Win11)
+            set_user_dword_all_hives(
+                r"Software\Microsoft\Windows\CurrentVersion\SmartActionPlatform\SmartClipboard",
+                "Disabled", 1, logger)
             # OneDrive: feedback/sync-health reporting + pre-sign-in
             # traffic (policy kills only — OneDrive itself untouched)
             od_pol = r"SOFTWARE\Policies\Microsoft\OneDrive"
