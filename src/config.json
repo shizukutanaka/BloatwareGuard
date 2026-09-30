@@ -205,7 +205,10 @@
         "SaferVPN",
         "SymantecCorporation",
         "BethesdaSoftworks.FalloutShelter",
-        "Microsoft.Advertising"
+        "Microsoft.Advertising",
+        "SAMSUNGELECTRONICS",
+        "4AE8B7C2.",
+        "FACEBOOK."
     ],
     "Whitelist": [
         "Microsoft.WindowsStore",

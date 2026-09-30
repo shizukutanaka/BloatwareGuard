@@ -568,6 +568,9 @@ public static class ConfigLoader
                 // OEM vendor appx bundles — publisher prefixes: 21 HP apps,
                 // 3 Dell apps, 2 Lenovo entries (Win11Debloat optional)
                 "AD2F1837.",
+                "SAMSUNGELECTRONICS",
+                "4AE8B7C2.",
+                "FACEBOOK.",
                 "DellInc.",
                 "LGElectronics.",
                 "COOKINGFEVER",
@@ -2641,6 +2644,11 @@ public static class RegistryGuard
             using var assist = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                 @"SOFTWARE\Policies\Microsoft\Assistance\Client\1.0");
             assist?.SetValue("NoActiveHelp", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            // Recommended troubleshooting off (WindowsMitigation — auto-run
+            // troubleshooters upload diagnostics; LeDragoX)
+            using var wmit = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Microsoft\WindowsMitigation");
+            wmit?.SetValue("UserPreference", 3, Microsoft.Win32.RegistryValueKind.DWord);
             sys?.SetValue("EnableActivityFeed", 0, Microsoft.Win32.RegistryValueKind.DWord);
             using var edge = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(EdgePolicyPath);
             edge?.SetValue("PersonalizationReportingEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
@@ -3934,6 +3942,7 @@ public static class RegistryGuard
         @"SOFTWARE\Policies\Microsoft\Assistance\Client\1.0",
         @"SOFTWARE\Policies\Microsoft\Edge",
         @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\ClientTelemetry",
+        @"SOFTWARE\Microsoft\WindowsMitigation",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\DevDrive",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Lxss",
         @"SOFTWARE\Policies\Microsoft\FVE",
@@ -4388,6 +4397,7 @@ public static class RegistryGuard
         // Microsoft Pay (dead), Windows Insider, Mixed Reality, AllJoyn,
         // smart card triad
         "WalletService", "wisvc",
+        "lmhosts",
         "SharedRealitySvc", "perceptionsimulation", "Spectrum",
         "AJRouter", "SCardSvr", "ScDeviceEnum", "CertPropSvc",
         // Location tracking + sensor monitoring stack

@@ -223,6 +223,9 @@ DEFAULT_BLACKLIST = [
     # myHP, SureShieldAI, ...), all three Dell apps, both Lenovo entries
     # (Win11Debloat "optional" removals — consumer promo/support-ware)
     "AD2F1837.",
+    "SAMSUNGELECTRONICS",
+    "4AE8B7C2.",
+    "FACEBOOK.",
     "DellInc.",
     "LGElectronics.",
     "COOKINGFEVER",
@@ -1059,6 +1062,7 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Policies\Microsoft\Assistance\Client\1.0",
     r"SOFTWARE\Policies\Microsoft\Edge",
     r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\ClientTelemetry",
+    r"SOFTWARE\Microsoft\WindowsMitigation",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\DevDrive",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Lxss",
     r"SOFTWARE\Policies\Microsoft\FVE",
@@ -1900,6 +1904,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword(
                 "HKLM", r"SOFTWARE\Policies\Microsoft\Assistance\Client\1.0",
                 "NoActiveHelp", 1)
+            # Recommended troubleshooting off (WindowsMitigation — auto-run
+            # troubleshooters upload diagnostics; LeDragoX)
+            set_registry_dword("HKLM",
+                               r"SOFTWARE\Microsoft\WindowsMitigation",
+                               "UserPreference", 3)
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Edge",
                                "PersonalizationReportingEnabled", 0)
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Edge",

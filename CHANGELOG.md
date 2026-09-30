@@ -5,6 +5,22 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- LeDragoX/Win-Debloat-Tools (new source): blacklist +3 —
+  `SAMSUNGELECTRONICS` (OEM stub namespace covering both
+  publisher spellings), `4AE8B7C2.` (Booking.com stub
+  publisher), `FACEBOOK.` (Facebook stub package);
+  `MiscBloatServices` +`lmhosts` demoted (NetBIOS naming —
+  pairs with existing NetBT demote); `DisableTelemetry`
+  +`UserPreference=3` (HKLM WindowsMitigation — recommended
+  troubleshooting auto-runs + uploads diagnostics). Backup
+  +WindowsMitigation key. Skipped: ConsentStore value writes
+  (closed-PR #34 content — must not re-land), WU UX
+  (`UxOption`/`NoAutoRebootWithLoggedOnUsers`), Edge NoRemove
+  (uninstall entry, out of scope), functional services
+  (BITS/Spooler/WlanSvc/iphlpsvc/wscsvc/Defender-adjacent),
+  vendor updaters (gupdate/RtkBtManServ), OneNote/Camera/
+  BioEnrollment/ContactSupport (functional/system apps),
+  task/app diffs all already covered.
 - zoicware/RemoveWindowsAI (new source, actively maintained
   AI-removal suite): `DisableCopilot` +`SetCopilotHardwareKey`
   (CopilotKey policy — hardware-key remap), M365Copilot
