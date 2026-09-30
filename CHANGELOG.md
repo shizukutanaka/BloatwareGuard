@@ -5,6 +5,12 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- Winhance (memstechtips, new source C#): per-user
+  ShowCopilotNudges=0, OneDrive KFMBlockOptIn=1
+  (HKLM+per-user), AAD WorkplaceJoin
+  BlockAADWorkplaceJoin=1 (HKLM+per-user).
+  Skipped: Office AI keys, Defender notifications,
+  Winlogon/perf/UI prefs. Backup 109->110, user 67->69.
 - Raphire/Win11Debloat 2026.06 re-diff: per-user
   DragTrayEnabled=0 (CDP share drag tray); the rest of
   the new reg-file set already covered. Backup: CDP

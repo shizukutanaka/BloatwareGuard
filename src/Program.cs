@@ -2086,6 +2086,10 @@ public static class RegistryGuard
                        @"SYSTEM\CurrentControlSet\Services\nvlddmkm\Parameters\Global\Startup"))
                 nv2?.SetValue("SendTelemetryData", "0");
             SetUserDwordAllHives(UserShellCopilotPath, "IsCopilotAvailable", 0);
+            // Copilot nudge prompts off (Winhance)
+            SetUserDwordAllHives(
+                @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
+                "ShowCopilotNudges", 0);
             SetUserDwordAllHives(UserShellCopilotPath + @"\BingChat", "IsUserEligible", 0);
             // Copilot voice-agent activation off (all user hives)
             SetUserDwordAllHives(UserVoiceActivationPath, "AgentActivationEnabled", 0);
@@ -2720,6 +2724,17 @@ public static class RegistryGuard
                 odpol?.SetValue("EnableSyncAdminReports", 0, Microsoft.Win32.RegistryValueKind.DWord);
                 odpol?.SetValue("EnableFeedbackAndSupport", 0, Microsoft.Win32.RegistryValueKind.DWord);
                 odpol?.SetValue("PreventNetworkTrafficPreUserSignIn", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                odpol?.SetValue("KFMBlockOptIn", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                SetUserDwordAllHives(
+                    @"Software\Policies\Microsoft\OneDrive",
+                    "KFMBlockOptIn", 1);
+                // Block consumer AAD Workplace Join (Winhance)
+                using var wpj = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\WorkplaceJoin");
+                wpj?.SetValue("BlockAADWorkplaceJoin", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                SetUserDwordAllHives(
+                    @"Software\Policies\Microsoft\Windows\WorkplaceJoin",
+                    "BlockAADWorkplaceJoin", 1);
                 // Suppress the "your telemetry setting changed" nag + hide
                 // the telemetry level picker UX entirely (ReviOS parity)
                 fdb?.SetValue("DisableTelemetryOptInChangeNotification", 1, Microsoft.Win32.RegistryValueKind.DWord);
@@ -3604,6 +3619,7 @@ public static class RegistryGuard
         @"SOFTWARE\Policies\Microsoft\Windows\DataCollection",
         @"SOFTWARE\Policies\Microsoft\Windows\EdgeUI",
         @"SOFTWARE\Policies\Microsoft\OneDrive",
+        @"SOFTWARE\Policies\Microsoft\Windows\WorkplaceJoin",
         @"SOFTWARE\Policies\Microsoft\Windows\HandwritingErrorReports",
         @"SOFTWARE\Policies\Microsoft\Windows\Maps",
         @"SOFTWARE\Policies\Microsoft\Windows\OneSettings",
@@ -3692,6 +3708,8 @@ public static class RegistryGuard
         @"Software\Policies\Microsoft\Windows\Privacy",
         @"Software\Policies\Microsoft\Windows\WindowsAI",
         @"Software\Policies\Microsoft\Windows\WindowsCopilot",
+        @"Software\Policies\Microsoft\OneDrive",
+        @"Software\Policies\Microsoft\Windows\WorkplaceJoin",
         @"System\GameConfigStore",
     };
     private static bool _backupDone;

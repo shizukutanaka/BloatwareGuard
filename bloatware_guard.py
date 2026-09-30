@@ -1139,6 +1139,7 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Policies\Microsoft\Windows\DataCollection",
     r"SOFTWARE\Policies\Microsoft\Windows\EdgeUI",
     r"SOFTWARE\Policies\Microsoft\OneDrive",
+    r"SOFTWARE\Policies\Microsoft\Windows\WorkplaceJoin",
     r"SOFTWARE\Policies\Microsoft\Windows\HandwritingErrorReports",
     r"SOFTWARE\Policies\Microsoft\Windows\Maps",
     r"SOFTWARE\Policies\Microsoft\Windows\OneSettings",
@@ -1286,6 +1287,8 @@ _USER_BACKUP_KEY_PATHS = (
     r"Software\Policies\Microsoft\Windows\Privacy",
     r"Software\Policies\Microsoft\Windows\WindowsAI",
     r"Software\Policies\Microsoft\Windows\WindowsCopilot",
+    r"Software\Policies\Microsoft\OneDrive",
+    r"Software\Policies\Microsoft\Windows\WorkplaceJoin",
     r"System\GameConfigStore",
 )
 
@@ -1580,6 +1583,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 r"SYSTEM\CurrentControlSet\Services\nvlddmkm\Parameters\Global\Startup",
                 "SendTelemetryData", "0")
             set_user_dword_all_hives(_USER_SHELL_COPILOT, "IsCopilotAvailable", 0, logger)
+            # Copilot nudge prompts off (Winhance)
+            set_user_dword_all_hives(
+                r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
+                "ShowCopilotNudges", 0, logger)
             set_user_dword_all_hives(_USER_SHELL_COPILOT_BINGCHAT, "IsUserEligible", 0, logger)
             # Copilot voice-agent activation off (all user hives)
             set_user_dword_all_hives(_USER_VOICE_ACTIVATION, "AgentActivationEnabled", 0, logger)
@@ -2116,6 +2123,18 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword("HKLM", od_pol, "EnableSyncAdminReports", 0)
             set_registry_dword("HKLM", od_pol, "EnableFeedbackAndSupport", 0)
             set_registry_dword("HKLM", od_pol, "PreventNetworkTrafficPreUserSignIn", 1)
+            set_registry_dword("HKLM", od_pol, "KFMBlockOptIn", 1)
+            set_user_dword_all_hives(
+                r"Software\Policies\Microsoft\OneDrive",
+                "KFMBlockOptIn", 1, logger)
+            # Block consumer AAD Workplace Join (Winhance)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Policies\Microsoft\Windows\WorkplaceJoin",
+                "BlockAADWorkplaceJoin", 1)
+            set_user_dword_all_hives(
+                r"Software\Policies\Microsoft\Windows\WorkplaceJoin",
+                "BlockAADWorkplaceJoin", 1, logger)
             # Suppress the "your telemetry setting changed" nag + hide the
             # telemetry level picker UX entirely (ReviOS parity)
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\DataCollection",
