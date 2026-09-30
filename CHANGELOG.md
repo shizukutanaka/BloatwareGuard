@@ -5,6 +5,8 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- Dispose the `BingChat` subkey handle opened inline in DisableCopilot —
+  the only registry key opened without `using` in the codebase.
 - C# PowerShell invocations now pass `-NonInteractive` (11 sites) —
   py `run_powershell` always had it; a prompting cmdlet could hang the
   C# scan until the process timeout killed it.

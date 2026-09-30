@@ -1837,7 +1837,8 @@ public static class RegistryGuard
             using (var shell = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(ShellCopilotPath))
             {
                 shell?.SetValue("IsCopilotAvailable", 0, Microsoft.Win32.RegistryValueKind.DWord);
-                shell?.CreateSubKey("BingChat")?.SetValue("IsUserEligible", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                using (var bing = shell?.CreateSubKey("BingChat"))
+                    bing?.SetValue("IsUserEligible", 0, Microsoft.Win32.RegistryValueKind.DWord);
             }
             SetUserDwordAllHives(UserShellCopilotPath, "IsCopilotAvailable", 0);
             SetUserDwordAllHives(UserShellCopilotPath + @"\BingChat", "IsUserEligible", 0);
