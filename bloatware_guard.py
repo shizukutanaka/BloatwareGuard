@@ -139,11 +139,10 @@ DEFAULT_BLACKLIST = [
     "BytedancePte.Ltd.TikTok",
     "KING.COM.",                       # CandyCrush + all King.com promo games
     "D5EA27B7.Duolingo-LearnLanguagesforFree",
-    "PandoraMediaInc.29680B314EFC2",
-    "Facebook.InstagramBeta",
-    "Facebook.Facebook",
+    "PandoraMediaInc.",
+    "Facebook.",
     "WhatsApp",
-    "A278AB0D.MarchofEmpires",
+    "A278AB0D.",
     "Disney",                          # Disney+ etc.
     "Amazon.com.Amazon",
     "AmazonVideo.PrimeVideo",
@@ -182,7 +181,6 @@ DEFAULT_BLACKLIST = [
     "AutodeskSketchBook",
     "CaesarsSlotsFreeCasino",
     "DrawboardPDF",
-    "FarmVille2CountryEscape",
     "HULULLC.HULUPLUS",
     "HiddenCity",
     "NYTCrossword",
@@ -201,12 +199,12 @@ DEFAULT_BLACKLIST = [
     # (Win11Debloat "optional" removals — consumer promo/support-ware)
     "AD2F1837.",
     "DellInc.",
-    "E046963F.LenovoCompanion",
+    "E046963F.",
     "LenovoCompanyLimited.LenovoVantageService",
-    # M365 companion suite promo (24H2) + stable Instagram (only the Beta
-    # family was listed before)
+    "LenovoCorporation.LenovoID",
+    # M365 companion suite promo (24H2) + Meta Instagram stubs
     "Microsoft.M365Companions",
-    "Facebook.Instagram",
+    "Instagram",
     # TronScript Metro diff — dead/promo/game-demo Microsoft appx
     "Microsoft.Advertising.JavaScript", "Microsoft.Advertising.Xaml",
     "Microsoft.ConnectivityStore", "Microsoft.HelpAndTips",
@@ -245,7 +243,7 @@ DEFAULT_BLACKLIST = [
     # xd-AntiSpy DebloaterPlugin diff: OEM promo/collection stubs and
     # third-party promo preinstalls (publisher-needle form — family names
     # embed the vendor id so substring needles stay safe)
-    "HPJumpStart", "ASUSGiftBox", "AcerCollection",
+    "HPJumpStart", "ASUSGiftBox", "AcerIncorporated.",
     "DellDigitalDelivery", "DellSupportAssist",
     "GAMELOFTSA", "KhanAcademy", "AsanaInc.Asana", "Luminar",
     "DropboxInc.Dropbox", "TripAdvisor", "Uber",

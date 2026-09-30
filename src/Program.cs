@@ -503,11 +503,10 @@ public static class ConfigLoader
                 "SynapticsIncorporated",
                 "BytedancePte.Ltd.TikTok",
                 "KING.COM.",                       // CandyCrush + all King.com promo games
-                "A278AB0D.MarchofEmpires",
+                "A278AB0D.",
                 "D5EA27B7.Duolingo-LearnLanguagesforFree",
-                "PandoraMediaInc.29680B314EFC2",
-                "Facebook.InstagramBeta",
-                "Facebook.Facebook",
+                "PandoraMediaInc.",
+                "Facebook.",
                 "WhatsApp",
                 "Disney",                          // Disney+ etc.
                 "Amazon.com.Amazon",
@@ -541,7 +540,7 @@ public static class ConfigLoader
                 "ACGMediaPlayer", "ActiproSoftwareLLC",
                 "AdobeSystemsIncorporated.AdobePhotoshopExpress",
                 "AutodeskSketchBook", "CaesarsSlotsFreeCasino",
-                "DrawboardPDF", "FarmVille2CountryEscape",
+                "DrawboardPDF",
                 "HULULLC.HULUPLUS", "HiddenCity", "NYTCrossword",
                 "OneCalendar", "PhototasticCollage",
                 "PolarrPhotoEditorAcademicEdition", "Sidia.LiveWallpaper",
@@ -551,11 +550,12 @@ public static class ConfigLoader
                 // 3 Dell apps, 2 Lenovo entries (Win11Debloat optional)
                 "AD2F1837.",
                 "DellInc.",
-                "E046963F.LenovoCompanion",
+                "E046963F.",
                 "LenovoCompanyLimited.LenovoVantageService",
-                // M365 companion suite promo (24H2) + stable Instagram
+                "LenovoCorporation.LenovoID",
+                // M365 companion suite promo (24H2) + Meta Instagram stubs
                 "Microsoft.M365Companions",
-                "Facebook.Instagram",
+                "Instagram",
                 // TronScript Metro diff — dead/promo/game-demo Microsoft appx
                 "Microsoft.Advertising.JavaScript", "Microsoft.Advertising.Xaml",
                 "Microsoft.ConnectivityStore", "Microsoft.HelpAndTips",
@@ -589,7 +589,7 @@ public static class ConfigLoader
                 "Microsoft.MicrosoftReadingList", "Microsoft.MSPaint",
                 // xd-AntiSpy DebloaterPlugin diff: OEM promo stubs +
                 // third-party promo preinstalls (publisher-needle form)
-                "HPJumpStart", "ASUSGiftBox", "AcerCollection",
+                "HPJumpStart", "ASUSGiftBox", "AcerIncorporated.",
                 "DellDigitalDelivery", "DellSupportAssist",
                 "GAMELOFTSA", "KhanAcademy", "AsanaInc.Asana", "Luminar",
                 "DropboxInc.Dropbox", "TripAdvisor", "Uber",

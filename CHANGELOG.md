@@ -4,6 +4,16 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 
 ## [Unreleased] — v1.59.3-mvp: verify_scan_sys.ps1 parse fix
 
+### Changed
+- Blacklist tightened to publisher namespaces (tomytate/Win-Debloat diff):
+  `Facebook.` replaces the three individual Meta entries, `PandoraMediaInc.`,
+  `A278AB0D.`, `E046963F.` and `AcerIncorporated.` replace single-app needles —
+  covering every Store package those promo/OEM publishers ship, including
+  variants not yet enumerated (Meta 317180B0BB9A35 stub, FarmVille titles,
+  LenovoSettings, AcerCare/AcerQuickAccess). `FarmVille2CountryEscape` dropped
+  as subsumed. Added `LenovoCorporation.LenovoID` and `Instagram`. Net 176→175
+  entries with strictly wider coverage.
+
 ### Fixed
 - `verify_scan_sys.ps1` ended with a stray unterminated `"` — the whole file
   failed PowerShell parsing, so the SYSTEM-context verification path could
