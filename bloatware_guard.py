@@ -958,6 +958,9 @@ _STARTUP_BLOAT_NAMES = (
     # PUA-tier "optimizers"/driver updaters commonly pushed by OEMs/ads
     "IObit", "DriverBooster", "DriverEasy", "SlimWare", "Outbyte",
     "Restoro", "Wondershare", "PCHealth",
+    # Razer utilities (Debloat-Win11 OEM purge) — "Synapse" is not a
+    # substring of "Synaptics", so pointing-device entries stay safe
+    "Razer", "Synapse", "Cortex",
 )
 # 0x03 = disabled in StartupApproved (value kept — re-enableable via Task Manager)
 _STARTUP_DISABLED_MARKER = b"\x03" + b"\x00" * 11

@@ -1300,7 +1300,10 @@ public static class RegistryGuard
         "Spotify", "Opera", "Adobe", "iTunes",
         // PUA-tier "optimizers"/driver updaters pushed by OEMs/ads
         "IObit", "DriverBooster", "DriverEasy", "SlimWare", "Outbyte",
-        "Restoro", "Wondershare", "PCHealth"
+        "Restoro", "Wondershare", "PCHealth",
+        // Razer utilities (Debloat-Win11 OEM purge) — "Synapse" is not a
+        // substring of "Synaptics", so pointing-device entries stay safe
+        "Razer", "Synapse", "Cortex"
     };
 
     // 0x03 = disabled in StartupApproved (value kept — user can re-enable via Task Manager)
