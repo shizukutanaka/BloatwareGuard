@@ -2357,6 +2357,9 @@ public static class RegistryGuard
             // Copilot auto-open on large screens (notification channel,
             // privacy.sexy) — per-user
             SetUserDwordAllHives(UserNotificationSettingsPath, "AutoOpenCopilotLargeScreens", 0);
+            // Narrator online voices download off (Winnow ExtendedAIPurge)
+            SetUserDwordAllHives(@"Software\Microsoft\Narrator\NoRoam",
+                                 "OnlineVoicesEnabled", 0);
             // Copilot hardware-key remap (WindowsCopilot ADMX, zoicware)
             SetUserDwordAllHives(
                 @"Software\Policies\Microsoft\Windows\CopilotKey",
@@ -4134,6 +4137,7 @@ public static class RegistryGuard
         @"Software\Microsoft\Input\TIPC",
         @"Software\Microsoft\InputPersonalization",
         @"Software\Microsoft\InputPersonalization\TrainedDataStore",
+        @"Software\Microsoft\Narrator\NoRoam",
         @"Software\Microsoft\Personalization\Settings",
         @"Software\Microsoft\Siuf\Rules",
         @"Software\Microsoft\Speech_OneCore\Settings\OnlineSpeechPrivacy",
@@ -4351,6 +4355,9 @@ public static class RegistryGuard
             // No automatic upload of clipboard contents (WGO)
             SetUserDwordAllHives(@"Software\Microsoft\Clipboard",
                                  "CloudClipboardAutomaticUpload", 0);
+            // Suggested clipboard AI actions off (Winnow ExtendedAIPurge)
+            SetUserDwordAllHives(@"Software\Microsoft\Clipboard",
+                                 "EnableSuggestedClipboardActions", 0);
             GuardLogger.Info("Applied: DisableCloudClipboard");
         }
         catch (Exception ex)

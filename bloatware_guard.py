@@ -1278,6 +1278,7 @@ _USER_BACKUP_KEY_PATHS = (
     r"Software\Microsoft\Input\TIPC",
     r"Software\Microsoft\InputPersonalization",
     r"Software\Microsoft\InputPersonalization\TrainedDataStore",
+    r"Software\Microsoft\Narrator\NoRoam",
     r"Software\Microsoft\Personalization\Settings",
     r"Software\Microsoft\Siuf\Rules",
     r"Software\Microsoft\Speech_OneCore\Settings\OnlineSpeechPrivacy",
@@ -1694,6 +1695,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             # Copilot auto-open on large screens (notification channel,
             # privacy.sexy) — per-user
             set_user_dword_all_hives(_USER_NOTIFICATION_SETTINGS, "AutoOpenCopilotLargeScreens", 0, logger)
+            # Narrator online voices download off (Winnow ExtendedAIPurge)
+            set_user_dword_all_hives(
+                r"Software\Microsoft\Narrator\NoRoam",
+                "OnlineVoicesEnabled", 0, logger)
             for vid, state in _VELOCITY_COPILOT_IDS:
                 set_registry_dword("HKLM", _VELOCITY_PATH + "\\" + vid,
                                    "EnabledState", state)
@@ -2904,6 +2909,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_user_dword_all_hives(
                 r"Software\Microsoft\Clipboard",
                 "CloudClipboardAutomaticUpload", 0, logger)
+            # Suggested clipboard AI actions off (Winnow ExtendedAIPurge)
+            set_user_dword_all_hives(
+                r"Software\Microsoft\Clipboard",
+                "EnableSuggestedClipboardActions", 0, logger)
             logger.info("Applied: DisableCloudClipboard")
 
         except Exception as e:
