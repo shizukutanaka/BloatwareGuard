@@ -1752,6 +1752,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_user_dword_all_hives(_USER_WINDOWS_AI, "DisableClickToDo", 1, logger)
             set_user_dword_all_hives(_USER_WINDOWS_AI, "DisableSettingsAgent", 1, logger)
             set_user_dword_all_hives(_USER_WINDOWS_AI, "DisableRecallDataProviders", 1, logger)
+            # April 2026 update "Remove Microsoft Copilot app" policy —
+            # Copilot + Microsoft 365 Copilot auto-removed when not
+            # user-installed and unused >28 days (windowslatest.com)
+            set_user_dword_all_hives(_USER_WINDOWS_AI,
+                                     "RemoveMicrosoftCopilotApp", 1, logger)
             # ClickToDo user preference (policy alone still leaves the shell entry)
             set_user_dword_all_hives(_USER_CLICK_TO_DO, "DisableClickToDo", 1, logger)
             # App-level AI toggles (WinRice): Notepad cowriter, Paint

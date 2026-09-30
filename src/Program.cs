@@ -2462,6 +2462,10 @@ public static class RegistryGuard
                 SetHiveDword(hive, UserWindowsAiPath, "DisableClickToDo", 1);
                 SetHiveDword(hive, UserWindowsAiPath, "DisableSettingsAgent", 1);
                 SetHiveDword(hive, UserWindowsAiPath, "DisableRecallDataProviders", 1);
+                // April 2026 update "Remove Microsoft Copilot app" policy —
+                // Copilot + Microsoft 365 Copilot auto-removed when not
+                // user-installed and unused >28 days
+                SetHiveDword(hive, UserWindowsAiPath, "RemoveMicrosoftCopilotApp", 1);
                 // ClickToDo user preference (policy alone leaves the shell entry)
                 SetHiveDword(hive, UserClickToDoPath, "DisableClickToDo", 1);
                 // App-level AI toggles (WinRice): Notepad cowriter, Paint
