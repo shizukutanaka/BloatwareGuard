@@ -3097,6 +3097,7 @@ public static class RegistryGuard
                 // Game Bar nags: Nexus overlay hook + startup panel
                 SetHiveDword(hive, @"Software\Microsoft\GameBar", "UseNexusForGameBarEnabled", 0);
                 SetHiveDword(hive, @"Software\Microsoft\GameBar", "ShowStartupPanel", 0);
+                SetHiveDword(hive, @"Software\Microsoft\GameBar", "GamePanelStartupTipIndex", 3);
             });
             // ms-gamebar/ms-gamebarservices protocol hijack (Win11Debloat):
             // NoOpenWith + a dead handler command kills the "get Game Bar"
@@ -3687,9 +3688,14 @@ public static class RegistryGuard
                 "GettingStartedImageCreatorPageViewed",
                 "GettingStartedCocreatorPageViewed" })
                 SetUserDwordAllHives(paintView, pvf, 1);
-            // Notepad store banner off (zoicware)
+            // Notepad store banner/recommendation off (zoicware, Reclaim)
+            foreach (var nv in new[] { "ShowStoreBanner", "ShowStoreRecommendation" })
+                SetUserDwordAllHives(
+                    @"Software\Microsoft\Notepad", nv, 0);
+            // Startup-impact toast off (Reclaim)
             SetUserDwordAllHives(
-                @"Software\Microsoft\Notepad", "ShowStoreBanner", 0);
+                @"Software\Microsoft\Windows\CurrentVersion\Explorer",
+                "StartupNotify", 0);
             GuardLogger.Info($"Applied: DisableAppPermissions ({AppPrivacyDenies.Length} force-denied + ad-ID/FindMyDevice policies)");
         }
         catch (Exception ex)
@@ -3940,6 +3946,7 @@ public static class RegistryGuard
         @"Software\Microsoft\Windows\CurrentVersion\Explorer\AutoInstalledPWAs",
         @"Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications",
         @"Software\Microsoft\Windows\CurrentVersion\Applets\Paint\View",
+        @"Software\Microsoft\Windows\CurrentVersion\Explorer",
         @"Software\Microsoft\Windows\CurrentVersion\SearchSettings",
         @"Software\Microsoft\Windows\CurrentVersion\SearchSettings\WebSearchPro",
         @"Software\Microsoft\Windows\CurrentVersion\WindowsCopilot",

@@ -1275,6 +1275,7 @@ _USER_BACKUP_KEY_PATHS = (
     r"Software\Microsoft\Windows\CurrentVersion\Explorer\AutoInstalledPWAs",
     r"Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications",
     r"Software\Microsoft\Windows\CurrentVersion\Applets\Paint\View",
+    r"Software\Microsoft\Windows\CurrentVersion\Explorer",
     r"Software\Microsoft\Windows\CurrentVersion\Internet Settings\Wpad",
     r"Software\Microsoft\Notepad",
     r"Software\Microsoft\Paint",
@@ -2266,6 +2267,7 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             # Game Bar nags: Nexus overlay hook + startup panel
             set_user_dword_all_hives(r"Software\Microsoft\GameBar", "UseNexusForGameBarEnabled", 0, logger)
             set_user_dword_all_hives(r"Software\Microsoft\GameBar", "ShowStartupPanel", 0, logger)
+            set_user_dword_all_hives(r"Software\Microsoft\GameBar", "GamePanelStartupTipIndex", 3, logger)
             # ms-gamebar/ms-gamebarservices protocol hijack (Win11Debloat):
             # NoOpenWith + a dead handler command kills the "get Game Bar"
             # popup that games trigger when the app is removed
@@ -2587,9 +2589,14 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                          "GettingStartedImageCreatorPageViewed",
                          "GettingStartedCocreatorPageViewed"):
                 set_user_dword_all_hives(_pv, _pvf, 1, logger)
-            # Notepad store banner off (zoicware)
+            # Notepad store banner/recommendation off (zoicware, Reclaim)
+            for _nv in ("ShowStoreBanner", "ShowStoreRecommendation"):
+                set_user_dword_all_hives(
+                    r"Software\Microsoft\Notepad", _nv, 0, logger)
+            # Startup-impact toast off (Reclaim)
             set_user_dword_all_hives(
-                r"Software\Microsoft\Notepad", "ShowStoreBanner", 0, logger)
+                r"Software\Microsoft\Windows\CurrentVersion\Explorer",
+                "StartupNotify", 0, logger)
             logger.info(f"Applied: DisableAppPermissions ({len(app_privacy)} "
                         "force-denied + ad-ID/FindMyDevice policies)")
 

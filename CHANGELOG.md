@@ -5,6 +5,17 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- Reclaim (jonax1337/Reclaim, Tauri debloat tool, new
+  source): per-user +3 — Notepad `ShowStoreRecommendation`=0
+  (store promo banner), Explorer `StartupNotify`=0
+  (startup-impact toast), GameBar `GamePanelStartupTipIndex`=3
+  (promo tip panel). Skipped: SmartScreen/AppHost kills
+  (protection), PPL/RunAsPPL + RDP/Remote Assistance kills
+  (security-boundary), MS account kill (`NoConnectedUser`),
+  WU policy + UX set, StorageSense/WcmSvc metered (functional),
+  services WSearch/Xbl*/MapsBroker=4 (functional), ~90
+  performance/gaming/UI-pref values (mouse/keyboard/TDR/AFD/
+  NIC/transparency/Explorer).
 - DebloatAndSecurizeW11 (JulienVB, new source): velocity
   overrides +3 AI feature IDs (3189581453, 3552646797,
   450471565 via phantomofearth velocity lists). Skipped:
