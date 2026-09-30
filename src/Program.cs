@@ -1869,7 +1869,19 @@ public static class RegistryGuard
                 "static.ads-twitter.com",
         "ads.yahoo.com",
         "advertising.yahoo.com",
-        "feedback.microsoft.com",};
+        "feedback.microsoft.com",
+        "0.r.msn.com",
+        "arc1.msn.com",
+        "a.rad.live.com",
+        "b.rad.live.com",
+        "c.rad.msn.com",
+        "analytics.r.msn.com",
+        "adsyndication.msn.com",
+        "blu.mobileads.msn.com",
+        "b.ads2.msn.com",
+        "ads1.jp.msn.com",
+        "amer.rel.msn.com",
+        "apac.rel.msn.com",};
     private const string HostsBlockBegin = "# >>> BloatwareGuard telemetry block";
     private const string HostsBlockEnd = "# <<< BloatwareGuard telemetry block";
 

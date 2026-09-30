@@ -5,6 +5,13 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added
+- atlantsecurity/windows-hardening-scripts (278★, new
+  source): telemetry hosts +13 MSN ad/analytics endpoints —
+  rad/live.msn family (a/b/c.rad.msn+live, 0.r.msn,
+  analytics.r.msn), adsyndication, blu.mobileads,
+  b.ads2.msn, ads1.jp.msn, rel.msn, arc1.msn (419→431).
+  Skipped: generic third-party adblock flood, `target.
+  microsoft.com` (unverifiable), `msnbot-*` (crawler).
 - milgradesec/windows-settings (40★ security config, new
   source): credential/protocol hardening +5 — Lsa
   `NoLMHash`=1 + `LmCompatibilityLevel`=5 (NTLMv2-only),

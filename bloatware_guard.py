@@ -3540,6 +3540,18 @@ _TELEMETRY_HOSTS = (
     "ads.yahoo.com",
     "advertising.yahoo.com",
     "feedback.microsoft.com",
+    "0.r.msn.com",
+    "arc1.msn.com",
+    "a.rad.live.com",
+    "b.rad.live.com",
+    "c.rad.msn.com",
+    "analytics.r.msn.com",
+    "adsyndication.msn.com",
+    "blu.mobileads.msn.com",
+    "b.ads2.msn.com",
+    "ads1.jp.msn.com",
+    "amer.rel.msn.com",
+    "apac.rel.msn.com",
 )
 _HOSTS_BLOCK_BEGIN = "# >>> BloatwareGuard telemetry block"
 _HOSTS_BLOCK_END = "# <<< BloatwareGuard telemetry block"
