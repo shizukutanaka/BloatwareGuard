@@ -2797,7 +2797,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             # xd-AntiSpy diff: launch-time browser-data import, default-browser
             # nag, NTP sponsored quick links
             for name in ("ImportOnEachLaunch", "DefaultBrowserSettingEnabled",
-                         "NewTabPageQuickLinksEnabled"):
+                         "NewTabPageQuickLinksEnabled",
+                         # NTP prerender off — stops background feed prefetch
+                         # (WinOpt)
+                         "NewTabPagePrerenderEnabled"):
                 set_registry_dword("HKLM", edge_pol, name, 0)
             # Drop syncs files to OneDrive; crypto wallet + asset delivery service
             # are promo/feature-download surfaces

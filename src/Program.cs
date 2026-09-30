@@ -3618,6 +3618,8 @@ public static class RegistryGuard
             key?.SetValue("ImportOnEachLaunch", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("DefaultBrowserSettingEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("NewTabPageQuickLinksEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // NTP prerender off — stops background feed prefetch (WinOpt)
+            key?.SetValue("NewTabPagePrerenderEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
             // Edge AI surface (zoicware/RemoveWindowsAI policy set): page-
             // context Copilot, inline compose, history AI search, generated
             // themes, DevTools AI (2 = disabled), browsing-history sharing
