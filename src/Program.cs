@@ -2458,6 +2458,9 @@ public static class RegistryGuard
             // Win11Debloater: sibling snapshotting kill switch (same CSP key)
             key?.SetValue("AllowSnapshotting", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("AllowRecallEnablement", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // On-device screen semantic analysis off (25H2 WindowsAI CSP —
+            // Win-Debloat7 Privacy module)
+            key?.SetValue("DisableScreenSemanticAnalysis", 1, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("DisableClickToDo", 1, Microsoft.Win32.RegistryValueKind.DWord);
             // 25H2 "Agent in Settings" (Settings AI agent)
             key?.SetValue("DisableSettingsAgent", 1, Microsoft.Win32.RegistryValueKind.DWord);
@@ -3105,6 +3108,18 @@ public static class RegistryGuard
                 using var wpad = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Microsoft\Windows\CurrentVersion\Internet Settings\Wpad");
                 wpad?.SetValue("WpadOverride", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // RPC authenticated endpoint resolution, external DMA-device
+                // enumeration block, encrypted memory dumps (Win-Debloat7
+                // Security module — documented policies)
+                using var rpc = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows NT\Rpc");
+                rpc?.SetValue("EnableAuthEpResolution", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                using var dma = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\Kernel DMA Protection");
+                dma?.SetValue("DeviceEnumerationPolicy", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                using var mm = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management");
+                mm?.SetValue("EnableDumpEncryption", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 using var lanman = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SYSTEM\CurrentControlSet\Services\LanManServer\Parameters");
                 lanman?.SetValue("RestrictNullSessAccess", 1, Microsoft.Win32.RegistryValueKind.DWord);
@@ -4143,6 +4158,9 @@ public static class RegistryGuard
         @"SYSTEM\CurrentControlSet\Control\Remote Assistance",
         @"SOFTWARE\Policies\Microsoft\Windows\PreviewBuilds",
         @"SOFTWARE\Policies\Microsoft\Windows\WindowsBackup",
+        @"SOFTWARE\Policies\Microsoft\Windows NT\Rpc",
+        @"SOFTWARE\Policies\Microsoft\Windows\Kernel DMA Protection",
+        @"SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management",
         @"SOFTWARE\Policies\Microsoft\Windows Defender\Spynet",
         @"SOFTWARE\Microsoft\PolicyManager\current\device\System",
         @"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU",
@@ -4603,8 +4621,9 @@ public static class RegistryGuard
         "lmhosts",
         "SharedRealitySvc", "perceptionsimulation", "Spectrum",
         "AJRouter", "SCardSvr", "ScDeviceEnum", "CertPropSvc",
-        // Location tracking + sensor monitoring stack
-        "lfsvc", "SensorService", "sensrsvc",
+        // Location tracking + sensor monitoring stack — SensorDataService
+        // aggregates sensor feeds for apps (Win-Debloat7 services.json)
+        "lfsvc", "SensorService", "sensrsvc", "SensorDataService",
         // SNMP traps (dead), recommended-troubleshooting runner,
         // cellular WWAN (demand-start keeps LTE working)
         "SNMPTRAP", "TroubleshootingSvc", "WwanSvc", "WwanAuthSvc",

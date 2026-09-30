@@ -1156,6 +1156,9 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Policies\Microsoft\FindMyDevice",
     r"SOFTWARE\Policies\Microsoft\Windows\SettingSync",
     r"SOFTWARE\Policies\Microsoft\Windows\WindowsBackup",
+    r"SOFTWARE\Policies\Microsoft\Windows NT\Rpc",
+    r"SOFTWARE\Policies\Microsoft\Windows\Kernel DMA Protection",
+    r"SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Device Metadata",
     # --- coverage completion (audit: every HKLM write path backed up) ---
     r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\UnattendSettings\SQMClient",
@@ -1240,8 +1243,9 @@ _MISC_DEMOTE_SERVICES = (
     "WalletService", "wisvc",
     "SharedRealitySvc", "perceptionsimulation", "Spectrum",
     "AJRouter", "SCardSvr", "ScDeviceEnum", "CertPropSvc",
-    # Location tracking + sensor monitoring stack
-    "lfsvc", "SensorService", "sensrsvc",
+    # Location tracking + sensor monitoring stack — SensorDataService
+    # aggregates sensor feeds for apps (Win-Debloat7 services.json)
+    "lfsvc", "SensorService", "sensrsvc", "SensorDataService",
     # SNMP traps (dead), recommended-troubleshooting runner, cellular WWAN
     # (demand-start keeps LTE working)
     "SNMPTRAP", "TroubleshootingSvc", "WwanSvc", "WwanAuthSvc",
@@ -1765,6 +1769,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             # Win11Debloater: sibling snapshotting kill switch (same CSP key)
             set_registry_dword("HKLM", ai_pol, "AllowSnapshotting", 0)
             set_registry_dword("HKLM", ai_pol, "AllowRecallEnablement", 0)
+            # On-device screen semantic analysis off (25H2 WindowsAI CSP —
+            # Win-Debloat7 Privacy module)
+            set_registry_dword("HKLM", ai_pol, "DisableScreenSemanticAnalysis", 1)
             set_registry_dword("HKLM", ai_pol, "DisableClickToDo", 1)
             # 25H2 "Agent in Settings" (Settings AI agent)
             set_registry_dword("HKLM", ai_pol, "DisableSettingsAgent", 1)
@@ -2348,6 +2355,21 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_user_dword_all_hives(
                 r"Software\Microsoft\Windows\CurrentVersion\Internet Settings\Wpad",
                 "WpadOverride", 1, logger)
+            # RPC authenticated endpoint resolution, external DMA-device
+            # enumeration block, encrypted memory dumps (Win-Debloat7
+            # Security module — documented policies)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Policies\Microsoft\Windows NT\Rpc",
+                "EnableAuthEpResolution", 1)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Policies\Microsoft\Windows\Kernel DMA Protection",
+                "DeviceEnumerationPolicy", 1)
+            set_registry_dword(
+                "HKLM",
+                r"SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management",
+                "EnableDumpEncryption", 1)
             set_registry_dword("HKLM",
                                r"SYSTEM\CurrentControlSet\Services\LanManServer\Parameters",
                                "RestrictNullSessAccess", 1)
