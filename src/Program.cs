@@ -1214,6 +1214,7 @@ public static class RegistryGuard
     private const string UserExplorerPoliciesPath = @"Software\Policies\Microsoft\Windows\Explorer";
     private const string UserCopilotPath = @"Software\Policies\Microsoft\Windows\WindowsCopilot";
     private const string UserWindowsAiPath = @"Software\Policies\Microsoft\Windows\WindowsAI";
+    private const string UserCopilotKeyboardPath = @"Software\Policies\Microsoft\CopilotKeyboard";
     private const string ShellCopilotPath = @"SOFTWARE\Microsoft\Windows\Shell\Copilot";
     private const string UserShellCopilotPath = @"Software\Microsoft\Windows\Shell\Copilot";
     private const string UserVoiceActivationPath = @"Software\Microsoft\Speech_OneCore\Settings\VoiceActivation\UserPreferenceForAllApps";
@@ -2466,6 +2467,13 @@ public static class RegistryGuard
                 // Copilot + Microsoft 365 Copilot auto-removed when not
                 // user-installed and unused >28 days
                 SetHiveDword(hive, UserWindowsAiPath, "RemoveMicrosoftCopilotApp", 1);
+                // Copilot Keyboard admin policies (Microsoft Japan blog,
+                // June 2026): usage-data upload, cloud conversion
+                // candidates, internet integration. 'Telementry' is
+                // Microsoft's literal (misspelled) value name.
+                SetHiveDword(hive, UserCopilotKeyboardPath, "TurnOffSendTelementryData", 1);
+                SetHiveDword(hive, UserCopilotKeyboardPath, "TurnOffCloudCandidate", 1);
+                SetHiveDword(hive, UserCopilotKeyboardPath, "TurnOffInternetIntegration", 1);
                 // ClickToDo user preference (policy alone leaves the shell entry)
                 SetHiveDword(hive, UserClickToDoPath, "DisableClickToDo", 1);
                 // App-level AI toggles (WinRice): Notepad cowriter, Paint
@@ -4271,6 +4279,7 @@ public static class RegistryGuard
         @"Software\Policies\Microsoft\Windows\Privacy",
         @"Software\Policies\Microsoft\Windows\WindowsAI",
         @"Software\Policies\Microsoft\Windows\WindowsCopilot",
+        @"Software\Policies\Microsoft\CopilotKeyboard",
         @"Software\Policies\Microsoft\OneDrive",
         @"Software\Policies\Microsoft\Windows\WorkplaceJoin",
         @"System\GameConfigStore",

@@ -885,6 +885,7 @@ _EXPLORER_POLICIES_HKLM = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\E
 _USER_INTL_PROFILE = r"Control Panel\International\User Profile"
 _USER_COPILOT = r"Software\Policies\Microsoft\Windows\WindowsCopilot"
 _USER_WINDOWS_AI = r"Software\Policies\Microsoft\Windows\WindowsAI"
+_USER_COPILOT_KEYBOARD = r"Software\Policies\Microsoft\CopilotKeyboard"
 _USER_SHELL_COPILOT = r"Software\Microsoft\Windows\Shell\Copilot"
 _USER_SHELL_COPILOT_BINGCHAT = r"Software\Microsoft\Windows\Shell\Copilot\BingChat"
 _USER_VOICE_ACTIVATION = (r"Software\Microsoft\Speech_OneCore\Settings"
@@ -1339,6 +1340,7 @@ _USER_BACKUP_KEY_PATHS = (
     r"Software\Policies\Microsoft\Windows\Privacy",
     r"Software\Policies\Microsoft\Windows\WindowsAI",
     r"Software\Policies\Microsoft\Windows\WindowsCopilot",
+    r"Software\Policies\Microsoft\CopilotKeyboard",
     r"Software\Policies\Microsoft\OneDrive",
     r"Software\Policies\Microsoft\Windows\WorkplaceJoin",
     r"System\GameConfigStore",
@@ -1757,6 +1759,17 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             # user-installed and unused >28 days (windowslatest.com)
             set_user_dword_all_hives(_USER_WINDOWS_AI,
                                      "RemoveMicrosoftCopilotApp", 1, logger)
+            # Copilot Keyboard admin policies (Microsoft Japan blog,
+            # June 2026): usage-data upload, cloud conversion
+            # candidates, internet integration (Bing search via IME,
+            # desktop character, update nudges). 'Telementry' is
+            # Microsoft's literal (misspelled) value name.
+            set_user_dword_all_hives(_USER_COPILOT_KEYBOARD,
+                                     "TurnOffSendTelementryData", 1, logger)
+            set_user_dword_all_hives(_USER_COPILOT_KEYBOARD,
+                                     "TurnOffCloudCandidate", 1, logger)
+            set_user_dword_all_hives(_USER_COPILOT_KEYBOARD,
+                                     "TurnOffInternetIntegration", 1, logger)
             # ClickToDo user preference (policy alone still leaves the shell entry)
             set_user_dword_all_hives(_USER_CLICK_TO_DO, "DisableClickToDo", 1, logger)
             # App-level AI toggles (WinRice): Notepad cowriter, Paint
