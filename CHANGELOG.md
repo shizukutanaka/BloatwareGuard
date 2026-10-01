@@ -103,6 +103,10 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   front (WindowsSpyBlocker spy ruleset; rest of the ruleset is
   WU/CDN/auth/WNS functional infra — skipped)
 
+- `DisableCloudClipboard` +`EnableCloudClipboard`=0 per-user
+  (LeDragoX WinDebloatTools user-level switch — policy +
+  auto-upload kills leave the local pref on)
+
 ## [Unreleased] — v1.60.7-mvp: tomytate/Win-Debloat full sweep + docs sync
 
 - DisableSpotlight: hides the "Learn about this picture" desktop

@@ -3364,6 +3364,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_user_dword_all_hives(
                 r"Software\Microsoft\Clipboard",
                 "CloudClipboardAutomaticUpload", 0, logger)
+            # Per-user cloud-clipboard switch (LeDragoX WinDebloatTools)
+            set_user_dword_all_hives(
+                r"Software\Microsoft\Clipboard",
+                "EnableCloudClipboard", 0, logger)
             # Suggested clipboard AI actions off (Winnow ExtendedAIPurge)
             set_user_dword_all_hives(
                 r"Software\Microsoft\Clipboard",

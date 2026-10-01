@@ -4819,6 +4819,9 @@ public static class RegistryGuard
             // No automatic upload of clipboard contents (WGO)
             SetUserDwordAllHives(@"Software\Microsoft\Clipboard",
                                  "CloudClipboardAutomaticUpload", 0);
+            // Per-user cloud-clipboard switch (LeDragoX WinDebloatTools)
+            SetUserDwordAllHives(@"Software\Microsoft\Clipboard",
+                "EnableCloudClipboard", 0);
             // Suggested clipboard AI actions off (Winnow ExtendedAIPurge)
             SetUserDwordAllHives(@"Software\Microsoft\Clipboard",
                                  "EnableSuggestedClipboardActions", 0);
