@@ -245,6 +245,13 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   `RandomSaladGamesLLC.` + `SAMSUNGELECTRONICSCO.LTD.` — casual-game
   and Samsung store stub publisher namespaces
 
+## [Unreleased] — v1.60.9: timeout-kill for bounded C# process waits
+
+- `ShowStatus` (sc query) and `RestoreStagedPackage` (DISM restore) waited
+  30s/60s but left the child running on timeout — both now `Kill(true)` on
+  timeout so a hung sc/DISM cannot outlive the call.
+- Python side re-audited: every subprocess call already carries `timeout=`.
+
 ## [Unreleased] — v1.60.8: SysAdminDoc/Debloat-Win11 diff — OEM audio service demote (C# + Python)
 
 - `DisableMiscBloatServices` +`WavesSvc64` — Waves MaxxAudio OEM audio-suite

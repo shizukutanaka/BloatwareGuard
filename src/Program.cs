@@ -6346,7 +6346,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         if (proc != null)
         {
             var outTask = proc.StandardOutput.ReadToEndAsync();
-            proc.WaitForExit(30000);
+            if (!proc.WaitForExit(30000))
+                try { proc.Kill(entireProcessTree: true); } catch { }
             outTask.Wait(5000);
             Console.WriteLine(outTask.Status == TaskStatus.RanToCompletion
                 ? outTask.Result : "");
@@ -6497,8 +6498,14 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
             CreateNoWindow = true
         };
         using var proc = Process.Start(psi);
-        proc?.WaitForExit(60000);
-        return proc?.ExitCode == 0;
+        if (proc == null)
+            return false;
+        if (!proc.WaitForExit(60000))
+        {
+            try { proc.Kill(entireProcessTree: true); } catch { }
+            return false;
+        }
+        return proc.ExitCode == 0;
     }
 
     /// <summary>
