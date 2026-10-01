@@ -1871,21 +1871,17 @@ public static class RegistryGuard
         "us5-v20.events.data.microsoft.com",
         "win-global-asimov-leafs-events-data.trafficmanager.net",
         // Desktop/Edge counterpart of the mobile ARIA pipe above
-        "browser.pipe.aria.microsoft.com",
-        // More WER/event-ingest names on the same events.data.microsoft.com pipe
-        "umwatson.events.data.microsoft.com",
-        "nw-umwatson.events.data.microsoft.com",
-        "kmwatson.events.data.microsoft.com", "kmwatsonc.events.data.microsoft.com",
-        // Legacy CEIP/WER endpoints still referenced by inbox components
-        "df.telemetry.microsoft.com", "alpha.telemetry.microsoft.com",
-        "telemetry.microsoft.com", "ca.telemetry.microsoft.com",
-        "watson.live.com",
-        // Regional ingest mirrors + sibling pipes (SpyBlocker extra tier —
-        // only pure-telemetry names adopted; the tier's OneDrive/activation/
-        // SmartScreen entries would break functionality and stay out)
-        "eu-v20.events.data.microsoft.com", "us-v20.events.data.microsoft.com",
-        "eu.vortex-win.data.microsoft.com", "us.vortex-win.data.microsoft.com",
-        "eu.vortex.data.microsoft.com",
+        "browser.pipe.aria.microsoft.com", "us.pipe.aria.microsoft.com", "eu.pipe.aria.microsoft.com",
+        "az.pipe.aria.microsoft.com", "v20c.events.data.microsoft.com", "functional.events.data.microsoft.com",
+        "aimodels.microsoft.com", "models.microsoft.com", "directml.microsoft.com", "aifabric.microsoft.com",
+        "copilot.microsoft.com", "sydney.bing.com", "edgeservices.bing.com", "onesettings-public.azureedge.net",
+        "onesettings-bn2.azureedge.net", "onesettings-co2.azureedge.net", "widgetcdn.azureedge.net",
+        "shell.msn.com", "assets.msn.com", "umwatson.events.data.microsoft.com",
+        "nw-umwatson.events.data.microsoft.com", "kmwatson.events.data.microsoft.com",
+        "kmwatsonc.events.data.microsoft.com", "df.telemetry.microsoft.com", "alpha.telemetry.microsoft.com",
+        "telemetry.microsoft.com", "ca.telemetry.microsoft.com", "watson.live.com",
+        "eu-v20.events.data.microsoft.com", "us-v20.events.data.microsoft.com", "eu.vortex-win.data.microsoft.com",
+        "us.vortex-win.data.microsoft.com", "eu.vortex.data.microsoft.com",
         "server6.pipe.aria.microsoft.com", "server7.pipe.aria.microsoft.com",
         "browser.events.data.msn.com",
         "ic3.events.data.microsoft.com", "mobile.events.data.microsoft.com",
@@ -6513,3 +6509,5 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         return passed == total ? 0 : 1;
     }
 }
+
+

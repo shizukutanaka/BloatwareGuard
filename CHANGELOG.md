@@ -52,6 +52,16 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 
 - OEM task patterns +`AMD`, `AUEP` (AMD User Experience Program telemetry tasks)
 
+- hosts +18 (Win-Debloat Firewall diff): ARIA regional ingest
+  (us/eu/az.pipe.aria), events variants (v20c, functional),
+  AI-fabric/model endpoints (aimodels/models/directml/aifabric),
+  Copilot backends (copilot.microsoft.com, sydney.bing.com,
+  edgeservices.bing.com), OneSettings CDN edges
+  (onesettings-public/bn2/co2.azureedge), widgetcdn + MSN feed
+  content (shell/assets.msn.com). Skipped: wdcp* (Defender cloud
+  boundary), ecs*/nexusrules Office vendor, config.edge.skype.com
+- OEM task patterns +`AMD`, `AUEP` (AMD User Experience Program)
+
 ## [Unreleased] — v1.60.7-mvp: tomytate/Win-Debloat full sweep + docs sync
 
 - DisableSpotlight: hides the "Learn about this picture" desktop
