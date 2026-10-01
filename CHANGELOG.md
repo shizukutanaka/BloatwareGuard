@@ -139,6 +139,11 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   `Client/ServerMinKeyBitLength`=2048 (RapidOS protocols batch);
   backup paths added for all three roots
 
+- `DisableTelemetry` +`AllowUserInfoAccess`=2
+  (`Policies\Microsoft\Windows\System`) — documented GPO: apps no
+  longer receive user name/account picture/domain info
+  (WindowsMize Set-UserInfoSharing)
+
 ## [Unreleased] — v1.60.7-mvp: tomytate/Win-Debloat full sweep + docs sync
 
 - DisableSpotlight: hides the "Learn about this picture" desktop

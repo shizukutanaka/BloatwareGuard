@@ -3334,6 +3334,10 @@ public static class RegistryGuard
                 using var polsys = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System");
                 polsys?.SetValue("DisableAutomaticRestartSignOn", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // App sharing of user name/picture/domain info off (GPO twin)
+                using var uinfo = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\System");
+                uinfo?.SetValue("AllowUserInfoAccess", 2, Microsoft.Win32.RegistryValueKind.DWord);
                 // LMHOSTS lookup off (NetBT side-channel)
                 using var netbt = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SYSTEM\CurrentControlSet\Services\NetBT\Parameters");
@@ -4437,6 +4441,7 @@ public static class RegistryGuard
         @"SOFTWARE\Policies\Microsoft\Windows\Windows Feeds",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",
+        @"SOFTWARE\Policies\Microsoft\Windows\System",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Audit",
         @"SOFTWARE\Policies\Microsoft\Windows\System",
         @"SOFTWARE\Policies\Microsoft\Assistance\Client\1.0",
