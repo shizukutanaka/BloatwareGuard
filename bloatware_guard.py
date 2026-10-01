@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.60.1-mvp - Python prototype
+BloatwareGuard v1.60.5-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -36,7 +36,7 @@ from typing import Dict, List, Set, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.60.1-mvp"
+APP_VERSION = "1.60.5-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -1085,6 +1085,15 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Lxss",
     r"SOFTWARE\Policies\Microsoft\FVE",
     r"SOFTWARE\Policies\Microsoft\Windows\GameDVR",
+    r"SOFTWARE\Policies\Microsoft\InputPersonalization",
+    r"SOFTWARE\Policies\Microsoft\Windows\TextInput",
+    r"SOFTWARE\Policies\Microsoft\Windows\IME",
+    r"SOFTWARE\Policies\Microsoft\Windows\AI\Copilot",
+    r"SOFTWARE\Policies\Microsoft\Windows\LanguageOptions",
+    r"SYSTEM\CurrentControlSet\Control\CrashControl",
+    r"SOFTWARE\Policies\Microsoft\Windows\SpellingAndTyping",
+    r"SOFTWARE\Policies\Microsoft\Windows\SuperFetch",
+    r"SOFTWARE\Policies\Microsoft\Windows\ScriptedDiagnostics",
     r"SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization",
     r"SOFTWARE\Policies\Microsoft\Windows\OneDrive",
     r"SOFTWARE\Microsoft\Windows\Windows Error Reporting",
@@ -1330,6 +1339,7 @@ _USER_BACKUP_KEY_PATHS = (
     r"Software\Microsoft\Narrator\NoRoam",
     r"Software\Microsoft\Personalization\Settings",
     r"Software\Microsoft\Siuf\Rules",
+    r"Software\Microsoft\Speech_OneCore\Preferences",
     r"Software\Microsoft\Speech_OneCore\Settings\OnlineSpeechPrivacy",
     r"Software\Microsoft\Speech_OneCore\Settings\VoiceActivation\UserPreferenceForAllApps",
     r"Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo",
@@ -1743,6 +1753,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_user_dword_all_hives(
                 _USER_VOICE_ACTIVATION,
                 "AgentActivationLastUsed", 0, logger)
+            # Wake-word/voice activation off (RegiLattice Cortana)
+            set_user_dword_all_hives(
+                r"Software\Microsoft\Speech_OneCore\Preferences",
+                "VoiceActivationOn", 0, logger)
             # WinToolify diff: Explorer "AI actions" context-menu group
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\Explorer",
                                "HideAIActionsMenu", 1)
@@ -2148,6 +2162,80 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             # AppCompat engine + User-Access-Reporting off (ReviOS app-compat.yml)
             set_registry_dword("HKLM", appc, "DisableEngine", 1)
             set_registry_dword("HKLM", appc, "DisableUAR", 1)
+            # AppCompat UA-automation + property-page shim off (RegiLattice)
+            set_registry_dword("HKLM", appc, "DisableUACompleteAutomation", 1)
+            set_registry_dword("HKLM", appc, "DisablePropPageShim", 1)
+            # Device Census hardware/software inventory task off via policy
+            # + OneDrive sync diagnostics off (RegiLattice DataCollection)
+            dcol = r"SOFTWARE\Policies\Microsoft\Windows\DataCollection"
+            set_registry_dword("HKLM", dcol, "DisableDeviceCensus", 1)
+            set_registry_dword("HKLM", dcol, "DisableOneDriveSyncDiagnostics", 1)
+            # Handwriting/input personalization upload surfaces
+            # (RegiLattice Privacy/Input — policy kills only)
+            ipz = r"SOFTWARE\Policies\Microsoft\InputPersonalization"
+            for v in ("AllowHandwritingErrorReports", "AllowInputDataUpload",
+                      "AllowInkRecognitionLearning",
+                      "AllowInkingAndTypingPersonalization"):
+                set_registry_dword("HKLM", ipz, v, 0)
+            tip = r"SOFTWARE\Policies\Microsoft\Windows\TextInput"
+            for v in ("AllowHandwritingLMUpdate",
+                      "AllowHandwritingPersonalizationUpload",
+                      "AllowIMENetworkAccess",
+                      "AllowHardwareKeyboardTextSuggestions"):
+                set_registry_dword("HKLM", tip, v, 0)
+            ime = r"SOFTWARE\Policies\Microsoft\Windows\IME"
+            set_registry_dword("HKLM", ime, "AllowIMETelemetry", 0)
+            set_registry_dword("HKLM", ime, "AllowCloudCandidates", 0)
+            # Clipboard AI suggested-actions + Copilot clipboard/screen
+            # access off (RegiLattice PolicyCloudClipboard/PolicyAI)
+            set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\System",
+                               "AllowClipboardSuggestedActions", 0)
+            set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\System",
+                               "AllowCopilotClipboardAccess", 0)
+            set_registry_dword(
+                "HKLM", r"SOFTWARE\Policies\Microsoft\Windows\AI\Copilot",
+                "AllowCopilotScreenAccess", 0)
+            # Copilot first-run nag + history cloud-sync off (RegiLattice
+            # CopilotSidebar — WindowsCopilot policy key)
+            wcp = r"SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot"
+            set_registry_dword("HKLM", wcp, "SuppressCopilotFirstRun", 1)
+            set_registry_dword("HKLM", wcp, "BlockCopilotHistorySync", 1)
+            # Speech-recognition language telemetry off (RegiLattice
+            # LanguageOptions)
+            set_registry_dword(
+                "HKLM", r"SOFTWARE\Policies\Microsoft\Windows\LanguageOptions",
+                "SpeechRecognitionTelemetryEnabled", 0)
+            # Crash-dump storage telemetry off (RegiLattice)
+            set_registry_dword(
+                "HKLM", r"SYSTEM\CurrentControlSet\Control\CrashControl",
+                "StorageTelemetryEnabled", 0)
+            # Typing-pattern telemetry upload off (RegiLattice
+            # SpellingAndTyping policy)
+            set_registry_dword(
+                "HKLM", r"SOFTWARE\Policies\Microsoft\Windows\SpellingAndTyping",
+                "TypingDataCollectionEnabled", 0)
+            # SysMain memory-usage telemetry reports off (RegiLattice —
+            # service stays demand-start, telemetry path only)
+            set_registry_dword(
+                "HKLM", r"SOFTWARE\Policies\Microsoft\Windows\SuperFetch",
+                "SuperFetchDisableTelemetry", 1)
+            # AI data-analysis kill (TurnOff* sibling of DisableAIDataAnalysis)
+            set_registry_dword(
+                "HKLM", r"SOFTWARE\Policies\Microsoft\Windows\WindowsAI",
+                "TurnOffAIDataAnalysis", 1)
+            # Scripted diagnostics upload off (RegiLattice)
+            set_registry_dword(
+                "HKLM", r"SOFTWARE\Policies\Microsoft\Windows\ScriptedDiagnostics",
+                "AllowDiagnosticDataUpload", 0)
+            # GameDVR achievement-sharing + streaming-upload surfaces
+            # (RegiLattice — capture policies untouched)
+            dvr = r"SOFTWARE\Policies\Microsoft\Windows\GameDVR"
+            set_registry_dword("HKLM", dvr, "AllowAchievementSharing", 0)
+            set_registry_dword("HKLM", dvr, "AllowGameStreamingUpload", 0)
+            # SMS/message cloud backup off (RegiLattice — Messaging policy)
+            set_registry_dword(
+                "HKLM", r"SOFTWARE\Policies\Microsoft\Windows\Messaging",
+                "AllowMessageBackup", 0)
             # 24H2 app-inventory collectors: API sampling / app footprint /
             # Win32 backup scan (Qiita 24H2 new-policy list; DisableAPISamping
             # is Microsoft's literal ADMX spelling)
@@ -2497,6 +2585,12 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "HKLM", wcm + r"\features", "WiFiSenseCredShared", 0)
             set_registry_dword("HKLM", wcm + r"\config",
                                "AutoConnectAllowedOEM", 0)
+            # Wi-Fi profile sync to MS cloud off + hotspot sharing off
+            # (RegiLattice wificonn)
+            set_registry_dword("HKLM", wcm + r"\config",
+                               "WiFiConfigSyncDisabled", 1)
+            set_registry_dword("HKLM", wcm + r"\config",
+                               "WiFiSharingEnabled", 0)
             wifi = r"SOFTWARE\Microsoft\PolicyManager\default\WiFi"
             for p in ("AllowAutoConnectToWiFiSenseHotspots",
                       "AllowWiFiHotSpotReporting"):

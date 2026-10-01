@@ -2,6 +2,53 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.60.5-mvp: RegiLattice privacy/AI policy diff
+
+### Added
+- `DisableTelemetry` +26 registry writes (RegiLattice 7,718-tweak diff —
+  policy kills only, capture/functional surfaces untouched):
+  - Input/handwriting upload surfaces: `AllowHandwritingErrorReports`,
+    `AllowInputDataUpload`, `AllowInkRecognitionLearning`,
+    `AllowInkingAndTypingPersonalization` (InputPersonalization policy),
+    `AllowHandwritingLMUpdate`, `AllowHandwritingPersonalizationUpload`,
+    `AllowIMENetworkAccess`, `AllowHardwareKeyboardTextSuggestions`
+    (TextInput policy), `AllowIMETelemetry` + `AllowCloudCandidates`
+    (IME policy), `TypingDataCollectionEnabled` (SpellingAndTyping
+    policy), `SpeechRecognitionTelemetryEnabled` (LanguageOptions
+    policy), per-user `VoiceActivationOn` (Speech_OneCore\Preferences)
+  - Copilot AI surfaces: `AllowCopilotClipboardAccess` +
+    `AllowClipboardSuggestedActions` (System policy),
+    `AllowCopilotScreenAccess` (AI\Copilot policy),
+    `SuppressCopilotFirstRun` + `BlockCopilotHistorySync`
+    (WindowsCopilot policy), `TurnOffAIDataAnalysis` (WindowsAI policy)
+  - Collection pipelines: `DisableDeviceCensus` +
+    `DisableOneDriveSyncDiagnostics` (DataCollection),
+    `DisableUACompleteAutomation` + `DisablePropPageShim` (AppCompat),
+    `StorageTelemetryEnabled` (CrashControl),
+    `SuperFetchDisableTelemetry` (SuperFetch),
+    `AllowDiagnosticDataUpload` (ScriptedDiagnostics),
+    `AllowMessageBackup` (Messaging), `WiFiConfigSyncDisabled` +
+    `WiFiSharingEnabled` (WcmSvc config), `AllowAchievementSharing` +
+    `AllowGameStreamingUpload` (GameDVR)
+- `BackupKeyPaths`/`_BACKUP_KEY_PATHS` +9 HKLM paths covering the new
+  policy keys; `UserBackupKeyPaths`/`_USER_BACKUP_KEY_PATHS`
+  +`Software\Microsoft\Speech_OneCore\Preferences`
+
+## [Unreleased] — v1.60.4-mvp: eplord/Win-Debloat7 diff
+
+### Added
+- `DisableCopilot` +`ComposeInlineEnabled` Edge-policy kill and 8 new
+  telemetry/ad hosts (MSN/CDN + ads groups)
+
+## [Unreleased] — v1.60.3-mvp: builtbybel/CrapFixer diff
+
+### Added
+- Ask-Copilot CLSID shell-extension block (`{CB3B0003-...}`) in
+  `DisableCopilot`; Clipchamp CLSID block in
+  `DisableConsumerExperiences`; per-user `ActivityHistoryEnabled`=0
+  under the Privacy timeline path; 3 package-name stubs;
+  `BackupKeyPaths` +`Shell Extensions\Blocked`
+
 ## [Unreleased] — v1.60.2-mvp: post-merge review remediation + Edge policies
 
 ### Fixed

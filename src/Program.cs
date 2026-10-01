@@ -2423,6 +2423,8 @@ public static class RegistryGuard
             SetUserDwordAllHives(UserVoiceActivationPath, "AgentActivationEnabled", 0);
             SetUserDwordAllHives(UserVoiceActivationPath, "AgentActivationOnLockScreenEnabled", 0);
             SetUserDwordAllHives(UserVoiceActivationPath, "AgentActivationLastUsed", 0);
+            // Wake-word/voice activation off (RegiLattice Cortana)
+            SetUserDwordAllHives(@"Software\Microsoft\Speech_OneCore\Preferences", "VoiceActivationOn", 0);
             using (var expAi = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                 @"SOFTWARE\Policies\Microsoft\Windows\Explorer"))
                 expAi?.SetValue("HideAIActionsMenu", 1, Microsoft.Win32.RegistryValueKind.DWord);
@@ -2896,12 +2898,119 @@ public static class RegistryGuard
                 // (ReviOS app-compat.yml)
                 ac?.SetValue("DisableEngine", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 ac?.SetValue("DisableUAR", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // AppCompat UA-automation + property-page shim off
+                // (RegiLattice)
+                ac?.SetValue("DisableUACompleteAutomation", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                ac?.SetValue("DisablePropPageShim", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            {
+                // Device Census inventory task + OneDrive sync diagnostics
+                // off (RegiLattice DataCollection)
+                using var dcol = Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\DataCollection", true);
+                dcol?.SetValue("DisableDeviceCensus", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                dcol?.SetValue("DisableOneDriveSyncDiagnostics", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            {
+                // Handwriting/input personalization upload surfaces
+                // (RegiLattice Privacy/Input)
+                using var ipz = Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\InputPersonalization", true);
+                ipz?.SetValue("AllowHandwritingErrorReports", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                ipz?.SetValue("AllowInputDataUpload", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                ipz?.SetValue("AllowInkRecognitionLearning", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                ipz?.SetValue("AllowInkingAndTypingPersonalization", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                using var tip = Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\TextInput", true);
+                tip?.SetValue("AllowHandwritingLMUpdate", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                tip?.SetValue("AllowHandwritingPersonalizationUpload", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                tip?.SetValue("AllowIMENetworkAccess", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                tip?.SetValue("AllowHardwareKeyboardTextSuggestions", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                using var ime = Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\IME", true);
+                ime?.SetValue("AllowIMETelemetry", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                ime?.SetValue("AllowCloudCandidates", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            {
+                // Clipboard AI actions + Copilot clipboard/screen access
+                // off (RegiLattice PolicyCloudClipboard/PolicyAI)
+                using var sysk = Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\System", true);
+                sysk?.SetValue("AllowClipboardSuggestedActions", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                sysk?.SetValue("AllowCopilotClipboardAccess", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                using var aic = Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\AI\Copilot", true);
+                aic?.SetValue("AllowCopilotScreenAccess", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            {
+                // Copilot first-run nag + history cloud-sync off
+                // (RegiLattice CopilotSidebar)
+                using var wc = Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot", true);
+                wc?.SetValue("SuppressCopilotFirstRun", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                wc?.SetValue("BlockCopilotHistorySync", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            {
+                // Speech-recognition language telemetry off
+                // (RegiLattice LanguageOptions)
+                using var lo = Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\LanguageOptions", true);
+                lo?.SetValue("SpeechRecognitionTelemetryEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            {
+                // Crash-dump storage telemetry off (RegiLattice)
+                using var cc = Registry.LocalMachine.CreateSubKey(
+                    @"SYSTEM\CurrentControlSet\Control\CrashControl", true);
+                cc?.SetValue("StorageTelemetryEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            {
+                // Typing-pattern telemetry upload off (RegiLattice
+                // SpellingAndTyping)
+                using var st = Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\SpellingAndTyping", true);
+                st?.SetValue("TypingDataCollectionEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            {
+                // SysMain memory-usage telemetry reports off (RegiLattice —
+                // service stays demand-start)
+                using var sf = Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\SuperFetch", true);
+                sf?.SetValue("SuperFetchDisableTelemetry", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            {
+                // AI data-analysis kill (TurnOff* sibling of
+                // DisableAIDataAnalysis)
+                using var ai = Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\WindowsAI", true);
+                ai?.SetValue("TurnOffAIDataAnalysis", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            {
+                // Scripted diagnostics upload off (RegiLattice)
+                using var sd = Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\ScriptedDiagnostics", true);
+                sd?.SetValue("AllowDiagnosticDataUpload", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            {
+                // GameDVR achievement-sharing + streaming-upload surfaces
+                // (RegiLattice — capture policies untouched)
+                using var dv = Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\GameDVR", true);
+                dv?.SetValue("AllowAchievementSharing", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                dv?.SetValue("AllowGameStreamingUpload", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            {
+                // SMS/message cloud backup off (RegiLattice Messaging)
+                using var mg = Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\Messaging", true);
+                mg?.SetValue("AllowMessageBackup", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            {
                 // 24H2 app-inventory collectors: API sampling / app footprint /
                 // Win32 backup scan (DisableAPISamping is Microsoft's literal
                 // ADMX spelling)
                 ac?.SetValue("DisableAPISamping", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 ac?.SetValue("DisableApplicationFootprint", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 ac?.SetValue("DisableWin32AppBackup", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            }
             }
             catch { }
             // CEIP stragglers + EventViewer online links + help-sticker +
@@ -3252,6 +3361,10 @@ public static class RegistryGuard
             using var wcmc = Registry.LocalMachine.CreateSubKey(
                 @"SOFTWARE\Microsoft\WcmSvc\wifinetworkmanager\config", true);
             wcmc?.SetValue("AutoConnectAllowedOEM", 0, RegistryValueKind.DWord);
+            // Wi-Fi profile sync to MS cloud off + hotspot sharing off
+            // (RegiLattice wificonn)
+            wcmc?.SetValue("WiFiConfigSyncDisabled", 1, RegistryValueKind.DWord);
+            wcmc?.SetValue("WiFiSharingEnabled", 0, RegistryValueKind.DWord);
             foreach (var p in new[] { "AllowAutoConnectToWiFiSenseHotspots",
                     "AllowWiFiHotSpotReporting" })
             {
@@ -4178,6 +4291,15 @@ public static class RegistryGuard
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Lxss",
         @"SOFTWARE\Policies\Microsoft\FVE",
         @"SOFTWARE\Policies\Microsoft\Windows\GameDVR",
+        @"SOFTWARE\Policies\Microsoft\InputPersonalization",
+        @"SOFTWARE\Policies\Microsoft\Windows\TextInput",
+        @"SOFTWARE\Policies\Microsoft\Windows\IME",
+        @"SOFTWARE\Policies\Microsoft\Windows\AI\Copilot",
+        @"SOFTWARE\Policies\Microsoft\Windows\LanguageOptions",
+        @"SYSTEM\CurrentControlSet\Control\CrashControl",
+        @"SOFTWARE\Policies\Microsoft\Windows\SpellingAndTyping",
+        @"SOFTWARE\Policies\Microsoft\Windows\SuperFetch",
+        @"SOFTWARE\Policies\Microsoft\Windows\ScriptedDiagnostics",
         @"SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization",
         @"SOFTWARE\Policies\Microsoft\Windows\OneDrive",
         @"SOFTWARE\Microsoft\Windows\Windows Error Reporting",
@@ -4337,6 +4459,7 @@ public static class RegistryGuard
         @"Software\Microsoft\Personalization\Settings",
         @"Software\Microsoft\Siuf\Rules",
         @"Software\Microsoft\Speech_OneCore\Settings\OnlineSpeechPrivacy",
+        @"Software\Microsoft\Speech_OneCore\Preferences",
         @"Software\Microsoft\Speech_OneCore\Settings\VoiceActivation\UserPreferenceForAllApps",
         @"Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo",
         @"Software\Microsoft\Windows\CurrentVersion\CDP",
@@ -5650,7 +5773,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.60.1-mvp");
+                    Console.WriteLine("BloatwareGuard v1.60.5-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -5739,7 +5862,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.60.1-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.60.5-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -5998,8 +6121,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 8;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.60.1-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.60.1-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.60.5-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.60.5-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try

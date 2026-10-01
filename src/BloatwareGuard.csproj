@@ -15,7 +15,7 @@
     <RootNamespace>BloatwareGuard</RootNamespace>
     <AssemblyName>BloatwareGuard</AssemblyName>
     <Version>1.60.1</Version>
-    <InformationalVersion>1.60.1-mvp</InformationalVersion>
+    <InformationalVersion>1.60.5-mvp</InformationalVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 
