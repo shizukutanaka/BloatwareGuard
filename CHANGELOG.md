@@ -241,6 +241,10 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   Recall snapshot/pipeline scheduler kills consistent with the
   existing Recall policy denies
 
+- `DEFAULT_BLACKLIST` +2 (190→192, win-debloat-tools diff):
+  `RandomSaladGamesLLC.` + `SAMSUNGELECTRONICSCO.LTD.` — casual-game
+  and Samsung store stub publisher namespaces
+
 ## [Unreleased] — v1.60.7-mvp: tomytate/Win-Debloat full sweep + docs sync
 
 - DisableSpotlight: hides the "Learn about this picture" desktop

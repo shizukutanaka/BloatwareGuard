@@ -163,6 +163,8 @@ DEFAULT_BLACKLIST = [
     "D52A8D61.",   # FarmVille stubs
     "DB6EA5DB.",   # CyberLink stubs
     "NORDCURRENT.",  # CookingFever-family stubs,
+    # Win-Debloat-Tools list — Samsung store stubs + RandomSalad game stubs
+    "RandomSaladGamesLLC.", "SAMSUNGELECTRONICSCO.LTD.",
     "Playtika.",      # casino-game stubs (Caesars Slots)
     "ThumbmunkeysLtd.",  # Phototastic Collage stub
     "DolbyAccess",    # Dolby Atmos trial console (OEM push)
