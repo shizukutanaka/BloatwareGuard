@@ -205,6 +205,9 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   Profile HiveUploadTask — all named tasks only (folder-wide
   kills avoided since they hit functional tasks)
 
+- `BlockTelemetryEndpoints` +`sqm.ppe.telemetry.microsoft.com`
+  (506→507 — SQM pre-production endpoint; RyTuneX hosts diff)
+
 ## [Unreleased] — v1.60.7-mvp: tomytate/Win-Debloat full sweep + docs sync
 
 - DisableSpotlight: hides the "Learn about this picture" desktop
