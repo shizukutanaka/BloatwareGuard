@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.60.5-mvp - Python prototype
+BloatwareGuard v1.60.6-mvp - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -36,7 +36,7 @@ from typing import Dict, List, Set, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.60.5-mvp"
+APP_VERSION = "1.60.6-mvp"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -1169,6 +1169,8 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Policies\Microsoft\FindMyDevice",
     r"SOFTWARE\Policies\Microsoft\Windows\SettingSync",
     r"SOFTWARE\Policies\Microsoft\Windows\WindowsBackup",
+    r"SOFTWARE\Policies\Microsoft\Windows\Backup",
+    r"SOFTWARE\Policies\Microsoft\Windows\BITS",
     r"SOFTWARE\Policies\Microsoft\Windows NT\Rpc",
     r"SOFTWARE\Policies\Microsoft\Windows\Kernel DMA Protection",
     r"SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management",
@@ -1634,6 +1636,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "HKLM",
                 r"SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\PushNotifications",
                 "NoCloudApplicationNotification", 1)
+            # BITS download-status toasts off (RegiLattice v6.35.0)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Policies\Microsoft\Windows\BITS",
+                "DisableBITSNotification", 1)
             # Mark forced new-Outlook/DevHome pushes as already delivered so
             # Windows Update does not re-ship them (tiny11builder)
             for sched in ("UScheduler", "UScheduler_Oobe"):
@@ -2008,6 +2015,8 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                                "DisableWebSearch", 1)
             # Dynamic web content inside the search box itself (Atlas)
             set_registry_dword("HKLM", search_pol, "EnableDynamicContentInWSB", 0)
+            # Hard kill for web results in search (RegiLattice v6.35.0)
+            set_registry_dword("HKLM", search_pol, "DoNotUseWebResults", 1)
             # Connected-search web results + global web-search provider
             # toggle + Bing-as-provider registration (noid-privacy)
             set_registry_dword("HKLM", search_pol, "ConnectedSearchUseWeb", 0)
@@ -2575,6 +2584,8 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                          ("DisableAppSyncSettingSyncUserOverride", 1),
                          ("DisableWindowsSettingSyncUserOverride", 1)):
                 set_registry_dword("HKLM", ss, n, v)
+            # Device-level sync override kill (RegiLattice v6.35.0)
+            set_registry_dword("HKLM", ss, "DisableSettingSyncDeviceOverride", 1)
             # Text-input linguistic data collection + Bluetooth device
             # advertising off (hellzerg/Optimizer privacy diff)
             set_registry_dword(
@@ -2653,6 +2664,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "HKLM",
                 r"SOFTWARE\Policies\Microsoft\Windows\WindowsBackup",
                 "DisableBackupUI", 1)
+            # Cloud-backup + nag-notification policy kills (RegiLattice v6.35.0)
+            bkup = r"SOFTWARE\Policies\Microsoft\Windows\Backup"
+            set_registry_dword("HKLM", bkup, "DisableCloudBackup", 1)
+            set_registry_dword("HKLM", bkup, "DisableBackupNotifications", 1)
             # Windows Backup nag notifications off per user (SysAdminDoc)
             set_user_dword_all_hives(
                 r"Software\Microsoft\Windows\CurrentVersion\WindowsBackup",

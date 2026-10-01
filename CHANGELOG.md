@@ -2,6 +2,27 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.60.6-mvp: RegiLattice v6.35.0 policy diff
+
+### Added
+- `DisableSearchSuggestions` +`DoNotUseWebResults`=1 (Windows Search
+  policy — hard kill for web results below the Bing/suggestion
+  switches)
+- `BlockProvisioning` +`DisableBITSNotification`=1 (BITS policy —
+  download-status toasts off)
+- `DisableTelemetry`/`SettingSync` block +`DisableSettingSyncDeviceOverride`=1
+  (device-level sync override kill alongside the per-user overrides)
+- `DisableTelemetry`/Windows-Backup block +`DisableCloudBackup`=1 +
+  `DisableBackupNotifications`=1 (`Policies\Microsoft\Windows\Backup` —
+  cloud-backup + nag-notification policy kills)
+- `BackupKeyPaths`/`_BACKUP_KEY_PATHS` +`Policies\Microsoft\Windows\Backup`
+  +`Policies\Microsoft\Windows\BITS`
+
+(Skipped from the same diff: Office/Outlook/Adobe/Java/Firefox/VSCode
+vendor values, RDP/Terminal-Server `f*` redirects, Defender/ATP and
+NTLM/credential-delegation hardening, print-restore kills, gaze/dwell
+accessibility toggles, WU/DO bandwidth and deferral policies.)
+
 ## [Unreleased] — v1.60.5-mvp: RegiLattice privacy/AI policy diff
 
 ### Added

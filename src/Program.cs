@@ -2301,6 +2301,12 @@ public static class RegistryGuard
             {
                 push?.SetValue("NoCloudApplicationNotification", 1, Microsoft.Win32.RegistryValueKind.DWord);
             }
+            // BITS download-status toasts off (RegiLattice v6.35.0)
+            using (var bits = Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Policies\Microsoft\Windows\BITS", true))
+            {
+                bits?.SetValue("DisableBITSNotification", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            }
             // Mark forced new-Outlook/DevHome pushes as already delivered so
             // Windows Update does not re-ship them (tiny11builder)
             foreach (var sched in new[] { "UScheduler", "UScheduler_Oobe" })
@@ -2675,6 +2681,8 @@ public static class RegistryGuard
             key?.SetValue("AllowCloudSearch", 0, Microsoft.Win32.RegistryValueKind.DWord);
             // Dynamic web content inside the search box itself (Atlas)
             key?.SetValue("EnableDynamicContentInWSB", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // Hard kill for web results in search (RegiLattice v6.35.0)
+            key?.SetValue("DoNotUseWebResults", 1, Microsoft.Win32.RegistryValueKind.DWord);
             // Connected-search web results (noid-privacy)
             key?.SetValue("ConnectedSearchUseWeb", 0, Microsoft.Win32.RegistryValueKind.DWord);
 
@@ -3336,6 +3344,8 @@ public static class RegistryGuard
                 ss?.SetValue("DisableAppSyncSettingSync", 2, Microsoft.Win32.RegistryValueKind.DWord);
                 ss?.SetValue("DisableAppSyncSettingSyncUserOverride", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 ss?.SetValue("DisableWindowsSettingSyncUserOverride", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // Device-level sync override kill (RegiLattice v6.35.0)
+                ss?.SetValue("DisableSettingSyncDeviceOverride", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 ForEachUserHive(hive =>
                 {
                     SetHiveDword(hive, @"Software\Microsoft\Windows\CurrentVersion\SettingSync", "SyncPolicy", 5);
@@ -3409,6 +3419,12 @@ public static class RegistryGuard
                 using var wbui = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Windows\WindowsBackup");
                 wbui?.SetValue("DisableBackupUI", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // Cloud-backup + nag-notification policy kills
+                // (RegiLattice v6.35.0)
+                using var bkup = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\Backup");
+                bkup?.SetValue("DisableCloudBackup", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                bkup?.SetValue("DisableBackupNotifications", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 // Windows Backup nag notifications off per user (SysAdminDoc)
                 SetUserDwordAllHives(
                     @"Software\Microsoft\Windows\CurrentVersion\WindowsBackup",
@@ -4328,6 +4344,8 @@ public static class RegistryGuard
         @"SYSTEM\CurrentControlSet\Control\Remote Assistance",
         @"SOFTWARE\Policies\Microsoft\Windows\PreviewBuilds",
         @"SOFTWARE\Policies\Microsoft\Windows\WindowsBackup",
+        @"SOFTWARE\Policies\Microsoft\Windows\Backup",
+        @"SOFTWARE\Policies\Microsoft\Windows\BITS",
         @"SOFTWARE\Policies\Microsoft\Windows NT\Rpc",
         @"SOFTWARE\Policies\Microsoft\Windows\Kernel DMA Protection",
         @"SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management",
@@ -5790,7 +5808,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.60.5-mvp");
+                    Console.WriteLine("BloatwareGuard v1.60.6-mvp");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -5879,7 +5897,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.60.5-mvp — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.60.6-mvp — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -6138,8 +6156,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 8;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.60.5-mvp — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.60.5-mvp — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.60.6-mvp — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.60.6-mvp — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try
