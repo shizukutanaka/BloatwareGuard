@@ -1253,6 +1253,9 @@ _MISC_DEMOTE_SERVICES = (
     # Intel Dynamic Tuning telemetry + Innovation Platform Framework
     # service (vendor telemetry — coolvitto 25H2 service list)
     "dptftcs", "ipfsvc",
+    # Copilot Elevation Service — lets the Copilot app request elevated
+    # operations (zoicware/RemoveWindowsAI; demoted, not deleted)
+    "MicrosoftCopilotElevationService",
     "PushToInstall", "SEMgrSvc", "PhoneSvc",
     "utcsvc",                 # Connected User Experiences and Telemetry
                               # (DiagTrack companion — registry demote works
@@ -1926,6 +1929,13 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             # cocreator/image-creator, Photos AI features
             set_user_dword_all_hives(
                 r"Software\Microsoft\Notepad", "EnableCowriter", 0, logger)
+            # Notepad "Rewrite" AI opt-out + Photos super-resolution
+            # (tomytate/Win-Debloat Privacy) — per-user app preferences
+            set_user_dword_all_hives(
+                r"Software\Microsoft\Notepad", "DisableAIRewrite", 1, logger)
+            set_user_dword_all_hives(
+                r"Software\Microsoft\Windows\CurrentVersion\Photos",
+                "DisableSuperResolution", 1, logger)
             _paint_user = r"Software\Microsoft\Paint"
             for _v in ("EnableCocreator", "EnableImageCreator",
                        "CocreatorEnabled", "ImageCreatorEnabled",

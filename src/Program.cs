@@ -2571,6 +2571,11 @@ public static class RegistryGuard
                 // App-level AI toggles (WinRice): Notepad cowriter, Paint
                 // cocreator/image-creator, Photos AI features
                 SetHiveDword(hive, @"Software\Microsoft\Notepad", "EnableCowriter", 0);
+                // Notepad "Rewrite" AI opt-out + Photos super-resolution
+                // (tomytate/Win-Debloat Privacy) — per-user app preferences
+                SetHiveDword(hive, @"Software\Microsoft\Notepad", "DisableAIRewrite", 1);
+                SetHiveDword(hive, @"Software\Microsoft\Windows\CurrentVersion\Photos",
+                    "DisableSuperResolution", 1);
                 SetHiveDword(hive, @"Software\Microsoft\Paint", "EnableCocreator", 0);
                 SetHiveDword(hive, @"Software\Microsoft\Paint", "EnableImageCreator", 0);
                 // Alternate Paint AI toggle names (win-debloat/Debloat-Win11)
@@ -4887,6 +4892,9 @@ public static class RegistryGuard
         // Intel Dynamic Tuning telemetry + Innovation Platform
         // Framework service (vendor telemetry — coolvitto 25H2 list)
         "dptftcs", "ipfsvc",
+    // Copilot Elevation Service — lets the Copilot app request elevated
+    // operations (zoicware/RemoveWindowsAI; demoted, not deleted)
+    "MicrosoftCopilotElevationService",
         "PushToInstall", "SEMgrSvc", "PhoneSvc",
         // Connected User Experiences and Telemetry — DiagTrack companion;
         // registry demote works where sc config is refused

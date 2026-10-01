@@ -81,6 +81,11 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 - DisableEdgeBloat +`EnableUnsafeSwiftShader`=0 (documented Edge
   policy — kills the software WebGL/WebGPU renderer attack surface)
 
+- per-user AI toggles (win-debloat Privacy): `DisableAIRewrite`=1
+  (Notepad Rewrite) + `DisableSuperResolution`=1 (Photos AI)
+- `MicrosoftCopilotElevationService` demoted — Copilot app's
+  elevation channel (zoicware/RemoveWindowsAI; demote not delete)
+
 ## [Unreleased] — v1.60.7-mvp: tomytate/Win-Debloat full sweep + docs sync
 
 - DisableSpotlight: hides the "Learn about this picture" desktop
