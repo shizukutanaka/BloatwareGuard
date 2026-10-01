@@ -73,6 +73,40 @@ accessibility toggles, WU/DO bandwidth and deferral policies.)
     firewall blocks — hostnames preferred; CDPUserSvc Start=4 —
     demote-to-Manual already covers it)
 
+- fortify + mxk/windows-secure-group-policy diffs (GDStudiosDev/fortify,
+  mxk/windows-secure-group-policy Win11.PolicyRules — 525-entry 25H2
+  baseline):
+  - `DisableTelemetryTasks` +9: `WindowsAI\ClickToDo\ModelCachingIdle`/
+    `ModelCachingLimit`/`ModelCachingUpdate`,
+    `WindowsAI\Settings\InitialConfiguration`,
+    `Flighting\FeatureConfig\UsageDataFlushing`/`UsageDataReceiver`/
+    `GovernedFeatureUsageProcessing`, `PerformanceTrace\ShowFeedbackToast`,
+    `Sustainability\SustainabilityTelemetry`
+  - `MarkDeprovisioned` now also writes `AppxAllUserStore\EndOfLife`
+    markers (the EOL flag Windows uses for retired inbox apps — the
+    Store declines reinstall)
+  - `DisableTelemetry` +11 (mxk documented-policy diff): legacy
+    name-resolution/discovery broadcast kills — `DNSClient\EnableNetbios`=0,
+    `Bowser`/`NetworkProvider` `EnableMailslots`=0, `LLTD`
+    `AllowLLTDIOOnPublicNet`/`AllowRspndrOnPublicNet`=0 +
+    `ProhibitLLTDIOOnPrivateNet`/`ProhibitRspndrOnPrivateNet`=1 —
+    plus `AppCompat\DisableInstallTracing`=1, WinHTTP-layer
+    `DisableWpad`=1, `MicrosoftEdgeDataOptIn`=0, OneDrive
+    `PreventNetworkTrafficPreUserSignIn`=1
+  - `DisableSearchSuggestions` +`NoWebServices`/`NoInternetOpenWith`=1
+    (shell web-service + open-with online lookup promo)
+  - `DisableSpotlight` +`LockScreenOverlaysDisabled`=1, `AllowOnlineTips`=0,
+    `HideRecommendedPersonalizedSites`=1
+  - `BackupKeyPaths` +`EndOfLife`, `WinHttp`, `Bowser`, `LLTD`,
+    `NetworkProvider`, `Microsoft\OneDrive`
+  - (Skipped: non-standard `PackageRemovalPolicies` node — the
+    documented mechanism is `RemoveDefaultMicrosoftStorePackages` and
+    already covered; Kerberos/PKINIT, CredSSP, Defender, Firewall,
+    WinRM, RDP, FVE, SMB-signing, WU policy, IPv6 transition, LSA PPL,
+    printer PointAndPrint, NTP, event-log sizing, mailslot-adjacent
+    admin controls, Edge autofill/password-manager vendor prefs,
+    Firefox policies, `SbEnable`/dead-feature names)
+
 ## [Unreleased] — v1.60.5-mvp: RegiLattice privacy/AI policy diff
 
 ### Added

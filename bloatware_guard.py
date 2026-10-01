@@ -1106,6 +1106,8 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Policies\Microsoft\Windows\AppPrivacy",
     r"SOFTWARE\Policies\Microsoft\WindowsInkWorkspace",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\Deprovisioned",
+    r"SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\EndOfLife",
+    r"SOFTWARE\Microsoft\OneDrive",
     r"SOFTWARE\Microsoft\Windows\Shell\Copilot",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Search",
     r"SOFTWARE\NVIDIA Corporation\Global\FTS",
@@ -1135,9 +1137,13 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Policies\Microsoft\PCHealth\ErrorReporting",
     r"SOFTWARE\Policies\Microsoft\PCHealth\HelpSvc",
     r"SOFTWARE\Policies\Microsoft\Speech",
+    r"SOFTWARE\Microsoft\Windows\CurrentVersion\Internet Settings\WinHttp",
     r"SOFTWARE\Policies\Microsoft\Windows NT\DNSClient",
+    r"SOFTWARE\Policies\Microsoft\Windows\Bowser",
     r"SOFTWARE\Policies\Microsoft\Windows\DeviceInstall\Settings",
+    r"SOFTWARE\Policies\Microsoft\Windows\LLTD",
     r"SOFTWARE\Policies\Microsoft\Windows\Messaging",
+    r"SOFTWARE\Policies\Microsoft\Windows\NetworkProvider",
     r"SOFTWARE\Policies\Microsoft\Windows\WDI\{9C5A40DA-B965-4FC3-8781-88DD50A6299D}",
     r"SOFTWARE\Policies\WindowsNotepad",
     r"SYSTEM\CurrentControlSet\Control\Diagnostics\Performance",
@@ -2036,6 +2042,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword("HKLM", search_pol, "EnableDynamicContentInWSB", 0)
             # Hard kill for web results in search (RegiLattice v6.35.0)
             set_registry_dword("HKLM", search_pol, "DoNotUseWebResults", 1)
+            # Shell web-service integration + "search online" open-with
+            # lookup promo (mxk — hard kill below the search policies)
+            xpol = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer"
+            set_registry_dword("HKLM", xpol, "NoWebServices", 1)
+            set_registry_dword("HKLM", xpol, "NoInternetOpenWith", 1)
             # Connected-search web results + global web-search provider
             # toggle + Bing-as-provider registration (noid-privacy)
             set_registry_dword("HKLM", search_pol, "ConnectedSearchUseWeb", 0)
@@ -2212,6 +2223,40 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             # AppCompat UA-automation + property-page shim off (RegiLattice)
             set_registry_dword("HKLM", appc, "DisableUACompleteAutomation", 1)
             set_registry_dword("HKLM", appc, "DisablePropPageShim", 1)
+            # AppCompat install-activity tracing collector (mxk
+            # windows-secure-group-policy)
+            set_registry_dword("HKLM", appc, "DisableInstallTracing", 1)
+            # Legacy name-resolution/discovery broadcast surfaces — policy
+            # kills matching the demoted NetBT service + LLMNR block (mxk):
+            # NetBIOS at the DNS client, mailslots, LLTD responder + mapper
+            set_registry_dword(
+                "HKLM", r"SOFTWARE\Policies\Microsoft\Windows NT\DNSClient",
+                "EnableNetbios", 0)
+            set_registry_dword(
+                "HKLM", r"SOFTWARE\Policies\Microsoft\Windows\Bowser",
+                "EnableMailslots", 0)
+            set_registry_dword(
+                "HKLM", r"SOFTWARE\Policies\Microsoft\Windows\NetworkProvider",
+                "EnableMailslots", 0)
+            lltd = r"SOFTWARE\Policies\Microsoft\Windows\LLTD"
+            set_registry_dword("HKLM", lltd, "AllowLLTDIOOnPublicNet", 0)
+            set_registry_dword("HKLM", lltd, "ProhibitLLTDIOOnPrivateNet", 1)
+            set_registry_dword("HKLM", lltd, "AllowRspndrOnPublicNet", 0)
+            set_registry_dword("HKLM", lltd, "ProhibitRspndrOnPrivateNet", 1)
+            # WPAD off at the WinHTTP layer too — user-level AutoDetect=0
+            # does not reach the machine WinHTTP proxy resolver
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Microsoft\Windows\CurrentVersion\Internet Settings\WinHttp",
+                "DisableWpad", 1)
+            # Legacy Edge telemetry opt-in + OneDrive pre-sign-in traffic
+            # off (mxk — the OneDrive value restricts traffic, not sync)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
+                "MicrosoftEdgeDataOptIn", 0)
+            set_registry_dword("HKLM", r"SOFTWARE\Microsoft\OneDrive",
+                               "PreventNetworkTrafficPreUserSignIn", 1)
             # Device Census hardware/software inventory task off via policy
             # + OneDrive sync diagnostics off (RegiLattice DataCollection)
             dcol = r"SOFTWARE\Policies\Microsoft\Windows\DataCollection"
@@ -3386,6 +3431,15 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             # Enterprise Spotlight content off — inverse polarity (ledr)
             set_user_dword_all_hives(
                 cloud, "IncludeEnterpriseSpotlight", 0, logger)
+            # Lock-screen overlay promos + Settings online tips + Start
+            # recommended-sites promo (mxk group-policy diff)
+            set_registry_dword(
+                "HKLM", r"SOFTWARE\Policies\Microsoft\Windows\Personalization",
+                "LockScreenOverlaysDisabled", 1)
+            expol = r"SOFTWARE\Policies\Microsoft\Windows\Explorer"
+            set_registry_dword("HKLM", expol, "AllowOnlineTips", 0)
+            set_registry_dword("HKLM", expol,
+                               "HideRecommendedPersonalizedSites", 1)
             logger.info("Applied: DisableSpotlight "
                         "(DesktopSpotlight + wallpaper + per-hive CloudContent)")
 
@@ -3638,6 +3692,8 @@ def disable_startup_bloat(config: dict, logger: logging.Logger):
 
 _DEPROVISIONED_PATH = (r"SOFTWARE\Microsoft\Windows\CurrentVersion\Appx"
                        r"\AppxAllUserStore\Deprovisioned")
+_EOL_PATH = (r"SOFTWARE\Microsoft\Windows\CurrentVersion\Appx"
+             r"\AppxAllUserStore\EndOfLife")
 _REMOVE_DEFAULT_PKGS_PATH = (r"SOFTWARE\Policies\Microsoft\Windows\Appx"
                              r"\RemoveDefaultMicrosoftStorePackages")
 
@@ -3657,26 +3713,35 @@ def _provisioned_family(package_name: str, display_name: str) -> str:
 
 def mark_deprovisioned(family_names, logger: logging.Logger) -> int:
     """Write HKLM Deprovisioned markers for blacklisted families so feature
-    updates don't re-provision them (documented Windows behavior)."""
+    updates don't re-provision them (documented Windows behavior). Also mark
+    the families EndOfLife so the Store itself declines reinstall
+    (GDStudiosDev/fortify — the EOL marker Windows writes for retired inbox
+    apps like Cortana)."""
     import winreg
-    try:
-        base = winreg.CreateKeyEx(winreg.HKEY_LOCAL_MACHINE,
-                                  _DEPROVISIONED_PATH, 0, winreg.KEY_WRITE)
-    except OSError as e:
-        logger.warning(f"Deprovisioned markers: cannot open HKLM key ({e})")
-        return 0
+    bases = []
+    for path in (_DEPROVISIONED_PATH, _EOL_PATH):
+        try:
+            bases.append(winreg.CreateKeyEx(winreg.HKEY_LOCAL_MACHINE,
+                                            path, 0, winreg.KEY_WRITE))
+        except OSError as e:
+            logger.warning(f"Deprovisioned markers: cannot open HKLM key ({e})")
+            bases.append(None)
     marked = 0
     try:
         for family in family_names:
             try:
                 # CreateKey returns an open handle — close it or the service
                 # loop leaks a native registry handle every interval
-                winreg.CreateKey(base, family).Close()
+                for base in bases:
+                    if base is not None:
+                        winreg.CreateKey(base, family).Close()
                 marked += 1
             except OSError:
                 continue
     finally:
-        base.Close()
+        for base in bases:
+            if base is not None:
+                base.Close()
     return marked
 
 
@@ -4550,6 +4615,18 @@ TELEMETRY_TASK_PATHS = (
     "\\Microsoft\\Windows\\WindowsAI\\Recall\\InitialConfiguration",
     "\\Microsoft\\Windows\\WindowsAI\\Recall\\PolicyConfiguration",
     "\\Microsoft\\Office\\Office Actions Server",
+    # GDStudiosDev/fortify diff: ClickToDo model caching, WindowsAI
+    # settings init, flighting usage-data pipeline, perf-trace feedback
+    # toast, sustainability telemetry
+    "\\Microsoft\\Windows\\WindowsAI\\ClickToDo\\ModelCachingIdle",
+    "\\Microsoft\\Windows\\WindowsAI\\ClickToDo\\ModelCachingLimit",
+    "\\Microsoft\\Windows\\WindowsAI\\ClickToDo\\ModelCachingUpdate",
+    "\\Microsoft\\Windows\\WindowsAI\\Settings\\InitialConfiguration",
+    "\\Microsoft\\Windows\\Flighting\\FeatureConfig\\UsageDataFlushing",
+    "\\Microsoft\\Windows\\Flighting\\FeatureConfig\\UsageDataReceiver",
+    "\\Microsoft\\Windows\\Flighting\\FeatureConfig\\GovernedFeatureUsageProcessing",
+    "\\Microsoft\\Windows\\PerformanceTrace\\ShowFeedbackToast",
+    "\\Microsoft\\Windows\\Sustainability\\SustainabilityTelemetry",
 )
 
 

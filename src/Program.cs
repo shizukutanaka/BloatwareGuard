@@ -930,11 +930,15 @@ public static class AppxManager
 
     private const string DeprovisionedPath =
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\Deprovisioned";
+    private const string EndOfLifePath =
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\EndOfLife";
     private const string RemoveDefaultPkgsPath =
         @"SOFTWARE\Policies\Microsoft\Windows\Appx\RemoveDefaultMicrosoftStorePackages";
 
-    /// <summary>Write HKLM Deprovisioned markers for blacklisted families so
-    /// feature updates don't re-provision them (documented behavior).</summary>
+    /// <summary>Write HKLM Deprovisioned + EndOfLife markers for blacklisted
+    /// families so feature updates don't re-provision them and the Store
+    /// declines reinstall (documented behavior — the EOL marker Windows
+    /// writes for retired inbox apps; GDStudiosDev/fortify).</summary>
     public static int MarkDeprovisioned(IEnumerable<string> familyNames)
     {
         var marked = 0;
@@ -942,13 +946,14 @@ public static class AppxManager
         {
             using var baseKey = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                 DeprovisionedPath, writable: true);
-            if (baseKey == null)
-                return 0;
+            using var eolKey = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                EndOfLifePath, writable: true);
             foreach (var family in familyNames)
             {
                 try
                 {
-                    using var sub = baseKey.CreateSubKey(family);
+                    using var sub = baseKey?.CreateSubKey(family);
+                    using var eol = eolKey?.CreateSubKey(family);
                     marked++;
                 }
                 catch { }
@@ -2706,6 +2711,12 @@ public static class RegistryGuard
             {
                 SetHiveDword(hive, UserExplorerPoliciesPath, "DisableSearchBoxSuggestions", 1);
             });
+            // Shell web-service integration + "search online" open-with
+            // lookup promo (mxk group-policy diff)
+            using var webSvc = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                ExplorerPoliciesHklmPath);
+            webSvc?.SetValue("NoWebServices", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            webSvc?.SetValue("NoInternetOpenWith", 1, Microsoft.Win32.RegistryValueKind.DWord);
             // HKLM policy too — covers hive-creation edge cases
             using var expSearch = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(ExplorerPoliciesHklmPath);
             expSearch?.SetValue("DisableSearchBoxSuggestions", 1, Microsoft.Win32.RegistryValueKind.DWord);
@@ -2944,6 +2955,8 @@ public static class RegistryGuard
                 // (RegiLattice)
                 ac?.SetValue("DisableUACompleteAutomation", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 ac?.SetValue("DisablePropPageShim", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // AppCompat install-activity tracing collector (mxk)
+                ac?.SetValue("DisableInstallTracing", 1, Microsoft.Win32.RegistryValueKind.DWord);
             {
                 // Device Census inventory task + OneDrive sync diagnostics
                 // off (RegiLattice DataCollection)
@@ -2952,6 +2965,40 @@ public static class RegistryGuard
                 dcol?.SetValue("DisableDeviceCensus", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 dcol?.SetValue("DisableOneDriveSyncDiagnostics", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 dcol?.SetValue("DisableOneSettingsSyncDiag", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            {
+                // Legacy name-resolution/discovery broadcast surfaces —
+                // policy kills matching the demoted NetBT service + LLMNR
+                // block (mxk): NetBIOS at the DNS client, mailslots, LLTD
+                // responder + mapper
+                using var dnscl = Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows NT\DNSClient", true);
+                dnscl?.SetValue("EnableNetbios", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                using var bowser = Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\Bowser", true);
+                bowser?.SetValue("EnableMailslots", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                using var nprov = Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\NetworkProvider", true);
+                nprov?.SetValue("EnableMailslots", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                using var lltd = Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\LLTD", true);
+                lltd?.SetValue("AllowLLTDIOOnPublicNet", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                lltd?.SetValue("ProhibitLLTDIOOnPrivateNet", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                lltd?.SetValue("AllowRspndrOnPublicNet", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                lltd?.SetValue("ProhibitRspndrOnPrivateNet", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // WPAD off at the WinHTTP layer too — user-level
+                // AutoDetect=0 does not reach the machine resolver
+                using var winhttp = Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Microsoft\Windows\CurrentVersion\Internet Settings\WinHttp", true);
+                winhttp?.SetValue("DisableWpad", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // Legacy Edge telemetry opt-in + OneDrive pre-sign-in
+                // traffic off (mxk — traffic restriction, not sync kill)
+                using var dcol2 = Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection", true);
+                dcol2?.SetValue("MicrosoftEdgeDataOptIn", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                using var onedrv = Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Microsoft\OneDrive", true);
+                onedrv?.SetValue("PreventNetworkTrafficPreUserSignIn", 1, Microsoft.Win32.RegistryValueKind.DWord);
             }
             {
                 // Handwriting/input personalization upload surfaces
@@ -4389,6 +4436,7 @@ public static class RegistryGuard
         @"SOFTWARE\Policies\Microsoft\FindMyDevice",
         @"SOFTWARE\Policies\Microsoft\Windows\SettingSync",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Device Metadata",
+        @"SOFTWARE\Microsoft\OneDrive",
         @"SOFTWARE\Microsoft\Windows\Shell\Copilot",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Search",
         @"SOFTWARE\NVIDIA Corporation\Global\FTS",
@@ -4402,6 +4450,7 @@ public static class RegistryGuard
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\generativeAI",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\RunNotification",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\Deprovisioned",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\EndOfLife",
         @"SOFTWARE\Policies\Microsoft\MicrosoftEdge\SearchScopes",
         @"SOFTWARE\Policies\Microsoft\Peernet",
         @"SOFTWARE\Policies\Microsoft\Messenger\Client",
@@ -4419,9 +4468,13 @@ public static class RegistryGuard
                 @"SOFTWARE\Policies\Microsoft\PCHealth\ErrorReporting",
                 @"SOFTWARE\Policies\Microsoft\PCHealth\HelpSvc",
                 @"SOFTWARE\Policies\Microsoft\Speech",
+                @"SOFTWARE\Microsoft\Windows\CurrentVersion\Internet Settings\WinHttp",
                 @"SOFTWARE\Policies\Microsoft\Windows NT\DNSClient",
+                @"SOFTWARE\Policies\Microsoft\Windows\Bowser",
                 @"SOFTWARE\Policies\Microsoft\Windows\DeviceInstall\Settings",
+                @"SOFTWARE\Policies\Microsoft\Windows\LLTD",
                 @"SOFTWARE\Policies\Microsoft\Windows\Messaging",
+                @"SOFTWARE\Policies\Microsoft\Windows\NetworkProvider",
                 @"SOFTWARE\Policies\Microsoft\Windows\WDI\{9C5A40DA-B965-4FC3-8781-88DD50A6299D}",
                 @"SOFTWARE\Policies\WindowsNotepad",
                 @"SYSTEM\CurrentControlSet\Control\Diagnostics\Performance",
@@ -4966,6 +5019,15 @@ public static class RegistryGuard
             SetUserDwordAllHives(
                 @"Software\Policies\Microsoft\Windows\CloudContent",
                 "IncludeEnterpriseSpotlight", 0);
+            // Lock-screen overlay promos + Settings online tips + Start
+            // recommended-sites promo (mxk group-policy diff)
+            using var perz = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Policies\Microsoft\Windows\Personalization");
+            perz?.SetValue("LockScreenOverlaysDisabled", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            using var expol2 = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Policies\Microsoft\Windows\Explorer");
+            expol2?.SetValue("AllowOnlineTips", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            expol2?.SetValue("HideRecommendedPersonalizedSites", 1, Microsoft.Win32.RegistryValueKind.DWord);
             GuardLogger.Info("Applied: DisableSpotlight (DesktopSpotlight + wallpaper type + per-hive CloudContent policies)");
         }
         catch (Exception ex)
@@ -5300,6 +5362,18 @@ public static class ScheduledTaskGuard
         @"\Microsoft\Windows\WindowsAI\Recall\InitialConfiguration",
         @"\Microsoft\Windows\WindowsAI\Recall\PolicyConfiguration",
         @"\Microsoft\Office\Office Actions Server",
+        // GDStudiosDev/fortify diff: ClickToDo model caching, WindowsAI
+        // settings init, flighting usage-data pipeline, perf-trace
+        // feedback toast, sustainability telemetry
+        @"\Microsoft\Windows\WindowsAI\ClickToDo\ModelCachingIdle",
+        @"\Microsoft\Windows\WindowsAI\ClickToDo\ModelCachingLimit",
+        @"\Microsoft\Windows\WindowsAI\ClickToDo\ModelCachingUpdate",
+        @"\Microsoft\Windows\WindowsAI\Settings\InitialConfiguration",
+        @"\Microsoft\Windows\Flighting\FeatureConfig\UsageDataFlushing",
+        @"\Microsoft\Windows\Flighting\FeatureConfig\UsageDataReceiver",
+        @"\Microsoft\Windows\Flighting\FeatureConfig\GovernedFeatureUsageProcessing",
+        @"\Microsoft\Windows\PerformanceTrace\ShowFeedbackToast",
+        @"\Microsoft\Windows\Sustainability\SustainabilityTelemetry",
     };
 
     /// <summary>Disable the known Microsoft telemetry/CEIP scheduled tasks.</summary>
