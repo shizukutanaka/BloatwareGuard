@@ -4393,6 +4393,22 @@ public static class RegistryGuard
             using var dsrch = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                 @"SOFTWARE\Microsoft\Windows\CurrentVersion\DriverSearching");
             dsrch?.SetValue("SearchOrderConfig", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // GPO twin: policy-pinned "do not search WU for drivers"
+            using var dsrchpol = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Policies\Microsoft\Windows\DriverSearching");
+            dsrchpol?.SetValue("DontSearchWindowsUpdate", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            // SMB guest auth off + Schannel secure-renegotiation floor
+            using var lmw = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters");
+            lmw?.SetValue("AllowInsecureGuestAuth", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            using var sch = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL");
+            sch?.SetValue("AllowInsecureRenegoClients", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            sch?.SetValue("AllowInsecureRenegoServers", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            using var dh = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\KeyExchangeAlgorithms\Diffie-Hellman");
+            dh?.SetValue("ClientMinKeyBitLength", 2048, Microsoft.Win32.RegistryValueKind.DWord);
+            dh?.SetValue("ServerMinKeyBitLength", 2048, Microsoft.Win32.RegistryValueKind.DWord);
             // Vendor driver co-installers — the channel that seeds OEM
             // companion apps alongside driver packages
             using var coinst = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
@@ -4541,6 +4557,10 @@ public static class RegistryGuard
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Communications",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Device Installer",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\DriverSearching",
+        @"SOFTWARE\Policies\Microsoft\Windows\DriverSearching",
+        @"SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters",
+        @"SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL",
+        @"SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\KeyExchangeAlgorithms\Diffie-Hellman",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\OOBE",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Paint",

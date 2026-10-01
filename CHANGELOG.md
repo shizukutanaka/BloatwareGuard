@@ -130,6 +130,15 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   Sign-On off: Windows Update restarts no longer auto-log-in the
   last user (RyTuneX/Windows-On-Reins hardening diff)
 
+- `BlockOemDriverUpdates` +`DontSearchWindowsUpdate`=1 — the GPO-pinned
+  twin of `SearchOrderConfig=0` (`Policies\...\DriverSearching`,
+  persists against non-policy resets)
+- `DisableTelemetry` +SMB/Schannel hardening 5 values:
+  `AllowInsecureGuestAuth`=0 (LanmanWorkstation — anonymous SMB off),
+  `AllowInsecureRenego{Clients,Servers}`=0 + DH
+  `Client/ServerMinKeyBitLength`=2048 (RapidOS protocols batch);
+  backup paths added for all three roots
+
 ## [Unreleased] — v1.60.7-mvp: tomytate/Win-Debloat full sweep + docs sync
 
 - DisableSpotlight: hides the "Learn about this picture" desktop

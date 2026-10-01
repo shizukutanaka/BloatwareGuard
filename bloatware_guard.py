@@ -1207,6 +1207,10 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Communications",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Device Installer",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\DriverSearching",
+    r"SOFTWARE\Policies\Microsoft\Windows\DriverSearching",
+    r"SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters",
+    r"SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL",
+    r"SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\KeyExchangeAlgorithms\Diffie-Hellman",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\OOBE",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Paint",
@@ -3250,6 +3254,22 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword("HKLM",
                                r"SOFTWARE\Microsoft\Windows\CurrentVersion\DriverSearching",
                                "SearchOrderConfig", 0)
+            # GPO twin: policy-pinned "do not search WU for drivers"
+            set_registry_dword("HKLM",
+                               r"SOFTWARE\Policies\Microsoft\Windows\DriverSearching",
+                               "DontSearchWindowsUpdate", 1)
+            # SMB guest auth off + Schannel secure-renegotiation floor
+            set_registry_dword("HKLM",
+                               r"SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters",
+                               "AllowInsecureGuestAuth", 0)
+            for _v in ("AllowInsecureRenegoClients", "AllowInsecureRenegoServers"):
+                set_registry_dword("HKLM",
+                                   r"SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL",
+                                   _v, 0)
+            _dh = (r"SYSTEM\CurrentControlSet\Control\SecurityProviders"
+                   r"\SCHANNEL\KeyExchangeAlgorithms\Diffie-Hellman")
+            for _v in ("ClientMinKeyBitLength", "ServerMinKeyBitLength"):
+                set_registry_dword("HKLM", _dh, _v, 2048)
             # Vendor driver co-installers — the channel that seeds OEM
             # companion apps alongside driver packages
             set_registry_dword("HKLM",
