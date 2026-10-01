@@ -58,6 +58,20 @@ accessibility toggles, WU/DO bandwidth and deferral policies.)
     printer/biometric/notification/LAN services, UI/perf/gaming
     preferences, unverifiable value names, Intel vendor tools,
     user-installed app needles)
+- gdid-guard diff (rroy676/GDID-Guard — CDP device-graph exposure tool):
+  - `DisableTelemetry` +per-user `PublishUserActivities`/
+    `UploadUserActivities`=0 under `CurrentVersion\PublishUserActivities`
+    and `CurrentVersion\UploadUserActivities` — the Settings
+    activity-history toggles the HKLM policies don't reach
+  - `UserBackupKeyPaths`/`_USER_BACKUP_KEY_PATHS` +both keys
+  - hosts +3: `dds.microsoft.com`, `fd.dds.microsoft.com`,
+    `cdpcs.access.microsoft.com` (Device Directory Service + CDP
+    certificate fronts — the device-graph registration channel;
+    `aad.cs.dds.microsoft.com` left out because it backs Entra device
+    registration)
+  - (Skipped: IdentityCRL/CDP data wipe — destructive cleanup; IP-based
+    firewall blocks — hostnames preferred; CDPUserSvc Start=4 —
+    demote-to-Manual already covers it)
 
 ## [Unreleased] — v1.60.5-mvp: RegiLattice privacy/AI policy diff
 
