@@ -3364,6 +3364,11 @@ public static class RegistryGuard
                 using var nvc = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\NVIDIA Corporation\NvControlPanel2\Client");
                 nvc?.SetValue("OptInOrOutPreference", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                // .NET CLI + PowerShell 7 telemetry opt-out (machine env vars)
+                using var envkv = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SYSTEM\CurrentControlSet\Control\Session Manager\Environment");
+                envkv?.SetValue("DOTNET_CLI_TELEMETRY_OPTOUT", "1", Microsoft.Win32.RegistryValueKind.String);
+                envkv?.SetValue("POWERSHELL_TELEMETRY_OPTOUT", "1", Microsoft.Win32.RegistryValueKind.String);
                 // LMHOSTS lookup off (NetBT side-channel)
                 using var netbt = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SYSTEM\CurrentControlSet\Services\NetBT\Parameters");
@@ -4469,6 +4474,7 @@ public static class RegistryGuard
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",
         @"SOFTWARE\Policies\Microsoft\Windows\System",
         @"SOFTWARE\NVIDIA Corporation\NvControlPanel2\Client",
+        @"SYSTEM\CurrentControlSet\Control\Session Manager\Environment",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Audit",
         @"SOFTWARE\Policies\Microsoft\Assistance\Client\1.0",
         @"SOFTWARE\Policies\Microsoft\Edge",

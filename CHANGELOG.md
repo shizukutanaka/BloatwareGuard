@@ -163,6 +163,11 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   (breaks app-compat shims), `RSoPLogging` (admin logging), NVIDIA
   `EnableRID*` feature flags
 
+- `DisableTelemetry` +`DOTNET_CLI_TELEMETRY_OPTOUT`=1 +
+  `POWERSHELL_TELEMETRY_OPTOUT`=1 machine env vars
+  (`Session Manager\Environment`, REG_SZ) — documented opt-outs for
+  .NET CLI and PS7 telemetry (WindowsMize Disable-{DotNet,PowerShell}Telemetry)
+
 ## [Unreleased] — v1.60.7-mvp: tomytate/Win-Debloat full sweep + docs sync
 
 - DisableSpotlight: hides the "Learn about this picture" desktop

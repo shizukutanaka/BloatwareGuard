@@ -1089,6 +1089,7 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",
     r"SOFTWARE\Policies\Microsoft\Windows\System",
     r"SOFTWARE\NVIDIA Corporation\NvControlPanel2\Client",
+    r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Audit",
     r"SOFTWARE\Policies\Microsoft\Assistance\Client\1.0",
     r"SOFTWARE\Policies\Microsoft\Edge",
@@ -2628,6 +2629,14 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "HKLM",
                 r"SOFTWARE\NVIDIA Corporation\NvControlPanel2\Client",
                 "OptInOrOutPreference", 0)
+            # .NET CLI + PowerShell 7 telemetry opt-out (machine env
+            # vars live in Session Manager\Environment — REG_SZ)
+            for _v in ("DOTNET_CLI_TELEMETRY_OPTOUT",
+                       "POWERSHELL_TELEMETRY_OPTOUT"):
+                set_registry_string(
+                    "HKLM",
+                    r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment",
+                    _v, "1")
             # LMHOSTS lookup off (NetBT name-resolution side-channel)
             set_registry_dword(
                 "HKLM",
