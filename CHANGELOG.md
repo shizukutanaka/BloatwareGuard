@@ -70,6 +70,11 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 
 - hosts +`g.msn.com.nsatc.net` (Reclaim blocklist diff — MSN CNAME alias)
 
+- REVERT (noid-privacy ADMX audit): removed `HideAIActionsMenu`
+  (2 sites) and `LetAppsAccessSystemAIModels` from AppPrivacy —
+  noid-privacy verified neither exists in the official 25H2 ADMX
+  package; per the no-unverifiable-names rule both are dropped
+
 ## [Unreleased] — v1.60.7-mvp: tomytate/Win-Debloat full sweep + docs sync
 
 - DisableSpotlight: hides the "Learn about this picture" desktop

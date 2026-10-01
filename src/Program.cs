@@ -2451,9 +2451,6 @@ public static class RegistryGuard
             // IME cloud AI suggestions off (RegiLattice CopilotPlus —
             // per-user InputMethod settings)
             SetUserDwordAllHives(@"Software\Microsoft\InputMethod\Settings\CHS", "UseAISuggestions", 0);
-            using (var expAi = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
-                @"SOFTWARE\Policies\Microsoft\Windows\Explorer"))
-                expAi?.SetValue("HideAIActionsMenu", 1, Microsoft.Win32.RegistryValueKind.DWord);
             // Copilot auto-open on large screens (notification channel,
             // privacy.sexy) — per-user
             SetUserDwordAllHives(UserNotificationSettingsPath, "AutoOpenCopilotLargeScreens", 0);
@@ -4272,7 +4269,6 @@ public static class RegistryGuard
         "LetAppsAccessGenerativeAI", "LetAppsAccessCalendar",
         "LetAppsAccessGraphicsCaptureProgrammatic",
         "LetAppsAccessGraphicsCaptureWithoutBorder",
-        "LetAppsAccessSystemAIModels",
     };
 
     /// <summary>Layer 26: force-deny conservative AppPrivacy set.</summary>
@@ -5065,9 +5061,6 @@ public static class RegistryGuard
                 @"SOFTWARE\Policies\Microsoft\Windows\Explorer");
             expol2?.SetValue("AllowOnlineTips", 0, Microsoft.Win32.RegistryValueKind.DWord);
             expol2?.SetValue("HideRecommendedPersonalizedSites", 1, Microsoft.Win32.RegistryValueKind.DWord);
-            // 25H2 "AI actions" Explorer context menu off (documented
-            // Explorer policy; dvandenburgh/Disable-Win11AI)
-            expol2?.SetValue("HideAIActionsMenu", 1, Microsoft.Win32.RegistryValueKind.DWord);
             GuardLogger.Info("Applied: DisableSpotlight (DesktopSpotlight + wallpaper type + per-hive CloudContent policies)");
         }
         catch (Exception ex)

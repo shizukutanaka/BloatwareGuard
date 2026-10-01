@@ -1800,9 +1800,6 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_user_dword_all_hives(
                 r"Software\Microsoft\InputMethod\Settings\CHS",
                 "UseAISuggestions", 0, logger)
-            # WinToolify diff: Explorer "AI actions" context-menu group
-            set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\Explorer",
-                               "HideAIActionsMenu", 1)
             # Copilot hardware-key remap (WindowsCopilot ADMX, zoicware)
             _copilot_key = (r"Software\Policies\Microsoft\Windows"
                             r"\CopilotKey")
@@ -3247,7 +3244,6 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "LetAppsAccessGenerativeAI", "LetAppsAccessCalendar",
                 "LetAppsAccessGraphicsCaptureProgrammatic",
                 "LetAppsAccessGraphicsCaptureWithoutBorder",
-                "LetAppsAccessSystemAIModels",
             )
             for name in app_privacy:
                 set_registry_dword("HKLM",
@@ -3477,9 +3473,6 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword("HKLM", expol, "AllowOnlineTips", 0)
             set_registry_dword("HKLM", expol,
                                "HideRecommendedPersonalizedSites", 1)
-            # 25H2 "AI actions" Explorer context menu off (documented
-            # Explorer policy; dvandenburgh/Disable-Win11AI)
-            set_registry_dword("HKLM", expol, "HideAIActionsMenu", 1)
             logger.info("Applied: DisableSpotlight "
                         "(DesktopSpotlight + wallpaper + per-hive CloudContent)")
 
