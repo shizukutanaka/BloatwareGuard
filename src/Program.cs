@@ -3809,7 +3809,9 @@ public static class RegistryGuard
                     // URL-keyed "anonymized" browsing-data uploads (winutil)
                     "UrlKeyedAnonymizedDataCollectionEnabled" ,
                     // first-run taskbar-pin wizard suppression (Reclaim)
-                    "EnableUnsafeSwiftShader", "PinningWizardAllowed",
+                    "LocalBrowserDataShareEnabled", "GuidSwitchEnabled",
+                "CredentialProviderPromoEnabled", "OutlookHubMenuEnabled",
+                "MicrosoftOfficeMenuEnabled", "EnableUnsafeSwiftShader", "PinningWizardAllowed",
                     // Edge Surf game (Aegis-Win11)
                     "AllowSurfGame",
                     // Edge desktop-analytics telemetry (WGO)

@@ -107,6 +107,12 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   (LeDragoX WinDebloatTools user-level switch — policy +
   auto-upload kills leave the local pref on)
 
+- DisableEdgeBloat +5 (Edge policy catalog full sweep): `LocalBrowserDataShareEnabled`=0
+  (Edge→Windows search data share), `GuidedSwitchEnabled`=0,
+  `CredentialProviderPromoEnabled`=0, `OutlookHubMenuEnabled`=0,
+  `MicrosoftOfficeMenuEnabled`=0 — remaining promo/data-share
+  surfaces after the 792-policy index diff
+
 ## [Unreleased] — v1.60.7-mvp: tomytate/Win-Debloat full sweep + docs sync
 
 - DisableSpotlight: hides the "Learn about this picture" desktop

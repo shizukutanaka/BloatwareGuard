@@ -3015,9 +3015,12 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                          # URL-keyed "anonymized" browsing-data uploads
                          # (winutil tweaks.json Edge group)
                          "UrlKeyedAnonymizedDataCollectionEnabled",
+                         "LocalBrowserDataShareEnabled", "GuidSwitchEnabled",
+                         "CredentialProviderPromoEnabled",
+                         "OutlookHubMenuEnabled",
+                         "MicrosoftOfficeMenuEnabled",
                          # first-run taskbar-pin wizard suppression (Reclaim)
                          "EnableUnsafeSwiftShader", "PinningWizardAllowed",
-                         # Edge Surf game (Aegis-Win11)
                          "AllowSurfGame",
                          # Edge desktop-analytics telemetry (WGO)
                          "ConfigureTelemetryForDesktop",
