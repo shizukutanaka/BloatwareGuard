@@ -150,6 +150,19 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   (Graphics Command Center + control-panel helpers — WindowsMize
   Intel.ps1 diff; demand-start keeps install usable)
 
+- `DisableTelemetry` +8 documented kills (WindowsMize telemetry diff):
+  `DontReportInfectionInformation`=1 (MRT report channel — scan itself
+  unaffected), `LimitDiagnosticLogCollection`/`LimitDumpCollection`=1,
+  `DisableInstallTracing`/`DisablePCA`=1 (AppCompat),
+  `DisableDiagnosticTracing`=1 (NT kernel diag tracing)
+- +NVIDIA driver telemetry opt-outs: `SendTelemetryData`=0 +
+  `SendNonNvDisplayDetails`=0 (`nvlddmkm\Global\Startup`) +
+  `OptInOrOutPreference`=0 (`NvControlPanel2\Client`; pairs with the
+  demoted `NvTelemetryContainer` service)
+- skipped: `NoGenTicket` (closed-PR), `DisableEngine`/`SbEnable`
+  (breaks app-compat shims), `RSoPLogging` (admin logging), NVIDIA
+  `EnableRID*` feature flags
+
 ## [Unreleased] — v1.60.7-mvp: tomytate/Win-Debloat full sweep + docs sync
 
 - DisableSpotlight: hides the "Learn about this picture" desktop

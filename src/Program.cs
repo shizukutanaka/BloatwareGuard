@@ -3338,6 +3338,32 @@ public static class RegistryGuard
                 using var uinfo = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Windows\System");
                 uinfo?.SetValue("AllowUserInfoAccess", 2, Microsoft.Win32.RegistryValueKind.DWord);
+                // MRT infection-report suppression (scan still runs)
+                using var mrt = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\MRT");
+                mrt?.SetValue("DontReportInfectionInformation", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // Diagnostic log + dump collection ceilings off
+                using var dclim = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\DataCollection");
+                dclim?.SetValue("LimitDiagnosticLogCollection", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                dclim?.SetValue("LimitDumpCollection", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // AppCompat: install-tracing + PCA assistant off
+                using var acx = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\AppCompat");
+                acx?.SetValue("DisableInstallTracing", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                acx?.SetValue("DisablePCA", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // NT kernel diagnostic tracing off
+                using var dperf = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SYSTEM\CurrentControlSet\Control\Diagnostics\Performance");
+                dperf?.SetValue("DisableDiagnosticTracing", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // NVIDIA driver-level telemetry opt-out
+                using var nvg = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SYSTEM\CurrentControlSet\Services\nvlddmkm\Global\Startup");
+                nvg?.SetValue("SendTelemetryData", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                nvg?.SetValue("SendNonNvDisplayDetails", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                using var nvc = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\NVIDIA Corporation\NvControlPanel2\Client");
+                nvc?.SetValue("OptInOrOutPreference", 0, Microsoft.Win32.RegistryValueKind.DWord);
                 // LMHOSTS lookup off (NetBT side-channel)
                 using var netbt = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SYSTEM\CurrentControlSet\Services\NetBT\Parameters");
@@ -4442,8 +4468,8 @@ public static class RegistryGuard
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",
         @"SOFTWARE\Policies\Microsoft\Windows\System",
+        @"SOFTWARE\NVIDIA Corporation\NvControlPanel2\Client",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Audit",
-        @"SOFTWARE\Policies\Microsoft\Windows\System",
         @"SOFTWARE\Policies\Microsoft\Assistance\Client\1.0",
         @"SOFTWARE\Policies\Microsoft\Edge",
         @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\ClientTelemetry",

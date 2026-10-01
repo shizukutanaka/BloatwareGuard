@@ -1088,6 +1088,7 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",
     r"SOFTWARE\Policies\Microsoft\Windows\System",
+    r"SOFTWARE\NVIDIA Corporation\NvControlPanel2\Client",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Audit",
     r"SOFTWARE\Policies\Microsoft\Assistance\Client\1.0",
     r"SOFTWARE\Policies\Microsoft\Edge",
@@ -2592,6 +2593,41 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "HKLM",
                 r"SOFTWARE\Policies\Microsoft\Windows\System",
                 "AllowUserInfoAccess", 2)
+            # MRT infection-report suppression (scan still runs; kills
+            # the diagnostic report back-channel — WindowsMize)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Policies\Microsoft\MRT",
+                "DontReportInfectionInformation", 1)
+            # Diagnostic log + dump collection ceilings off
+            for _v in ("LimitDiagnosticLogCollection",
+                       "LimitDumpCollection"):
+                set_registry_dword(
+                    "HKLM",
+                    r"SOFTWARE\Policies\Microsoft\Windows\DataCollection",
+                    _v, 1)
+            # AppCompat: install-tracing + PCA assistant off
+            for _v in ("DisableInstallTracing", "DisablePCA"):
+                set_registry_dword(
+                    "HKLM",
+                    r"SOFTWARE\Policies\Microsoft\Windows\AppCompat",
+                    _v, 1)
+            # NT kernel diagnostic tracing off (documented value)
+            set_registry_dword(
+                "HKLM",
+                r"SYSTEM\CurrentControlSet\Control\Diagnostics\Performance",
+                "DisableDiagnosticTracing", 1)
+            # NVIDIA driver-level telemetry opt-out (NvTelemetryContainer
+            # service is already demoted; these cover the driver knobs)
+            for _v in ("SendTelemetryData", "SendNonNvDisplayDetails"):
+                set_registry_dword(
+                    "HKLM",
+                    r"SYSTEM\CurrentControlSet\Services\nvlddmkm\Global\Startup",
+                    _v, 0)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\NVIDIA Corporation\NvControlPanel2\Client",
+                "OptInOrOutPreference", 0)
             # LMHOSTS lookup off (NetBT name-resolution side-channel)
             set_registry_dword(
                 "HKLM",
