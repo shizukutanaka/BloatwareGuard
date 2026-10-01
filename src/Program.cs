@@ -6,6 +6,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Diagnostics;
+using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
@@ -240,6 +242,13 @@ internal partial class GuardJsonContext : JsonSerializerContext
 /// inheriting the pipe can't hold EOF open and hang .Result forever.</summary>
 internal static class Proc
 {
+    // Windows console tools (powershell.exe, reg.exe, schtasks, winget, sc,
+    // dism) write stdout/stderr in the OEM code page (cp932 on ja-JP, cp437/
+    // cp850 on Western systems) — .NET's UTF-8 default would mojibake any
+    // non-ASCII output. Python parity: subprocess output decoded as cp932.
+    private static readonly Encoding OemEncoding =
+        Encoding.GetEncoding(CultureInfo.CurrentCulture.TextInfo.OEMCodePage);
+
     public static (string Stdout, string Stderr, int? ExitCode) Capture(
         ProcessStartInfo psi, int timeoutMs)
     {
@@ -247,6 +256,8 @@ internal static class Proc
         // throw InvalidOperationException on StandardError reads.
         psi.RedirectStandardOutput = true;
         psi.RedirectStandardError = true;
+        psi.StandardOutputEncoding = OemEncoding;
+        psi.StandardErrorEncoding = OemEncoding;
         using var proc = Process.Start(psi);
         if (proc == null)
             return ("", "failed to start", null);
@@ -6121,6 +6132,10 @@ public class Program
         // Python the .NET console never throws on unencodable chars, so this
         // is cosmetic; kept to match the Python console hardening.
         try { Console.OutputEncoding = new System.Text.UTF8Encoding(false); } catch { /* no console in service mode */ }
+        // Non-Unicode code pages (cp932, cp437...) aren't built into .NET Core —
+        // register the provider so Proc.OemEncoding can decode console tools'
+        // localized output (Python decodes subprocess bytes as cp932).
+        System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
         // --config <path> overrides the default config.json location
         // (Python parity: --config PATH). Scan args before loading.
         var configPath = Path.Combine(AppContext.BaseDirectory, "config.json");
