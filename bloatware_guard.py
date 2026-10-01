@@ -4738,6 +4738,7 @@ TELEMETRY_TASK_PATHS = (
     "\\Microsoft\\Windows\\Application Experience\\PcaPatchDbTask",
     # Shim-DB merge task — same AppCompat collection pipeline (privacy.sexy)
     "\\Microsoft\\Windows\\Application Experience\\SdbinstMergeDbTask",
+    "\\Microsoft\\Windows\\UsageAndQualityInsights\\UsageAndQualityInsights-MaintenanceTask",
     "\\Microsoft\\Windows\\Application Experience\\StartupAppTask",
     # Gathers Win32 app data for the Windows Backup app scenario (24H2+)
     "\\Microsoft\\Windows\\Application Experience\\MareBackup",

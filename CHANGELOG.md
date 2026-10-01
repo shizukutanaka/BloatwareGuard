@@ -189,6 +189,10 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   admin-lockdown/DoH/NCSI/vendor(Office,Chrome,Firefox,Adobe,Edge)
   classes and `AllowSignInOptions`/`DisableStartupSound` UX knobs
 
+- `DisableTelemetryTasks` +1 (98→99):
+  `UsageAndQualityInsights\UsageAndQualityInsights-MaintenanceTask`
+  (UQI/OneSettings maintenance — WindowsMize task-list diff)
+
 ## [Unreleased] — v1.60.7-mvp: tomytate/Win-Debloat full sweep + docs sync
 
 - DisableSpotlight: hides the "Learn about this picture" desktop
