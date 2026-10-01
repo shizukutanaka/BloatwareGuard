@@ -4937,6 +4937,8 @@ public static class RegistryGuard
         // Intel Dynamic Tuning telemetry + Innovation Platform
         // Framework service (vendor telemetry — coolvitto 25H2 list)
         "dptftcs", "ipfsvc",
+        "jhi_service", "LMS", "igccservice", "igfxCUIService2.0.0.0",
+        "cplspcon", "cphs",
     // Copilot Elevation Service — lets the Copilot app request elevated
     // operations (zoicware/RemoveWindowsAI; demoted, not deleted)
     "MicrosoftCopilotElevationService",

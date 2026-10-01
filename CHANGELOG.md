@@ -144,6 +144,12 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   longer receive user name/account picture/domain info
   (WindowsMize Set-UserInfoSharing)
 
+- `DisableMiscBloatServices` +6 Intel vendor services (83→89):
+  `jhi_service` (DAL/ME host), `LMS` (vPro local mgmt),
+  `igccservice`, `igfxCUIService2.0.0.0`, `cplspcon`, `cphs`
+  (Graphics Command Center + control-panel helpers — WindowsMize
+  Intel.ps1 diff; demand-start keeps install usable)
+
 ## [Unreleased] — v1.60.7-mvp: tomytate/Win-Debloat full sweep + docs sync
 
 - DisableSpotlight: hides the "Learn about this picture" desktop

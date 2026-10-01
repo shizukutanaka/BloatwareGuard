@@ -1259,6 +1259,10 @@ _MISC_DEMOTE_SERVICES = (
     # Intel Dynamic Tuning telemetry + Innovation Platform Framework
     # service (vendor telemetry — coolvitto 25H2 service list)
     "dptftcs", "ipfsvc",
+    # Intel DAL host (jhi) / Local Mgmt Service (LMS) / Graphics Command
+    # Center + control-panel services (vendor background — WindowsMize)
+    "jhi_service", "LMS", "igccservice", "igfxCUIService2.0.0.0",
+    "cplspcon", "cphs",
     # Copilot Elevation Service — lets the Copilot app request elevated
     # operations (zoicware/RemoveWindowsAI; demoted, not deleted)
     "MicrosoftCopilotElevationService",
