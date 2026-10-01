@@ -1088,6 +1088,7 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",
     r"SOFTWARE\Policies\Microsoft\Windows\System",
+    r"SOFTWARE\Policies\Microsoft\Windows\CredUI",
     r"SOFTWARE\NVIDIA Corporation\NvControlPanel2\Client",
     r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Audit",
@@ -1420,6 +1421,7 @@ _USER_BACKUP_KEY_PATHS = (
     r"Software\Microsoft\Windows\CurrentVersion\UploadUserActivities",
     r"Software\Microsoft\Windows\CurrentVersion\SearchSettings",
     r"Software\Microsoft\Windows\CurrentVersion\SearchSettings\WebSearchPro",
+    r"Software\Microsoft\Windows\CurrentVersion\A9\SnapshotCapture",
     r"Software\Microsoft\Windows\CurrentVersion\WindowsCopilot",
     r"Software\Microsoft\Windows\CurrentVersion\WindowsBackup",
     r"Software\Microsoft\Windows\CurrentVersion\SmartActionPlatform\SmartClipboard",
@@ -1552,6 +1554,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             # (WinOpt) — documented CloudContent policy
             set_registry_dword("HKLM", cloud_content,
                                "DisableLockScreenAppNotifications", 1)
+            # Machine-wide Windows Spotlight kill (documented policy
+            # twin of the per-user CloudContent spotlight switches)
+            set_registry_dword("HKLM", cloud_content,
+                               "ConfigureWindowsSpotlight", 0)
             # Camera trigger removed from the lock screen (WinOpt) —
             # prevents unauthenticated camera activation; app camera
             # permissions untouched
@@ -2075,6 +2081,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_user_dword_all_hives(_USER_SEARCH_SETTINGS, "IsAADCloudSearchEnabled", 0, logger)
             set_user_dword_all_hives(_USER_SEARCH_SETTINGS, "IsMSACloudSearchEnabled", 0, logger)
             set_user_dword_all_hives(_USER_SEARCH_SETTINGS, "IsDeviceSearchHistoryEnabled", 0, logger)
+            set_user_dword_all_hives(_USER_SEARCH_SETTINGS, "IsStoreSuggestionsEnabled", 0, logger)
+            set_user_dword_all_hives(_USER_SEARCH_SETTINGS, "IsGlobalFileSearchProviderToggleEnabled", 0, logger)
+            set_user_dword_all_hives(_USER_SEARCH_SETTINGS, "IsWebSuggestionsEnabled", 0, logger)
             # On-device search history view (HST Windows Utility) — the
             # Settings "Search history" toggle surface
             set_user_dword_all_hives(_USER_SEARCH, "HistoryViewEnabled", 0, logger)
@@ -2187,6 +2196,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                     winreg.CloseKey(key)
                 w(_USER_ADVERTISING_INFO, "Enabled", 0)
                 w(_USER_PRIVACY, "TailoredExperiencesWithDiagnosticDataEnabled", 0)
+                w(_USER_PRIVACY, "PersonalizedOffersEnabled", 0)
+                w(r"Software\Microsoft\Windows\CurrentVersion\A9\SnapshotCapture",
+                  "IsFilteringTelemetryEnabled", 0)
                 # Suggested content surface (HST) — app suggestions in the
                 # shell/Start feed off this privacy toggle
                 w(_USER_PRIVACY, "AppSuggestions", 0)
@@ -2589,6 +2601,23 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "HKLM",
                 r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",
                 "DisableAutomaticRestartSignOn", 1)
+            # Hide last signed-in user name on the lock screen
+            # (documented interactive-logon setting)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",
+                "DontDisplayLastUserName", 1)
+            # Local-account security questions off (documented GPO)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Policies\Microsoft\Windows\System",
+                "NoLocalPasswordResetQuestions", 1)
+            # Password reveal button off on all credential dialogs
+            # (documented GPO — MS security baseline)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Policies\Microsoft\Windows\CredUI",
+                "DisablePasswordReveal", 1)
             # App sharing of user name/picture/domain info off (GPO twin)
             set_registry_dword(
                 "HKLM",

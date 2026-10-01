@@ -168,6 +168,18 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   (`Session Manager\Environment`, REG_SZ) — documented opt-outs for
   .NET CLI and PS7 telemetry (WindowsMize Disable-{DotNet,PowerShell}Telemetry)
 
+- `DisableCloudContent` +`ConfigureWindowsSpotlight`=0 (HKLM twin of
+  the per-user spotlight kills)
+- per-user SearchSettings +3: `IsStoreSuggestionsEnabled`,
+  `IsGlobalFileSearchProviderToggleEnabled`, `IsWebSuggestionsEnabled`
+  =0 (Start-search store/cloud/web suggestion toggles — WindowsMize)
+- per-user Privacy +`PersonalizedOffersEnabled`=0 and
+  `A9\SnapshotCapture\IsFilteringTelemetryEnabled`=0 (Recall
+  snapshot filtering telemetry — both Settings-backed)
+- `DisableTelemetry` +3 documented auth/logon hardening values:
+  `DontDisplayLastUserName`=1, `NoLocalPasswordResetQuestions`=1,
+  `DisablePasswordReveal`=1 (CredUI; backup paths added)
+
 ## [Unreleased] — v1.60.7-mvp: tomytate/Win-Debloat full sweep + docs sync
 
 - DisableSpotlight: hides the "Learn about this picture" desktop

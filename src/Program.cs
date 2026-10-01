@@ -2164,6 +2164,9 @@ public static class RegistryGuard
             // App notifications must not show on the lock screen
             // (WinOpt) — documented CloudContent policy
             key?.SetValue("DisableLockScreenAppNotifications", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            // Machine-wide Windows Spotlight kill (documented policy
+            // twin of the per-user CloudContent spotlight switches)
+            key?.SetValue("ConfigureWindowsSpotlight", 0, Microsoft.Win32.RegistryValueKind.DWord);
             // Camera trigger removed from the lock screen (WinOpt) —
             // prevents unauthenticated camera activation; app camera
             // permissions untouched
@@ -2741,6 +2744,9 @@ public static class RegistryGuard
                 SetHiveDword(hive, UserSearchSettingsPath, "IsAADCloudSearchEnabled", 0);
                 SetHiveDword(hive, UserSearchSettingsPath, "IsMSACloudSearchEnabled", 0);
                 SetHiveDword(hive, UserSearchSettingsPath, "IsDeviceSearchHistoryEnabled", 0);
+                SetHiveDword(hive, UserSearchSettingsPath, "IsStoreSuggestionsEnabled", 0);
+                SetHiveDword(hive, UserSearchSettingsPath, "IsGlobalFileSearchProviderToggleEnabled", 0);
+                SetHiveDword(hive, UserSearchSettingsPath, "IsWebSuggestionsEnabled", 0);
                 // On-device search history view (HST Windows Utility) — the
                 // Settings "Search history" toggle surface
                 SetHiveDword(hive, UserSearchPath, "HistoryViewEnabled", 0);
@@ -2836,6 +2842,9 @@ public static class RegistryGuard
             {
                 SetHiveDword(hive, UserAdvertisingInfoPath, "Enabled", 0);
                 SetHiveDword(hive, UserPrivacyPath, "TailoredExperiencesWithDiagnosticDataEnabled", 0);
+                SetHiveDword(hive, UserPrivacyPath, "PersonalizedOffersEnabled", 0);
+                SetHiveDword(hive, @"Software\Microsoft\Windows\CurrentVersion\A9\SnapshotCapture",
+                             "IsFilteringTelemetryEnabled", 0);
                 // Suggested content surface (HST) — app suggestions in the
                 // shell/Start feed off this privacy toggle
                 SetHiveDword(hive, UserPrivacyPath, "AppSuggestions", 0);
@@ -3334,6 +3343,16 @@ public static class RegistryGuard
                 using var polsys = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System");
                 polsys?.SetValue("DisableAutomaticRestartSignOn", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // Hide last signed-in user name on the lock screen
+                polsys?.SetValue("DontDisplayLastUserName", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // Local-account security questions off (documented GPO)
+                using var nolq = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\System");
+                nolq?.SetValue("NoLocalPasswordResetQuestions", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // Password reveal button off on credential dialogs
+                using var credui = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\CredUI");
+                credui?.SetValue("DisablePasswordReveal", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 // App sharing of user name/picture/domain info off (GPO twin)
                 using var uinfo = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Windows\System");
@@ -4473,6 +4492,7 @@ public static class RegistryGuard
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",
         @"SOFTWARE\Policies\Microsoft\Windows\System",
+        @"SOFTWARE\Policies\Microsoft\Windows\CredUI",
         @"SOFTWARE\NVIDIA Corporation\NvControlPanel2\Client",
         @"SYSTEM\CurrentControlSet\Control\Session Manager\Environment",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Audit",
@@ -4700,6 +4720,7 @@ public static class RegistryGuard
         @"Software\Microsoft\Windows\CurrentVersion\Explorer",
         @"Software\Microsoft\Windows\CurrentVersion\SearchSettings",
         @"Software\Microsoft\Windows\CurrentVersion\SearchSettings\WebSearchPro",
+        @"Software\Microsoft\Windows\CurrentVersion\A9\SnapshotCapture",
         @"Software\Microsoft\Windows\CurrentVersion\WindowsCopilot",
         @"Software\Microsoft\Windows\CurrentVersion\WindowsBackup",
         @"Software\Microsoft\Windows\CurrentVersion\SmartActionPlatform\SmartClipboard",
