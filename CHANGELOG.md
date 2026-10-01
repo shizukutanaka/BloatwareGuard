@@ -91,6 +91,14 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 - `AarSvc` (Agent Activation Runtime — Copilot voice/agent host)
   demoted (zoicware removes; we demote)
 
+- telemetry tasks 95→96: `Customer Experience Improvement
+  Program\BthSQM` — Bluetooth CEIP SQM uploader (hst-windows-utility)
+- misc demote services +4: `cbdhsvc` (cloud-clipboard sync),
+  `WpnUserService` (WNS push channel) [privacy.sexy], `amdlog`
+  (AMD logging), `SsdpDiscovery` (SSDP discovery attack surface)
+- blacklist 230→231: `828B5831.` publisher namespace
+  (HiddenCityMysteryofShadows stub — winlite)
+
 ## [Unreleased] — v1.60.7-mvp: tomytate/Win-Debloat full sweep + docs sync
 
 - DisableSpotlight: hides the "Learn about this picture" desktop

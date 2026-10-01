@@ -237,7 +237,7 @@ DEFAULT_BLACKLIST = [
     "COOKINGFEVER",
     "AcerIncorporated.",
     "LenovoCorporation.",
-    "E046963F.",
+    "E046963F.", "828B5831.",
     "LenovoCompanyLimited.LenovoVantageService",
     # Debloat-Win11 diff — remaining OEM utility suites (audio/RGB/
     # control-center promo ware) + Widgets platform runtime + the Start
@@ -1259,6 +1259,13 @@ _MISC_DEMOTE_SERVICES = (
     # Agent Activation Runtime — Copilot/voice-agent activation host
     # (zoicware removes it; demote keeps the service restorable)
     "AarSvc",
+    # Cloud-clipboard sync service + Windows Push Notification user
+    # service (privacy.sexy per-user service kills — cloud sync and WNS
+    # push channel); Manual keeps on-demand starts working
+    "cbdhsvc", "WpnUserService",
+    # AMD logging service + SSDP network-discovery service (vendor
+    # telemetry / discovery attack surface — nova + titanium lists)
+    "amdlog", "SsdpDiscovery",
     "PushToInstall", "SEMgrSvc", "PhoneSvc",
     "utcsvc",                 # Connected User Experiences and Telemetry
                               # (DiagTrack companion — registry demote works
@@ -4550,6 +4557,8 @@ TELEMETRY_TASK_PATHS = (
     "\\Microsoft\\Windows\\Autochk\\Proxy",
     "\\Microsoft\\Windows\\Customer Experience Improvement Program\\Consolidator",
     "\\Microsoft\\Windows\\Customer Experience Improvement Program\\UsbCeip",
+    # Bluetooth CEIP SQM uploader (hst-windows-utility task list)
+    "\\Microsoft\\Windows\\Customer Experience Improvement Program\\BthSQM",
     "\\Microsoft\\Windows\\Customer Experience Improvement Program\\KernelCeipTask",
     "\\Microsoft\\Windows\\DiskDiagnostic\\Microsoft-Windows-DiskDiagnosticDataCollector",
     "\\Microsoft\\Windows\\Feedback\\Siuf\\DmClient",

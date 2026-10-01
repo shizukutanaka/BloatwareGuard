@@ -582,7 +582,7 @@ public static class ConfigLoader
                 "COOKINGFEVER",
                 "AcerIncorporated.",
                 "LenovoCorporation.",
-                "E046963F.",
+                "E046963F.", "828B5831.",
                 "LenovoCompanyLimited.LenovoVantageService",
                 // Debloat-Win11 diff — OEM utility suites (audio/RGB/
                 // control-center promo ware) + Widgets runtime + Start feed host
@@ -4901,6 +4901,11 @@ public static class RegistryGuard
     // Agent Activation Runtime — Copilot/voice-agent activation host
     // (zoicware removes it; demote keeps the service restorable)
     "AarSvc",
+    // Cloud-clipboard sync + Windows Push Notification user service
+    // (privacy.sexy per-user kills — cloud sync + WNS push channel)
+    "cbdhsvc", "WpnUserService",
+    // AMD logging + SSDP discovery (vendor telemetry / attack surface)
+    "amdlog", "SsdpDiscovery",
         "PushToInstall", "SEMgrSvc", "PhoneSvc",
         // Connected User Experiences and Telemetry — DiagTrack companion;
         // registry demote works where sc config is refused
@@ -5297,6 +5302,8 @@ public static class ScheduledTaskGuard
         @"\Microsoft\Windows\Autochk\Proxy",
         @"\Microsoft\Windows\Customer Experience Improvement Program\Consolidator",
         @"\Microsoft\Windows\Customer Experience Improvement Program\UsbCeip",
+        // Bluetooth CEIP SQM uploader (hst-windows-utility task list)
+        @"\Microsoft\Windows\Customer Experience Improvement Program\BthSQM",
         @"\Microsoft\Windows\Customer Experience Improvement Program\KernelCeipTask",
         @"\Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticDataCollector",
         @"\Microsoft\Windows\Feedback\Siuf\DmClient",
