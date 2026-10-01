@@ -110,7 +110,7 @@ DEFAULT_BLACKLIST = [
     "Microsoft.WindowsAlarms",
     "Microsoft.ScreenSketch",
     "Microsoft.Clipchamp",
-    "MicrosoftTeams",
+    "MicrosoftTeams", "Microsoft.Teams",
     "Microsoft.MicrosoftEdge.Stable",
     "Microsoft.Windows.DevHome",       # Dev Home (+ GitHub extension)
     "Microsoft.Copilot",
@@ -237,7 +237,7 @@ DEFAULT_BLACKLIST = [
     "COOKINGFEVER",
     "AcerIncorporated.",
     "LenovoCorporation.",
-    "E046963F.LenovoCompanion",
+    "E046963F.",
     "LenovoCompanyLimited.LenovoVantageService",
     # Debloat-Win11 diff — remaining OEM utility suites (audio/RGB/
     # control-center promo ware) + Widgets platform runtime + the Start
@@ -1402,6 +1402,7 @@ _USER_BACKUP_KEY_PATHS = (
     r"Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications",
     r"Software\Microsoft\Windows\CurrentVersion\Applets\Paint\View",
     r"Software\Microsoft\Windows\CurrentVersion\Explorer",
+    r"Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel",
     r"Software\Microsoft\Windows\CurrentVersion\Internet Settings\Wpad",
     r"Software\Microsoft\Notepad",
     r"Software\Microsoft\Paint",
@@ -3433,6 +3434,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_user_dword_all_hives(
                 r"Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement",
                 "ShowSpotlightOnWelcome", 0, logger)
+            # "Learn about this picture" desktop icon — Spotlight promo
+            # surface (Win-Debloat: GUID under NewStartPanel hidden-icons)
+            set_user_dword_all_hives(
+                r"Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel",
+                "{2cc5ca98-6485-489a-920e-b3e88a6ccce3}", 1, logger)
             # Per-hive CloudContent policies — block Spotlight features + the
             # per-user collection feeding them
             cloud = r"Software\Policies\Microsoft\Windows\CloudContent"

@@ -50,6 +50,19 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   coverage transitive coverage — a dropped cs entry would have
   passed silently)
 
+## [Unreleased] — v1.60.7-mvp: tomytate/Win-Debloat full sweep + docs sync
+
+- DisableSpotlight: hides the "Learn about this picture" desktop
+  icon (`Explorer\HideDesktopIcons\NewStartPanel` `{2cc5ca98-…}`=1,
+  per-user all hives) — Spotlight promo surface; added to user
+  backup paths both impls
+- Blacklist: `E046963F.` Lenovo publisher namespace (supersedes the
+  `E046963F.LenovoCompanion` needle) + `Microsoft.Teams`
+- Self-test T9 hardened: `_USER_BACKUP_KEY_PATHS`,
+  `_EXTRA_BACKUP_SERVICES`, `_EOL_PATH` joined py<->cs list parity
+- Doc count sync: tasks 95, services 76, hosts 442; version bump
+  to 1.60.7-mvp everywhere
+
 ## [Unreleased] — v1.60.7-mvp: RegiLattice v6.35.0 policy diff
 
 ### Added

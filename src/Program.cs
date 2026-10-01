@@ -475,7 +475,7 @@ public static class ConfigLoader
                 "Microsoft.WindowsAlarms",
                 "Microsoft.ScreenSketch",
                 "Microsoft.Clipchamp",
-                "MicrosoftTeams",
+                "MicrosoftTeams", "Microsoft.Teams",
                 "Microsoft.MicrosoftEdge.Stable",
                 "Microsoft.Windows.DevHome",       // Dev Home (+ GitHub extension)
                 "Microsoft.Copilot",
@@ -582,7 +582,7 @@ public static class ConfigLoader
                 "COOKINGFEVER",
                 "AcerIncorporated.",
                 "LenovoCorporation.",
-                "E046963F.LenovoCompanion",
+                "E046963F.",
                 "LenovoCompanyLimited.LenovoVantageService",
                 // Debloat-Win11 diff — OEM utility suites (audio/RGB/
                 // control-center promo ware) + Widgets runtime + Start feed host
@@ -4603,6 +4603,7 @@ public static class RegistryGuard
         @"Software\Microsoft\Windows\CurrentVersion\Diagnostics\DiagTrack",
         @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
         @"Software\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers",
+        @"Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel",
         @"Software\Microsoft\Windows\CurrentVersion\Feeds",
         @"Software\Microsoft\Windows\CurrentVersion\GameDVR",
         @"Software\Microsoft\Windows\CurrentVersion\Mobility",
@@ -5010,6 +5011,11 @@ public static class RegistryGuard
             SetUserDwordAllHives(
                 @"Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement",
                 "ShowSpotlightOnWelcome", 0);
+            // "Learn about this picture" desktop icon — Spotlight promo
+            // surface (Win-Debloat: GUID under NewStartPanel hidden-icons)
+            SetUserDwordAllHives(
+                @"Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel",
+                "{2cc5ca98-6485-489a-920e-b3e88a6ccce3}", 1);
             // Per-hive CloudContent policies: block Spotlight features and
             // the per-user data collection that feeds them
             SetUserDwordAllHives(
