@@ -163,6 +163,9 @@ DEFAULT_BLACKLIST = [
     "D52A8D61.",   # FarmVille stubs
     "DB6EA5DB.",   # CyberLink stubs
     "NORDCURRENT.",  # CookingFever-family stubs,
+    "Playtika.",      # casino-game stubs (Caesars Slots)
+    "ThumbmunkeysLtd.",  # Phototastic Collage stub
+    "DolbyAccess",    # Dolby Atmos trial console (OEM push)
     "Disney",                          # Disney+ etc.
     "Amazon.com.Amazon",
     "AmazonVideo.PrimeVideo",
@@ -1160,6 +1163,7 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Policies\Microsoft\Windows\Kernel DMA Protection",
     r"SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Device Metadata",
+    r"SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked",
     # --- coverage completion (audit: every HKLM write path backed up) ---
     r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\UnattendSettings\SQMClient",
     r"SOFTWARE\Microsoft\WindowsRuntime\ActivatableClassId",
@@ -1452,6 +1456,15 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
         try:
             if set_registry_dword("HKLM", cloud_content, "DisableWindowsConsumerFeatures", 1):
                 logger.info("Applied: DisableWindowsConsumerFeatures = 1")
+            # "Edit with Clipchamp" context-menu entry — CLSID block
+            # (CrapFixer): Clipchamp is blacklisted, drop its shell
+            # integration remnant too
+            set_registry_string(
+                "HKLM",
+                r"SOFTWARE\Microsoft\Windows\CurrentVersion"
+                r"\Shell Extensions\Blocked",
+                "{8AB635F8-9A67-4698-AB99-784AD929F3B4}",
+                "RemoveClipchampContext")
 
         except Exception as e:
             logger.warning(f"DisableConsumerExperiences layer failed: {e}")
@@ -1639,6 +1652,14 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             # eligibility check as failed so the feature never surfaces
             set_registry_string("HKLM", shell_copilot, "CopilotDisabledReason",
                                 "IsEnabledForGeographicRegionFailed")
+            # "Ask Copilot" Explorer context-menu entry — CLSID block
+            # (CrapFixer): HKLM applies to all users incl. new profiles
+            set_registry_string(
+                "HKLM",
+                r"SOFTWARE\Microsoft\Windows\CurrentVersion"
+                r"\Shell Extensions\Blocked",
+                "{CB3B0003-8088-4EDE-8769-8B354AB2FF8C}",
+                "RemoveCopilotContext")
             # Per-user Copilot runtime kill (winscript)
             set_user_dword_all_hives(
                 r"Software\Microsoft\Windows\CurrentVersion\WindowsCopilot",
@@ -1671,6 +1692,14 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_user_dword_all_hives(
                 r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
                 "TaskbarCompanion", 0, logger)
+            # "Ask Copilot" Explorer context-menu entry — CLSID block
+            # (CrapFixer): HKLM applies to all users incl. new profiles
+            set_registry_string(
+                "HKLM",
+                r"SOFTWARE\Microsoft\Windows\CurrentVersion"
+                r"\Shell Extensions\Blocked",
+                "{CB3B0003-8088-4EDE-8769-8B354AB2FF8C}",
+                "RemoveCopilotContext")
             for _pkg in ("Microsoft.Copilot_8wekyb3d8bbwe",
                          "Microsoft.MicrosoftOfficeHub_8wekyb3d8bbwe"):
                 _bga = (r"Software\Microsoft\Windows\CurrentVersion"
@@ -2010,6 +2039,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                                "UploadUserActivities", 0)
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\System",
                                "PublishUserActivitiesOnUserConsent", 0)
+            # Per-user activity-history recording kill (CrapFixer) —
+            # policy flags alone leave Timeline recording on at user level
+            set_user_dword_all_hives(_USER_PRIVACY, "ActivityHistoryEnabled", 0, logger)
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\System",
                                "AllowClipboardHistory", 0)
             # Smart Clipboard (Copilot+ AI clipboard suggestions) —

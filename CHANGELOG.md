@@ -2,6 +2,23 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.60.2-mvp: post-merge review remediation + Edge policies
+
+### Fixed
+- `RemoveDefaultStorePackages`: families recorded only in the legacy
+  non-standard `PackageList` value were dropped on upgrade instead of
+  being migrated into `DynamicRemovalList` — merged before delete
+  (Devin Review on PR #35)
+### Changed
+- `DisableTelemetry`: removed `BlockAADWorkplaceJoin` and
+  `KFMBlockOptIn` writes — workplace-join blocking and OneDrive
+  known-folder-backup blocking are outside telemetry scope (Devin
+  Review on PR #35)
+### Added
+- `DisableEdgeBloat` +3 documented Edge policies:
+  `EdgeManagementEnabled`, `ShoppingInEdgeEnabled`,
+  `EdgeWorkspaceEnabled`
+
 ## [Unreleased] — v1.60.1-mvp: Edge policy expansion
 
 ### Added

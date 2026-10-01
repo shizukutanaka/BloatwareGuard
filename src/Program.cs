@@ -521,6 +521,9 @@ public static class ConfigLoader
                 "D52A8D61.",   // FarmVille stubs
                 "DB6EA5DB.",   // CyberLink stubs
                 "NORDCURRENT.",  // CookingFever-family stubs
+                "Playtika.",      // casino-game stubs (Caesars Slots)
+                "ThumbmunkeysLtd.",  // Phototastic Collage stub
+                "DolbyAccess",    // Dolby Atmos trial console (OEM push)
                 "D5EA27B7.Duolingo-LearnLanguagesforFree",
                 "PandoraMediaInc.29680B314EFC2",
                 "Facebook.InstagramBeta",
@@ -2102,6 +2105,12 @@ public static class RegistryGuard
         {
             using var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(CloudContentPath);
             key?.SetValue("DisableWindowsConsumerFeatures", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            // "Edit with Clipchamp" context-menu entry — CLSID block
+            // (CrapFixer): Clipchamp is blacklisted, drop its shell
+            // integration remnant too
+            using (var blocked = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked"))
+                blocked?.SetValue("{8AB635F8-9A67-4698-AB99-784AD929F3B4}", "RemoveClipchampContext");
             GuardLogger.Info("Applied: DisableWindowsConsumerFeatures = 1");
         }
         catch (Exception ex)
@@ -2324,6 +2333,11 @@ public static class RegistryGuard
             // eligibility check as failed so Copilot never surfaces
             using (var shell2 = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(ShellCopilotPath))
                 shell2?.SetValue("CopilotDisabledReason", "IsEnabledForGeographicRegionFailed");
+            // "Ask Copilot" Explorer context-menu entry — CLSID block
+            // (CrapFixer): HKLM applies to all users incl. new profiles
+            using (var blocked = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked"))
+                blocked?.SetValue("{CB3B0003-8088-4EDE-8769-8B354AB2FF8C}", "RemoveCopilotContext");
             // Per-user Copilot runtime kill (winscript)
             SetUserDwordAllHives(
                 @"Software\Microsoft\Windows\CurrentVersion\WindowsCopilot",
@@ -2728,6 +2742,9 @@ public static class RegistryGuard
             // documented System policy (Debloat-Win11)
             sys?.SetValue("EnableSmartClipboard", 0, Microsoft.Win32.RegistryValueKind.DWord);
             sys?.SetValue("PublishUserActivitiesOnUserConsent", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // Per-user activity-history recording kill (CrapFixer) —
+            // policy flags alone leave Timeline recording on at user level
+            SetUserDwordAllHives(UserPrivacyPath, "ActivityHistoryEnabled", 0);
             using var assist = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                 @"SOFTWARE\Policies\Microsoft\Assistance\Client\1.0");
             assist?.SetValue("NoActiveHelp", 1, Microsoft.Win32.RegistryValueKind.DWord);
@@ -4160,6 +4177,7 @@ public static class RegistryGuard
         @"SYSTEM\CurrentControlSet\Control\Session Manager",
         @"SYSTEM\CurrentControlSet\Services\NetBT\Parameters",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\ReserveManager",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked",
         @"SYSTEM\CurrentControlSet\Control\Remote Assistance",
         @"SOFTWARE\Policies\Microsoft\Windows\PreviewBuilds",
         @"SOFTWARE\Policies\Microsoft\Windows\WindowsBackup",
