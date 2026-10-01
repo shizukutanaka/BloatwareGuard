@@ -44,6 +44,12 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
     Copilot mic deny redundant since the app is blacklisted),
     `IsEducationEnvironment`/`GlobalUserDisabled` spoof flags
 
+- self-test T9 hardened: `_USER_BACKUP_KEY_PATHS`,
+  `_EXTRA_BACKUP_SERVICES` and `_EOL_PATH` joined the py<->cs
+  shared-list parity assertions (previously only dup-free / backup-
+  coverage transitive coverage — a dropped cs entry would have
+  passed silently)
+
 ## [Unreleased] — v1.60.6-mvp: RegiLattice v6.35.0 policy diff
 
 ### Added

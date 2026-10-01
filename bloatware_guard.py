@@ -5212,6 +5212,10 @@ def run_self_test() -> int:
                                   ("MICROSOFT_SYSTEM_TASK_PREFIXES",
                                    MICROSOFT_SYSTEM_TASK_PREFIXES),
                                   ("_BACKUP_KEY_PATHS", _BACKUP_KEY_PATHS),
+                                  ("_USER_BACKUP_KEY_PATHS",
+                                   _USER_BACKUP_KEY_PATHS),
+                                  ("_EXTRA_BACKUP_SERVICES",
+                                   _EXTRA_BACKUP_SERVICES),
                                   ("_WIN32_BLOAT_NAMES", _WIN32_BLOAT_NAMES),
                                   ("_MISC_DEMOTE_SERVICES",
                                    _MISC_DEMOTE_SERVICES),
@@ -5223,6 +5227,7 @@ def run_self_test() -> int:
                                   # parity silently, so assert presence too
                                   ("_DEPROVISIONED_PATH",
                                    (_DEPROVISIONED_PATH,)),
+                                  ("_EOL_PATH", (_EOL_PATH,)),
                                   ("_REMOVE_DEFAULT_PKGS_PATH",
                                    (_REMOVE_DEFAULT_PKGS_PATH,)),
                                   ("_USER_DELIVERY_OPT",
