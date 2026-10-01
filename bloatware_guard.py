@@ -1094,6 +1094,7 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Policies\Microsoft\Windows\SpellingAndTyping",
     r"SOFTWARE\Policies\Microsoft\Windows\SuperFetch",
     r"SOFTWARE\Policies\Microsoft\Windows\ScriptedDiagnostics",
+    r"SOFTWARE\Policies\Microsoft\Windows\MachineLearning",
     r"SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization",
     r"SOFTWARE\Policies\Microsoft\Windows\OneDrive",
     r"SOFTWARE\Microsoft\Windows\Windows Error Reporting",
@@ -1335,6 +1336,7 @@ _USER_BACKUP_KEY_PATHS = (
     r"Software\Microsoft\Input\Settings",
     r"Software\Microsoft\Input\TIPC",
     r"Software\Microsoft\InputPersonalization",
+    r"Software\Microsoft\InputMethod\Settings\CHS",
     r"Software\Microsoft\InputPersonalization\TrainedDataStore",
     r"Software\Microsoft\Narrator\NoRoam",
     r"Software\Microsoft\Personalization\Settings",
@@ -1546,6 +1548,7 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "SubscribedContent-314563Enabled",   # My People suggestions
                 "SubscribedContent-314559Enabled",   # OneDrive promotions (ReviOS)
                 "SubscribedContent-280815Enabled",   # OneDrive suggestions (ReviOS)
+                "SubscribedContent-310091Enabled",   # promo tile (RegiLattice MsStore)
                 "SubscribedContent-202914Enabled",   # Start ads (ReviOS)
                 "SubscribedContent-280810Enabled",   # OneDrive SyncProviders ad
                 "SubscribedContent-280811Enabled",   # OneDrive upsell
@@ -1757,6 +1760,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_user_dword_all_hives(
                 r"Software\Microsoft\Speech_OneCore\Preferences",
                 "VoiceActivationOn", 0, logger)
+            # IME cloud AI suggestions off (RegiLattice CopilotPlus —
+            # per-user InputMethod settings)
+            set_user_dword_all_hives(
+                r"Software\Microsoft\InputMethod\Settings\CHS",
+                "UseAISuggestions", 0, logger)
             # WinToolify diff: Explorer "AI actions" context-menu group
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\Explorer",
                                "HideAIActionsMenu", 1)
@@ -2227,6 +2235,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword(
                 "HKLM", r"SOFTWARE\Policies\Microsoft\Windows\ScriptedDiagnostics",
                 "AllowDiagnosticDataUpload", 0)
+            # Windows ML inference telemetry off (RegiLattice
+            # MachineLearning policy — kill flag polarity is 1)
+            set_registry_dword(
+                "HKLM", r"SOFTWARE\Policies\Microsoft\Windows\MachineLearning",
+                "WinMLTelemetryEnabled", 1)
             # GameDVR achievement-sharing + streaming-upload surfaces
             # (RegiLattice — capture policies untouched)
             dvr = r"SOFTWARE\Policies\Microsoft\Windows\GameDVR"

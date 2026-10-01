@@ -2215,6 +2215,7 @@ public static class RegistryGuard
                 "SubscribedContent-314563Enabled",  // My People suggestions
                 "SubscribedContent-314559Enabled",  // OneDrive promotions (ReviOS)
                 "SubscribedContent-280815Enabled",  // OneDrive suggestions (ReviOS)
+                "SubscribedContent-310091Enabled",  // promo tile (RegiLattice MsStore)
                 "SubscribedContent-202914Enabled",  // Start ads (ReviOS)
                 "SubscribedContent-280810Enabled",  // OneDrive SyncProviders ad
                 "SubscribedContent-280811Enabled",  // OneDrive upsell
@@ -2425,6 +2426,9 @@ public static class RegistryGuard
             SetUserDwordAllHives(UserVoiceActivationPath, "AgentActivationLastUsed", 0);
             // Wake-word/voice activation off (RegiLattice Cortana)
             SetUserDwordAllHives(@"Software\Microsoft\Speech_OneCore\Preferences", "VoiceActivationOn", 0);
+            // IME cloud AI suggestions off (RegiLattice CopilotPlus —
+            // per-user InputMethod settings)
+            SetUserDwordAllHives(@"Software\Microsoft\InputMethod\Settings\CHS", "UseAISuggestions", 0);
             using (var expAi = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                 @"SOFTWARE\Policies\Microsoft\Windows\Explorer"))
                 expAi?.SetValue("HideAIActionsMenu", 1, Microsoft.Win32.RegistryValueKind.DWord);
@@ -2988,6 +2992,13 @@ public static class RegistryGuard
                 using var sd = Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Windows\ScriptedDiagnostics", true);
                 sd?.SetValue("AllowDiagnosticDataUpload", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            {
+                // Windows ML inference telemetry off (RegiLattice
+                // MachineLearning policy — kill flag polarity is 1)
+                using var ml = Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\MachineLearning", true);
+                ml?.SetValue("WinMLTelemetryEnabled", 1, Microsoft.Win32.RegistryValueKind.DWord);
             }
             {
                 // GameDVR achievement-sharing + streaming-upload surfaces
@@ -4300,6 +4311,7 @@ public static class RegistryGuard
         @"SOFTWARE\Policies\Microsoft\Windows\SpellingAndTyping",
         @"SOFTWARE\Policies\Microsoft\Windows\SuperFetch",
         @"SOFTWARE\Policies\Microsoft\Windows\ScriptedDiagnostics",
+        @"SOFTWARE\Policies\Microsoft\Windows\MachineLearning",
         @"SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization",
         @"SOFTWARE\Policies\Microsoft\Windows\OneDrive",
         @"SOFTWARE\Microsoft\Windows\Windows Error Reporting",
@@ -4454,6 +4466,7 @@ public static class RegistryGuard
         @"Software\Microsoft\Input\Settings",
         @"Software\Microsoft\Input\TIPC",
         @"Software\Microsoft\InputPersonalization",
+        @"Software\Microsoft\InputMethod\Settings\CHS",
         @"Software\Microsoft\InputPersonalization\TrainedDataStore",
         @"Software\Microsoft\Narrator\NoRoam",
         @"Software\Microsoft\Personalization\Settings",
