@@ -918,6 +918,10 @@ _VELOCITY_AI_IDS = (
     # Additional AI velocity IDs (DebloatAndSecurizeW11 / phantomofearth
     # velocity feature lists)
     ("3189581453", 1), ("3552646797", 1), ("450471565", 1),
+    # FeatureId 58375086 -> regID 1561856655 via zoicware's
+    # ObfuscateFeatureId — disables the Explorer-side feature that
+    # depends on AIFabric (zoicware #236/#238 Explorer-ribbon fix)
+    ("1561856655", 1),
 )
 _USER_SEARCH = r"Software\Microsoft\Windows\CurrentVersion\Search"
 _USER_SEARCH_SETTINGS = r"Software\Microsoft\Windows\CurrentVersion\SearchSettings"
@@ -1325,6 +1329,10 @@ _MISC_DEMOTE_SERVICES = (
     # messaging backend (app is blacklisted), Game Pass runtime pair
     "InventorySvc", "WpcMonSvc", "MessagingService",
     "GamingServices", "GamingServicesNet",
+    # Agent-isolation broker — hosts experimental agentic-AI sandboxed
+    # runs (zoicware/RemoveWindowsAI); demand-start keeps invocation
+    # working without the resident service
+    "IsoEnvBroker",
 )
 
 

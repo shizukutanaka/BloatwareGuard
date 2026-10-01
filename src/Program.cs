@@ -1264,6 +1264,10 @@ public static class RegistryGuard
         // Additional AI velocity IDs (DebloatAndSecurizeW11 / phantomofearth
         // velocity feature lists)
         ("3189581453", 1), ("3552646797", 1), ("450471565", 1),
+        // FeatureId 58375086 -> regID 1561856655 via zoicware's
+        // ObfuscateFeatureId — disables the Explorer-side feature that
+        // depends on AIFabric (zoicware #236/#238 Explorer-ribbon fix)
+        ("1561856655", 1),
     };
     private const string UserSearchPath = @"Software\Microsoft\Windows\CurrentVersion\Search";
     private const string UserSearchSettingsPath = @"Software\Microsoft\Windows\CurrentVersion\SearchSettings";
@@ -4956,6 +4960,10 @@ public static class RegistryGuard
         // Game Pass runtime pair
         "InventorySvc", "WpcMonSvc", "MessagingService",
         "GamingServices", "GamingServicesNet",
+        // Agent-isolation broker — hosts experimental agentic-AI
+        // sandboxed runs (zoicware/RemoveWindowsAI); demand-start
+        // keeps invocation working without the resident service
+        "IsoEnvBroker",
     };
 
     public static void DisableMiscBloatServices()

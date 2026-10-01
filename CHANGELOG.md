@@ -11,6 +11,19 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   - (Skipped: `IsEducationEnvironment` education-environment spoof flag;
     Explorer UX prefs — file-ext, frequent/recent lists, taskbar mode)
 
+- zoicware/RemoveWindowsAI re-diff (post-#236/#238 head, ~30 new commits):
+  - `_VELOCITY_AI_IDS` +`1561856655` (EnabledState=1) — obfuscated
+    regID of FeatureId 58375086, the Explorer-side feature that
+    depends on AIFabric (zoicware's Explorer-ribbon fix)
+  - `MiscBloatServices` +`IsoEnvBroker` — agentic-AI sandbox/isolation
+    broker service demoted to demand-start (zoicware disables=4)
+  - (Covered already: ConsentStore generativeAI/systemAIModels denies,
+    RecordUsageData, CopilotPWA preinstall markers, Voiess/Speion/
+    Livtop/Ink.Handwriting, AI-event channels; skipped: Office vendor
+    copilot-pinning keys, App-Paths/taskkill/CBS deletions,
+    `AIContext` delete semantics, per-app mic deny — app already
+    blacklisted)
+
 ## [Unreleased] — v1.60.6-mvp: RegiLattice v6.35.0 policy diff
 
 ### Added
