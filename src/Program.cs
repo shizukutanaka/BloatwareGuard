@@ -424,10 +424,19 @@ public static class ConfigLoader
         return config ?? CreateDefault();
     }
 
+    /// <summary>Write `text` to `path` via a same-dir temp file + replace — a
+    /// crash mid-write can't leave a truncated/corrupt destination.</summary>
+    public static void WriteAllTextAtomic(string path, string text)
+    {
+        var tmp = path + ".tmp";
+        File.WriteAllText(tmp, text);
+        File.Move(tmp, path, overwrite: true);
+    }
+
     public static void Save(string path, GuardConfig config)
     {
         var json = JsonSerializer.Serialize(config, GuardJsonContext.Default.GuardConfig);
-        File.WriteAllText(path, json);
+        WriteAllTextAtomic(path, json);
     }
 
     private static GuardConfig CreateDefault()
@@ -2015,7 +2024,7 @@ public static class RegistryGuard
             return; // already in the desired state
         try
         {
-            File.WriteAllText(hostsPath, text);
+            ConfigLoader.WriteAllTextAtomic(hostsPath, text);
             GuardLogger.Info($"Telemetry hosts block {(enabled ? "applied" : "removed")} ({TelemetryHosts.Length} domains)");
         }
         catch (Exception ex)

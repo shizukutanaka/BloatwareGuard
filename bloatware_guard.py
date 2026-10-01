@@ -300,6 +300,14 @@ DEFAULT_BLACKLIST = [
 ]
 
 
+def _atomic_write_text(path: Path, text: str) -> None:
+    """Write `text` to `path` via a same-dir temp file + os.replace — a
+    crash mid-write can't leave a truncated/corrupt destination."""
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(text, encoding="utf-8")
+    os.replace(tmp, path)
+
+
 def load_config(path: Path) -> dict:
     if not path.exists():
         config = {
@@ -377,7 +385,7 @@ def load_config(path: Path) -> dict:
             },
             "DryRun": False,
         }
-        path.write_text(json.dumps(config, indent=2, ensure_ascii=False), encoding="utf-8")
+        _atomic_write_text(path, json.dumps(config, indent=2, ensure_ascii=False))
         return config
 
     # utf-8-sig tolerates a BOM (Notepad saves UTF-8 with BOM by default)
@@ -4593,7 +4601,7 @@ def set_telemetry_hosts_block(enabled: bool, logger: logging.Logger) -> None:
     if hosts.exists() and text == original:
         return  # already in the desired state
     try:
-        hosts.write_text(text, encoding="utf-8")
+        _atomic_write_text(hosts, text)
         state = "applied" if enabled else "removed"
         logger.info(f"Telemetry hosts block {state} ({len(_TELEMETRY_HOSTS)} domains)")
     except OSError as e:
