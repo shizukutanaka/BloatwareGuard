@@ -117,6 +117,14 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   (`Internet Explorer\Main`, HKLM) — Microsoft Security Baseline policy
   blocking legacy IE COM automation (noid-privacy baseline audit)
 
+- `BlockTelemetryEndpoints` +44 hosts (462->506): Watson upload cabs
+  (`ceus/eaus/weus*watcab`), km/um/modern Watson + OCA crash analysis,
+  SQM front-end, telecommand, EU Watson/Office events, AppInsights/Aria
+  ingest, Iris feed backends (fd/ris.api.iris + azure iris-de-*),
+  vortex/settings aliases, MSN feed + Bing/AppNexus/omtrdc ads, Solitaire
+  events, MyAnalytics/Viva, Vungle ad SDK, Insider enrollment
+  (schrebra Windows.10.DNS.Block.List sweep)
+
 ## [Unreleased] — v1.60.7-mvp: tomytate/Win-Debloat full sweep + docs sync
 
 - DisableSpotlight: hides the "Learn about this picture" desktop
