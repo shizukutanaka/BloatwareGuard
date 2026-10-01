@@ -8,7 +8,7 @@ if (!(Test-Path C:\temp)) { mkdir C:\temp | Out-Null }
 Write-Host "Taking BEFORE snapshots..." -ForegroundColor Yellow
 
 # 1. Registry snapshot BEFORE
-reg export "HKLM\SOFTWARE\Policies\Microsoft\Windows" C:\temp\before.reg 2>$null
+reg export "HKLM\SOFTWARE\Policies\Microsoft" C:\temp\before.reg 2>$null
 reg export "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" C:\temp\before_system.reg 2>$null
 
 # 2. Provisioned packages BEFORE
@@ -25,7 +25,7 @@ python (Join-Path $PSScriptRoot "bloatware_guard.py") --scan
 
 # 5. AFTER snapshots
 Write-Host "Taking AFTER snapshots..." -ForegroundColor Yellow
-reg export "HKLM\SOFTWARE\Policies\Microsoft\Windows" C:\temp\after.reg 2>$null
+reg export "HKLM\SOFTWARE\Policies\Microsoft" C:\temp\after.reg 2>$null
 reg export "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" C:\temp\after_system.reg 2>$null
 powershell "Get-AppxProvisionedPackage -Online | Select PackageName" > C:\temp\prov_after.txt
 $installed_after = Get-AppxPackage | Where-Object { $n = $_.Name; $blacklist_patterns | Where-Object { $n -like "*$_*" } }
@@ -38,7 +38,7 @@ Write-Host "[Provisioned Packages]" -ForegroundColor Yellow
 fc C:\temp\prov_before.txt C:\temp\prov_after.txt | findstr "<"
 
 Write-Host "[Registry Changes (CloudContent)]" -ForegroundColor Yellow
-fc C:\temp\before.reg C:\temp\after.reg | findstr /i "CloudContent\|Consumer\|Disable"
+fc C:\temp\before.reg C:\temp\after.reg | findstr /i "CloudContent\|Consumer\|Disable\|Copilot\|Recall\|Restrict\|Internet Explorer\|Telemetry"
 
 Write-Host "[Removed Appx Packages]" -ForegroundColor Yellow
 Compare-Object (Import-Csv C:\temp\appx_before.csv).PackageFamilyName (Import-Csv C:\temp\appx_after.csv).PackageFamilyName | Where-Object SideIndicator -eq "<="
