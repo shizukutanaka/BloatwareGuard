@@ -617,6 +617,28 @@ def run_restore(config: dict, logger: logging.Logger) -> int:
                 logger.warning(f"Capability restore failed: {name} "
                                "(Settings → Optional features)")
                 manual += 1
+        elif entry.get("kind") == "provisioned" and name:
+            # The provisioned payload may still exist for another user —
+            # try the same re-register path before declaring it manual.
+            if not _safe_pkg_name(name):
+                logger.warning(f"Ledger entry with unsafe name skipped: {name!r}")
+                manual += 1
+                continue
+            ps_cmd = (
+                f"Get-AppxPackage -AllUsers -Name '{name}' | "
+                f"ForEach-Object {{ Add-AppxPackage -DisableDevelopmentMode "
+                f"-Register \"$($_.InstallLocation)\\AppxManifest.xml\" "
+                f"-ErrorAction SilentlyContinue }}"
+            )
+            _, _, rc = run_powershell(ps_cmd, timeout=60)
+            if rc == 0:
+                logger.info(f"Restored (re-registered): {name}")
+                restored += 1
+            else:
+                logger.info(
+                    f"Manual restore needed: {name or entry.get('family', '?')} "
+                    f"(provisioned — reinstall via Microsoft Store or Settings)")
+                manual += 1
         else:
             logger.info(
                 f"Manual restore needed: {name or entry.get('family', '?')} "

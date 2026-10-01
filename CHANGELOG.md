@@ -245,6 +245,16 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   `RandomSaladGamesLLC.` + `SAMSUNGELECTRONICSCO.LTD.` — casual-game
   and Samsung store stub publisher namespaces
 
+## [Unreleased] — v1.61.0: --restore re-register fallback for provisioned entries
+
+- `provisioned` ledger entries previously went straight to manual-restore.
+  They now attempt the same Get-AppxPackage -AllUsers re-register first — the
+  package payload often still exists for another user profile, making the
+  removal actually reversible without a Store reinstall. Falls back to the
+  manual note when the payload is truly gone. (C# + Python parity)
+- New-source sweep: PingMeBaby/Shush11, Arcticforrecord/win11debloat-
+  customization (Raphire mirror), RealSyferX — all covered or empty.
+
 ## [Unreleased] — v1.60.9: timeout-kill for bounded C# process waits
 
 - `ShowStatus` (sc query) and `RestoreStagedPackage` (DISM restore) waited

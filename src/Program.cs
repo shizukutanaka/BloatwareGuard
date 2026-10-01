@@ -6467,6 +6467,22 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
                     manual++;
                 }
             }
+            else if (kind == "provisioned" && !string.IsNullOrEmpty(name))
+            {
+                // The provisioned payload may still exist for another user —
+                // try the same re-register path before declaring it manual.
+                if (RestoreStagedPackage(name))
+                {
+                    GuardLogger.Info($"Restored (re-registered): {name}");
+                    restored++;
+                }
+                else
+                {
+                    GuardLogger.Info(
+                        $"Manual restore needed: {display} (provisioned — reinstall via Microsoft Store or Settings)");
+                    manual++;
+                }
+            }
             else
             {
                 GuardLogger.Info(
