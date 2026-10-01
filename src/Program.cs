@@ -3650,6 +3650,12 @@ public static class RegistryGuard
                 @"Software\NVIDIA Corporation\NVControlPanel2\Client",
                 "OptInOrOutPreference", 0);
 
+            // AMD Customer Experience Program opt-out (Reclaim vendor
+            // telemetry): HKLM AMD CN hive
+            using var amdcn = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\AMD\CN");
+            amdcn?.SetValue("UserExperienceProgram", 0, Microsoft.Win32.RegistryValueKind.DWord);
+
             GuardLogger.Info("Applied: DisableTelemetry (AllowTelemetry=0, DiagTrack off, privacy surfaces set)");
         }
         catch (Exception ex)
@@ -3800,6 +3806,8 @@ public static class RegistryGuard
                     "EdgeReadingModeServiceBasedExtractionEnabled",
                     // URL-keyed "anonymized" browsing-data uploads (winutil)
                     "UrlKeyedAnonymizedDataCollectionEnabled" ,
+                    // first-run taskbar-pin wizard suppression (Reclaim)
+                    "PinningWizardAllowed",
                     // Edge Surf game (Aegis-Win11)
                     "AllowSurfGame",
                     // Edge desktop-analytics telemetry (WGO)
@@ -3813,6 +3821,9 @@ public static class RegistryGuard
                     // (MS Learn Edge policy docs; eplord Win-Debloat7)
                     "ComposeInlineEnabled" })
                 key?.SetValue(n, 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // NTP background restricted to off/theme-only (3 = no custom
+            // imagery feeds; Reclaim Edge catalog)
+            key?.SetValue("NewTabPageAllowedBackgroundTypes", 3, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("StartupBoostEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("AllowPrelaunch", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("HideFirstRunExperience", 1, Microsoft.Win32.RegistryValueKind.DWord);
@@ -4388,6 +4399,7 @@ public static class RegistryGuard
     // every change is restorable with a double-click.
     private static readonly string[] BackupKeyPaths = {
         @"SOFTWARE\Policies\Microsoft\Windows\CloudContent",
+        @"SOFTWARE\AMD\CN",
         @"SOFTWARE\Policies\Microsoft\Windows\Personalization",
         @"SOFTWARE\Policies\Microsoft\Windows\Device Metadata",
         @"SOFTWARE\Policies\Microsoft\Windows\AppCompat",
@@ -5045,6 +5057,9 @@ public static class RegistryGuard
             using var perz = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                 @"SOFTWARE\Policies\Microsoft\Windows\Personalization");
             perz?.SetValue("LockScreenOverlaysDisabled", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            using var ccloud = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Policies\Microsoft\Windows\CloudContent");
+            ccloud?.SetValue("DisableWindowsSpotlightOnLockScreen", 1, Microsoft.Win32.RegistryValueKind.DWord);
             using var expol2 = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                 @"SOFTWARE\Policies\Microsoft\Windows\Explorer");
             expol2?.SetValue("AllowOnlineTips", 0, Microsoft.Win32.RegistryValueKind.DWord);
@@ -5126,6 +5141,10 @@ public static class RegistryGuard
             SetUserDwordAllHives(
                 @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
                 "Start_TrackDocs", 0);
+            // Explorer recent-docs history policy kill (Reclaim)
+            SetUserDwordAllHives(
+                @"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer",
+                "NoRecentDocsHistory", 1);
             // Phone Link companion panel in Start (mobile-device promo surface)
             SetUserDwordAllHives(
                 @"Software\Microsoft\Windows\CurrentVersion\Start\Companions\Microsoft.YourPhone_8wekyb3d8bbwe",

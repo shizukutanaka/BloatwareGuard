@@ -1076,6 +1076,7 @@ def set_user_dword_all_hives(path: str, name: str, value: int, logger: logging.L
 # change is restorable with a double-click.
 _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Policies\Microsoft\Windows\CloudContent",
+    r"SOFTWARE\AMD\CN",
     r"SOFTWARE\Policies\Microsoft\Windows\Personalization",
     r"SOFTWARE\Policies\Microsoft\Windows\Device Metadata",
     r"SOFTWARE\Policies\Microsoft\Windows\AppCompat",
@@ -2890,6 +2891,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_user_dword_all_hives(
                 r"Software\NVIDIA Corporation\NVControlPanel2\Client",
                 "OptInOrOutPreference", 0, logger)
+            # AMD Customer Experience Program opt-out (Reclaim vendor
+            # telemetry): HKLM AMD CN hive
+            set_registry_dword("HKLM", r"SOFTWARE\AMD\CN",
+                               "UserExperienceProgram", 0)
             logger.info("Applied: DisableTelemetry (AllowTelemetry=0, DiagTrack off, "
                         "privacy surfaces set)")
             # Deprecated TLS 1.0/1.1 protocols off (Winnow/BSI guidance):
@@ -2996,6 +3001,8 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                          # URL-keyed "anonymized" browsing-data uploads
                          # (winutil tweaks.json Edge group)
                          "UrlKeyedAnonymizedDataCollectionEnabled",
+                         # first-run taskbar-pin wizard suppression (Reclaim)
+                         "PinningWizardAllowed",
                          # Edge Surf game (Aegis-Win11)
                          "AllowSurfGame",
                          # Edge desktop-analytics telemetry (WGO)
@@ -3009,6 +3016,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                          # (MS Learn Edge policy docs; eplord Win-Debloat7)
                          "ComposeInlineEnabled"):
                 set_registry_dword("HKLM", edge_pol, name, 0)
+            # NTP background restricted to off/theme-only (3 = no custom
+            # imagery feeds; Reclaim Edge catalog)
+            set_registry_dword("HKLM", edge_pol,
+                               "NewTabPageAllowedBackgroundTypes", 3)
             # Edge search-provider suggestions upload (soswod SearchScopes)
             set_registry_dword(
                 "HKLM",
@@ -3459,6 +3470,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword(
                 "HKLM", r"SOFTWARE\Policies\Microsoft\Windows\Personalization",
                 "LockScreenOverlaysDisabled", 1)
+            set_registry_dword(
+                "HKLM", r"SOFTWARE\Policies\Microsoft\Windows\CloudContent",
+                "DisableWindowsSpotlightOnLockScreen", 1)
             expol = r"SOFTWARE\Policies\Microsoft\Windows\Explorer"
             set_registry_dword("HKLM", expol, "AllowOnlineTips", 0)
             set_registry_dword("HKLM", expol,
@@ -3508,6 +3522,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_user_dword_all_hives(
                 r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
                 "Start_TrackDocs", 0, logger)
+            # Explorer recent-docs history policy kill (Reclaim)
+            set_user_dword_all_hives(
+                r"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer",
+                "NoRecentDocsHistory", 1, logger)
             # Phone Link companion panel in Start (mobile-device promo surface)
             set_user_dword_all_hives(
                 r"Software\Microsoft\Windows\CurrentVersion\Start\Companions"

@@ -62,6 +62,12 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   boundary), ecs*/nexusrules Office vendor, config.edge.skype.com
 - OEM task patterns +`AMD`, `AUEP` (AMD User Experience Program)
 
+- Reclaim catalog diff: `DisableWindowsSpotlightOnLockScreen`=1
+  (HKLM CloudContent), Edge `PinningWizardAllowed`=0 +
+  `NewTabPageAllowedBackgroundTypes`=3, per-user
+  `NoRecentDocsHistory`=1 (Policies\Explorer), AMD
+  `UserExperienceProgram`=0 @ SOFTWARE\AMD\CN (+ backup path)
+
 ## [Unreleased] — v1.60.7-mvp: tomytate/Win-Debloat full sweep + docs sync
 
 - DisableSpotlight: hides the "Learn about this picture" desktop
