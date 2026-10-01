@@ -193,6 +193,18 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   `UsageAndQualityInsights\UsageAndQualityInsights-MaintenanceTask`
   (UQI/OneSettings maintenance — WindowsMize task-list diff)
 
+- `DisableTelemetryTasks` +24 (99→123, WindowsMize task-list diff):
+  PcaWallpaperAppDetect, DUSM dusmtask, Diagnosis
+  UnexpectedCodepath, PerformanceTrace RequestTrace, Flighting
+  FeatureConfig BootstrapUsageDataReporting, input/peripheral
+  settings sync ×7, language-settings sync, Provisioning
+  Cellular/Logon, EnterpriseMgmt MDMMainten(e)nceTask ×2, theme
+  sync ×2, RemoteAssistanceTask, Offline Files sync ×2,
+  PushToInstall Registration, AppListBackup
+  BackupNonMaintenance, ApplicationData DsSvcCleanup, User
+  Profile HiveUploadTask — all named tasks only (folder-wide
+  kills avoided since they hit functional tasks)
+
 ## [Unreleased] — v1.60.7-mvp: tomytate/Win-Debloat full sweep + docs sync
 
 - DisableSpotlight: hides the "Learn about this picture" desktop
