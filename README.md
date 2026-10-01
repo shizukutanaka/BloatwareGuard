@@ -30,7 +30,7 @@ also apply correctly when the tool runs as a SYSTEM service and for users create
 || 18. Optional capabilities removed (IE mode, Steps Recorder, WordPad, XPS Viewer, Fax&Scan, Wireless Display) | ✅ | ✅ | Requires admin |
 || 19. Win32 bloatware uninstalled (McAfee/Norton OEM preinstalls — MSI silent) | ✅ | ✅ | Requires admin |
 || 20. Restore point before destructive scans (self-throttles 24h) | ✅ | ✅ | Requires admin |
-|| 21. Microsoft telemetry tasks off (96: CompatTelRunner, CEIP, Siuf, Maps, Office CEIP, RetailDemo, Insider flighting, feedback, Device Census, family safety, net-trace, AIT, speech models, disk diagnostics, PCA, location, IME/input sync, PerfTrack, push-install, WDI, WindowsAI Recall/AISystem/NarrativeFlows, Office AI, power diagnostics, OneSettings, UCPD velocity, UNP, EOS nags) | ✅ | ✅ | Requires admin |
+|| 21. Microsoft telemetry tasks off (98: CompatTelRunner, CEIP, Siuf, Maps, Office CEIP, RetailDemo, Insider flighting, feedback, Device Census, family safety, net-trace, AIT, speech models, disk diagnostics, PCA, location, IME/input sync, PerfTrack, push-install, WDI, WindowsAI Recall/AISystem/NarrativeFlows, Office AI, power diagnostics, OneSettings, UCPD velocity, UNP, EOS nags) | ✅ | ✅ | Requires admin |
 || 22. Bloatware autostart entries disabled (StartupApproved marker + Startup-folder rename — restorable) | ✅ | ✅ | Per-hive, some HKLM |
 || 23. Windows Error Reporting uploads off | ✅ | ✅ | HKLM needs admin |
 || 24. Edge update services → demand-start + update tasks off | ✅ | ✅ | Requires admin |
@@ -44,14 +44,14 @@ also apply correctly when the tool runs as a SYSTEM service and for users create
 || 32. Cross-device clipboard sync off (copied content stays local) | ✅ | ✅ | HKLM needs admin |
 || 33. Remote Assistance inbound offers off | ✅ | ✅ | HKLM needs admin |
 || 34. Windows Insider preview enrollment blocked | ✅ | ✅ | HKLM needs admin |
-|| 35. Misc bloat services → demand-start (80: push/MDM, Maps, media sharing, diagnostics, Nearby Sharing, Store push-install, NFC payments, Phone Link, NVIDIA/Intel telemetry, SysMain prefetch, touch keyboard, search indexer, kiosk assigned-access, link tracking, WER CPL, AI-fabric listeners, OneSettings, FileSync, sensor stack, MR OpenXR, Fax, agent-isolation broker) + RemoteRegistry disabled | ✅ | ✅ | HKLM needs admin |
+|| 35. Misc bloat services → demand-start (83: push/MDM, Maps, media sharing, diagnostics, Nearby Sharing, Store push-install, NFC payments, Phone Link, NVIDIA/Intel telemetry, SysMain prefetch, touch keyboard, search indexer, kiosk assigned-access, link tracking, WER CPL, AI-fabric listeners, OneSettings, FileSync, sensor stack, MR OpenXR, Fax, agent-isolation broker) + RemoteRegistry disabled | ✅ | ✅ | HKLM needs admin |
 || 36. Desktop Spotlight off (wallpaper promo channel) | ✅ | ✅ | Per-hive |
 || 37. AutoPlay/AutoRun off (removable-media execution vector) | ✅ | ✅ | HKLM needs admin |
 || 38. No forced Windows Update reboot while logged on | ✅ | ✅ | HKLM needs admin |
 || 39. Start "Recommended" section hidden (promoted-apps surface) | ✅ | ✅ | HKLM needs admin |
 || 40. Deprovisioned markers for blacklisted families (feature-update re-provision blocked) | ✅ | ✅ | HKLM needs admin |
 || 41. 25H2 RemoveDefaultMicrosoftStorePackages policy (OS removes listed apps at first sign-in of new users) | ✅ | ✅ | HKLM needs admin; unknown ids ignored on older builds |
-|| 42. Telemetry endpoints null-routed via marked hosts block (442 domains, reversible) | ✅ | ✅ | Requires admin |
+|| 42. Telemetry endpoints null-routed via marked hosts block (462 domains, reversible) | ✅ | ✅ | Requires admin |
 || 43. winget uninstall sweep for blacklist entries that are valid package ids | ✅ | ✅ | Skips when winget absent |
 || 44. Telemetry ETW AutoLoggers off (SQMLogger, WiFiSession, Diagtrack-Listener, 13 sessions) | ✅ | ✅ | HKLM needs admin |
 || 45. Provisioning blocked (CDM silent installs, SubscribedContent surfaces, Open-With store nags, online tips) | ✅ | ✅ | HKLM + per-hive |
