@@ -4440,6 +4440,9 @@ TELEMETRY_TASK_PATHS = (
     # save sync scheduler (XblGameSave service is already demand-gated)
     "\\Microsoft\\Windows\\Shell\\FamilySafetyUpload",
     "\\Microsoft\\XblGameSave\\XblGameSaveTask",
+    # Game Bar "now playing" presence writer (per-user root task —
+    # Reclaim diff; broadcasts current-game state to Xbox widgets)
+    "\\GameBarPresenceWriter",
     # Win-Debloat7 privacy tasks diff: 25H2 AI-subtree tasks (Copilot+
     # recall/model/index pipelines) + OneSettings cache pulls + UCPD
     # velocity config flighting + UNP campaign manager + EOS nag toasts

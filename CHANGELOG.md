@@ -23,6 +23,11 @@ vendor values, RDP/Terminal-Server `f*` redirects, Defender/ATP and
 NTLM/credential-delegation hardening, print-restore kills, gaze/dwell
 accessibility toggles, WU/DO bandwidth and deferral policies.)
 
+- `DisableTelemetryTasks` +`\GameBarPresenceWriter` (per-user root task
+  writing "now playing" state for Game Bar/Xbox widgets — jonax1337/
+  Reclaim 228-tweak diff; remaining Reclaim surface was UI/perf/vendor
+  or already covered)
+
 ## [Unreleased] — v1.60.5-mvp: RegiLattice privacy/AI policy diff
 
 ### Added
