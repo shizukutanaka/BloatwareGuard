@@ -974,7 +974,18 @@ public static class AppxManager
             // Merge with existing entries — a family removed in an earlier
             // scan must stay listed or new users get it re-provisioned.
             var prior = key.GetValue("DynamicRemovalList") as string[] ?? Array.Empty<string>();
-            var merged = prior.Concat(families)
+            // Migrate any names an older build recorded in the non-standard
+            // PackageList value before dropping it, so they stay listed.
+            var legacy = key.GetValue("PackageList") switch
+            {
+                string[] many => many,
+                string one => one.Split(new[] { ';', ',', '\n', '\r' },
+                    StringSplitOptions.RemoveEmptyEntries),
+                _ => Array.Empty<string>()
+            };
+            var merged = prior.Concat(legacy).Concat(families)
+                .Select(f => f.Trim())
+                .Where(f => f.Length > 0)
                 .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
             key.SetValue("Enabled", 1, Microsoft.Win32.RegistryValueKind.DWord);
             key.SetValue("DynamicRemovalList", merged, Microsoft.Win32.RegistryValueKind.MultiString);
@@ -3262,17 +3273,6 @@ public static class RegistryGuard
                 odpol?.SetValue("EnableSyncAdminReports", 0, Microsoft.Win32.RegistryValueKind.DWord);
                 odpol?.SetValue("EnableFeedbackAndSupport", 0, Microsoft.Win32.RegistryValueKind.DWord);
                 odpol?.SetValue("PreventNetworkTrafficPreUserSignIn", 1, Microsoft.Win32.RegistryValueKind.DWord);
-                odpol?.SetValue("KFMBlockOptIn", 1, Microsoft.Win32.RegistryValueKind.DWord);
-                SetUserDwordAllHives(
-                    @"Software\Policies\Microsoft\OneDrive",
-                    "KFMBlockOptIn", 1);
-                // Block consumer AAD Workplace Join (Winhance)
-                using var wpj = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
-                    @"SOFTWARE\Policies\Microsoft\Windows\WorkplaceJoin");
-                wpj?.SetValue("BlockAADWorkplaceJoin", 1, Microsoft.Win32.RegistryValueKind.DWord);
-                SetUserDwordAllHives(
-                    @"Software\Policies\Microsoft\Windows\WorkplaceJoin",
-                    "BlockAADWorkplaceJoin", 1);
                 // Suppress the "your telemetry setting changed" nag + hide
                 // the telemetry level picker UX entirely (ReviOS parity)
                 fdb?.SetValue("DisableTelemetryOptInChangeNotification", 1, Microsoft.Win32.RegistryValueKind.DWord);
@@ -3548,7 +3548,12 @@ public static class RegistryGuard
                     // Edge Surf game (Aegis-Win11)
                     "AllowSurfGame",
                     // Edge desktop-analytics telemetry (WGO)
-                    "ConfigureTelemetryForDesktop" })
+                    "ConfigureTelemetryForDesktop",
+                    // Cloud management enrollment + shopping assistant +
+                    // Workspaces collaboration surface (Edge policy docs)
+                    "EdgeManagementEnabled",
+                    "ShoppingInEdgeEnabled",
+                    "EdgeWorkspaceEnabled" })
                 key?.SetValue(n, 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("StartupBoostEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("AllowPrelaunch", 0, Microsoft.Win32.RegistryValueKind.DWord);

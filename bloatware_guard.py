@@ -2525,18 +2525,6 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword("HKLM", od_pol, "EnableSyncAdminReports", 0)
             set_registry_dword("HKLM", od_pol, "EnableFeedbackAndSupport", 0)
             set_registry_dword("HKLM", od_pol, "PreventNetworkTrafficPreUserSignIn", 1)
-            set_registry_dword("HKLM", od_pol, "KFMBlockOptIn", 1)
-            set_user_dword_all_hives(
-                r"Software\Policies\Microsoft\OneDrive",
-                "KFMBlockOptIn", 1, logger)
-            # Block consumer AAD Workplace Join (Winhance)
-            set_registry_dword(
-                "HKLM",
-                r"SOFTWARE\Policies\Microsoft\Windows\WorkplaceJoin",
-                "BlockAADWorkplaceJoin", 1)
-            set_user_dword_all_hives(
-                r"Software\Policies\Microsoft\Windows\WorkplaceJoin",
-                "BlockAADWorkplaceJoin", 1, logger)
             # Suppress the "your telemetry setting changed" nag + hide the
             # telemetry level picker UX entirely (ReviOS parity)
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\DataCollection",
@@ -2761,7 +2749,12 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                          # Edge Surf game (Aegis-Win11)
                          "AllowSurfGame",
                          # Edge desktop-analytics telemetry (WGO)
-                         "ConfigureTelemetryForDesktop"):
+                         "ConfigureTelemetryForDesktop",
+                         # Cloud management enrollment + shopping assistant +
+                         # Workspaces collaboration surface (Edge policy docs)
+                         "EdgeManagementEnabled",
+                         "ShoppingInEdgeEnabled",
+                         "EdgeWorkspaceEnabled"):
                 set_registry_dword("HKLM", edge_pol, name, 0)
             # Edge search-provider suggestions upload (soswod SearchScopes)
             set_registry_dword(
@@ -3516,12 +3509,24 @@ def apply_remove_default_store_packages(family_names, logger: logging.Logger) ->
             prior = list(winreg.QueryValueEx(key, "DynamicRemovalList")[0])
         except OSError:
             prior = []
+        # Migrate any names an older build recorded in the non-standard
+        # PackageList value before dropping it, so they stay listed.
+        try:
+            legacy_raw = winreg.QueryValueEx(key, "PackageList")[0]
+            if isinstance(legacy_raw, (list, tuple)):
+                legacy = list(legacy_raw)
+            else:
+                legacy = [p for p in re.split(r"[;,\r\n]+", str(legacy_raw))
+                          if p.strip()]
+        except OSError:
+            legacy = []
         # Case-insensitive dedup (family names are case-insensitive in Appx
         # — C# merges with OrdinalIgnoreCase; keep first-seen casing)
         seen = set()
         merged = []
-        for f in list(prior) + list(family_names):
-            if f.lower() not in seen:
+        for f in list(prior) + legacy + list(family_names):
+            f = f.strip()
+            if f and f.lower() not in seen:
                 seen.add(f.lower())
                 merged.append(f)
         winreg.SetValueEx(key, "Enabled", 0, winreg.REG_DWORD, 1)
