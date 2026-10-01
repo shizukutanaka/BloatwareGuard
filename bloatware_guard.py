@@ -2786,7 +2786,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                          # Workspaces collaboration surface (Edge policy docs)
                          "EdgeManagementEnabled",
                          "ShoppingInEdgeEnabled",
-                         "EdgeWorkspaceEnabled"):
+                         "EdgeWorkspaceEnabled",
+                         # M365 Copilot inline-compose (Rewrite) surface
+                         # (MS Learn Edge policy docs; eplord Win-Debloat7)
+                         "ComposeInlineEnabled"):
                 set_registry_dword("HKLM", edge_pol, name, 0)
             # Edge search-provider suggestions upload (soswod SearchScopes)
             set_registry_dword(
@@ -3651,6 +3654,12 @@ _TELEMETRY_HOSTS = (
     "diagnostics.office.com",
     "cjs-diagnostics-office-com-gvdhgwfwbbfsd9g3.z01.azurefd.net",
     "arc.msn.com",
+    # MSN/CDN tracking + location inference + WU stats alias (eplord
+    # Win-Debloat7 + classic spy-blocker lists)
+    "az361816.vo.msecnd.net", "az512334.vo.msecnd.net",
+    "location-inference-westus.cloudapp.net",
+    "ris.api.iris.microsoft.com",
+    "statsfe2.update.microsoft.com.akadns.net",
     "arc.trafficmanager.net",
     "api.msa.diagnostics.office.com",
     "assets.activity.windows.com",
@@ -3731,6 +3740,9 @@ _TELEMETRY_HOSTS = (
     # Ad-delivery endpoints serving MSN/Edge/widget surfaces
     "adnxs.com", "m.adnxs.com", "secure.adnxs.com", "adnexus.net",
     "a.ads1.msn.com", "a.ads2.msn.com", "b.ads1.msn.com", "ads.msn.com",
+    "ads1.msn.com",  # MSN ad delivery (eplord Win-Debloat7 hosts)
+    "g.msn.com",     # MSN telemetry/tracking beacon
+    "search.msn.com",  # MSN search-redirect (Start-search query leak)
     "ads1.msads.net", "a.ads2.msads.net", "bingads.microsoft.com",
     "a.rad.msn.com", "b.rad.msn.com", "ac3.msn.com", "live.rads.msn.com",
     "bs.serving-sys.com", "msntest.serving-sys.com",
