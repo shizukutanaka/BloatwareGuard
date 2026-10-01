@@ -1334,7 +1334,16 @@ public static class RegistryGuard
         "Razer", "Synapse", "Cortex",
         // Peripheral-vendor control suites — same class as Armoury/Nahimic
         // (WinOpt startup audit); marker-based disable is reversible
-        "Corsair", "SteelSeries", "Logitech"
+        "Corsair", "SteelSeries", "Logitech",
+        // Browser-hijacker/adware PUPs + PUA optimizers (et-optimizer
+        // Run-purge list); functional tools (TeamViewer) and system-name
+        // lookalikes (searchapp.exe) are left out
+        "ASCTray", "BabylonToolbar", "CoolWebSearch", "Crossrider",
+        "DriverMax", "FunWebProducts", "MediaNewTab", "MyWebSearch",
+        "PCOptimizerPro", "RelevantKnowledge", "SAntivirus", "Segurazo",
+        "ShopperPro", "SlimDrivers", "SuperOptimizer", "SweetPacks",
+        "UpdatePPShortCut", "Vosteran", "WebCompanion",
+        "WinZipDriverUpdater",
     };
 
     // 0x03 = disabled in StartupApproved (value kept — user can re-enable via Task Manager)

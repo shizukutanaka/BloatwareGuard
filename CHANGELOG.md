@@ -219,6 +219,16 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   `VoiceActivationEnableAboveLockscreen`=0,
   `DeliveryOptimization\SystemSettingsDownloadMode`=0
 
+- `_STARTUP_BLOAT_NAMES` +20 (et-optimizer Run-purge diff):
+  ASCTray, BabylonToolbar, CoolWebSearch, Crossrider, DriverMax,
+  FunWebProducts, MediaNewTab, MyWebSearch, PCOptimizerPro,
+  RelevantKnowledge, SAntivirus, Segurazo, ShopperPro, SlimDrivers,
+  SuperOptimizer, SweetPacks, UpdatePPShortCut, Vosteran,
+  WebCompanion, WinZipDriverUpdater — browser-hijacker/adware PUPs +
+  PUA-tier driver "optimizers"; TeamViewer (remote-admin) and
+  system-name lookalikes (searchapp.exe/SearchIndexer.exe) left out
+  to avoid false positives
+
 ## [Unreleased] — v1.60.7-mvp: tomytate/Win-Debloat full sweep + docs sync
 
 - DisableSpotlight: hides the "Learn about this picture" desktop

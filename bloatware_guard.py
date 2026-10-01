@@ -977,6 +977,15 @@ _STARTUP_BLOAT_NAMES = (
     # Peripheral-vendor control suites — same class as Armoury/Nahimic
     # (WinOpt startup audit); marker-based disable is reversible
     "Corsair", "SteelSeries", "Logitech",
+    # Browser-hijacker/adware PUPs + PUA optimizers (et-optimizer Run-purge
+    # list); functional tools (TeamViewer) and system-name lookalikes
+    # (searchapp.exe) are left out
+    "ASCTray", "BabylonToolbar", "CoolWebSearch", "Crossrider",
+    "DriverMax", "FunWebProducts", "MediaNewTab", "MyWebSearch",
+    "PCOptimizerPro", "RelevantKnowledge", "SAntivirus", "Segurazo",
+    "ShopperPro", "SlimDrivers", "SuperOptimizer", "SweetPacks",
+    "UpdatePPShortCut", "Vosteran", "WebCompanion",
+    "WinZipDriverUpdater",
 )
 # 0x03 = disabled in StartupApproved (value kept — re-enableable via Task Manager)
 _STARTUP_DISABLED_MARKER = b"\x03" + b"\x00" * 11
