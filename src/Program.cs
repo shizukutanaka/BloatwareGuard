@@ -3369,6 +3369,10 @@ public static class RegistryGuard
                 using var sqmc = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Microsoft\SQMClient");
                 sqmc?.SetValue("UploadDisableFlag", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // License/activation telemetry — SPP generic ticket off
+                using var spp = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform");
+                spp?.SetValue("NoGenTicket", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 // Per-app tagged-energy collection off (battery telemetry)
                 using var teg = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SYSTEM\CurrentControlSet\Control\Power\EnergyEstimation\TaggedEnergy");
@@ -4380,6 +4384,9 @@ public static class RegistryGuard
         "LetAppsAccessGenerativeAI", "LetAppsAccessCalendar",
         "LetAppsAccessGraphicsCaptureProgrammatic",
         "LetAppsAccessGraphicsCaptureWithoutBorder",
+        // Newer sensor/AI capabilities (Espionage724 App Permissions Deny)
+        "LetAppsAccessGazeInput", "LetAppsAccessHumanPresence",
+        "LetAppsAccessBackgroundSpatialPerception",
     };
 
     /// <summary>Layer 26: force-deny conservative AppPrivacy set.</summary>
@@ -4536,6 +4543,7 @@ public static class RegistryGuard
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",
         @"SOFTWARE\Policies\Microsoft\Windows\System",
         @"SOFTWARE\Microsoft\SQMClient",
+        @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform",
         @"SYSTEM\CurrentControlSet\Control\Power\EnergyEstimation\TaggedEnergy",
         @"SOFTWARE\Policies\Microsoft\Windows\CredUI",
         @"SOFTWARE\Policies\Microsoft\Windows\ScheduledDiagnostics",

@@ -1098,6 +1098,7 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",
     r"SOFTWARE\Policies\Microsoft\Windows\System",
     r"SOFTWARE\Microsoft\SQMClient",
+    r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform",
     r"SYSTEM\CurrentControlSet\Control\Power\EnergyEstimation\TaggedEnergy",
     r"SOFTWARE\Policies\Microsoft\Windows\CredUI",
     r"SOFTWARE\Policies\Microsoft\Windows\ScheduledDiagnostics",
@@ -2641,6 +2642,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "HKLM",
                 r"SOFTWARE\Microsoft\SQMClient",
                 "UploadDisableFlag", 1)
+            # License/activation telemetry — SPP generic ticket off
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform",
+                "NoGenTicket", 1)
             # Per-app tagged-energy collection off (battery-usage
             # telemetry pipeline)
             for _v in ("TelemetryMaxApplication",
@@ -3438,6 +3444,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "LetAppsAccessGenerativeAI", "LetAppsAccessCalendar",
                 "LetAppsAccessGraphicsCaptureProgrammatic",
                 "LetAppsAccessGraphicsCaptureWithoutBorder",
+                # Newer sensor/AI capabilities (Espionage724 App
+                # Permissions Deny)
+                "LetAppsAccessGazeInput",
+                "LetAppsAccessHumanPresence",
+                "LetAppsAccessBackgroundSpatialPerception",
             )
             for name in app_privacy:
                 set_registry_dword("HKLM",

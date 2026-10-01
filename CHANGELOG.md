@@ -229,6 +229,13 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   system-name lookalikes (searchapp.exe/SearchIndexer.exe) left out
   to avoid false positives
 
+- `DisableAppPermissions` +3 (Espionage724 App Permissions Deny):
+  `LetAppsAccessGazeInput`/`LetAppsAccessHumanPresence`/
+  `LetAppsAccessBackgroundSpatialPerception`=2 — newer sensor/AI
+  capability force-denies
+- `DisableTelemetry` +`SoftwareProtectionPlatform\NoGenTicket`=1
+  (SPP generic-ticket licensing telemetry off)
+
 ## [Unreleased] — v1.60.7-mvp: tomytate/Win-Debloat full sweep + docs sync
 
 - DisableSpotlight: hides the "Learn about this picture" desktop
