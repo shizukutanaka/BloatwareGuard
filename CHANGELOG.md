@@ -99,6 +99,10 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 - blacklist 230→231: `828B5831.` publisher namespace
   (HiddenCityMysteryofShadows stub — winlite)
 
+- hosts +1: `adl.windows.com` — Azure Data Lake diagnostic ingest
+  front (WindowsSpyBlocker spy ruleset; rest of the ruleset is
+  WU/CDN/auth/WNS functional infra — skipped)
+
 ## [Unreleased] — v1.60.7-mvp: tomytate/Win-Debloat full sweep + docs sync
 
 - DisableSpotlight: hides the "Learn about this picture" desktop

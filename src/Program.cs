@@ -1902,6 +1902,8 @@ public static class RegistryGuard
         "api.cortana.ai",
         "api.edgeoffer.microsoft.com",
         "ieonlinews.microsoft.com",
+        // Azure Data Lake diagnostic ingest front (WindowsSpyBlocker)
+        "adl.windows.com",
         "xblgdvrassets3010.blob.core.windows.net",
         // Ad-delivery endpoints serving MSN/Edge/widget surfaces
         "adnxs.com", "m.adnxs.com", "secure.adnxs.com", "adnexus.net",
