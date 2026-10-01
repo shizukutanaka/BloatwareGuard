@@ -180,6 +180,15 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   `DontDisplayLastUserName`=1, `NoLocalPasswordResetQuestions`=1,
   `DisablePasswordReveal`=1 (CredUI; backup paths added)
 
+- `DisableTelemetry` +3 documented kills (RyTuneX PolicyHelper diff):
+  `RegisterSpoolerRemoteRpcEndPoint`=0 (Print Spooler remote-RPC
+  surface; local printing unaffected),
+  `EnabledExecution`=0 (Scheduled Diagnostics engine),
+  `AllowBroadcasting`=0 (GameDVR broadcast upload channel)
+- skipped: WU/Defender/RDP/FVE/UAC/location/cam-mic/Store-removal/
+  admin-lockdown/DoH/NCSI/vendor(Office,Chrome,Firefox,Adobe,Edge)
+  classes and `AllowSignInOptions`/`DisableStartupSound` UX knobs
+
 ## [Unreleased] — v1.60.7-mvp: tomytate/Win-Debloat full sweep + docs sync
 
 - DisableSpotlight: hides the "Learn about this picture" desktop

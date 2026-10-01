@@ -1089,6 +1089,7 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",
     r"SOFTWARE\Policies\Microsoft\Windows\System",
     r"SOFTWARE\Policies\Microsoft\Windows\CredUI",
+    r"SOFTWARE\Policies\Microsoft\Windows\ScheduledDiagnostics",
     r"SOFTWARE\NVIDIA Corporation\NvControlPanel2\Client",
     r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Audit",
@@ -2618,6 +2619,23 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "HKLM",
                 r"SOFTWARE\Policies\Microsoft\Windows\CredUI",
                 "DisablePasswordReveal", 1)
+            # Print Spooler remote-RPC endpoint off (PrintNightmare
+            # class remote attack surface; local printing unaffected)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Policies\Microsoft\Windows NT\Printers",
+                "RegisterSpoolerRemoteRpcEndPoint", 0)
+            # Scheduled Diagnostics engine off (documented policy)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Policies\Microsoft\Windows\ScheduledDiagnostics",
+                "EnabledExecution", 0)
+            # Game Bar broadcast channel off (documented policy —
+            # upload path, not recording)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Policies\Microsoft\Windows\GameDVR",
+                "AllowBroadcasting", 0)
             # App sharing of user name/picture/domain info off (GPO twin)
             set_registry_dword(
                 "HKLM",

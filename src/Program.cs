@@ -3353,6 +3353,19 @@ public static class RegistryGuard
                 using var credui = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Windows\CredUI");
                 credui?.SetValue("DisablePasswordReveal", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // Print Spooler remote-RPC endpoint off (local printing
+                // unaffected)
+                using var prn = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows NT\Printers");
+                prn?.SetValue("RegisterSpoolerRemoteRpcEndPoint", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                // Scheduled Diagnostics engine off (documented policy)
+                using var sdiag = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\ScheduledDiagnostics");
+                sdiag?.SetValue("EnabledExecution", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                // Game Bar broadcast channel off (documented policy)
+                using var gdvr = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\GameDVR");
+                gdvr?.SetValue("AllowBroadcasting", 0, Microsoft.Win32.RegistryValueKind.DWord);
                 // App sharing of user name/picture/domain info off (GPO twin)
                 using var uinfo = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Windows\System");
@@ -4493,6 +4506,7 @@ public static class RegistryGuard
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",
         @"SOFTWARE\Policies\Microsoft\Windows\System",
         @"SOFTWARE\Policies\Microsoft\Windows\CredUI",
+        @"SOFTWARE\Policies\Microsoft\Windows\ScheduledDiagnostics",
         @"SOFTWARE\NVIDIA Corporation\NvControlPanel2\Client",
         @"SYSTEM\CurrentControlSet\Control\Session Manager\Environment",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Audit",
