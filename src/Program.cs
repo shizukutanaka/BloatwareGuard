@@ -577,13 +577,15 @@ public static class ConfigLoader
                 "DellInc.",
                 "LGElectronics.",
                 "COOKINGFEVER",
+                "AcerIncorporated.",
+                "LenovoCorporation.",
                 "E046963F.LenovoCompanion",
                 "LenovoCompanyLimited.LenovoVantageService",
                 // Debloat-Win11 diff — OEM utility suites (audio/RGB/
                 // control-center promo ware) + Widgets runtime + Start feed host
                 "WavesAudio", "DragonCenter", "MysticLight", "MSIAfterburner",
                 "ROGLiveService", "ArmouryCrate", "MyASUS", "ASUSPCAssistant",
-                "Razer", "AcerQuickAccess", "LenovoUtility",
+                "Razer", "LenovoUtility",
                 "Microsoft.WidgetsPlatformRuntime", "Microsoft.StartExperiencesApp",
                 // M365 companion suite promo (24H2) + stable Instagram
                 "Microsoft.M365Companions",
@@ -5210,6 +5212,11 @@ public static class ScheduledTaskGuard
         // Game Bar "now playing" presence writer (per-user root task —
         // Reclaim diff; broadcasts current-game state to Xbox widgets)
         @"\GameBarPresenceWriter",
+        // OOBE cloud-experience host provisioning + RetailDemo offline
+        // content cleanup (HST Windows Utility / win-debloat diffs —
+        // pairs with the killed RetailDemo service + CDM kills)
+        @"\Microsoft\Windows\CloudExperienceHost\CreateObjectTask",
+        @"\Microsoft\Windows\RetailDemo\CleanupOfflineContent",
         // Win-Debloat7 privacy tasks diff: 25H2 AI-subtree tasks (Copilot+
         // recall/model/index pipelines) + OneSettings cache pulls + UCPD
         // velocity config flighting + UNP campaign manager + EOS nag toasts

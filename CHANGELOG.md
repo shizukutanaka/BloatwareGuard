@@ -47,9 +47,17 @@ accessibility toggles, WU/DO bandwidth and deferral policies.)
     Telemetry — DiagTrack companion; registry demote works where
     `sc config` is refused)
   - `UserBackupKeyPaths`/`_USER_BACKUP_KEY_PATHS` +`CurrentVersion\Recall`
+  - blacklist +`AcerIncorporated.`/`LenovoCorporation.` publisher
+    prefixes (cover the full OEM suite families — the lone
+    `AcerQuickAccess` needle is superseded)
+  - `DisableTelemetryTasks` +`\CloudExperienceHost\CreateObjectTask`
+    +`\RetailDemo\CleanupOfflineContent` (OOBE cloud-experience
+    provisioning + RetailDemo offline-content cleanup — pairs with the
+    killed RetailDemo service)
   - (Skipped: WU/AU policies, TPM bypass, Defender/PPL/BitLocker,
     printer/biometric/notification/LAN services, UI/perf/gaming
-    preferences, unverifiable value names)
+    preferences, unverifiable value names, Intel vendor tools,
+    user-installed app needles)
 
 ## [Unreleased] — v1.60.5-mvp: RegiLattice privacy/AI policy diff
 
