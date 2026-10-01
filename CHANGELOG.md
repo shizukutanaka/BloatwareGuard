@@ -24,6 +24,26 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
     `AIContext` delete semantics, per-app mic deny — app already
     blacklisted)
 
+- New-source sweep (Titanium-OS-Suite, retr0gr4d3/NMGW,
+  fuxdasec/winlite, SysAdminDoc/Debloat-Win11 v2.3.11,
+  Arcticforrecord/win11debloat-customization, kgntmr/quietpane,
+  noid-privacy v2.2.5 SecurityBaseline, privacy.sexy, winutil head):
+  - `DisableCDP`/consent block +`CdpSessionUserOverride`=0 per-user
+    (Connected Devices Platform session-user override — Titanium)
+  - blacklist +`PricelineCom.`/`GroupMe`/`Microsoft.Tips` (winlite —
+    promoted stubs still shipping on 25H2 consumer images)
+  - Everything else landed in skip classes: Defender/SmartScreen kills
+    + scan tuning (Titanium/noid SecurityBaseline/winlite), firewall
+    IP blocks (`BlockMSTelemetry` rule names), WU deferrals/access
+    policy, audit/eventlog/admin merges, Kerberos/PKINIT/CredSSP/
+    WinRM auth families, credential/encryption toggles, device-class
+    controls, vendor policies (Adobe/CCleaner/Office/Brave/Edge
+    autofill-password-SmartScreen), perf/gaming knobs, OOBE/UX prefs,
+    feature-service kills (wuauserv/WlanSvc/W32Time/NlaSvc), live
+    mic/cam/location ConsentStore caps (platform kills — per-app
+    Copilot mic deny redundant since the app is blacklisted),
+    `IsEducationEnvironment`/`GlobalUserDisabled` spoof flags
+
 ## [Unreleased] — v1.60.6-mvp: RegiLattice v6.35.0 policy diff
 
 ### Added

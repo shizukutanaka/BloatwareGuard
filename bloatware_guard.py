@@ -213,6 +213,9 @@ DEFAULT_BLACKLIST = [
     "PolarrPhotoEditorAcademicEdition",
     "Sidia.LiveWallpaper",
     "SlingTV",
+    # winlite batchfile diff — promoted stubs still shipping on 25H2
+    # consumer images (Priceline travel, GroupMe social, Tips content)
+    "PricelineCom.", "GroupMe", "Microsoft.Tips",
     "TuneInRadio",
     "WinZipUniversal",
     "flaregamesGmbH.RoyalRevolt",
@@ -2848,6 +2851,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             # "Share across devices" (Connected Devices Platform) consent off
             cdp = r"Software\Microsoft\Windows\CurrentVersion\CDP"
             set_user_dword_all_hives(cdp, "CdpSessionUserAuthzPolicy", 0, logger)
+            # CDP session-user override off — same auth family
+            # (Titanium-OS-Suite)
+            set_user_dword_all_hives(cdp, "CdpSessionUserOverride", 0, logger)
             # Share drag tray off (Raphire 2026.06): suppresses the CDP
             # share surface that appears while dragging files
             set_user_dword_all_hives(cdp, "DragTrayEnabled", 0, logger)

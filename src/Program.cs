@@ -566,6 +566,9 @@ public static class ConfigLoader
                 "OneCalendar", "PhototasticCollage",
                 "PolarrPhotoEditorAcademicEdition", "Sidia.LiveWallpaper",
                 "SlingTV", "TuneInRadio", "WinZipUniversal",
+                // winlite diff — promoted stubs still on 25H2 consumer
+                // images (Priceline travel, GroupMe social, Tips)
+                "PricelineCom.", "GroupMe", "Microsoft.Tips",
                 "flaregamesGmbH.RoyalRevolt", "CandyCrush",
             "MarchofEmpires", "Plex", "Viber", "iHeartRadio",
                 // OEM vendor appx bundles — publisher prefixes: 21 HP apps,
@@ -3601,6 +3604,11 @@ public static class RegistryGuard
             SetUserDwordAllHives(
                 @"Software\Microsoft\Windows\CurrentVersion\CDP",
                 "CdpSessionUserAuthzPolicy", 0);
+            // CDP session-user override off — same auth family
+            // (Titanium-OS-Suite)
+            SetUserDwordAllHives(
+                @"Software\Microsoft\Windows\CurrentVersion\CDP",
+                "CdpSessionUserOverride", 0);
             // Share drag tray off (Raphire 2026.06)
             SetUserDwordAllHives(
                 @"Software\Microsoft\Windows\CurrentVersion\CDP",
