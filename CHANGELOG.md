@@ -125,6 +125,11 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   events, MyAnalytics/Viva, Vungle ad SDK, Insider enrollment
   (schrebra Windows.10.DNS.Block.List sweep)
 
+- `DisableTelemetry` +`DisableAutomaticRestartSignOn`=1
+  (`Policies\System`, HKLM + backup path) — Automatic Restart
+  Sign-On off: Windows Update restarts no longer auto-log-in the
+  last user (RyTuneX/Windows-On-Reins hardening diff)
+
 ## [Unreleased] — v1.60.7-mvp: tomytate/Win-Debloat full sweep + docs sync
 
 - DisableSpotlight: hides the "Learn about this picture" desktop

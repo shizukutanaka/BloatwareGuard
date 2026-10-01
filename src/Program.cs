@@ -3330,6 +3330,10 @@ public static class RegistryGuard
                 using var audit = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Audit");
                 audit?.SetValue("ProcessCreationIncludeCmdLine_Enabled", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // ARD off: no auto sign-in of last user after update restart
+                using var polsys = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System");
+                polsys?.SetValue("DisableAutomaticRestartSignOn", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 // LMHOSTS lookup off (NetBT side-channel)
                 using var netbt = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SYSTEM\CurrentControlSet\Services\NetBT\Parameters");
@@ -4416,6 +4420,7 @@ public static class RegistryGuard
         @"SOFTWARE\Policies\Microsoft\Dsh",
         @"SOFTWARE\Policies\Microsoft\Windows\Windows Feeds",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Audit",
         @"SOFTWARE\Policies\Microsoft\Windows\System",
         @"SOFTWARE\Policies\Microsoft\Assistance\Client\1.0",

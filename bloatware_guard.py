@@ -1086,6 +1086,7 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Policies\Microsoft\Dsh",
     r"SOFTWARE\Policies\Microsoft\Windows\Windows Feeds",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
+    r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Audit",
     r"SOFTWARE\Policies\Microsoft\Windows\System",
     r"SOFTWARE\Policies\Microsoft\Assistance\Client\1.0",
@@ -2573,6 +2574,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "HKLM",
                 r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Audit",
                 "ProcessCreationIncludeCmdLine_Enabled", 1)
+            # ARD off: no auto sign-in of last user after update restart
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",
+                "DisableAutomaticRestartSignOn", 1)
             # LMHOSTS lookup off (NetBT name-resolution side-channel)
             set_registry_dword(
                 "HKLM",
