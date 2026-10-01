@@ -4950,6 +4950,8 @@ TELEMETRY_TASK_PATHS = (
     "\\Microsoft\\Windows\\Flighting\\FeatureConfig\\GovernedFeatureUsageProcessing",
     "\\Microsoft\\Windows\\PerformanceTrace\\ShowFeedbackToast",
     "\\Microsoft\\Windows\\Sustainability\\SustainabilityTelemetry",
+    "\\Microsoft\\Windows\\WindowsAI\\RecallConfiguration",
+    "\\Microsoft\\Windows\\WindowsAI\\RecallPipeline",
 )
 
 

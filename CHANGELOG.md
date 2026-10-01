@@ -236,6 +236,11 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 - `DisableTelemetry` +`SoftwareProtectionPlatform\NoGenTicket`=1
   (SPP generic-ticket licensing telemetry off)
 
+- `DisableTelemetryTasks` +2 (123→125, winhance3 diff):
+  `WindowsAI\RecallConfiguration` + `WindowsAI\RecallPipeline` —
+  Recall snapshot/pipeline scheduler kills consistent with the
+  existing Recall policy denies
+
 ## [Unreleased] — v1.60.7-mvp: tomytate/Win-Debloat full sweep + docs sync
 
 - DisableSpotlight: hides the "Learn about this picture" desktop
