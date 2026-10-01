@@ -5060,6 +5060,8 @@ public static class RegistryGuard
     "cbdhsvc", "WpnUserService",
     // AMD logging + SSDP discovery (vendor telemetry / attack surface)
     "amdlog", "SsdpDiscovery",
+                // Waves MaxxAudio — OEM audio suite daemon (SysAdminDoc OEM)
+                "WavesSvc64",
         "PushToInstall", "SEMgrSvc", "PhoneSvc",
         // Connected User Experiences and Telemetry — DiagTrack companion;
         // registry demote works where sc config is refused

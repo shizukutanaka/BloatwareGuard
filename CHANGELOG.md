@@ -245,6 +245,15 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   `RandomSaladGamesLLC.` + `SAMSUNGELECTRONICSCO.LTD.` — casual-game
   and Samsung store stub publisher namespaces
 
+## [Unreleased] — v1.60.8: SysAdminDoc/Debloat-Win11 diff — OEM audio service demote (C# + Python)
+
+- `DisableMiscBloatServices` +`WavesSvc64` — Waves MaxxAudio OEM audio-suite
+  background daemon (SysAdminDoc/Debloat-Win11 v2.3.11 OEM module; demote keeps
+  it restorable where the source deletes it).
+- Audit: repo's full policy catalog + all module services/presets swept — all
+  other entries already covered (agent-connector trio, Recall policies,
+  `DisableRecallDataProviders` correctly user-scope) or UI-class skips.
+
 ## [Unreleased] — v1.60.7-mvp: tomytate/Win-Debloat full sweep + docs sync
 
 - DisableSpotlight: hides the "Learn about this picture" desktop

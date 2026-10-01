@@ -1294,6 +1294,10 @@ _MISC_DEMOTE_SERVICES = (
     # AMD logging service + SSDP network-discovery service (vendor
     # telemetry / discovery attack surface — nova + titanium lists)
     "amdlog", "SsdpDiscovery",
+    # Waves MaxxAudio service — OEM audio suite background daemon
+    # (SysAdminDoc/Debloat-Win11 OEM module)
+    "WavesSvc64",
+
     "PushToInstall", "SEMgrSvc", "PhoneSvc",
     "utcsvc",                 # Connected User Experiences and Telemetry
                               # (DiagTrack companion — registry demote works
