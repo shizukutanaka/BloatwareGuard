@@ -34,6 +34,11 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   policy keys; `UserBackupKeyPaths`/`_USER_BACKUP_KEY_PATHS`
   +`Software\Microsoft\Speech_OneCore\Preferences`
 
+### Fixed
+- Docs sync: README counts now match the lists (84 telemetry tasks,
+  439 null-routed hosts); `deploy_verify.bat` banner version bumped
+  1.59.1 → 1.60.5 to match the shipped version
+
 ## [Unreleased] — v1.60.4-mvp: eplord/Win-Debloat7 diff
 
 ### Added
