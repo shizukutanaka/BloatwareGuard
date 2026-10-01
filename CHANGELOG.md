@@ -2,6 +2,15 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- dvandenburgh/Disable-Win11AI re-diff (25H2 AI-surface sweep):
+  - `DisableSpotlight` +`HideAIActionsMenu`=1 — documented 25H2 Explorer
+    policy killing the "AI actions" File Explorer context-menu entry
+  - `DisableRecall` +`AllowSnapshotExport`=0 — sibling snapshot-export
+    kill (same semantics as `AllowRecallExport`, alternate name used
+    by the source; kept alongside for coverage)
+  - (Skipped: `IsEducationEnvironment` education-environment spoof flag;
+    Explorer UX prefs — file-ext, frequent/recent lists, taskbar mode)
+
 ## [Unreleased] — v1.60.6-mvp: RegiLattice v6.35.0 policy diff
 
 ### Added

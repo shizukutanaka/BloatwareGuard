@@ -2531,6 +2531,9 @@ public static class RegistryGuard
             // Recall export + app/URI deny-lists (noid-privacy AntiAI —
             // documented 25H2 WindowsCopilot ADMX values)
             key?.SetValue("AllowRecallExport", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // Sibling snapshot-export kill — same semantics, alternate
+            // value name used by dvandenburgh/Disable-Win11AI
+            key?.SetValue("AllowSnapshotExport", 0, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("SetDenyAppListForRecall", 1, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("DenyAppListForRecall",
                 "msedge.exe;chrome.exe;firefox.exe;WindowsTerminal.exe;KeePassXC.exe;KeePass.exe;1Password.exe;mstsc.exe;msrdc.exe",
@@ -5028,6 +5031,9 @@ public static class RegistryGuard
                 @"SOFTWARE\Policies\Microsoft\Windows\Explorer");
             expol2?.SetValue("AllowOnlineTips", 0, Microsoft.Win32.RegistryValueKind.DWord);
             expol2?.SetValue("HideRecommendedPersonalizedSites", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            // 25H2 "AI actions" Explorer context menu off (documented
+            // Explorer policy; dvandenburgh/Disable-Win11AI)
+            expol2?.SetValue("HideAIActionsMenu", 1, Microsoft.Win32.RegistryValueKind.DWord);
             GuardLogger.Info("Applied: DisableSpotlight (DesktopSpotlight + wallpaper type + per-hive CloudContent policies)");
         }
         catch (Exception ex)

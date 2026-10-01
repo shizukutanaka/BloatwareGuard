@@ -1869,6 +1869,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             # Recall export + app/URI deny-lists (noid-privacy AntiAI —
             # documented 25H2 WindowsCopilot ADMX values)
             set_registry_dword("HKLM", ai_pol, "AllowRecallExport", 0)
+            # Sibling snapshot-export kill — same semantics, alternate
+            # value name used by dvandenburgh/Disable-Win11AI
+            set_registry_dword("HKLM", ai_pol, "AllowSnapshotExport", 0)
             set_registry_dword("HKLM", ai_pol, "SetDenyAppListForRecall", 1)
             set_registry_string(
                 "HKLM", ai_pol, "DenyAppListForRecall",
@@ -3440,6 +3443,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword("HKLM", expol, "AllowOnlineTips", 0)
             set_registry_dword("HKLM", expol,
                                "HideRecommendedPersonalizedSites", 1)
+            # 25H2 "AI actions" Explorer context menu off (documented
+            # Explorer policy; dvandenburgh/Disable-Win11AI)
+            set_registry_dword("HKLM", expol, "HideAIActionsMenu", 1)
             logger.info("Applied: DisableSpotlight "
                         "(DesktopSpotlight + wallpaper + per-hive CloudContent)")
 
