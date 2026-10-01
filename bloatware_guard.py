@@ -901,6 +901,7 @@ _USER_SHELL_COPILOT_BINGCHAT = r"Software\Microsoft\Windows\Shell\Copilot\BingCh
 _USER_VOICE_ACTIVATION = (r"Software\Microsoft\Speech_OneCore\Settings"
                           + r"\VoiceActivation\UserPreferenceForAllApps")
 _USER_CLICK_TO_DO = r"Software\Microsoft\Windows\Shell\ClickToDo"
+_USER_RECALL = r"Software\Microsoft\Windows\CurrentVersion\Recall"
 # Feature-management velocity overrides (community-verified IDs — e.g.
 # zoicware/RemoveWindowsAI). EnabledState: 0=default, 1=disabled, 2=enabled.
 _VELOCITY_PATH = r"SYSTEM\CurrentControlSet\Control\FeatureManagement\Overrides\8"
@@ -1237,6 +1238,9 @@ _MISC_DEMOTE_SERVICES = (
     # service (vendor telemetry — coolvitto 25H2 service list)
     "dptftcs", "ipfsvc",
     "PushToInstall", "SEMgrSvc", "PhoneSvc",
+    "utcsvc",                 # Connected User Experiences and Telemetry
+                              # (DiagTrack companion — registry demote works
+                              # where sc config is refused)
     "SysMain", "TabletInputService",
     "WSearch",                # indexer — resident file scan
     "AssignedAccessManagerSvc",  # kiosk assigned-access
@@ -1365,6 +1369,7 @@ _USER_BACKUP_KEY_PATHS = (
     r"Software\Microsoft\Windows\CurrentVersion\Notifications\Settings\Windows.SystemToast.Suggested",
     r"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer",
     r"Software\Microsoft\Windows\CurrentVersion\Privacy",
+    r"Software\Microsoft\Windows\CurrentVersion\Recall",
     r"Software\Microsoft\Windows\CurrentVersion\Search",
     r"Software\Microsoft\Windows\CurrentVersion\SearchSettings",
     r"Software\Microsoft\Windows\CurrentVersion\SearchSettings\WebSearchPro",
@@ -1899,7 +1904,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_user_dword_all_hives(
                 r"Software\Microsoft\Notepad", "EnableCowriter", 0, logger)
             _paint_user = r"Software\Microsoft\Paint"
-            for _v in ("EnableCocreator", "EnableImageCreator"):
+            for _v in ("EnableCocreator", "EnableImageCreator",
+                       "CocreatorEnabled", "ImageCreatorEnabled",
+                       "GenerativeFillEnabled", "GenerativeEraseEnabled"):
                 set_user_dword_all_hives(_paint_user, _v, 0, logger)
             set_user_dword_all_hives(
                 r"Software\Microsoft\Windows\CurrentVersion\Photos",
@@ -1908,6 +1915,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             # alone leave the per-user shell preference on
             set_user_dword_all_hives(
                 _USER_EXPLORER_ADV, "EnableRecall", 0, logger)
+            # Per-user Recall opt-out toggle + Click-to-Do shell pref
+            # (win-debloat/Debloat-Win11) — complementary to the policies
+            set_user_dword_all_hives(_USER_RECALL, "IsRecallAllowed", 0, logger)
+            set_user_dword_all_hives(
+                _USER_EXPLORER_ADV, "ClickToDoEnabled", 0, logger)
             # Per-app AI features: Paint (image creator/cocreator/fill/erase/
             # background) and Notepad (Rewrite) — documented policy keys
             paint_pol = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Paint"
@@ -2008,6 +2020,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_user_dword_all_hives(_USER_SEARCH_SETTINGS, "IsAADCloudSearchEnabled", 0, logger)
             set_user_dword_all_hives(_USER_SEARCH_SETTINGS, "IsMSACloudSearchEnabled", 0, logger)
             set_user_dword_all_hives(_USER_SEARCH_SETTINGS, "IsDeviceSearchHistoryEnabled", 0, logger)
+            # On-device search history view (HST Windows Utility) — the
+            # Settings "Search history" toggle surface
+            set_user_dword_all_hives(_USER_SEARCH, "HistoryViewEnabled", 0, logger)
             set_user_dword_all_hives(_USER_SEARCH, "CortanaConsent", 0, logger)
             # Policy kill for web results in Start (Optimizer diff — same spirit
             # as the Bing/suggestion switches above, one level deeper)
@@ -2104,6 +2119,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                     winreg.CloseKey(key)
                 w(_USER_ADVERTISING_INFO, "Enabled", 0)
                 w(_USER_PRIVACY, "TailoredExperiencesWithDiagnosticDataEnabled", 0)
+                # Suggested content surface (HST) — app suggestions in the
+                # shell/Start feed off this privacy toggle
+                w(_USER_PRIVACY, "AppSuggestions", 0)
                 w(_USER_ONLINE_SPEECH, "HasAccepted", 0)
                 w(_USER_TIPC, "Enabled", 0)
                 w(_USER_INPUT_PERSONALIZATION, "RestrictImplicitInkCollection", 1)

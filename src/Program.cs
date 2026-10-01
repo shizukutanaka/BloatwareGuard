@@ -2557,11 +2557,20 @@ public static class RegistryGuard
                 SetHiveDword(hive, @"Software\Microsoft\Notepad", "EnableCowriter", 0);
                 SetHiveDword(hive, @"Software\Microsoft\Paint", "EnableCocreator", 0);
                 SetHiveDword(hive, @"Software\Microsoft\Paint", "EnableImageCreator", 0);
+                // Alternate Paint AI toggle names (win-debloat/Debloat-Win11)
+                SetHiveDword(hive, @"Software\Microsoft\Paint", "CocreatorEnabled", 0);
+                SetHiveDword(hive, @"Software\Microsoft\Paint", "ImageCreatorEnabled", 0);
+                SetHiveDword(hive, @"Software\Microsoft\Paint", "GenerativeFillEnabled", 0);
+                SetHiveDword(hive, @"Software\Microsoft\Paint", "GenerativeEraseEnabled", 0);
                 SetHiveDword(hive, @"Software\Microsoft\Windows\CurrentVersion\Photos",
                     "EnableAIFeatures", 0);
                 // User-level Recall toggle (Debloat-Win11) — policy kills
                 // alone leave the per-user shell preference on
                 SetHiveDword(hive, UserExplorerAdvancedPath, "EnableRecall", 0);
+                // Per-user Recall opt-out toggle + Click-to-Do shell pref
+                // (win-debloat/Debloat-Win11) — complementary to the policies
+                SetHiveDword(hive, @"Software\Microsoft\Windows\CurrentVersion\Recall", "IsRecallAllowed", 0);
+                SetHiveDword(hive, UserExplorerAdvancedPath, "ClickToDoEnabled", 0);
             });
             // Per-app AI features: Paint (image creator/cocreator/fill/erase/
             // background) and Notepad (Rewrite) — documented policy keys
@@ -2703,6 +2712,9 @@ public static class RegistryGuard
                 SetHiveDword(hive, UserSearchSettingsPath, "IsAADCloudSearchEnabled", 0);
                 SetHiveDword(hive, UserSearchSettingsPath, "IsMSACloudSearchEnabled", 0);
                 SetHiveDword(hive, UserSearchSettingsPath, "IsDeviceSearchHistoryEnabled", 0);
+                // On-device search history view (HST Windows Utility) — the
+                // Settings "Search history" toggle surface
+                SetHiveDword(hive, UserSearchPath, "HistoryViewEnabled", 0);
                 SetHiveDword(hive, UserSearchSettingsPath, "IsGlobalWebSearchProviderToggleEnabled", 0);
                 SetHiveDword(hive, UserSearchSettingsPath + @"\WebSearchPro",
                     "Microsoft.BingSearch_8wekyb3d8bbwe!App", 0);
@@ -2787,6 +2799,9 @@ public static class RegistryGuard
             {
                 SetHiveDword(hive, UserAdvertisingInfoPath, "Enabled", 0);
                 SetHiveDword(hive, UserPrivacyPath, "TailoredExperiencesWithDiagnosticDataEnabled", 0);
+                // Suggested content surface (HST) — app suggestions in the
+                // shell/Start feed off this privacy toggle
+                SetHiveDword(hive, UserPrivacyPath, "AppSuggestions", 0);
                 SetHiveDword(hive, UserOnlineSpeechPath, "HasAccepted", 0);
                 SetHiveDword(hive, UserTipcPath, "Enabled", 0);
                 SetHiveDword(hive, UserInputPersonalizationPath, "RestrictImplicitInkCollection", 1);
@@ -4512,6 +4527,7 @@ public static class RegistryGuard
         @"Software\Microsoft\Windows\CurrentVersion\Notifications\Settings\Windows.SystemToast.Suggested",
         @"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer",
         @"Software\Microsoft\Windows\CurrentVersion\Privacy",
+        @"Software\Microsoft\Windows\CurrentVersion\Recall",
         @"Software\Microsoft\Windows\CurrentVersion\Search",
         @"Software\Microsoft\Windows\CurrentVersion\Explorer\Taskband\AuxilliaryPins",
         @"Software\Microsoft\Windows\CurrentVersion\Explorer\AutoInstalledPWAs",
@@ -4787,6 +4803,9 @@ public static class RegistryGuard
         // Framework service (vendor telemetry — coolvitto 25H2 list)
         "dptftcs", "ipfsvc",
         "PushToInstall", "SEMgrSvc", "PhoneSvc",
+        // Connected User Experiences and Telemetry — DiagTrack companion;
+        // registry demote works where sc config is refused
+        "utcsvc",
         "SysMain", "TabletInputService",
         "WSearch",                   // indexer — resident file scan; demand-start keeps search working
         "AssignedAccessManagerSvc",  // kiosk assigned-access

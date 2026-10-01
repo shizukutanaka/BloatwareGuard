@@ -27,6 +27,29 @@ accessibility toggles, WU/DO bandwidth and deferral policies.)
   writing "now playing" state for Game Bar/Xbox widgets — jonax1337/
   Reclaim 228-tweak diff; remaining Reclaim surface was UI/perf/vendor
   or already covered)
+- Fresh-source sweep (hselimt/HST-WINDOWS-UTILITY, tomytate/Win-Debloat,
+  emadadeldev/ittea, mhg778/Manolito, synoxvf/NOVA, filippobrundia/
+  WinOpt, Ublaze/Windows11-Optimizer, dthcst/fregonator,
+  IntersectCrewman/windows-11-debloat-pro):
+  - `DisableSearchSuggestions` +`HistoryViewEnabled`=0 (per-user
+    `CurrentVersion\Search` — Settings "Search history" toggle)
+  - `DisableTelemetry` +`AppSuggestions`=0 (per-user
+    `CurrentVersion\Privacy` — suggested-content surface)
+  - `DisableRecall` +`IsRecallAllowed`=0 (per-user
+    `CurrentVersion\Recall`) + `ClickToDoEnabled`=0 (per-user
+    `Explorer\Advanced`) — user-level kills complementing the
+    WindowsAI policies
+  - Paint app-level AI toggles +4 names (`CocreatorEnabled`,
+    `ImageCreatorEnabled`, `GenerativeFillEnabled`,
+    `GenerativeEraseEnabled` — alternate `*Enabled` spellings alongside
+    the existing `Enable*` names)
+  - `MiscBloatServices` +`utcsvc` (Connected User Experiences and
+    Telemetry — DiagTrack companion; registry demote works where
+    `sc config` is refused)
+  - `UserBackupKeyPaths`/`_USER_BACKUP_KEY_PATHS` +`CurrentVersion\Recall`
+  - (Skipped: WU/AU policies, TPM bypass, Defender/PPL/BitLocker,
+    printer/biometric/notification/LAN services, UI/perf/gaming
+    preferences, unverifiable value names)
 
 ## [Unreleased] — v1.60.5-mvp: RegiLattice privacy/AI policy diff
 
