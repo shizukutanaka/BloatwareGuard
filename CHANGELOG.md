@@ -245,6 +245,12 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   `RandomSaladGamesLLC.` + `SAMSUNGELECTRONICSCO.LTD.` — casual-game
   and Samsung store stub publisher namespaces
 
+## [Unreleased] — v1.61.1: restore log shows actual ledger kind in manual note
+
+- Non-appx/provisioned entries (win32, startup, hosts) hit the shared manual
+  branch which printed "(provisioned — ...)" — misleading. Now prints
+  `kind=<value>` and a vendor/Settings hint instead. (C# + Python)
+
 ## [Unreleased] — v1.61.0: --restore re-register fallback for provisioned entries
 
 - `provisioned` ledger entries previously went straight to manual-restore.

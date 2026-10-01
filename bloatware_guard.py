@@ -642,7 +642,7 @@ def run_restore(config: dict, logger: logging.Logger) -> int:
         else:
             logger.info(
                 f"Manual restore needed: {name or entry.get('family', '?')} "
-                f"(provisioned — reinstall via Microsoft Store or Settings)")
+                f"(kind={entry.get('kind', '?')} — reinstall via the app vendor or Settings)")
             manual += 1
 
     logger.info(f"Restore complete: {restored} restored, {manual} need manual reinstall.")

@@ -6486,7 +6486,7 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
             else
             {
                 GuardLogger.Info(
-                    $"Manual restore needed: {display} (provisioned — reinstall via Microsoft Store or Settings)");
+                    $"Manual restore needed: {display} (kind={kind ?? "?"} — reinstall via the app vendor or Settings)");
                 manual++;
             }
         }
