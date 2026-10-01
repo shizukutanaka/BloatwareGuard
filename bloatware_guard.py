@@ -4007,6 +4007,7 @@ _TELEMETRY_HOSTS = (
     "a.ads1.msn.com", "a.ads2.msn.com", "b.ads1.msn.com", "ads.msn.com",
     "ads1.msn.com",  # MSN ad delivery (eplord Win-Debloat7 hosts)
     "g.msn.com",     # MSN telemetry/tracking beacon
+    "g.msn.com.nsatc.net",
     "search.msn.com",  # MSN search-redirect (Start-search query leak)
     "ads1.msads.net", "a.ads2.msads.net", "bingads.microsoft.com",
     "a.rad.msn.com", "b.rad.msn.com", "ac3.msn.com", "live.rads.msn.com",
