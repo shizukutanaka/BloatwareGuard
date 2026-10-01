@@ -1804,6 +1804,11 @@ public static class RegistryGuard
         "vortex-win-sandbox.data.microsoft.com",
         "events.data.microsoft.com",
         "pipe.dev.trafficmanager.net",
+        // Device Directory Service + CDP certificate fronts (gdid-guard
+        // device-graph endpoints — the IdentityCRL/CDP registration channel)
+        "dds.microsoft.com",
+        "fd.dds.microsoft.com",
+        "cdpcs.access.microsoft.com",
         "diagnostics.office.com",
         "cjs-diagnostics-office-com-gvdhgwfwbbfsd9g3.z01.azurefd.net",
         "arc.msn.com",
@@ -2782,6 +2787,14 @@ public static class RegistryGuard
             // Per-user activity-history recording kill (CrapFixer) —
             // policy flags alone leave Timeline recording on at user level
             SetUserDwordAllHives(UserPrivacyPath, "ActivityHistoryEnabled", 0);
+            // User-level publish/upload toggles (gdid-guard) — the Settings
+            // activity-history switches the policies don't reach
+            SetUserDwordAllHives(
+                @"Software\Microsoft\Windows\CurrentVersion\PublishUserActivities",
+                "PublishUserActivities", 0);
+            SetUserDwordAllHives(
+                @"Software\Microsoft\Windows\CurrentVersion\UploadUserActivities",
+                "UploadUserActivities", 0);
             using var assist = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                 @"SOFTWARE\Policies\Microsoft\Assistance\Client\1.0");
             assist?.SetValue("NoActiveHelp", 1, Microsoft.Win32.RegistryValueKind.DWord);
@@ -4529,8 +4542,10 @@ public static class RegistryGuard
         @"Software\Microsoft\Windows\CurrentVersion\Notifications\Settings\Windows.SystemToast.Suggested",
         @"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer",
         @"Software\Microsoft\Windows\CurrentVersion\Privacy",
+        @"Software\Microsoft\Windows\CurrentVersion\PublishUserActivities",
         @"Software\Microsoft\Windows\CurrentVersion\Recall",
         @"Software\Microsoft\Windows\CurrentVersion\Search",
+        @"Software\Microsoft\Windows\CurrentVersion\UploadUserActivities",
         @"Software\Microsoft\Windows\CurrentVersion\Explorer\Taskband\AuxilliaryPins",
         @"Software\Microsoft\Windows\CurrentVersion\Explorer\AutoInstalledPWAs",
         @"Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications",

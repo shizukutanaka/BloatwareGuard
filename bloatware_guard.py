@@ -1371,8 +1371,10 @@ _USER_BACKUP_KEY_PATHS = (
     r"Software\Microsoft\Windows\CurrentVersion\Notifications\Settings\Windows.SystemToast.Suggested",
     r"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer",
     r"Software\Microsoft\Windows\CurrentVersion\Privacy",
+    r"Software\Microsoft\Windows\CurrentVersion\PublishUserActivities",
     r"Software\Microsoft\Windows\CurrentVersion\Recall",
     r"Software\Microsoft\Windows\CurrentVersion\Search",
+    r"Software\Microsoft\Windows\CurrentVersion\UploadUserActivities",
     r"Software\Microsoft\Windows\CurrentVersion\SearchSettings",
     r"Software\Microsoft\Windows\CurrentVersion\SearchSettings\WebSearchPro",
     r"Software\Microsoft\Windows\CurrentVersion\WindowsCopilot",
@@ -2090,6 +2092,14 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             # Per-user activity-history recording kill (CrapFixer) —
             # policy flags alone leave Timeline recording on at user level
             set_user_dword_all_hives(_USER_PRIVACY, "ActivityHistoryEnabled", 0, logger)
+            # User-level publish/upload toggles (gdid-guard) — the Settings
+            # activity-history switches the policies don't reach
+            set_user_dword_all_hives(
+                r"Software\Microsoft\Windows\CurrentVersion\PublishUserActivities",
+                "PublishUserActivities", 0, logger)
+            set_user_dword_all_hives(
+                r"Software\Microsoft\Windows\CurrentVersion\UploadUserActivities",
+                "UploadUserActivities", 0, logger)
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\System",
                                "AllowClipboardHistory", 0)
             # Smart Clipboard (Copilot+ AI clipboard suggestions) —
@@ -3797,6 +3807,11 @@ _TELEMETRY_HOSTS = (
     # universal events ingest + Office diagnostics fronts + MSN arc
     "events.data.microsoft.com",
     "pipe.dev.trafficmanager.net",
+    # Device Directory Service + CDP certificate fronts (gdid-guard
+    # device-graph endpoints — the IdentityCRL/CDP registration channel)
+    "dds.microsoft.com",
+    "fd.dds.microsoft.com",
+    "cdpcs.access.microsoft.com",
     "diagnostics.office.com",
     "cjs-diagnostics-office-com-gvdhgwfwbbfsd9g3.z01.azurefd.net",
     "arc.msn.com",
