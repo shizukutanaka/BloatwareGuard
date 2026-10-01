@@ -208,6 +208,17 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 - `BlockTelemetryEndpoints` +`sqm.ppe.telemetry.microsoft.com`
   (506→507 — SQM pre-production endpoint; RyTuneX hosts diff)
 
+- `DisableTelemetry` +5 (batlez-tweaks diff):
+  `BlockUserFromShowingAccountDetailsOnSignin`=1 (sign-in
+  screen account details hidden), `SQMClient\UploadDisableFlag`=1
+  (pre-policy CEIP upload kill), TaggedEnergy
+  `TelemetryMaxApplication`/`TelemetryMaxTagPerApplication`=0
+  (per-app battery telemetry)
+- `DisableSearchWebAndAds` per-user +4:
+  `BackgroundAppGlobalToggle`=0, `Start_IrisRecommendationEnabled`=0,
+  `VoiceActivationEnableAboveLockscreen`=0,
+  `DeliveryOptimization\SystemSettingsDownloadMode`=0
+
 ## [Unreleased] — v1.60.7-mvp: tomytate/Win-Debloat full sweep + docs sync
 
 - DisableSpotlight: hides the "Learn about this picture" desktop

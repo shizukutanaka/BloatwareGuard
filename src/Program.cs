@@ -2748,6 +2748,15 @@ public static class RegistryGuard
                 SetHiveDword(hive, UserSearchSettingsPath, "IsStoreSuggestionsEnabled", 0);
                 SetHiveDword(hive, UserSearchSettingsPath, "IsGlobalFileSearchProviderToggleEnabled", 0);
                 SetHiveDword(hive, UserSearchSettingsPath, "IsWebSuggestionsEnabled", 0);
+                // Background-apps master toggle + Iris recommendations
+                SetHiveDword(hive, UserSearchPath, "BackgroundAppGlobalToggle", 0);
+                SetHiveDword(hive, UserExplorerAdvancedPath, "Start_IrisRecommendationEnabled", 0);
+                // Voice activation above the lock screen off
+                SetHiveDword(hive, @"Software\Microsoft\Speech_OneCore\Preferences",
+                    "VoiceActivationEnableAboveLockscreen", 0);
+                // DeliveryOptimization for system settings off
+                SetHiveDword(hive, @"Software\Microsoft\Windows\CurrentVersion\DeliveryOptimization",
+                    "SystemSettingsDownloadMode", 0);
                 // On-device search history view (HST Windows Utility) — the
                 // Settings "Search history" toggle surface
                 SetHiveDword(hive, UserSearchPath, "HistoryViewEnabled", 0);
@@ -3346,6 +3355,17 @@ public static class RegistryGuard
                 polsys?.SetValue("DisableAutomaticRestartSignOn", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 // Hide last signed-in user name on the lock screen
                 polsys?.SetValue("DontDisplayLastUserName", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                polsys?.SetValue("BlockUserFromShowingAccountDetailsOnSignin", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // Classic SQMClient upload kill (pre-policy CEIP channel)
+                using var sqmc = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Microsoft\SQMClient");
+                sqmc?.SetValue("UploadDisableFlag", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // Per-app tagged-energy collection off (battery telemetry)
+                using var teg = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SYSTEM\CurrentControlSet\Control\Power\EnergyEstimation\TaggedEnergy");
+                foreach (var v in new[] { "TelemetryMaxApplication",
+                    "TelemetryMaxTagPerApplication" })
+                    teg?.SetValue(v, 0, Microsoft.Win32.RegistryValueKind.DWord);
                 // Local-account security questions off (documented GPO)
                 using var nolq = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Windows\System");
@@ -4506,6 +4526,8 @@ public static class RegistryGuard
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",
         @"SOFTWARE\Policies\Microsoft\Windows\System",
+        @"SOFTWARE\Microsoft\SQMClient",
+        @"SYSTEM\CurrentControlSet\Control\Power\EnergyEstimation\TaggedEnergy",
         @"SOFTWARE\Policies\Microsoft\Windows\CredUI",
         @"SOFTWARE\Policies\Microsoft\Windows\ScheduledDiagnostics",
         @"SOFTWARE\NVIDIA Corporation\NvControlPanel2\Client",
@@ -4727,6 +4749,7 @@ public static class RegistryGuard
         @"Software\Microsoft\Windows\CurrentVersion\PublishUserActivities",
         @"Software\Microsoft\Windows\CurrentVersion\Recall",
         @"Software\Microsoft\Windows\CurrentVersion\Search",
+        @"Software\Microsoft\Windows\CurrentVersion\DeliveryOptimization",
         @"Software\Microsoft\Windows\CurrentVersion\UploadUserActivities",
         @"Software\Microsoft\Windows\CurrentVersion\Explorer\Taskband\AuxilliaryPins",
         @"Software\Microsoft\Windows\CurrentVersion\Explorer\AutoInstalledPWAs",

@@ -1088,6 +1088,8 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",
     r"SOFTWARE\Policies\Microsoft\Windows\System",
+    r"SOFTWARE\Microsoft\SQMClient",
+    r"SYSTEM\CurrentControlSet\Control\Power\EnergyEstimation\TaggedEnergy",
     r"SOFTWARE\Policies\Microsoft\Windows\CredUI",
     r"SOFTWARE\Policies\Microsoft\Windows\ScheduledDiagnostics",
     r"SOFTWARE\NVIDIA Corporation\NvControlPanel2\Client",
@@ -1419,6 +1421,7 @@ _USER_BACKUP_KEY_PATHS = (
     r"Software\Microsoft\Windows\CurrentVersion\PublishUserActivities",
     r"Software\Microsoft\Windows\CurrentVersion\Recall",
     r"Software\Microsoft\Windows\CurrentVersion\Search",
+    r"Software\Microsoft\Windows\CurrentVersion\DeliveryOptimization",
     r"Software\Microsoft\Windows\CurrentVersion\UploadUserActivities",
     r"Software\Microsoft\Windows\CurrentVersion\SearchSettings",
     r"Software\Microsoft\Windows\CurrentVersion\SearchSettings\WebSearchPro",
@@ -2085,6 +2088,17 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_user_dword_all_hives(_USER_SEARCH_SETTINGS, "IsStoreSuggestionsEnabled", 0, logger)
             set_user_dword_all_hives(_USER_SEARCH_SETTINGS, "IsGlobalFileSearchProviderToggleEnabled", 0, logger)
             set_user_dword_all_hives(_USER_SEARCH_SETTINGS, "IsWebSuggestionsEnabled", 0, logger)
+            # Background-apps master toggle + Iris Start recommendations
+            set_user_dword_all_hives(_USER_SEARCH, "BackgroundAppGlobalToggle", 0, logger)
+            set_user_dword_all_hives(_USER_EXPLORER_ADV, "Start_IrisRecommendationEnabled", 0, logger)
+            # Voice activation above the lock screen off (speech surface)
+            set_user_dword_all_hives(
+                r"Software\Microsoft\Speech_OneCore\Preferences",
+                "VoiceActivationEnableAboveLockscreen", 0, logger)
+            # DeliveryOptimization for system settings off
+            set_user_dword_all_hives(
+                r"Software\Microsoft\Windows\CurrentVersion\DeliveryOptimization",
+                "SystemSettingsDownloadMode", 0, logger)
             # On-device search history view (HST Windows Utility) — the
             # Settings "Search history" toggle surface
             set_user_dword_all_hives(_USER_SEARCH, "HistoryViewEnabled", 0, logger)
@@ -2608,6 +2622,24 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "HKLM",
                 r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",
                 "DontDisplayLastUserName", 1)
+            # Account details hidden on the sign-in screen
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Policies\Microsoft\Windows\System",
+                "BlockUserFromShowingAccountDetailsOnSignin", 1)
+            # Classic SQMClient upload kill (pre-policy CEIP channel)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Microsoft\SQMClient",
+                "UploadDisableFlag", 1)
+            # Per-app tagged-energy collection off (battery-usage
+            # telemetry pipeline)
+            for _v in ("TelemetryMaxApplication",
+                       "TelemetryMaxTagPerApplication"):
+                set_registry_dword(
+                    "HKLM",
+                    r"SYSTEM\CurrentControlSet\Control\Power\EnergyEstimation\TaggedEnergy",
+                    _v, 0)
             # Local-account security questions off (documented GPO)
             set_registry_dword(
                 "HKLM",
