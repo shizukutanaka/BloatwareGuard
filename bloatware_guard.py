@@ -4471,7 +4471,7 @@ def disable_oem_scheduled_tasks(logger: logging.Logger):
         "OEM|Dell|HPInc|HPA|Lenovo|ASUS|Acer|McAfee|Norton|"
         "SupportAssist|Vantage|Armoury|Crate|CustomerExperienceImprovement|"
         "Customer Experience Improvement|Reinstall|Restore|Bloatware|"
-        "Intel|Realtek|Waves|MSI|Razer"
+        "Intel|Realtek|Waves|MSI|Razer|AMD|AUEP"
     )
     ps_cmd = (
         f"Get-ScheduledTask | "

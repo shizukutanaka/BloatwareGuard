@@ -5164,7 +5164,7 @@ public static class ScheduledTaskGuard
         "OEM", "Dell", "HPInc", "HPA", "Lenovo", "ASUS", "Acer", "McAfee", "Norton",
         "SupportAssist", "Vantage", "Armoury", "Crate", "CustomerExperienceImprovement",
         "Customer Experience Improvement", "Reinstall", "Restore", "Bloatware",
-        "Intel", "Realtek", "Waves", "MSI", "Razer"
+        "Intel", "Realtek", "Waves", "MSI", "Razer", "AMD", "AUEP"
     };
 
     // Microsoft system tasks that MUST NEVER be disabled (TaskPath prefixes)

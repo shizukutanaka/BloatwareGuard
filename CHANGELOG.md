@@ -50,6 +50,8 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   coverage transitive coverage — a dropped cs entry would have
   passed silently)
 
+- OEM task patterns +`AMD`, `AUEP` (AMD User Experience Program telemetry tasks)
+
 ## [Unreleased] — v1.60.7-mvp: tomytate/Win-Debloat full sweep + docs sync
 
 - DisableSpotlight: hides the "Learn about this picture" desktop
