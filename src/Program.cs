@@ -2913,6 +2913,7 @@ public static class RegistryGuard
                     @"SOFTWARE\Policies\Microsoft\Windows\DataCollection", true);
                 dcol?.SetValue("DisableDeviceCensus", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 dcol?.SetValue("DisableOneDriveSyncDiagnostics", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                dcol?.SetValue("DisableOneSettingsSyncDiag", 1, Microsoft.Win32.RegistryValueKind.DWord);
             }
             {
                 // Handwriting/input personalization upload surfaces

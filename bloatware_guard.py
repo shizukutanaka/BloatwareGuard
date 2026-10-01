@@ -2178,6 +2178,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             dcol = r"SOFTWARE\Policies\Microsoft\Windows\DataCollection"
             set_registry_dword("HKLM", dcol, "DisableDeviceCensus", 1)
             set_registry_dword("HKLM", dcol, "DisableOneDriveSyncDiagnostics", 1)
+            # OneSettings sync diagnostics collection off (RegiLattice
+            # v6.9.0 Privacy)
+            set_registry_dword("HKLM", dcol, "DisableOneSettingsSyncDiag", 1)
             # Handwriting/input personalization upload surfaces
             # (RegiLattice Privacy/Input — policy kills only)
             ipz = r"SOFTWARE\Policies\Microsoft\InputPersonalization"
