@@ -2,6 +2,10 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Atomic file writes (CS-lens durability audit):
+  - hosts block and generated `config.json` now write via a same-dir temp
+    file + rename (`os.replace` / `File.Move`) — a crash mid-write can no
+    longer leave a truncated hosts file or half-written config on disk
 - dvandenburgh/Disable-Win11AI re-diff (25H2 AI-surface sweep):
   - `DisableSpotlight` +`HideAIActionsMenu`=1 — documented 25H2 Explorer
     policy killing the "AI actions" File Explorer context-menu entry
