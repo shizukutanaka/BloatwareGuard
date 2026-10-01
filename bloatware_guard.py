@@ -1169,6 +1169,7 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Microsoft\PolicyManager\default\System\AllowTelemetry",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\CPSS",
     r"SOFTWARE\Policies\Microsoft\Internet Explorer\SQM",
+    r"SOFTWARE\Policies\Microsoft\Internet Explorer\Main",
     r"SOFTWARE\Policies\Microsoft\Windows\Windows Chat",
     r"SYSTEM\CurrentControlSet\Control\WMI\AutoLogger\AutoLogger-Diagtrack-Listener",
     r"SYSTEM\CurrentControlSet\Control\Session Manager",
@@ -2475,6 +2476,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "HKLM",
                 r"SOFTWARE\Policies\Microsoft\Internet Explorer\SQM",
                 "DisableCustomerImprovementProgram", 1)
+            # MS Security Baseline: block legacy IE COM automation
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Policies\Microsoft\Internet Explorer\Main",
+                "DisableInternetExplorerLaunchViaCOM", 1)
             # Speech model downloads off (voice data pipeline)
             set_registry_dword("HKLM",
                                r"SOFTWARE\Microsoft\Speech_OneCore\Preferences",

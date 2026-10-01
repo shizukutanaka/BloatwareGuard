@@ -113,6 +113,10 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   `MicrosoftOfficeMenuEnabled`=0 — remaining promo/data-share
   surfaces after the 792-policy index diff
 
+- `DisableTelemetry` +`DisableInternetExplorerLaunchViaCOM`=1
+  (`Internet Explorer\Main`, HKLM) — Microsoft Security Baseline policy
+  blocking legacy IE COM automation (noid-privacy baseline audit)
+
 ## [Unreleased] — v1.60.7-mvp: tomytate/Win-Debloat full sweep + docs sync
 
 - DisableSpotlight: hides the "Learn about this picture" desktop

@@ -3168,6 +3168,10 @@ public static class RegistryGuard
                 using var iesqm = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Internet Explorer\SQM");
                 iesqm?.SetValue("DisableCustomerImprovementProgram", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // MS Security Baseline: block legacy IE COM automation
+                using var iemain = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Internet Explorer\Main");
+                iemain?.SetValue("DisableInternetExplorerLaunchViaCOM", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 using var pr = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Windows NT\Printers");
                 pr?.SetValue("DisableHTTPPrinting", 1, Microsoft.Win32.RegistryValueKind.DWord);
@@ -4518,6 +4522,7 @@ public static class RegistryGuard
                 @"SOFTWARE\Microsoft\PolicyManager\default\System\AllowTelemetry",
                 @"SOFTWARE\Microsoft\Windows\CurrentVersion\CPSS",
                 @"SOFTWARE\Policies\Microsoft\Internet Explorer\SQM",
+                @"SOFTWARE\Policies\Microsoft\Internet Explorer\Main",
                 @"SOFTWARE\Policies\Microsoft\Windows\Windows Chat",
         // --- coverage completion (audit: every HKLM write path backed up) ---
         @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\UnattendSettings\SQMClient",
