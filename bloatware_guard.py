@@ -3328,6 +3328,7 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             cloud = r"Software\Policies\Microsoft\Windows\CloudContent"
             for name in ("DisableWindowsSpotlightFeatures",
                          "DisableSpotlightCollectionOnDesktop",
+                         "DisableWindowsSpotlightOnDesktop",
                          "DisableSoftLanding",
                          # Welcome experience / Action Center / Settings pages
                          "DisableWindowsSpotlightWindowsWelcomeExperience",

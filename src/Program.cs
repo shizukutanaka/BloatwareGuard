@@ -4893,6 +4893,9 @@ public static class RegistryGuard
                 "DisableSpotlightCollectionOnDesktop", 1);
             SetUserDwordAllHives(
                 @"Software\Policies\Microsoft\Windows\CloudContent",
+                "DisableWindowsSpotlightOnDesktop", 1);
+            SetUserDwordAllHives(
+                @"Software\Policies\Microsoft\Windows\CloudContent",
                 "DisableSoftLanding", 1);
             // Welcome experience / Action Center / Settings Spotlight pages
             SetUserDwordAllHives(
