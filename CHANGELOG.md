@@ -50,7 +50,7 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   coverage transitive coverage — a dropped cs entry would have
   passed silently)
 
-## [Unreleased] — v1.60.6-mvp: RegiLattice v6.35.0 policy diff
+## [Unreleased] — v1.60.7-mvp: RegiLattice v6.35.0 policy diff
 
 ### Added
 - `DisableSearchSuggestions` +`DoNotUseWebResults`=1 (Windows Search
