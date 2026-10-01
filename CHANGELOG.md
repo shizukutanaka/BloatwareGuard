@@ -86,6 +86,11 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
 - `MicrosoftCopilotElevationService` demoted — Copilot app's
   elevation channel (zoicware/RemoveWindowsAI; demote not delete)
 
+- `RestrictRemoteClients`=1 @ RPC policy — denies unauthenticated
+  remote RPC calls (MS Security Baseline; win-debloat Security)
+- `AarSvc` (Agent Activation Runtime — Copilot voice/agent host)
+  demoted (zoicware removes; we demote)
+
 ## [Unreleased] — v1.60.7-mvp: tomytate/Win-Debloat full sweep + docs sync
 
 - DisableSpotlight: hides the "Learn about this picture" desktop

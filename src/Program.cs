@@ -3363,6 +3363,9 @@ public static class RegistryGuard
                 using var rpc = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Windows NT\Rpc");
                 rpc?.SetValue("EnableAuthEpResolution", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                using var rpc2 = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows NT\Rpc");
+                rpc2?.SetValue("RestrictRemoteClients", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 using var dma = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Windows\Kernel DMA Protection");
                 dma?.SetValue("DeviceEnumerationPolicy", 1, Microsoft.Win32.RegistryValueKind.DWord);
@@ -4895,6 +4898,9 @@ public static class RegistryGuard
     // Copilot Elevation Service — lets the Copilot app request elevated
     // operations (zoicware/RemoveWindowsAI; demoted, not deleted)
     "MicrosoftCopilotElevationService",
+    // Agent Activation Runtime — Copilot/voice-agent activation host
+    // (zoicware removes it; demote keeps the service restorable)
+    "AarSvc",
         "PushToInstall", "SEMgrSvc", "PhoneSvc",
         // Connected User Experiences and Telemetry — DiagTrack companion;
         // registry demote works where sc config is refused

@@ -1256,6 +1256,9 @@ _MISC_DEMOTE_SERVICES = (
     # Copilot Elevation Service — lets the Copilot app request elevated
     # operations (zoicware/RemoveWindowsAI; demoted, not deleted)
     "MicrosoftCopilotElevationService",
+    # Agent Activation Runtime — Copilot/voice-agent activation host
+    # (zoicware removes it; demote keeps the service restorable)
+    "AarSvc",
     "PushToInstall", "SEMgrSvc", "PhoneSvc",
     "utcsvc",                 # Connected User Experiences and Telemetry
                               # (DiagTrack companion — registry demote works
@@ -2611,6 +2614,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "HKLM",
                 r"SOFTWARE\Policies\Microsoft\Windows NT\Rpc",
                 "EnableAuthEpResolution", 1)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Policies\Microsoft\Windows NT\Rpc",
+                "RestrictRemoteClients", 1)
             set_registry_dword(
                 "HKLM",
                 r"SOFTWARE\Policies\Microsoft\Windows\Kernel DMA Protection",
