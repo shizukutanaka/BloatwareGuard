@@ -75,6 +75,12 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   noid-privacy verified neither exists in the official 25H2 ADMX
   package; per the no-unverifiable-names rule both are dropped
 
+- REVERT (noid-privacy v2.2.5): `WpadOverride` (HKLM + per-user)
+  dropped — noid's primary-source review marks the scalar
+  undocumented; documented `DisableWpad`=1 WinHTTP mechanism kept
+- DisableEdgeBloat +`EnableUnsafeSwiftShader`=0 (documented Edge
+  policy — kills the software WebGL/WebGPU renderer attack surface)
+
 ## [Unreleased] — v1.60.7-mvp: tomytate/Win-Debloat full sweep + docs sync
 
 - DisableSpotlight: hides the "Learn about this picture" desktop

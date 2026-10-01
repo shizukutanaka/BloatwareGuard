@@ -2594,13 +2594,6 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "HKLM",
                 r"SYSTEM\CurrentControlSet\Control\SecurityProviders\Wdigest",
                 "UseLogonCredential", 0)
-            set_registry_dword(
-                "HKLM",
-                r"SOFTWARE\Microsoft\Windows\CurrentVersion\Internet Settings\Wpad",
-                "WpadOverride", 1)
-            set_user_dword_all_hives(
-                r"Software\Microsoft\Windows\CurrentVersion\Internet Settings\Wpad",
-                "WpadOverride", 1, logger)
             # RPC authenticated endpoint resolution, external DMA-device
             # enumeration block, encrypted memory dumps (Win-Debloat7
             # Security module — documented policies)
@@ -2999,7 +2992,7 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                          # (winutil tweaks.json Edge group)
                          "UrlKeyedAnonymizedDataCollectionEnabled",
                          # first-run taskbar-pin wizard suppression (Reclaim)
-                         "PinningWizardAllowed",
+                         "EnableUnsafeSwiftShader", "PinningWizardAllowed",
                          # Edge Surf game (Aegis-Win11)
                          "AllowSurfGame",
                          # Edge desktop-analytics telemetry (WGO)

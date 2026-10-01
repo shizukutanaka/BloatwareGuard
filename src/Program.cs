@@ -3352,9 +3352,6 @@ public static class RegistryGuard
                 using var wdigest = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SYSTEM\CurrentControlSet\Control\SecurityProviders\Wdigest");
                 wdigest?.SetValue("UseLogonCredential", 0, Microsoft.Win32.RegistryValueKind.DWord);
-                using var wpad = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
-                    @"SOFTWARE\Microsoft\Windows\CurrentVersion\Internet Settings\Wpad");
-                wpad?.SetValue("WpadOverride", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 // RPC authenticated endpoint resolution, external DMA-device
                 // enumeration block, encrypted memory dumps (Win-Debloat7
                 // Security module — documented policies)
@@ -3631,9 +3628,6 @@ public static class RegistryGuard
             SetUserDwordAllHives(
                 @"Software\Policies\Microsoft\Windows\CloudContent",
                 "DisableTailoredExperiencesWithDiagnosticData", 1);
-            SetUserDwordAllHives(
-                @"Software\Microsoft\Windows\CurrentVersion\Internet Settings\Wpad",
-                "WpadOverride", 1);
             // Per-user policy stragglers (ReviOS privacy.yml)
             foreach (var v in new[] { "NoOnlinePrintsWizard", "NoPublishingWizard", "NoWebServices" })
                 SetUserDwordAllHives(
@@ -3805,7 +3799,7 @@ public static class RegistryGuard
                     // URL-keyed "anonymized" browsing-data uploads (winutil)
                     "UrlKeyedAnonymizedDataCollectionEnabled" ,
                     // first-run taskbar-pin wizard suppression (Reclaim)
-                    "PinningWizardAllowed",
+                    "EnableUnsafeSwiftShader", "PinningWizardAllowed",
                     // Edge Surf game (Aegis-Win11)
                     "AllowSurfGame",
                     // Edge desktop-analytics telemetry (WGO)
