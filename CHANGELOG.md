@@ -2,6 +2,12 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Subprocess output decoding parity (C#):
+  - `Proc.Capture` now sets `StandardOutputEncoding`/`StandardErrorEncoding`
+    to the system OEM code page (cp932 on ja-JP) via
+    `CodePagesEncodingProvider` — .NET's UTF-8 default mojibaked localized
+    powershell/reg/schtasks/winget output in logs (Python already decodes
+    subprocess bytes as cp932)
 - Atomic file writes (CS-lens durability audit):
   - hosts block and generated `config.json` now write via a same-dir temp
     file + rename (`os.replace` / `File.Move`) — a crash mid-write can no
