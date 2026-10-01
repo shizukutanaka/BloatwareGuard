@@ -108,7 +108,7 @@ All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https:/
   auto-upload kills leave the local pref on)
 
 - DisableEdgeBloat +5 (Edge policy catalog full sweep): `LocalBrowserDataShareEnabled`=0
-  (Edge→Windows search data share), `GuidedSwitchEnabled`=0,
+  (Edge→Windows search data share), `GuidSwitchEnabled`=0,
   `CredentialProviderPromoEnabled`=0, `OutlookHubMenuEnabled`=0,
   `MicrosoftOfficeMenuEnabled`=0 — remaining promo/data-share
   surfaces after the 792-policy index diff
