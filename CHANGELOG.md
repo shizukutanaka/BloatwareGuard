@@ -2,6 +2,10 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- noverse.dev copilot page — `CopilotHWKeyChoiceSet`=1 under per-user
+  `Explorer\AutoInstalledPWAs`: suppresses the Copilot hardware-key
+  choice prompt via the same fake-completed marker mechanism as the
+  adjacent CopilotPWAPreinstallCompleted write
 - noverse.dev sleep-study doc — diagnostic ETW channels +3 inside
   DisableTelemetryAutologgers: `Enabled`=0 under
   `SOFTWARE\Microsoft\Windows\CurrentVersion\WINEVT\Channels\` for

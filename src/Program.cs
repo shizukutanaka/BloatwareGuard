@@ -2491,6 +2491,11 @@ public static class RegistryGuard
             SetUserDwordAllHives(
                 @"Software\Microsoft\Windows\CurrentVersion\Explorer\AutoInstalledPWAs",
                 "CopilotPWAPreinstallCompleted", 1);
+            // noverse.dev copilot page: sibling marker for the Copilot
+            // hardware-key choice prompt — same fake-completed mechanism
+            SetUserDwordAllHives(
+                @"Software\Microsoft\Windows\CurrentVersion\Explorer\AutoInstalledPWAs",
+                "CopilotHWKeyChoiceSet", 1);
             SetUserDwordAllHives(
                 @"Software\Microsoft\Windows\CurrentVersion\Explorer\AutoInstalledPWAs",
                 "Microsoft.Copilot_8wekyb3d8bbwe", 1);

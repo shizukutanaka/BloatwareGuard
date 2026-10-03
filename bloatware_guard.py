@@ -1842,6 +1842,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             _pwa = (r"Software\Microsoft\Windows\CurrentVersion"
                     r"\Explorer\AutoInstalledPWAs")
             set_user_dword_all_hives(_pwa, "CopilotPWAPreinstallCompleted", 1, logger)
+            # noverse.dev copilot page: sibling marker for the Copilot
+            # hardware-key choice prompt — same fake-completed mechanism
+            set_user_dword_all_hives(_pwa, "CopilotHWKeyChoiceSet", 1, logger)
             set_user_dword_all_hives(
                 _pwa, "Microsoft.Copilot_8wekyb3d8bbwe", 1, logger)
             set_user_dword_all_hives(
