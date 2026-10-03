@@ -2,6 +2,14 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- MS "manage connections" endpoint-doc diff (hosts +3 → 511):
+  - `api.cdp.microsoft.com`, `msedge.api.cdp.microsoft.com` — Connected
+    Devices Platform API (CDP services/policies already killed;
+    server-side reinforcement)
+  - `dmd.metaservices.microsoft.com` — device-metadata service endpoint
+    (`PreventDeviceMetadataFromNetwork` channel)
+  - (Skipped: Windows Update/SmartScreen/Store/OCSP/Teams/Office/OneDrive
+    functional endpoints — blocking them breaks documented connectivity)
 - Turtlecute33/Privacy.sexy-Revamped diff (maintained privacy.sexy fork):
   - Telemetry tasks +6 — Server CEIP node (`Server\ServerCeipAssistant`,
     `Server\ServerRoleCollector`, `Server\ServerRoleUsageCollector` —

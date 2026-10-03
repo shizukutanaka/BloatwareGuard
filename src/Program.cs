@@ -1807,6 +1807,11 @@ public static class RegistryGuard
         "services.wes.df.telemetry.microsoft.com", "sqm.df.telemetry.microsoft.com",
         "settings-win.data.microsoft.com", "settings.data.microsoft.com",
         "statsfe2.ws.microsoft.com", "redir.metaservices.microsoft.com",
+        // MS "manage connections" endpoint doc: Connected Devices Platform
+        // API (already policy/service-killed — server-side reinforcement)
+        // and the device-metadata service (PreventDeviceMetadataFromNetwork)
+        "api.cdp.microsoft.com", "msedge.api.cdp.microsoft.com",
+        "dmd.metaservices.microsoft.com",
         "choice.microsoft.com", "choice.microsoft.com.nsatc.net",
         "telemetry.appex.bing.net", "telemetry.urs.microsoft.com",
         "feedback.microsoft-hohm.com", "vortex-bn2.metron.live.com.nsatc.net",
