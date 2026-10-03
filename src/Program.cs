@@ -5401,6 +5401,10 @@ public static class RegistryGuard
                           Microsoft.Win32.RegistryValueKind.DWord);
             pol?.SetValue("HideRecentlyAddedApps", 1,
                           Microsoft.Win32.RegistryValueKind.DWord);
+            // Start "Frequently used" list — sibling Explorer policy
+            // (dvandenburgh/Disable-Win11AI)
+            pol?.SetValue("HideFrequentlyUsedApps", 1,
+                          Microsoft.Win32.RegistryValueKind.DWord);
             // The section draws from recent-doc tracking — stop collecting it
             SetUserDwordAllHives(
                 @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",

@@ -3813,6 +3813,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword("HKLM",
                                r"SOFTWARE\Policies\Microsoft\Windows\Explorer",
                                "HideRecentlyAddedApps", 1)
+            # Start "Frequently used" list — sibling Explorer policy
+            # (dvandenburgh/Disable-Win11AI)
+            set_registry_dword("HKLM",
+                               r"SOFTWARE\Policies\Microsoft\Windows\Explorer",
+                               "HideFrequentlyUsedApps", 1)
             # The section draws from recent-doc tracking — stop collecting it
             set_user_dword_all_hives(
                 r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",

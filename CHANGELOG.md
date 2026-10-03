@@ -2,6 +2,8 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- dvandenburgh/Disable-Win11AI diff — `Explorer\HideFrequentlyUsedApps`=1
+  (sibling of the already-covered HideRecentlyAddedApps policy)
 - noverse.dev privacy/security pages — documented policy kills +7:
   `System\EnableMmx`=0 (Phone Link), `System\EnableAppUriHandlers`=0
   (apps-for-websites handoff), `ScriptedDiagnostics\EnableDiagnostics`=0 +
