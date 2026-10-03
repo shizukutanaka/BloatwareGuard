@@ -2,9 +2,14 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Docs parity — telemetry-task count corrected to the true
+  TELEMETRY_TASK_PATHS length (134; README row 21 + DESIGN diagram).
+  The earlier "165" counted every `\Microsoft\` task-path string in the
+  file, including the protected-system-task prefixes and Edge/OneDrive
+  updater entries owned by other layers.
 - privacy.sexy scheduled-task diff: adopted
   `\Microsoft\Windows\ErrorDetails\EnableErrorDetailsUpdate` (WER
-  error-details updater, tasks → 166). Remaining psx task diffs are
+  error-details updater, tasks → 134). Remaining psx task diffs are
   Windows Update/UpdateOrchestrator, Defender maintenance, MDM policy,
   OneDrive update (opt-in), and third-party updater tasks (Google,
   Dropbox, Firefox, Nvidia, Adobe, Office ClickToRun) — all skip-class;
