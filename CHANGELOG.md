@@ -2,6 +2,10 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- itsnileshhere/windows-iso-debloater diff — blacklist +2:
+  `Microsoft.Windows.Copilot` (OS-inboxed Copilot package, distinct
+  from Store `Microsoft.Copilot`), `Microsoft.Windows.Teams` (inbox
+  Teams integration stub)
 - RealSyferX/windows-11-debloat diff:
   - telemetry tasks +1 → `\Microsoft\Windows\Customer Experience
     Improvement Program Broker\UploadCachedReports` (cached CEIP

@@ -499,6 +499,9 @@ public static class ConfigLoader
                 "Microsoft.MicrosoftEdge.Stable",
                 "Microsoft.Windows.DevHome",       // Dev Home (+ GitHub extension)
                 "Microsoft.Copilot",
+                // OS-inboxed Copilot package (distinct from Store
+                // Microsoft.Copilot — itsnileshhere/windows-iso-debloater)
+                "Microsoft.Windows.Copilot",
                 "Microsoft.Windows.Ai.Copilot.Provider",  // Copilot provider package
                 "MicrosoftWindows.Client.CoPilot",  // Copilot client (distinct from Microsoft.Copilot)
                 "MicrosoftWindows.Client.CoreAI",   // Windows AI platform — Recall/ClickToDo runtime
@@ -506,6 +509,7 @@ public static class ConfigLoader
                 "aimgr",                            // AI Manager package
                 "Clipchamp.Clipchamp",
                 "MSTeams",                          // New Teams (Work/School), provisioned via AppX push
+                "Microsoft.Windows.Teams",          // inbox Teams integration stub (iso-debloater)
                 "Microsoft.OutlookForWindows",      // New Outlook, preinstalled since 23H2
                 "Microsoft.WindowsCommunicationsApps", // Mail & Calendar (discontinued Dec 2024)
                 "MicrosoftCorporationII.MicrosoftFamily",
