@@ -6377,7 +6377,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.61.2");
+                    Console.WriteLine("BloatwareGuard v1.61.3");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -6466,7 +6466,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.61.2 — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.61.3 — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -6748,8 +6748,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 8;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.61.2 — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.61.2 — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.61.3 — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.61.3 — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try
