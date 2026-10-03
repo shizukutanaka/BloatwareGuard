@@ -1557,8 +1557,19 @@ public static class RegistryGuard
         "WdiContextLog",
     };
 
-    /// <summary>Start=0 on telemetry ETW AutoLoggers. Opens — never creates —
-    /// the session key, so absent sessions don't get phantom entries.</summary>
+    // Diagnostic ETW event-log channels feeding power/sleep diagnostics —
+    // Enabled=0 under WINEVT\Channels (the wevtutil sl /e:false
+    // mechanism, noverse.dev sleep-study doc). Same open-only
+    // convention as AutoLoggers.
+    private static readonly string[] DiagnosticEtwChannels = {
+        "Microsoft-Windows-SleepStudy/Diagnostic",
+        "Microsoft-Windows-Kernel-Processor-Power/Diagnostic",
+        "Microsoft-Windows-UserModePowerService/Diagnostic",
+    };
+
+    /// <summary>Start=0 on telemetry ETW AutoLoggers plus Enabled=0 on
+    /// diagnostic ETW channels. Opens — never creates — each key, so
+    /// absent sessions don't get phantom entries.</summary>
     public static void DisableTelemetryAutologgers()
     {
         var killed = 0;
@@ -1575,7 +1586,21 @@ public static class RegistryGuard
             }
             catch { }
         }
-        GuardLogger.Info($"Applied: DisableTelemetryAutologgers ({killed}/{TelemetryAutologgers.Length} sessions)");
+        var channels = 0;
+        foreach (var channel in DiagnosticEtwChannels)
+        {
+            try
+            {
+                using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(
+                    $@"SOFTWARE\Microsoft\Windows\CurrentVersion\WINEVT\Channels\{channel}", writable: true);
+                if (key == null)
+                    continue;
+                key.SetValue("Enabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                channels++;
+            }
+            catch { }
+        }
+        GuardLogger.Info($"Applied: DisableTelemetryAutologgers ({killed}/{TelemetryAutologgers.Length} sessions, {channels}/{DiagnosticEtwChannels.Length} channels)");
     }
 
     // Pure-telemetry endpoints null-routed via the hosts file — the Spybot

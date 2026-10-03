@@ -2,6 +2,13 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- noverse.dev sleep-study doc — diagnostic ETW channels +3 inside
+  DisableTelemetryAutologgers: `Enabled`=0 under
+  `SOFTWARE\Microsoft\Windows\CurrentVersion\WINEVT\Channels\` for
+  `Microsoft-Windows-SleepStudy/Diagnostic`,
+  `Microsoft-Windows-Kernel-Processor-Power/Diagnostic`,
+  `Microsoft-Windows-UserModePowerService/Diagnostic`
+  (wevtutil sl /e:false mechanism; open-only, never creates keys)
 - noverse.dev scheduled-task catalog diff — telemetry tasks +1:
   `\Microsoft\Windows\Customer Experience Improvement Program\Uploader`
   (CEIP upload task, distinct from the Broker node UploadCachedReports)

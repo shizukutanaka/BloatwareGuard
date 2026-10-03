@@ -4750,10 +4750,20 @@ _EXTRA_AUTOLOGGERS = (
     "WdiContextLog",
 )
 
+# Diagnostic ETW event-log channels feeding power/sleep diagnostics —
+# Enabled=0 under WINEVT\Channels (the wevtutil sl /e:false mechanism,
+# noverse.dev sleep-study doc). Same open-only convention as AutoLoggers.
+_EXTRA_DIAG_CHANNELS = (
+    "Microsoft-Windows-SleepStudy/Diagnostic",
+    "Microsoft-Windows-Kernel-Processor-Power/Diagnostic",
+    "Microsoft-Windows-UserModePowerService/Diagnostic",
+)
+
 
 def disable_telemetry_autologgers(logger: logging.Logger) -> int:
-    """Start=0 on telemetry ETW AutoLoggers. Opens — never creates — the
-    session key, so absent sessions don't get phantom AutoLogger entries."""
+    """Start=0 on telemetry ETW AutoLoggers plus Enabled=0 on diagnostic
+    ETW channels. Opens — never creates — each key, so absent sessions
+    don't get phantom entries."""
     import winreg
     killed = 0
     for session in _EXTRA_AUTOLOGGERS:
@@ -4767,8 +4777,22 @@ def disable_telemetry_autologgers(logger: logging.Logger) -> int:
             killed += 1
         except OSError:
             continue
+    channels = 0
+    for channel in _EXTRA_DIAG_CHANNELS:
+        try:
+            key = winreg.OpenKey(
+                winreg.HKEY_LOCAL_MACHINE,
+                rf"SOFTWARE\Microsoft\Windows\CurrentVersion"
+                rf"\WINEVT\Channels\{channel}",
+                0, winreg.KEY_WRITE)
+            winreg.SetValueEx(key, "Enabled", 0, winreg.REG_DWORD, 0)
+            winreg.CloseKey(key)
+            channels += 1
+        except OSError:
+            continue
     logger.info(f"Applied: DisableTelemetryAutologgers "
-                f"({killed}/{len(_EXTRA_AUTOLOGGERS)} sessions)")
+                f"({killed}/{len(_EXTRA_AUTOLOGGERS)} sessions, "
+                f"{channels}/{len(_EXTRA_DIAG_CHANNELS)} channels)")
     return killed
 
 
