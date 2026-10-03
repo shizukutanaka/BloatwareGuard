@@ -2,6 +2,16 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Microsoft 25H2 ADMX reference (official Jan-2026 V3 catalog) — policy
+  kills +10, each verified against the canonical .admx set:
+  `InputPersonalization\ImplicitDataCollectionOff`=1,
+  `TabletPC\TurnOffPenFeedback`=1, `PenTraining\DisablePenTraining`=1,
+  `Windows Error Reporting\DisableArchive`=1, `ShareSheet\
+  DisableShareAppPromotions`=1, `Internet Explorer\AllowServicePoweredQSA`=0,
+  `DataCollection\ConfigureTelemetryForMicrosoft365Analytics`=0 (all
+  Machine+User) + per-user `PushNotifications\DisallowNotificationMirroring`=1,
+  `CloudContent\EnableOrganizationalMessages`=0,
+  `Control Panel\International\HideCurrentLocation`=1
 - dvandenburgh/Disable-Win11AI diff — `Explorer\HideFrequentlyUsedApps`=1
   (sibling of the already-covered HideRecentlyAddedApps policy)
 - noverse.dev privacy/security pages — documented policy kills +7:

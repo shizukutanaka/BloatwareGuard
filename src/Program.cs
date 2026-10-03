@@ -2232,6 +2232,11 @@ public static class RegistryGuard
             exp?.SetValue("SettingsPageVisibility", "hide:home;aicomponents;appactions");
             // Third-party content suggestions surface (sponsored tiles/ads)
             key?.SetValue("DisableThirdPartySuggestions", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            // Share-sheet app promotions off (25H2 ADMX ShareSheet —
+            // Machine class only)
+            using var share = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Policies\Microsoft\Windows\ShareSheet");
+            share?.SetValue("DisableShareAppPromotions", 1, Microsoft.Win32.RegistryValueKind.DWord);
             // App notifications must not show on the lock screen
             // (WinOpt) — documented CloudContent policy
             key?.SetValue("DisableLockScreenAppNotifications", 1, Microsoft.Win32.RegistryValueKind.DWord);
@@ -3039,6 +3044,12 @@ public static class RegistryGuard
                     dcl.SetValue("LimitEnhancedDiagnosticDataWindowsAnalytics", 1, Microsoft.Win32.RegistryValueKind.DWord);
                     // Limit optional-diagnostic configuration set (WGO)
                     dcl.SetValue("LimitDiagnosticDataConfigurationSet", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                    // Microsoft 365 analytics commercial telemetry off
+                    // (25H2 ADMX — Machine+User under this non-hive path)
+                    dcl.SetValue("ConfigureTelemetryForMicrosoft365Analytics", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                    SetUserDwordAllHives(
+                        @"Software\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
+                        "ConfigureTelemetryForMicrosoft365Analytics", 0);
                 }
             }
             catch { }
@@ -3121,6 +3132,12 @@ public static class RegistryGuard
                 ipz?.SetValue("AllowInputDataUpload", 0, Microsoft.Win32.RegistryValueKind.DWord);
                 ipz?.SetValue("AllowInkRecognitionLearning", 0, Microsoft.Win32.RegistryValueKind.DWord);
                 ipz?.SetValue("AllowInkingAndTypingPersonalization", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                // Implicit ink/typing collection off (25H2 ADMX
+                // InputPersonalization — Machine+User classes)
+                ipz?.SetValue("ImplicitDataCollectionOff", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                SetUserDwordAllHives(
+                    @"Software\Policies\Microsoft\InputPersonalization",
+                    "ImplicitDataCollectionOff", 1);
                 using var tip = Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Windows\TextInput", true);
                 tip?.SetValue("AllowHandwritingLMUpdate", 0, Microsoft.Win32.RegistryValueKind.DWord);
@@ -3262,6 +3279,18 @@ public static class RegistryGuard
                 using var tp = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Windows\TabletPC");
                 tp?.SetValue("PreventHandwritingDataSharing", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // Pen feedback + pen-recognition training uploads off
+                // (25H2 ADMX TabletPC/PenTraining — Machine+User)
+                using var tpf = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\TabletPC");
+                tpf?.SetValue("TurnOffPenFeedback", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                using var ptrn = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\PenTraining");
+                ptrn?.SetValue("DisablePenTraining", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                SetUserDwordAllHives(
+                    @"Software\Policies\Microsoft\TabletPC", "TurnOffPenFeedback", 1);
+                SetUserDwordAllHives(
+                    @"Software\Policies\Microsoft\PenTraining", "DisablePenTraining", 1);
                 // ReviOS telemetry.yml deep coverage: 32-bit policy mirror,
                 // PolicyManager default node, CPSS overrides, auth-proxy
                 // telemetry block, IE CEIP
@@ -3287,6 +3316,14 @@ public static class RegistryGuard
                 using var iemain = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Internet Explorer\Main");
                 iemain?.SetValue("DisableInternetExplorerLaunchViaCOM", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // IE service-powered quick-search suggestions off
+                // (25H2 ADMX — Machine+User)
+                using var ieqsa = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Internet Explorer");
+                ieqsa?.SetValue("AllowServicePoweredQSA", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                SetUserDwordAllHives(
+                    @"Software\Policies\Microsoft\Internet Explorer",
+                    "AllowServicePoweredQSA", 0);
                 using var pr = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Windows NT\Printers");
                 pr?.SetValue("DisableHTTPPrinting", 1, Microsoft.Win32.RegistryValueKind.DWord);
@@ -4382,6 +4419,11 @@ public static class RegistryGuard
             using var policy = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(WerPolicyPath);
             policy?.SetValue("Disabled", 1, Microsoft.Win32.RegistryValueKind.DWord);
             policy?.SetValue("AutoApproveOSDumps", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // WER report archiving off (25H2 ADMX — Machine+User)
+            policy?.SetValue("DisableArchive", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            SetUserDwordAllHives(
+                @"Software\Policies\Microsoft\Windows\Windows Error Reporting",
+                "DisableArchive", 1);
 
             // WER consent policy — default deny + lock re-consenting
             // (ReviOS privacy/wer.yml)
@@ -4662,6 +4704,10 @@ public static class RegistryGuard
         @"SOFTWARE\Policies\Microsoft\FVE",
         @"SOFTWARE\Policies\Microsoft\Windows\GameDVR",
         @"SOFTWARE\Policies\Microsoft\InputPersonalization",
+        @"SOFTWARE\Policies\Microsoft\PenTraining",
+        @"SOFTWARE\Policies\Microsoft\TabletPC",
+        @"SOFTWARE\Policies\Microsoft\Internet Explorer",
+        @"SOFTWARE\Policies\Microsoft\Windows\ShareSheet",
         @"SOFTWARE\Policies\Microsoft\Windows\TextInput",
         @"SOFTWARE\Policies\Microsoft\Windows\IME",
         @"SOFTWARE\Policies\Microsoft\Windows\AI\Copilot",
@@ -4901,6 +4947,14 @@ public static class RegistryGuard
         @"Software\Policies\Microsoft\Office\16.0\Outlook\Preferences",
         @"Software\Policies\Microsoft\Windows\CloudContent",
         @"Software\Policies\Microsoft\Windows\EdgeUI",
+        @"Software\Policies\Microsoft\InputPersonalization",
+        @"Software\Policies\Microsoft\TabletPC",
+        @"Software\Policies\Microsoft\PenTraining",
+        @"Software\Policies\Microsoft\Internet Explorer",
+        @"Software\Policies\Microsoft\Control Panel\International",
+        @"Software\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
+        @"Software\Policies\Microsoft\Windows\Windows Error Reporting",
+        @"Software\Policies\Microsoft\Windows\CurrentVersion\PushNotifications",
         @"Software\Policies\Microsoft\Windows\Explorer",
         @"Software\Policies\Microsoft\Windows\Privacy",
         @"Software\Policies\Microsoft\Windows\WindowsAI",
@@ -5319,6 +5373,21 @@ public static class RegistryGuard
             SetUserDwordAllHives(
                 @"Software\Policies\Microsoft\Windows\CloudContent",
                 "IncludeEnterpriseSpotlight", 0);
+            // Organizational-messages feed off per user (25H2 ADMX —
+            // User class only)
+            SetUserDwordAllHives(
+                @"Software\Policies\Microsoft\Windows\CloudContent",
+                "EnableOrganizationalMessages", 0);
+            // Phone→PC notification mirroring off per user (25H2 ADMX —
+            // User class only)
+            SetUserDwordAllHives(
+                @"Software\Policies\Microsoft\Windows\CurrentVersion\PushNotifications",
+                "DisallowNotificationMirroring", 1);
+            // Location hidden in Settings region page per user (25H2
+            // ADMX Control Panel International — User class only)
+            SetUserDwordAllHives(
+                @"Software\Policies\Microsoft\Control Panel\International",
+                "HideCurrentLocation", 1);
             // Lock-screen overlay promos + Settings online tips + Start
             // recommended-sites promo (mxk group-policy diff)
             using var perz = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(

@@ -1152,6 +1152,10 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Policies\Microsoft\FVE",
     r"SOFTWARE\Policies\Microsoft\Windows\GameDVR",
     r"SOFTWARE\Policies\Microsoft\InputPersonalization",
+    r"SOFTWARE\Policies\Microsoft\PenTraining",
+    r"SOFTWARE\Policies\Microsoft\TabletPC",
+    r"SOFTWARE\Policies\Microsoft\Internet Explorer",
+    r"SOFTWARE\Policies\Microsoft\Windows\ShareSheet",
     r"SOFTWARE\Policies\Microsoft\Windows\TextInput",
     r"SOFTWARE\Policies\Microsoft\Windows\IME",
     r"SOFTWARE\Policies\Microsoft\Windows\AI\Copilot",
@@ -1506,6 +1510,14 @@ _USER_BACKUP_KEY_PATHS = (
     r"Software\Policies\Microsoft\Office\16.0\Outlook\Preferences",
     r"Software\Policies\Microsoft\Windows\CloudContent",
     r"Software\Policies\Microsoft\Windows\EdgeUI",
+    r"Software\Policies\Microsoft\InputPersonalization",
+    r"Software\Policies\Microsoft\TabletPC",
+    r"Software\Policies\Microsoft\PenTraining",
+    r"Software\Policies\Microsoft\Internet Explorer",
+    r"Software\Policies\Microsoft\Control Panel\International",
+    r"Software\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
+    r"Software\Policies\Microsoft\Windows\Windows Error Reporting",
+    r"Software\Policies\Microsoft\Windows\CurrentVersion\PushNotifications",
     r"Software\Policies\Microsoft\Windows\Explorer",
     r"Software\Policies\Microsoft\Windows\Privacy",
     r"Software\Policies\Microsoft\Windows\WindowsAI",
@@ -1606,6 +1618,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                                 "hide:home;aicomponents;appactions")
             # Third-party content suggestions surface (sponsored tiles/ads)
             set_registry_dword("HKLM", cloud_content, "DisableThirdPartySuggestions", 1)
+            # Share-sheet app promotions off (25H2 ADMX ShareSheet —
+            # Machine class only)
+            set_registry_dword(
+                "HKLM", r"SOFTWARE\Policies\Microsoft\Windows\ShareSheet",
+                "DisableShareAppPromotions", 1)
             # App notifications must not show on the lock screen
             # (WinOpt) — documented CloudContent policy
             set_registry_dword("HKLM", cloud_content,
@@ -2413,6 +2430,12 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                       "AllowInkRecognitionLearning",
                       "AllowInkingAndTypingPersonalization"):
                 set_registry_dword("HKLM", ipz, v, 0)
+            # Implicit ink/typing collection off (25H2 ADMX
+            # InputPersonalization — Machine+User classes)
+            set_registry_dword("HKLM", ipz, "ImplicitDataCollectionOff", 1)
+            set_user_dword_all_hives(
+                r"Software\Policies\Microsoft\InputPersonalization",
+                "ImplicitDataCollectionOff", 1, logger)
             tip = r"SOFTWARE\Policies\Microsoft\Windows\TextInput"
             for v in ("AllowHandwritingLMUpdate",
                       "AllowHandwritingPersonalizationUpload",
@@ -2521,6 +2544,20 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword("HKLM",
                                r"SOFTWARE\Policies\Microsoft\Windows\TabletPC",
                                "PreventHandwritingDataSharing", 1)
+            # Pen feedback + pen-recognition training uploads off
+            # (25H2 ADMX TabletPC/PenTraining — Machine+User)
+            set_registry_dword(
+                "HKLM", r"SOFTWARE\Policies\Microsoft\TabletPC",
+                "TurnOffPenFeedback", 1)
+            set_user_dword_all_hives(
+                r"Software\Policies\Microsoft\TabletPC",
+                "TurnOffPenFeedback", 1, logger)
+            set_registry_dword(
+                "HKLM", r"SOFTWARE\Policies\Microsoft\PenTraining",
+                "DisablePenTraining", 1)
+            set_user_dword_all_hives(
+                r"Software\Policies\Microsoft\PenTraining",
+                "DisablePenTraining", 1, logger)
             # Web printing channels (ReviOS privacy.yml)
             printers = r"SOFTWARE\Policies\Microsoft\Windows NT\Printers"
             set_registry_dword("HKLM", printers, "DisableHTTPPrinting", 1)
@@ -2567,6 +2604,15 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                          # Limit optional-diagnostic configuration set (WGO)
                          "LimitDiagnosticDataConfigurationSet"):
                 set_registry_dword("HKLM", data_collection, name, 1)
+            # Microsoft 365 analytics commercial telemetry off (25H2
+            # ADMX — Machine+User under the non-Policies-hive path)
+            set_registry_dword(
+                "HKLM", data_collection,
+                "ConfigureTelemetryForMicrosoft365Analytics", 0)
+            set_user_dword_all_hives(
+                r"Software\Microsoft\Windows\CurrentVersion"
+                r"\Policies\DataCollection",
+                "ConfigureTelemetryForMicrosoft365Analytics", 0, logger)
             # MRT infection reports off
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\MRT",
                                "DontReportInfectionInformation", 1)
@@ -2604,6 +2650,14 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "HKLM",
                 r"SOFTWARE\Policies\Microsoft\Internet Explorer\Main",
                 "DisableInternetExplorerLaunchViaCOM", 1)
+            # IE service-powered quick-search suggestions off (25H2
+            # ADMX Internet Explorer policy — Machine+User)
+            set_registry_dword(
+                "HKLM", r"SOFTWARE\Policies\Microsoft\Internet Explorer",
+                "AllowServicePoweredQSA", 0)
+            set_user_dword_all_hives(
+                r"Software\Policies\Microsoft\Internet Explorer",
+                "AllowServicePoweredQSA", 0, logger)
             # Speech model downloads off (voice data pipeline)
             set_registry_dword("HKLM",
                                r"SOFTWARE\Microsoft\Speech_OneCore\Preferences",
@@ -3423,6 +3477,12 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword("HKLM", wer, "DontSendAdditionalData", 1)
             set_registry_dword("HKLM", wer_policy, "Disabled", 1)
             set_registry_dword("HKLM", wer_policy, "AutoApproveOSDumps", 0)
+            # WER report archiving off (25H2 ADMX — Machine+User)
+            set_registry_dword("HKLM", wer_policy, "DisableArchive", 1)
+            set_user_dword_all_hives(
+                r"Software\Policies\Microsoft\Windows"
+                r"\Windows Error Reporting",
+                "DisableArchive", 1, logger)
             # WER consent policy — default deny + lock the user out of
             # re-consenting (ReviOS privacy/wer.yml)
             set_registry_dword("HKLM", wer + r"\Consent", "DefaultConsent", 0)
@@ -3763,6 +3823,21 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             # Enterprise Spotlight content off — inverse polarity (ledr)
             set_user_dword_all_hives(
                 cloud, "IncludeEnterpriseSpotlight", 0, logger)
+            # Organizational-messages feed off per user (25H2 ADMX
+            # CloudContent — User class only)
+            set_user_dword_all_hives(
+                cloud, "EnableOrganizationalMessages", 0, logger)
+            # Phone→PC notification mirroring off per user (25H2 ADMX
+            # PushNotifications — User class only)
+            set_user_dword_all_hives(
+                r"Software\Policies\Microsoft\Windows\CurrentVersion"
+                r"\PushNotifications",
+                "DisallowNotificationMirroring", 1, logger)
+            # Location hidden in Settings region page per user (25H2
+            # ADMX Control Panel International — User class only)
+            set_user_dword_all_hives(
+                r"Software\Policies\Microsoft\Control Panel\International",
+                "HideCurrentLocation", 1, logger)
             # Lock-screen overlay promos + Settings online tips + Start
             # recommended-sites promo (mxk group-policy diff)
             set_registry_dword(
