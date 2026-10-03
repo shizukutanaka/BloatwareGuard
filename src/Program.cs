@@ -3190,6 +3190,20 @@ public static class RegistryGuard
                 using var sd = Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Windows\ScriptedDiagnostics", true);
                 sd?.SetValue("AllowDiagnosticDataUpload", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                // Troubleshooter online-content access off (documented
+                // policy — Microsoft-server troubleshooting content)
+                sd?.SetValue("EnableDiagnostics", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            {
+                using var sdp = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\ScriptedDiagnosticsProvider\Policy", true);
+                sdp?.SetValue("EnableQueryRemoteServer", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            {
+                // Recommended-troubleshooting suggestions off (documented)
+                using var tar = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Windows\Troubleshooting\AllowRecommendations", true);
+                tar?.SetValue("TroubleshootingAllowRecommendations", 0, Microsoft.Win32.RegistryValueKind.DWord);
             }
             {
                 // Windows ML inference telemetry off (RegiLattice
@@ -3439,6 +3453,9 @@ public static class RegistryGuard
                 polsys?.SetValue("DisableAutomaticRestartSignOn", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 // Hide last signed-in user name on the lock screen
                 polsys?.SetValue("DontDisplayLastUserName", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // Hide the user name entirely on the sign-in screen
+                // (noverse.dev hide-last-logged-in-user)
+                polsys?.SetValue("DontDisplayUserName", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 polsys?.SetValue("BlockUserFromShowingAccountDetailsOnSignin", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 // Classic SQMClient upload kill (pre-policy CEIP channel)
                 using var sqmc = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
@@ -3684,6 +3701,10 @@ public static class RegistryGuard
                 using var syspol = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Windows\System");
                 syspol?.SetValue("EnableCdp", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                // Phone Link (MMX) + apps-for-websites URI handoff off
+                // (documented System policies — noverse.dev)
+                syspol?.SetValue("EnableMmx", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                syspol?.SetValue("EnableAppUriHandlers", 0, Microsoft.Win32.RegistryValueKind.DWord);
                 using var ssync = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Windows\SettingSync");
                 ssync?.SetValue("EnableWindowsBackup", 0, Microsoft.Win32.RegistryValueKind.DWord);
@@ -3798,6 +3819,11 @@ public static class RegistryGuard
             SetUserDwordAllHives(
                 @"Software\Microsoft\Windows\CurrentVersion\CDP",
                 "DragTrayEnabled", 0);
+            // Remote-launch toast off — same per-user CDP surface
+            // (noverse.dev cross-device-experiences)
+            SetUserDwordAllHives(
+                @"Software\Microsoft\Windows\CurrentVersion\CDP",
+                "EnableRemoteLaunchToast", 0);
             SetUserDwordAllHives(
                 @"Software\Microsoft\Windows\CurrentVersion\CDP",
                 "RomeSdkChannelUserAuthzPolicy", 0);
@@ -4622,6 +4648,8 @@ public static class RegistryGuard
         @"SYSTEM\CurrentControlSet\Control\Power\EnergyEstimation\TaggedEnergy",
         @"SOFTWARE\Policies\Microsoft\Windows\CredUI",
         @"SOFTWARE\Policies\Microsoft\Windows\ScheduledDiagnostics",
+        @"SOFTWARE\Policies\Microsoft\Windows\Troubleshooting\AllowRecommendations",
+        @"SOFTWARE\Policies\Microsoft\Windows\ScriptedDiagnosticsProvider\Policy",
         @"SOFTWARE\NVIDIA Corporation\NvControlPanel2\Client",
         @"SYSTEM\CurrentControlSet\Control\Session Manager\Environment",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Audit",

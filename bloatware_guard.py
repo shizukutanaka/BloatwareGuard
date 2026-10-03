@@ -1138,6 +1138,8 @@ _BACKUP_KEY_PATHS = (
     r"SYSTEM\CurrentControlSet\Control\Power\EnergyEstimation\TaggedEnergy",
     r"SOFTWARE\Policies\Microsoft\Windows\CredUI",
     r"SOFTWARE\Policies\Microsoft\Windows\ScheduledDiagnostics",
+    r"SOFTWARE\Policies\Microsoft\Windows\Troubleshooting\AllowRecommendations",
+    r"SOFTWARE\Policies\Microsoft\Windows\ScriptedDiagnosticsProvider\Policy",
     r"SOFTWARE\NVIDIA Corporation\NvControlPanel2\Client",
     r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Audit",
@@ -2461,6 +2463,22 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword(
                 "HKLM", r"SOFTWARE\Policies\Microsoft\Windows\ScriptedDiagnostics",
                 "AllowDiagnosticDataUpload", 0)
+            # Troubleshooter online-content access off (documented
+            # policy — Microsoft-server troubleshooting content)
+            set_registry_dword(
+                "HKLM", r"SOFTWARE\Policies\Microsoft\Windows\ScriptedDiagnostics",
+                "EnableDiagnostics", 0)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Policies\Microsoft\Windows"
+                r"\ScriptedDiagnosticsProvider\Policy",
+                "EnableQueryRemoteServer", 0)
+            # Recommended-troubleshooting suggestions off (documented)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Policies\Microsoft\Windows"
+                r"\Troubleshooting\AllowRecommendations",
+                "TroubleshootingAllowRecommendations", 0)
             # Windows ML inference telemetry off (RegiLattice
             # MachineLearning policy — kill flag polarity is 1)
             set_registry_dword(
@@ -2694,6 +2712,12 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "HKLM",
                 r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",
                 "DontDisplayLastUserName", 1)
+            # Hide the user name entirely on the sign-in screen
+            # (noverse.dev hide-last-logged-in-user)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",
+                "DontDisplayUserName", 1)
             # Account details hidden on the sign-in screen
             set_registry_dword(
                 "HKLM",
@@ -2986,6 +3010,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             # CDP master + Windows Backup cloud-sync kills (noid-privacy)
             sys_pol = r"SOFTWARE\Policies\Microsoft\Windows\System"
             set_registry_dword("HKLM", sys_pol, "EnableCdp", 0)
+            # Phone Link (MMX) + apps-for-websites URI handoff off
+            # (documented System policies — noverse.dev)
+            set_registry_dword("HKLM", sys_pol, "EnableMmx", 0)
+            set_registry_dword("HKLM", sys_pol, "EnableAppUriHandlers", 0)
             set_registry_dword(
                 "HKLM",
                 r"SOFTWARE\Policies\Microsoft\Windows\SettingSync",
@@ -3099,6 +3127,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             # Share drag tray off (Raphire 2026.06): suppresses the CDP
             # share surface that appears while dragging files
             set_user_dword_all_hives(cdp, "DragTrayEnabled", 0, logger)
+            # Remote-launch toast off — same per-user CDP surface
+            # (noverse.dev cross-device-experiences)
+            set_user_dword_all_hives(cdp, "EnableRemoteLaunchToast", 0, logger)
             set_user_dword_all_hives(cdp, "RomeSdkChannelUserAuthzPolicy", 0, logger)
             set_user_dword_all_hives(cdp + r"\SettingsPage",
                                      "RomeSdkChannelUserAuthzPolicy", 0, logger)

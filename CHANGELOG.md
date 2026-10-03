@@ -2,6 +2,13 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- noverse.dev privacy/security pages — documented policy kills +7:
+  `System\EnableMmx`=0 (Phone Link), `System\EnableAppUriHandlers`=0
+  (apps-for-websites handoff), `ScriptedDiagnostics\EnableDiagnostics`=0 +
+  `ScriptedDiagnosticsProvider\Policy\EnableQueryRemoteServer`=0 (online
+  troubleshooting content), `Troubleshooting\AllowRecommendations\
+  TroubleshootingAllowRecommendations`=0, `Policies\System\
+  DontDisplayUserName`=1, per-user `CDP\EnableRemoteLaunchToast`=0
 - noverse.dev copilot page — `CopilotHWKeyChoiceSet`=1 under per-user
   `Explorer\AutoInstalledPWAs`: suppresses the Copilot hardware-key
   choice prompt via the same fake-completed marker mechanism as the
