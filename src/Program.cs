@@ -2901,6 +2901,11 @@ public static class RegistryGuard
                             Microsoft.Win32.RegistryValueKind.DWord);
             dcPol?.SetValue("ConfigureTelemetryOptInSettingsUx", 2,
                             Microsoft.Win32.RegistryValueKind.DWord);
+            // KMS client activation data opt-out (AVSValidationGP.admx
+            // NoAcquireGT policy — prevents sending activation-state data)
+            using var sppPol = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"Software\Policies\Microsoft\Windows NT\CurrentVersion\Software Protection Platform");
+            sppPol?.SetValue("NoGenTicket", 1, Microsoft.Win32.RegistryValueKind.DWord);
             using var sys = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(SystemPolicyPath);
             sys?.SetValue("PublishUserActivities", 0, Microsoft.Win32.RegistryValueKind.DWord);
             sys?.SetValue("UploadUserActivities", 0, Microsoft.Win32.RegistryValueKind.DWord);
@@ -4693,6 +4698,7 @@ public static class RegistryGuard
         @"SOFTWARE\Policies\Microsoft\Windows\System",
         @"SOFTWARE\Microsoft\SQMClient",
         @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform",
+        @"Software\Policies\Microsoft\Windows NT\CurrentVersion\Software Protection Platform",
         @"SYSTEM\CurrentControlSet\Control\Power\EnergyEstimation\TaggedEnergy",
         @"SOFTWARE\Policies\Microsoft\Windows\CredUI",
         @"SOFTWARE\Policies\Microsoft\Windows\ScheduledDiagnostics",

@@ -2,6 +2,11 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- `NoGenTicket`=1 added under
+  `Software\Policies\Microsoft\Windows NT\CurrentVersion\Software Protection Platform`
+  (AVSValidationGP.admx NoAcquireGT policy — opt-out of sending KMS client
+  activation data to Microsoft; complements the existing non-policy
+  SPP-path write). Backup-key list covers the new Policies path.
 - `LetAppsAccessSystemAIModels`=2 (ForceDeny) re-landed in
   DisableAppPermissions — verified present in the official 25H2 ADMX
   (AppPrivacy.admx enum: 0=user-in-control/1=force-allow/2=force-deny);

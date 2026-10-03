@@ -1135,6 +1135,7 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Policies\Microsoft\Windows\System",
     r"SOFTWARE\Microsoft\SQMClient",
     r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform",
+    r"Software\Policies\Microsoft\Windows NT\CurrentVersion\Software Protection Platform",
     r"SYSTEM\CurrentControlSet\Control\Power\EnergyEstimation\TaggedEnergy",
     r"SOFTWARE\Policies\Microsoft\Windows\CredUI",
     r"SOFTWARE\Policies\Microsoft\Windows\ScheduledDiagnostics",
@@ -2248,6 +2249,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword(
                 "HKLM", r"SOFTWARE\Policies\Microsoft\Windows\DataCollection",
                 "ConfigureTelemetryOptInSettingsUx", 2)
+            # KMS client activation data opt-out (AVSValidationGP.admx
+            # NoAcquireGT policy — prevents sending activation-state data)
+            set_registry_dword(
+                "HKLM", r"Software\Policies\Microsoft\Windows NT\CurrentVersion\Software Protection Platform",
+                "NoGenTicket", 1)
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\System",
                                "PublishUserActivities", 0)
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\System",
