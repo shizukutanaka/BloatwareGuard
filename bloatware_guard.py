@@ -4465,6 +4465,9 @@ _TELEMETRY_HOSTS = (
     "g.msn.com.nsatc.net",
     "search.msn.com",  # MSN search-redirect (Start-search query leak)
     "ads1.msads.net", "a.ads2.msads.net", "bingads.microsoft.com",
+    "www.bingads.microsoft.com",  # www sibling of the Bing-ads endpoint (W4RH4WK hosts diff)
+    "livetileedge.dsx.mp.microsoft.com",  # legacy live-tile content delivery (dead surface in Win11)
+    "any.edge.bing.com",        # Bing edge endpoint behind Start-search web results
     "a.rad.msn.com", "b.rad.msn.com", "ac3.msn.com", "live.rads.msn.com",
     "bs.serving-sys.com", "msntest.serving-sys.com",
     "secure.flashtalking.com",

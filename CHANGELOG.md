@@ -2,6 +2,16 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- W4RH4WK/Debloat-Windows-10 hosts diff (+3 → 518 domains): adopted
+  `www.bingads.microsoft.com` (www sibling of the existing Bing-ads
+  endpoint), `livetileedge.dsx.mp.microsoft.com` (legacy live-tile
+  content delivery — a dead surface on Win11), `any.edge.bing.com`
+  (Bing edge endpoint behind Start-search web results). Skipped: the
+  list's remaining 62 misses are Akamai/akadns/msedge CDN edges, OCSP
+  (`hostedocsp.globalsign.com`), Defender cloud (`wdcp*`), Windows
+  Update SLS, NCSI connectivity checks (`msftncsi.com` — same class as
+  the reverted EnableActiveProbing change), Xbox/Skype/MSN consumer
+  app endpoints, and IP-based firewall rules (out of mechanism scope).
 - Self-test T12 further hardened on the per-user side: path expressions
   now expand loop vars (`CONST + "\\" + toast`), multiline
   paren-concatenated constants (`NAME = (r"a" r"b")`) resolve correctly,
