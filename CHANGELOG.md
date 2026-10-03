@@ -2,6 +2,13 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- RemoveDefaultMicrosoftStorePackages official target list diff (Microsoft
+  Learn 25H2 policy docs): adopted `Microsoft.Microsoft365Copilot` (inbox
+  Microsoft 365 Copilot app, blacklist → 235). The Xbox overlay entries
+  (`Microsoft.XboxGameOverlay`/`Microsoft.XboxGamingOverlay`) were already
+  covered by the `Microsoft.Xbox` prefix; remaining official targets
+  (Paint, Calculator, Camera, Terminal, Notepad, MediaPlayer, etc.) are
+  functional apps excluded by design.
 - 25H2 inbox-app inventory diff (Tom4tot 25H2 appx audit): adopted
   `Microsoft.OfficePushNotificationUtility` (inbox Office push-notification
   stub, blacklist → 234). `Microsoft.OneDriveSync` skipped — OneDrive

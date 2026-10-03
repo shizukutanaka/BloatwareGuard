@@ -619,6 +619,7 @@ public static class ConfigLoader
                 "Microsoft.WidgetsPlatformRuntime", "Microsoft.StartExperiencesApp",
                 // M365 companion suite promo (24H2) + stable Instagram
                 "Microsoft.M365Companions",
+                "Microsoft.Microsoft365Copilot",  // 25H2 inbox M365 Copilot app (official RemoveDefaultMicrosoftStorePackages target)
                 "Facebook.Instagram",
                 // TronScript Metro diff — dead/promo/game-demo Microsoft appx
                 "Microsoft.Advertising.JavaScript", "Microsoft.Advertising.Xaml",

@@ -256,6 +256,7 @@ DEFAULT_BLACKLIST = [
     # M365 companion suite promo (24H2) + stable Instagram (only the Beta
     # family was listed before)
     "Microsoft.M365Companions",
+    "Microsoft.Microsoft365Copilot",  # 25H2 inbox M365 Copilot (RemoveDefaultStorePackages target)
     "Facebook.Instagram",
     # TronScript Metro diff — dead/promo/game-demo Microsoft appx
     "Microsoft.Advertising.JavaScript", "Microsoft.Advertising.Xaml",
