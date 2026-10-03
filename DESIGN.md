@@ -93,7 +93,7 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 | Windows Error Reporting | Disabled=1, DontSendAdditionalData=1 (HKLM+policy), DontShowUI=1, LoggingDisabled=1 (全ハイブ) | DisableErrorReporting |
 | Edge Update 常駐 | edgeupdate/edgeupdatem/MicrosoftEdgeElevationService → Start=3 + EdgeUpdateTask* 3件 /DISABLE | DisableEdgeUpdateBloat |
 | WU 経由 OEM ドライバ | ExcludeWUDriversInQualityUpdate=1 (WindowsUpdate policy) | BlockOemDriverUpdates |
-| アプリ権限 (保守的セット) | AppPrivacy LetApps* =2 (16 件、camera/mic/location 除外) | DisableAppPermissions |
+| アプリ権限 (保守的セット) | AppPrivacy LetApps* =2 (23 件、camera/mic/location 除外) | DisableAppPermissions |
 | Xbox サービス | XblAuthManager/XblGameSave/XboxNetApiSvc/XboxGipSvc → Start=3 | DisableXboxServices |
 | レジストリバックアップ | reg export → %ProgramData%\BloatwareGuard\backup\*.reg (適用前、1回/プロセス) | BackupRegistry |
 | Print Spooler (opt-in, 既定OFF) | sc stop + config start= disabled | DisablePrintSpooler |

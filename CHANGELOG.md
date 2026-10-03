@@ -2,6 +2,9 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Docs parity — remaining stale counts synced to implementation: LetApps*
+  denies 23 (DESIGN was 16), AutoLogger sessions 18 + 3 diagnostic channels
+  (README was 13), hosts block 514 domains (README was 515)
 - Docs parity — telemetry-task count brought to current 165 (DESIGN.md
   diagram was 98, README row 21 was 125)
 - 25H2 ADMX .adml deep-scan — `MicrosoftEdge\Books\
