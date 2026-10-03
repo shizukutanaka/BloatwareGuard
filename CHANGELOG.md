@@ -2,6 +2,63 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Docs parity — telemetry-task count corrected to the true
+  TELEMETRY_TASK_PATHS length (134; README row 21 + DESIGN diagram).
+  The earlier "165" counted every `\Microsoft\` task-path string in the
+  file, including the protected-system-task prefixes and Edge/OneDrive
+  updater entries owned by other layers.
+- privacy.sexy scheduled-task diff: adopted
+  `\Microsoft\Windows\ErrorDetails\EnableErrorDetailsUpdate` (WER
+  error-details updater, tasks → 134). Remaining psx task diffs are
+  Windows Update/UpdateOrchestrator, Defender maintenance, MDM policy,
+  OneDrive update (opt-in), and third-party updater tasks (Google,
+  Dropbox, Firefox, Nvidia, Adobe, Office ClickToRun) — all skip-class;
+  `AitAgent` stays excluded (legacy task already reverted upstream).
+- WindowsSpyBlocker data hosts diff: adopted `cache.datamart.windows.com`
+  (diagnostic DataMart upload endpoint, listed in all spy-list formats,
+  hosts → 518). Remaining wsb spy/extra diffs are CDN/instance endpoints
+  (wns.windows.com, llnw.net, blob.core.windows.net), Defender/MAPs
+  (spynet2/spynetalt), connectivity probes (ipv6.microsoft.com,
+  msftncsi.com), or consumer/functional endpoints (OneDrive, Skype, Teams,
+  Weather, Store) — all skip-class.
+- RemoveDefaultMicrosoftStorePackages official target list diff (Microsoft
+  Learn 25H2 policy docs): adopted `Microsoft.Microsoft365Copilot` (inbox
+  Microsoft 365 Copilot app, blacklist → 235). The Xbox overlay entries
+  (`Microsoft.XboxGameOverlay`/`Microsoft.XboxGamingOverlay`) were already
+  covered by the `Microsoft.Xbox` prefix; remaining official targets
+  (Paint, Calculator, Camera, Terminal, Notepad, MediaPlayer, etc.) are
+  functional apps excluded by design.
+- 25H2 inbox-app inventory diff (Tom4tot 25H2 appx audit): adopted
+  `Microsoft.OfficePushNotificationUtility` (inbox Office push-notification
+  stub, blacklist → 234). `Microsoft.OneDriveSync` skipped — OneDrive
+  remains opt-in. `Microsoft.Office.ActionsServer` and
+  `Microsoft.Windows.DevHome` were already covered.
+- W4RH4WK/Debloat-Windows-10 hosts diff (+3 → 518 domains): adopted
+  `www.bingads.microsoft.com` (www sibling of the existing Bing-ads
+  endpoint), `livetileedge.dsx.mp.microsoft.com` (legacy live-tile
+  content delivery — a dead surface on Win11), `any.edge.bing.com`
+  (Bing edge endpoint behind Start-search web results). Skipped: the
+  list's remaining 62 misses are Akamai/akadns/msedge CDN edges, OCSP
+  (`hostedocsp.globalsign.com`), Defender cloud (`wdcp*`), Windows
+  Update SLS, NCSI connectivity checks (`msftncsi.com` — same class as
+  the reverted EnableActiveProbing change), Xbox/Skype/MSN consumer
+  app endpoints, and IP-based firewall rules (out of mechanism scope).
+- Self-test T12 further hardened on the per-user side: path expressions
+  now expand loop vars (`CONST + "\\" + toast`), multiline
+  paren-concatenated constants (`NAME = (r"a" r"b")`) resolve correctly,
+  and both py/cs miss checks use the same containment semantics as the
+  HKLM side (a write under a backed-up parent key is covered, matching
+  `reg export`'s recursive subtree export). Verified non-vacuous: the
+  three sibling-toast paths resolve and are covered via
+  `...\Notifications\Settings`.
+- Backup-coverage hardening: `SOFTWARE\Microsoft\.NETFramework` +
+  `SOFTWARE\Wow6432Node\Microsoft\.NETFramework` added to both backup
+  key lists — the .NET strong-crypto writes (dn_root/dn2 foreach loops)
+  were the only HKLM write paths not covered by the registry-export
+  safety net. Self-test T12's extractor strengthened so the gap class
+  can't recur: py side now resolves `for VAR in (...)` loop-variable
+  path tuples, cs side resolves `CreateSubKey(CONST)` and
+  `foreach (var x in new[] {...})` arguments.
 - 25H2 ADMX kill-named policy sweep (Disable*/TurnOff*/No*/Hide* — 406
   policies, 21 privacy-adjacent candidates): `DisableWidgetsBoard`=0 +
   `DisableWidgetsOnLockScreen`=0 under `SOFTWARE\Policies\Microsoft\Dsh`

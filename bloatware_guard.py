@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.61.2 - Python prototype
+BloatwareGuard v1.61.3 - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -36,7 +36,7 @@ from typing import Dict, List, Set, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.61.2"
+APP_VERSION = "1.61.3"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -83,6 +83,7 @@ DEFAULT_BLACKLIST = [
     "Microsoft.SeaofThieves",        # game stub (TronScript)
     # zoicware RemoveWindowsAI 2026 diff — AI component packages
     "Microsoft.Office.ActionsServer", "Microsoft.WritingAssistant",
+    "Microsoft.OfficePushNotificationUtility",  # 25H2 inbox Office push-notification stub
     "Microsoft.Ink.Handwriting", "Voiess", "Speion", "Livtop",
     "Filons", "WindowsWorkload.",
     "Microsoft.MicrosoftSolitaireCollection",
@@ -255,6 +256,7 @@ DEFAULT_BLACKLIST = [
     # M365 companion suite promo (24H2) + stable Instagram (only the Beta
     # family was listed before)
     "Microsoft.M365Companions",
+    "Microsoft.Microsoft365Copilot",  # 25H2 inbox M365 Copilot (RemoveDefaultStorePackages target)
     "Facebook.Instagram",
     # TronScript Metro diff — dead/promo/game-demo Microsoft appx
     "Microsoft.Advertising.JavaScript", "Microsoft.Advertising.Xaml",
@@ -1194,6 +1196,8 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Policies\Microsoft\Windows\CredentialsDelegation",
     r"SOFTWARE\Microsoft\Cryptography\Wintrust\Config",
     r"SOFTWARE\Wow6432Node\Microsoft\Cryptography\Wintrust\Config",
+    r"SOFTWARE\Microsoft\.NETFramework",
+    r"SOFTWARE\Wow6432Node\Microsoft\.NETFramework",
     r"SOFTWARE\Policies\Microsoft\Windows\WCN\Registrars",
     r"SOFTWARE\Policies\Microsoft\Windows\Appx",
     r"SOFTWARE\Policies\Microsoft\Windows\Appx"
@@ -4258,6 +4262,7 @@ def apply_remove_default_store_packages(family_names, logger: logging.Logger) ->
 _TELEMETRY_HOSTS = (
     "vortex.data.microsoft.com", "vortex-win.data.microsoft.com",
     "telecommand.telemetry.microsoft.com",
+    "cache.datamart.windows.com",  # diagnostic DataMart upload endpoint (WindowsSpyBlocker spy list)
     "telecommand.telemetry.microsoft.com.nsatc.net",
     "oca.telemetry.microsoft.com", "oca.telemetry.microsoft.com.nsatc.net",
     "sqm.telemetry.microsoft.com",
@@ -4463,6 +4468,9 @@ _TELEMETRY_HOSTS = (
     "g.msn.com.nsatc.net",
     "search.msn.com",  # MSN search-redirect (Start-search query leak)
     "ads1.msads.net", "a.ads2.msads.net", "bingads.microsoft.com",
+    "www.bingads.microsoft.com",  # www sibling of the Bing-ads endpoint (W4RH4WK hosts diff)
+    "livetileedge.dsx.mp.microsoft.com",  # legacy live-tile content delivery (dead surface in Win11)
+    "any.edge.bing.com",        # Bing edge endpoint behind Start-search web results
     "a.rad.msn.com", "b.rad.msn.com", "ac3.msn.com", "live.rads.msn.com",
     "bs.serving-sys.com", "msntest.serving-sys.com",
     "secure.flashtalking.com",
@@ -5162,8 +5170,9 @@ TELEMETRY_TASK_PATHS = (
     "\\Microsoft\\Windows\\ApplicationData\\appuriverifierdaily",
     "\\Microsoft\\Windows\\ApplicationData\\appuriverifierinstall",
     "\\Microsoft\\Windows\\AppListBackup\\Backup",
-    # Windows Error Reporting queue upload
+    # Windows Error Reporting queue upload + error-details updater
     "\\Microsoft\\Windows\\Windows Error Reporting\\QueueReporting",
+    "\\Microsoft\\Windows\\ErrorDetails\\EnableErrorDetailsUpdate",
     # Consumer subscription/license offers (Microsoft 365 upsell channel)
     "\\Microsoft\\Windows\\Subscription\\EnableLicenseAcquisition",
     "\\Microsoft\\Windows\\Subscription\\LicenseAcquisition",
@@ -5934,6 +5943,18 @@ def run_self_test() -> int:
         # module-level + function-local `name = r"..."` assignments
         vars_ = dict(re.findall(r'^\s*([a-zA-Z_]+)\s*=\s*r?"([^"]+)"',
                                 src, re.M))
+        # multiline paren-concat consts: NAME = (r"a"\n r"b") → "ab"
+        for m in re.finditer(
+                r'^\s*([a-zA-Z_]+)\s*=\s*\(([^()]*)\)', src, re.M):
+            lits = re.findall(r'r?"([^"]+)"', m.group(2))
+            if lits:
+                vars_[m.group(1)] = ''.join(lits)
+        # loop-var → path-lists (for-loops over path tuples) so writes
+        # via `set_registry_dword("HKLM", VAR, ...)` resolve too
+        loopvars = {}
+        for m in re.finditer(r'for\s+(\w+)\s+in\s*\(([^)]*)\)', src):
+            loopvars[m.group(1)] = [p.lower() for p in re.findall(
+                r'r?"([^"]+)"', m.group(2))]
         backup = {p.lower() for p in _BACKUP_KEY_PATHS}
         py_writes = set()
         for m in re.finditer(
@@ -5942,6 +5963,8 @@ def run_self_test() -> int:
             t = m.group(1) or vars_.get(m.group(2))
             if t:
                 py_writes.add(t.lower())
+            elif m.group(2) in loopvars:
+                py_writes.update(loopvars[m.group(2)])
         miss = sorted(w for w in py_writes
                       if not any(w.startswith(b) or b.startswith(w)
                                  for b in backup))
@@ -5958,6 +5981,22 @@ def run_self_test() -> int:
         cs_writes = set(re.findall(
             r'(?:LocalMachine|Registry\.LocalMachine)\.CreateSubKey'
             r'\(\s*@?"([^"]+)"', cs_src))
+        # const-identifier and foreach-loop-var CreateSubKey args —
+        # resolve `const string X = @"..."` and `foreach (var x in
+        # new[] { @"a", @"b" })` so writes via either are covered
+        cs_lvars = dict(re.findall(
+            r'(?:private const string|static readonly string)\s+'
+            r'(\w+)\s*=\s*@?"([^"]+)"', cs_src))
+        for m in re.finditer(
+                r'foreach\s*\(var\s+(\w+)\s+in\s+new\[\]\s*'
+                r'\{([^}]*)\}', cs_src):
+            cs_lvars[m.group(1)] = m.group(2)
+        for m in re.finditer(
+                r'(?:LocalMachine|Registry\.LocalMachine)\.CreateSubKey'
+                r'\(\s*(\w+)\s*\)', cs_src):
+            if m.group(1) in cs_lvars:
+                cs_writes |= set(re.findall(
+                    r'@?"([^"]+)"', cs_lvars[m.group(1)]))
         miss_cs = sorted(
             w.lower() for w in cs_writes
             if not any(w.lower().startswith(b) or b.startswith(w.lower())
@@ -5968,35 +6007,38 @@ def run_self_test() -> int:
         # Per-user coverage: every path written through the per-user
         # writers must appear in _USER_BACKUP_KEY_PATHS so the exported
         # .reg safety net covers user-scope writes too.
-        def _resolve_path_expr(expr):
-            """Resolve `'lit' + CONST + 'lit'` style first args."""
-            parts = []
+        def _resolve_path_exprs(expr):
+            """Resolve `'lit' + CONST + 'lit'` style first args to every
+            possible path — loop vars expand to each iteration value."""
+            parts = [[]]
             for piece in re.split(r'\s*\+\s*', expr.strip()):
                 m = re.match(r'^r?"([^"]+)"$', piece)
                 if m:
-                    parts.append(m.group(1))
+                    opts = [m.group(1)]
                 elif re.match(r'^[a-zA-Z_]+$', piece):
-                    if piece not in vars_:
-                        return None
-                    parts.append(vars_[piece])
+                    if piece in vars_:
+                        opts = [vars_[piece]]
+                    elif piece in loopvars:
+                        opts = loopvars[piece]
+                    else:
+                        return set()
                 else:
-                    return None
-            return ''.join(parts)
+                    return set()
+                parts = [p + [o] for p in parts for o in opts]
+            return {''.join(p).lower() for p in parts}
 
         user_backup = {p.lower() for p in _USER_BACKUP_KEY_PATHS}
         py_user = set()
         for m in re.finditer(
                 r'(?:set_user_dword_all_hives|\bw)\(\s*([^,]+),', src):
-            t = _resolve_path_expr(m.group(1))
-            if t:
-                py_user.add(t.lower())
+            py_user |= _resolve_path_exprs(m.group(1))
         for m in re.finditer(
                 r'set_registry_(?:dword|string|qword)\(\s*'
                 r'"HK(?:CU|EY_CURRENT_USER)",\s*([^,]+),', src):
-            t = _resolve_path_expr(m.group(1))
-            if t:
-                py_user.add(t.lower())
-        miss_u = sorted(p for p in py_user if p not in user_backup)
+            py_user |= _resolve_path_exprs(m.group(1))
+        miss_u = sorted(p for p in py_user
+                        if not any(p.startswith(b) or b.startswith(p)
+                                   for b in user_backup))
         assert not miss_u, \
             f"per-user write paths with no backup: {miss_u}"
         # cs side: SetHiveDword/SetUserDwordAllHives path args vs
@@ -6012,19 +6054,27 @@ def run_self_test() -> int:
                 r'(?:SetHiveDword|SetUserDwordAllHives)\(\s*'
                 r'(?:hive,\s*)?([^,\n]+),', cs_src):
             expr = m.group(1).strip()
-            parts = []
+            parts = [[]]
             ok = True
             for piece in re.split(r'\s*\+\s*', expr):
                 pm = re.match(r'^@?"([^"]+)"$', piece)
                 if pm:
-                    parts.append(pm.group(1))
+                    opts = [pm.group(1)]
                 elif piece in cs_consts:
-                    parts.append(cs_consts[piece])
+                    opts = [cs_consts[piece]]
+                elif piece in cs_lvars:
+                    # foreach-loop var → the new[] block's string items
+                    opts = re.findall(r'"([^"]+)"', cs_lvars[piece])
                 else:
                     ok = False
+                    break
+                parts = [p + [o] for p in parts for o in opts]
             if ok:
-                cs_user.add(''.join(parts).lower())
-        miss_ucs = sorted(p for p in cs_user if p not in cs_ubackup)
+                cs_user.update(''.join(p).lower() for p in parts)
+        miss_ucs = sorted(
+            p for p in cs_user
+            if not any(p.startswith(b) or b.startswith(p)
+                       for b in cs_ubackup))
         assert not miss_ucs, \
             f"per-user write paths in Program.cs with no backup: {miss_ucs}"
 
