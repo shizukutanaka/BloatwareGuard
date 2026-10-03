@@ -2222,6 +2222,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Dsh", "AllowNewsAndInterests", 0)
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\Windows Feeds",
                                "EnableFeeds", 0)
+            # Widgets board + lock-screen widgets off (NewsAndInterests.admx —
+            # policy enabledValue is 0 for both, i.e. 0 disables the surface)
+            set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Dsh", "DisableWidgetsBoard", 0)
+            set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Dsh", "DisableWidgetsOnLockScreen", 0)
             set_user_dword_all_hives(_USER_EXPLORER_ADV, "TaskbarDa", 0, logger)
             # 2 = Feeds view hidden entirely (news/interests flyout off)
             set_user_dword_all_hives(
@@ -3061,6 +3065,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             # recent-items graph off (noid-privacy)
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\DataCollection",
                                "DisableOneSettingsDownloads", 1)
+            # OEM system-tray promotions off (Taskbar.admx policy)
+            set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\Explorer",
+                               "NoSystraySystemPromotion", 1)
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\Explorer",
                                "DisableGraphRecentItems", 1)
             # Per-user policy-level tailored-experiences lock (stronger

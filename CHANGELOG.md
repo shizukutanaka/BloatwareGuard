@@ -2,6 +2,15 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- 25H2 ADMX kill-named policy sweep (Disable*/TurnOff*/No*/Hide* — 406
+  policies, 21 privacy-adjacent candidates): `DisableWidgetsBoard`=0 +
+  `DisableWidgetsOnLockScreen`=0 under `SOFTWARE\Policies\Microsoft\Dsh`
+  (NewsAndInterests.admx — the policies' enabledValue is 0, i.e. 0 turns
+  the surface off) and `NoSystraySystemPromotion`=1 under
+  `Software\Policies\Microsoft\Windows\Explorer` (Taskbar.admx — blocks
+  OEM system-tray promotions). Remaining candidates were already covered
+  (`DisabledByGroupPolicy`, `NoCloudApplicationNotification`) or
+  skip-class (IE/legacy-Edge/functional UX/security).
 - `NoGenTicket`=1 added under
   `Software\Policies\Microsoft\Windows NT\CurrentVersion\Software Protection Platform`
   (AVSValidationGP.admx NoAcquireGT policy — opt-out of sending KMS client

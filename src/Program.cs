@@ -2287,6 +2287,8 @@ public static class RegistryGuard
             using var expl = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(ExplorerPoliciesHklmPath);
             expl?.SetValue("NoUseStoreOpenWith", 1, Microsoft.Win32.RegistryValueKind.DWord);
             expl?.SetValue("NoNewAppAlert", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            // OEM system-tray promotions off (Taskbar.admx policy)
+            expl?.SetValue("NoSystraySystemPromotion", 1, Microsoft.Win32.RegistryValueKind.DWord);
             // Open-With internet lookup + Settings-app online tips (content fetch)
             expl?.SetValue("NoInternetOpenWith", 1, Microsoft.Win32.RegistryValueKind.DWord);
             expl?.SetValue("AllowOnlineTips", 0, Microsoft.Win32.RegistryValueKind.DWord);
@@ -2869,6 +2871,10 @@ public static class RegistryGuard
             key?.SetValue("AllowNewsAndInterests", 0, Microsoft.Win32.RegistryValueKind.DWord);
             using var feeds = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(WindowsFeedsPath);
             feeds?.SetValue("EnableFeeds", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // Widgets board + lock-screen widgets off (NewsAndInterests.admx —
+            // policy enabledValue is 0 for both, i.e. 0 disables the surface)
+            key?.SetValue("DisableWidgetsBoard", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            key?.SetValue("DisableWidgetsOnLockScreen", 0, Microsoft.Win32.RegistryValueKind.DWord);
             SetUserDwordAllHives(UserExplorerAdvancedPath, "TaskbarDa", 0);
             // 2 = Feeds view hidden entirely (news/interests flyout off)
             SetUserDwordAllHives(@"Software\Microsoft\Windows\CurrentVersion\Feeds", "ShellFeedsTaskbarViewMode", 2);
