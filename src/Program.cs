@@ -1829,6 +1829,7 @@ public static class RegistryGuard
         "zmetrics.msn.com",
         "vortex.data.microsoft.com", "vortex-win.data.microsoft.com",
         "telecommand.telemetry.microsoft.com", "telecommand.telemetry.microsoft.com.nsatc.net",
+        "cache.datamart.windows.com",  // diagnostic DataMart upload endpoint (WindowsSpyBlocker spy list)
         "oca.telemetry.microsoft.com", "oca.telemetry.microsoft.com.nsatc.net",
         "sqm.telemetry.microsoft.com",
         "sqm.ppe.telemetry.microsoft.com", "sqm.telemetry.microsoft.com.nsatc.net",

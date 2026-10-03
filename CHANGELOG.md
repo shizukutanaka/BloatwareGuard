@@ -2,6 +2,13 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- WindowsSpyBlocker data hosts diff: adopted `cache.datamart.windows.com`
+  (diagnostic DataMart upload endpoint, listed in all spy-list formats,
+  hosts → 518). Remaining wsb spy/extra diffs are CDN/instance endpoints
+  (wns.windows.com, llnw.net, blob.core.windows.net), Defender/MAPs
+  (spynet2/spynetalt), connectivity probes (ipv6.microsoft.com,
+  msftncsi.com), or consumer/functional endpoints (OneDrive, Skype, Teams,
+  Weather, Store) — all skip-class.
 - RemoveDefaultMicrosoftStorePackages official target list diff (Microsoft
   Learn 25H2 policy docs): adopted `Microsoft.Microsoft365Copilot` (inbox
   Microsoft 365 Copilot app, blacklist → 235). The Xbox overlay entries

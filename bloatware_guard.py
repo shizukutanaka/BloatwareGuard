@@ -4262,6 +4262,7 @@ def apply_remove_default_store_packages(family_names, logger: logging.Logger) ->
 _TELEMETRY_HOSTS = (
     "vortex.data.microsoft.com", "vortex-win.data.microsoft.com",
     "telecommand.telemetry.microsoft.com",
+    "cache.datamart.windows.com",  # diagnostic DataMart upload endpoint (WindowsSpyBlocker spy list)
     "telecommand.telemetry.microsoft.com.nsatc.net",
     "oca.telemetry.microsoft.com", "oca.telemetry.microsoft.com.nsatc.net",
     "sqm.telemetry.microsoft.com",
