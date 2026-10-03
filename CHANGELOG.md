@@ -2,6 +2,14 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Self-test T12 further hardened on the per-user side: path expressions
+  now expand loop vars (`CONST + "\\" + toast`), multiline
+  paren-concatenated constants (`NAME = (r"a" r"b")`) resolve correctly,
+  and both py/cs miss checks use the same containment semantics as the
+  HKLM side (a write under a backed-up parent key is covered, matching
+  `reg export`'s recursive subtree export). Verified non-vacuous: the
+  three sibling-toast paths resolve and are covered via
+  `...\Notifications\Settings`.
 - Backup-coverage hardening: `SOFTWARE\Microsoft\.NETFramework` +
   `SOFTWARE\Wow6432Node\Microsoft\.NETFramework` added to both backup
   key lists — the .NET strong-crypto writes (dn_root/dn2 foreach loops)

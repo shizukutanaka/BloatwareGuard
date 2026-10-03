@@ -5936,6 +5936,12 @@ def run_self_test() -> int:
         # module-level + function-local `name = r"..."` assignments
         vars_ = dict(re.findall(r'^\s*([a-zA-Z_]+)\s*=\s*r?"([^"]+)"',
                                 src, re.M))
+        # multiline paren-concat consts: NAME = (r"a"\n r"b") → "ab"
+        for m in re.finditer(
+                r'^\s*([a-zA-Z_]+)\s*=\s*\(([^()]*)\)', src, re.M):
+            lits = re.findall(r'r?"([^"]+)"', m.group(2))
+            if lits:
+                vars_[m.group(1)] = ''.join(lits)
         # loop-var → path-lists (for-loops over path tuples) so writes
         # via `set_registry_dword("HKLM", VAR, ...)` resolve too
         loopvars = {}
@@ -5994,35 +6000,38 @@ def run_self_test() -> int:
         # Per-user coverage: every path written through the per-user
         # writers must appear in _USER_BACKUP_KEY_PATHS so the exported
         # .reg safety net covers user-scope writes too.
-        def _resolve_path_expr(expr):
-            """Resolve `'lit' + CONST + 'lit'` style first args."""
-            parts = []
+        def _resolve_path_exprs(expr):
+            """Resolve `'lit' + CONST + 'lit'` style first args to every
+            possible path — loop vars expand to each iteration value."""
+            parts = [[]]
             for piece in re.split(r'\s*\+\s*', expr.strip()):
                 m = re.match(r'^r?"([^"]+)"$', piece)
                 if m:
-                    parts.append(m.group(1))
+                    opts = [m.group(1)]
                 elif re.match(r'^[a-zA-Z_]+$', piece):
-                    if piece not in vars_:
-                        return None
-                    parts.append(vars_[piece])
+                    if piece in vars_:
+                        opts = [vars_[piece]]
+                    elif piece in loopvars:
+                        opts = loopvars[piece]
+                    else:
+                        return set()
                 else:
-                    return None
-            return ''.join(parts)
+                    return set()
+                parts = [p + [o] for p in parts for o in opts]
+            return {''.join(p).lower() for p in parts}
 
         user_backup = {p.lower() for p in _USER_BACKUP_KEY_PATHS}
         py_user = set()
         for m in re.finditer(
                 r'(?:set_user_dword_all_hives|\bw)\(\s*([^,]+),', src):
-            t = _resolve_path_expr(m.group(1))
-            if t:
-                py_user.add(t.lower())
+            py_user |= _resolve_path_exprs(m.group(1))
         for m in re.finditer(
                 r'set_registry_(?:dword|string|qword)\(\s*'
                 r'"HK(?:CU|EY_CURRENT_USER)",\s*([^,]+),', src):
-            t = _resolve_path_expr(m.group(1))
-            if t:
-                py_user.add(t.lower())
-        miss_u = sorted(p for p in py_user if p not in user_backup)
+            py_user |= _resolve_path_exprs(m.group(1))
+        miss_u = sorted(p for p in py_user
+                        if not any(p.startswith(b) or b.startswith(p)
+                                   for b in user_backup))
         assert not miss_u, \
             f"per-user write paths with no backup: {miss_u}"
         # cs side: SetHiveDword/SetUserDwordAllHives path args vs
@@ -6038,19 +6047,27 @@ def run_self_test() -> int:
                 r'(?:SetHiveDword|SetUserDwordAllHives)\(\s*'
                 r'(?:hive,\s*)?([^,\n]+),', cs_src):
             expr = m.group(1).strip()
-            parts = []
+            parts = [[]]
             ok = True
             for piece in re.split(r'\s*\+\s*', expr):
                 pm = re.match(r'^@?"([^"]+)"$', piece)
                 if pm:
-                    parts.append(pm.group(1))
+                    opts = [pm.group(1)]
                 elif piece in cs_consts:
-                    parts.append(cs_consts[piece])
+                    opts = [cs_consts[piece]]
+                elif piece in cs_lvars:
+                    # foreach-loop var → the new[] block's string items
+                    opts = re.findall(r'"([^"]+)"', cs_lvars[piece])
                 else:
                     ok = False
+                    break
+                parts = [p + [o] for p in parts for o in opts]
             if ok:
-                cs_user.add(''.join(parts).lower())
-        miss_ucs = sorted(p for p in cs_user if p not in cs_ubackup)
+                cs_user.update(''.join(p).lower() for p in parts)
+        miss_ucs = sorted(
+            p for p in cs_user
+            if not any(p.startswith(b) or b.startswith(p)
+                       for b in cs_ubackup))
         assert not miss_ucs, \
             f"per-user write paths in Program.cs with no backup: {miss_ucs}"
 
