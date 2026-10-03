@@ -5531,6 +5531,9 @@ public static class ScheduledTaskGuard
         // Bluetooth CEIP SQM uploader (hst-windows-utility task list)
         @"\Microsoft\Windows\Customer Experience Improvement Program\BthSQM",
         @"\Microsoft\Windows\Customer Experience Improvement Program\KernelCeipTask",
+        // CEIP Uploader task — distinct from the Broker node
+        // UploadCachedReports (noverse.dev task catalog)
+        @"\Microsoft\Windows\Customer Experience Improvement Program\Uploader",
         // Server CEIP node (Windows Server CEIP tasks — privacy.sexy)
         @"\Microsoft\Windows\Customer Experience Improvement Program\Server\ServerCeipAssistant",
         @"\Microsoft\Windows\Customer Experience Improvement Program\Server\ServerRoleCollector",

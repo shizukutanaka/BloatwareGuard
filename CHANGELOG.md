@@ -2,6 +2,9 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- noverse.dev scheduled-task catalog diff — telemetry tasks +1:
+  `\Microsoft\Windows\Customer Experience Improvement Program\Uploader`
+  (CEIP upload task, distinct from the Broker node UploadCachedReports)
 - itsnileshhere/windows-iso-debloater diff — blacklist +2:
   `Microsoft.Windows.Copilot` (OS-inboxed Copilot package, distinct
   from Store `Microsoft.Copilot`), `Microsoft.Windows.Teams` (inbox
