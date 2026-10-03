@@ -2,6 +2,11 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- 25H2 inbox-app inventory diff (Tom4tot 25H2 appx audit): adopted
+  `Microsoft.OfficePushNotificationUtility` (inbox Office push-notification
+  stub, blacklist → 234). `Microsoft.OneDriveSync` skipped — OneDrive
+  remains opt-in. `Microsoft.Office.ActionsServer` and
+  `Microsoft.Windows.DevHome` were already covered.
 - W4RH4WK/Debloat-Windows-10 hosts diff (+3 → 518 domains): adopted
   `www.bingads.microsoft.com` (www sibling of the existing Bing-ads
   endpoint), `livetileedge.dsx.mp.microsoft.com` (legacy live-tile

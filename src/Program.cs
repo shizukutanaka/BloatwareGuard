@@ -470,6 +470,7 @@ public static class ConfigLoader
             "Microsoft.SeaofThieves",        // game stub (TronScript)
             // zoicware RemoveWindowsAI 2026 diff — AI component packages
             "Microsoft.Office.ActionsServer", "Microsoft.WritingAssistant",
+            "Microsoft.OfficePushNotificationUtility",  // 25H2 inbox Office push-notification stub
             "Microsoft.Ink.Handwriting", "Voiess", "Speion", "Livtop",
             "Filons", "WindowsWorkload.",
                 "Microsoft.MicrosoftSolitaireCollection",
