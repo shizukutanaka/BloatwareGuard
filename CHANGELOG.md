@@ -2,6 +2,14 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Backup-coverage hardening: `SOFTWARE\Microsoft\.NETFramework` +
+  `SOFTWARE\Wow6432Node\Microsoft\.NETFramework` added to both backup
+  key lists — the .NET strong-crypto writes (dn_root/dn2 foreach loops)
+  were the only HKLM write paths not covered by the registry-export
+  safety net. Self-test T12's extractor strengthened so the gap class
+  can't recur: py side now resolves `for VAR in (...)` loop-variable
+  path tuples, cs side resolves `CreateSubKey(CONST)` and
+  `foreach (var x in new[] {...})` arguments.
 - 25H2 ADMX kill-named policy sweep (Disable*/TurnOff*/No*/Hide* — 406
   policies, 21 privacy-adjacent candidates): `DisableWidgetsBoard`=0 +
   `DisableWidgetsOnLockScreen`=0 under `SOFTWARE\Policies\Microsoft\Dsh`

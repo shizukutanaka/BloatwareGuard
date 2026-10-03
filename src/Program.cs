@@ -4787,6 +4787,8 @@ public static class RegistryGuard
         @"SOFTWARE\Policies\Microsoft\Windows\CredentialsDelegation",
         @"SOFTWARE\Microsoft\Cryptography\Wintrust\Config",
         @"SOFTWARE\Wow6432Node\Microsoft\Cryptography\Wintrust\Config",
+        @"SOFTWARE\Microsoft\.NETFramework",
+        @"SOFTWARE\Wow6432Node\Microsoft\.NETFramework",
         @"SOFTWARE\Policies\Microsoft\Windows\WCN\Registrars",
         @"SOFTWARE\Policies\Microsoft\Windows\Appx",
         @"SOFTWARE\Policies\Microsoft\Windows\Appx\RemoveDefaultMicrosoftStorePackages",

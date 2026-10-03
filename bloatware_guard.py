@@ -1194,6 +1194,8 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Policies\Microsoft\Windows\CredentialsDelegation",
     r"SOFTWARE\Microsoft\Cryptography\Wintrust\Config",
     r"SOFTWARE\Wow6432Node\Microsoft\Cryptography\Wintrust\Config",
+    r"SOFTWARE\Microsoft\.NETFramework",
+    r"SOFTWARE\Wow6432Node\Microsoft\.NETFramework",
     r"SOFTWARE\Policies\Microsoft\Windows\WCN\Registrars",
     r"SOFTWARE\Policies\Microsoft\Windows\Appx",
     r"SOFTWARE\Policies\Microsoft\Windows\Appx"
@@ -5934,6 +5936,12 @@ def run_self_test() -> int:
         # module-level + function-local `name = r"..."` assignments
         vars_ = dict(re.findall(r'^\s*([a-zA-Z_]+)\s*=\s*r?"([^"]+)"',
                                 src, re.M))
+        # loop-var → path-lists (for-loops over path tuples) so writes
+        # via `set_registry_dword("HKLM", VAR, ...)` resolve too
+        loopvars = {}
+        for m in re.finditer(r'for\s+(\w+)\s+in\s*\(([^)]*)\)', src):
+            loopvars[m.group(1)] = [p.lower() for p in re.findall(
+                r'r?"([^"]+)"', m.group(2))]
         backup = {p.lower() for p in _BACKUP_KEY_PATHS}
         py_writes = set()
         for m in re.finditer(
@@ -5942,6 +5950,8 @@ def run_self_test() -> int:
             t = m.group(1) or vars_.get(m.group(2))
             if t:
                 py_writes.add(t.lower())
+            elif m.group(2) in loopvars:
+                py_writes.update(loopvars[m.group(2)])
         miss = sorted(w for w in py_writes
                       if not any(w.startswith(b) or b.startswith(w)
                                  for b in backup))
@@ -5958,6 +5968,22 @@ def run_self_test() -> int:
         cs_writes = set(re.findall(
             r'(?:LocalMachine|Registry\.LocalMachine)\.CreateSubKey'
             r'\(\s*@?"([^"]+)"', cs_src))
+        # const-identifier and foreach-loop-var CreateSubKey args —
+        # resolve `const string X = @"..."` and `foreach (var x in
+        # new[] { @"a", @"b" })` so writes via either are covered
+        cs_lvars = dict(re.findall(
+            r'(?:private const string|static readonly string)\s+'
+            r'(\w+)\s*=\s*@?"([^"]+)"', cs_src))
+        for m in re.finditer(
+                r'foreach\s*\(var\s+(\w+)\s+in\s+new\[\]\s*'
+                r'\{([^}]*)\}', cs_src):
+            cs_lvars[m.group(1)] = m.group(2)
+        for m in re.finditer(
+                r'(?:LocalMachine|Registry\.LocalMachine)\.CreateSubKey'
+                r'\(\s*(\w+)\s*\)', cs_src):
+            if m.group(1) in cs_lvars:
+                cs_writes |= set(re.findall(
+                    r'@?"([^"]+)"', cs_lvars[m.group(1)]))
         miss_cs = sorted(
             w.lower() for w in cs_writes
             if not any(w.lower().startswith(b) or b.startswith(w.lower())
