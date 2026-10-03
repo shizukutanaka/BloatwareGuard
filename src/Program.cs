@@ -2595,6 +2595,9 @@ public static class RegistryGuard
                 key?.SetValue(n, 2, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("AgentConnectorMinimumPolicy", 1, Microsoft.Win32.RegistryValueKind.DWord);
             key?.SetValue("AgentConsentDuration", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            // April 2026 RemoveMicrosoftCopilotApp also exists at Device
+            // scope (./Device/.../WindowsAI per KB5083769 doc)
+            key?.SetValue("RemoveMicrosoftCopilotApp", 1, Microsoft.Win32.RegistryValueKind.DWord);
             ForEachUserHive(hive =>
             {
                 SetHiveDword(hive, UserWindowsAiPath, "DisableAIDataAnalysis", 1);

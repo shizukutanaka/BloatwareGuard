@@ -2,6 +2,10 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- KB5083769 / Neowin doc confirmation — `RemoveMicrosoftCopilotApp`=1
+  additionally at Device scope (`HKLM\SOFTWARE\Policies\Microsoft\Windows\
+  WindowsAI`); MS doc lists the policy at both `./Device/` and `./User/`
+  WindowsAI, we previously wrote only the user hives.
 - MS "manage connections" endpoint-doc diff (hosts +3 → 511):
   - `api.cdp.microsoft.com`, `msedge.api.cdp.microsoft.com` — Connected
     Devices Platform API (CDP services/policies already killed;

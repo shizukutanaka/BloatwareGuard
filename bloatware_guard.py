@@ -1992,6 +1992,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 set_registry_dword("HKLM", ai_pol, name, 2)
             set_registry_dword("HKLM", ai_pol, "AgentConnectorMinimumPolicy", 1)
             set_registry_dword("HKLM", ai_pol, "AgentConsentDuration", 1)
+            # April 2026 RemoveMicrosoftCopilotApp also exists at Device scope
+            # (./Device/.../WindowsAI per KB5083769 doc)
+            set_registry_dword("HKLM", ai_pol, "RemoveMicrosoftCopilotApp", 1)
             set_user_dword_all_hives(_USER_WINDOWS_AI, "DisableAIDataAnalysis", 1, logger)
             set_user_dword_all_hives(_USER_WINDOWS_AI, "DisableClickToDo", 1, logger)
             set_user_dword_all_hives(_USER_WINDOWS_AI, "DisableSettingsAgent", 1, logger)
