@@ -5796,8 +5796,9 @@ public static class ScheduledTaskGuard
         @"\Microsoft\Windows\ApplicationData\appuriverifierdaily",
         @"\Microsoft\Windows\ApplicationData\appuriverifierinstall",
         @"\Microsoft\Windows\AppListBackup\Backup",
-        // Windows Error Reporting queue upload
+        // Windows Error Reporting queue upload + error-details updater
         @"\Microsoft\Windows\Windows Error Reporting\QueueReporting",
+        @"\Microsoft\Windows\ErrorDetails\EnableErrorDetailsUpdate",
         // Consumer subscription/license offers (Microsoft 365 upsell channel)
         @"\Microsoft\Windows\Subscription\EnableLicenseAcquisition",
         @"\Microsoft\Windows\Subscription\LicenseAcquisition",

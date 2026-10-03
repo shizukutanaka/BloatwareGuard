@@ -2,6 +2,13 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- privacy.sexy scheduled-task diff: adopted
+  `\Microsoft\Windows\ErrorDetails\EnableErrorDetailsUpdate` (WER
+  error-details updater, tasks → 166). Remaining psx task diffs are
+  Windows Update/UpdateOrchestrator, Defender maintenance, MDM policy,
+  OneDrive update (opt-in), and third-party updater tasks (Google,
+  Dropbox, Firefox, Nvidia, Adobe, Office ClickToRun) — all skip-class;
+  `AitAgent` stays excluded (legacy task already reverted upstream).
 - WindowsSpyBlocker data hosts diff: adopted `cache.datamart.windows.com`
   (diagnostic DataMart upload endpoint, listed in all spy-list formats,
   hosts → 518). Remaining wsb spy/extra diffs are CDN/instance endpoints
