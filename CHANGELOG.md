@@ -2,6 +2,24 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Turtlecute33/Privacy.sexy-Revamped diff (maintained privacy.sexy fork):
+  - Telemetry tasks +6 — Server CEIP node (`Server\ServerCeipAssistant`,
+    `Server\ServerRoleCollector`, `Server\ServerRoleUsageCollector` —
+    Windows Server CEIP, sibling of the client CEIP tasks already covered)
+    and OOBE third-party app scan triggers
+    (`UpdateOrchestrator\StartOobeAppsScan{AfterUpdate,LicenseAccepted,
+    OobeAppReady}` — usoclient-driven OEM/Store app re-provisioning after
+    updates)
+  - `Speech_OneCore\Preferences` +`VoiceActivationDefaultOn`=0 on all user
+    hives and HKLM (master "always-on voice listening" default — distinct
+    value from the existing `VoiceActivationOn` write); Python also gained
+    `VoiceActivationEnableAboveLockscreen`=0 (parity with the existing C#
+    write)
+  - (Skipped: Windows Update defer/pause tasks, Defender/Wd*/SmartScreen
+    kills, vendor updaters (Google/Adobe/Firefox/Nvidia/Office), UI
+    preferences, and previously-rejected `AllowInputPersonalization`/
+    `GlobalUserDisabled`/`ShowCortanaButton`/`UsageTracking`/
+    `AitAgent`)
 - Subprocess output decoding parity (C#):
   - `Proc.Capture` now sets `StandardOutputEncoding`/`StandardErrorEncoding`
     to the system OEM code page (cp932 on ja-JP) via

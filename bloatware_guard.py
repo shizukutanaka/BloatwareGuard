@@ -1876,6 +1876,17 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_user_dword_all_hives(
                 r"Software\Microsoft\Speech_OneCore\Preferences",
                 "VoiceActivationOn", 0, logger)
+            # Default/master voice-activation toggle (privacy.sexy) — the
+            # always-on "Hey Cortana"-class listening preference; same key as
+            # VoiceActivationOn but a distinct value honoured by SpeechRuntime
+            set_user_dword_all_hives(
+                r"Software\Microsoft\Speech_OneCore\Preferences",
+                "VoiceActivationDefaultOn", 0, logger)
+            # Voice activation above the lock screen (parity with C#
+            # VoiceActivationEnableAboveLockscreen write)
+            set_user_dword_all_hives(
+                r"Software\Microsoft\Speech_OneCore\Preferences",
+                "VoiceActivationEnableAboveLockscreen", 0, logger)
             # IME cloud AI suggestions off (RegiLattice CopilotPlus —
             # per-user InputMethod settings)
             set_user_dword_all_hives(
@@ -2569,6 +2580,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword("HKLM",
                                r"SOFTWARE\Microsoft\Speech_OneCore\Preferences",
                                "ModelDownloadAllowed", 0)
+            # Always-on voice-listening master default off (privacy.sexy —
+            # machine-wide default complementing the per-user writes)
+            set_registry_dword("HKLM",
+                               r"SOFTWARE\Microsoft\Speech_OneCore\Preferences",
+                               "VoiceActivationDefaultOn", 0)
             # "Sync your settings" off — stops settings roaming to MS accounts
             set_registry_dword("HKLM",
                                r"SOFTWARE\Policies\Microsoft\Windows\SettingSync",
@@ -4867,6 +4883,15 @@ TELEMETRY_TASK_PATHS = (
     # Bluetooth CEIP SQM uploader (hst-windows-utility task list)
     "\\Microsoft\\Windows\\Customer Experience Improvement Program\\BthSQM",
     "\\Microsoft\\Windows\\Customer Experience Improvement Program\\KernelCeipTask",
+    # Server CEIP node (Windows Server CEIP tasks — privacy.sexy)
+    "\\Microsoft\\Windows\\Customer Experience Improvement Program\\Server\\ServerCeipAssistant",
+    "\\Microsoft\\Windows\\Customer Experience Improvement Program\\Server\\ServerRoleCollector",
+    "\\Microsoft\\Windows\\Customer Experience Improvement Program\\Server\\ServerRoleUsageCollector",
+    # OOBE third-party app scan triggers — usoclient-driven re-provisioning
+    # of OEM/Store apps after updates (privacy.sexy)
+    "\\Microsoft\\Windows\\UpdateOrchestrator\\StartOobeAppsScanAfterUpdate",
+    "\\Microsoft\\Windows\\UpdateOrchestrator\\StartOobeAppsScan_LicenseAccepted",
+    "\\Microsoft\\Windows\\UpdateOrchestrator\\StartOobeAppsScan_OobeAppReady",
     "\\Microsoft\\Windows\\DiskDiagnostic\\Microsoft-Windows-DiskDiagnosticDataCollector",
     "\\Microsoft\\Windows\\Feedback\\Siuf\\DmClient",
     "\\Microsoft\\Windows\\Feedback\\Siuf\\DmClientOnScenarioDownload",

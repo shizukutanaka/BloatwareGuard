@@ -2485,6 +2485,10 @@ public static class RegistryGuard
             SetUserDwordAllHives(UserVoiceActivationPath, "AgentActivationLastUsed", 0);
             // Wake-word/voice activation off (RegiLattice Cortana)
             SetUserDwordAllHives(@"Software\Microsoft\Speech_OneCore\Preferences", "VoiceActivationOn", 0);
+            // Default/master voice-activation toggle (privacy.sexy) — the
+            // always-on "Hey Cortana"-class listening preference; same key as
+            // VoiceActivationOn but a distinct value honoured by SpeechRuntime
+            SetUserDwordAllHives(@"Software\Microsoft\Speech_OneCore\Preferences", "VoiceActivationDefaultOn", 0);
             // IME cloud AI suggestions off (RegiLattice CopilotPlus —
             // per-user InputMethod settings)
             SetUserDwordAllHives(@"Software\Microsoft\InputMethod\Settings\CHS", "UseAISuggestions", 0);
@@ -3269,6 +3273,8 @@ public static class RegistryGuard
                 using var speech = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Microsoft\Speech_OneCore\Preferences");
                 speech?.SetValue("ModelDownloadAllowed", 0, Microsoft.Win32.RegistryValueKind.DWord);
+                // Always-on voice-listening master default off (privacy.sexy)
+                speech?.SetValue("VoiceActivationDefaultOn", 0, Microsoft.Win32.RegistryValueKind.DWord);
             }
             catch { }
             // "Sync your settings" off — stops settings roaming to MS accounts
@@ -5508,6 +5514,15 @@ public static class ScheduledTaskGuard
         // Bluetooth CEIP SQM uploader (hst-windows-utility task list)
         @"\Microsoft\Windows\Customer Experience Improvement Program\BthSQM",
         @"\Microsoft\Windows\Customer Experience Improvement Program\KernelCeipTask",
+        // Server CEIP node (Windows Server CEIP tasks — privacy.sexy)
+        @"\Microsoft\Windows\Customer Experience Improvement Program\Server\ServerCeipAssistant",
+        @"\Microsoft\Windows\Customer Experience Improvement Program\Server\ServerRoleCollector",
+        @"\Microsoft\Windows\Customer Experience Improvement Program\Server\ServerRoleUsageCollector",
+        // OOBE third-party app scan triggers — usoclient-driven
+        // re-provisioning of OEM/Store apps after updates (privacy.sexy)
+        @"\Microsoft\Windows\UpdateOrchestrator\StartOobeAppsScanAfterUpdate",
+        @"\Microsoft\Windows\UpdateOrchestrator\StartOobeAppsScan_LicenseAccepted",
+        @"\Microsoft\Windows\UpdateOrchestrator\StartOobeAppsScan_OobeAppReady",
         @"\Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticDataCollector",
         @"\Microsoft\Windows\Feedback\Siuf\DmClient",
         @"\Microsoft\Windows\Feedback\Siuf\DmClientOnScenarioDownload",
