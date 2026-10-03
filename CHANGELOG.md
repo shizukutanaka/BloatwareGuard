@@ -2,6 +2,11 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- `LetAppsAccessSystemAIModels`=2 (ForceDeny) re-landed in
+  DisableAppPermissions — verified present in the official 25H2 ADMX
+  (AppPrivacy.admx enum: 0=user-in-control/1=force-allow/2=force-deny);
+  the earlier revert (commit c382a17) predated the ADMX evidence.
+  LetApps* deny list now 24 entries.
 - Docs parity — remaining stale counts synced to implementation: LetApps*
   denies 23 (DESIGN was 16), AutoLogger sessions 18 + 3 diagnostic channels
   (README was 13), hosts block 514 domains (README was 515)
