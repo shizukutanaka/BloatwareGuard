@@ -4129,6 +4129,10 @@ _TELEMETRY_HOSTS = (
     "services.wes.df.telemetry.microsoft.com", "sqm.df.telemetry.microsoft.com",
     "settings-win.data.microsoft.com", "settings.data.microsoft.com",
     "statsfe2.ws.microsoft.com", "redir.metaservices.microsoft.com",
+    # RealSyferX/windows-11-debloat diff — app-experience bing telemetry,
+    # UAP telemetry, telemetry redirection, activity-feed upload
+    "telemetry.appex.bing.com", "telemetry-uap.microsoft.com",
+    "redirection.telemetry.microsoft.com", "prod.activity.windows.com",
     # MS "manage connections" endpoint doc: Connected Devices Platform API
     # (already policy/service-killed — server-side reinforcement) and the
     # device-metadata service (PreventDeviceMetadataFromNetwork channel)
@@ -4895,6 +4899,8 @@ TELEMETRY_TASK_PATHS = (
     "\\Microsoft\\Windows\\Customer Experience Improvement Program\\Server\\ServerCeipAssistant",
     "\\Microsoft\\Windows\\Customer Experience Improvement Program\\Server\\ServerRoleCollector",
     "\\Microsoft\\Windows\\Customer Experience Improvement Program\\Server\\ServerRoleUsageCollector",
+    # CEIP Broker — uploads cached CEIP reports (RealSyferX/windows-11-debloat)
+    "\\Microsoft\\Windows\\Customer Experience Improvement Program Broker\\UploadCachedReports",
     # OOBE third-party app scan triggers — usoclient-driven re-provisioning
     # of OEM/Store apps after updates (privacy.sexy)
     "\\Microsoft\\Windows\\UpdateOrchestrator\\StartOobeAppsScanAfterUpdate",

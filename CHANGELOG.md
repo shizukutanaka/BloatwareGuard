@@ -2,6 +2,16 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- RealSyferX/windows-11-debloat diff:
+  - telemetry tasks +1 → `\Microsoft\Windows\Customer Experience
+    Improvement Program Broker\UploadCachedReports` (cached CEIP
+    report upload)
+  - hosts +4 → 515: `telemetry.appex.bing.com`,
+    `telemetry-uap.microsoft.com`,
+    `redirection.telemetry.microsoft.com`,
+    `prod.activity.windows.com`
+  - `DiagSvc` already covered (diagsvc); `fhsvc`/CDN/STS/DHA endpoints
+    skipped as functional
 - KB5083769 / Neowin doc confirmation — `RemoveMicrosoftCopilotApp`=1
   additionally at Device scope (`HKLM\SOFTWARE\Policies\Microsoft\Windows\
   WindowsAI`); MS doc lists the policy at both `./Device/` and `./User/`
