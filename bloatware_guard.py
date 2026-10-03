@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BloatwareGuard v1.61.1 - Python prototype
+BloatwareGuard v1.61.2 - Python prototype
 Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 使い方:
@@ -36,7 +36,7 @@ from typing import Dict, List, Set, Tuple
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 APP_NAME = "BloatwareGuard"
-APP_VERSION = "1.61.1"
+APP_VERSION = "1.61.2"
 SERVICE_NAME = "BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
@@ -114,6 +114,9 @@ DEFAULT_BLACKLIST = [
     "Microsoft.MicrosoftEdge.Stable",
     "Microsoft.Windows.DevHome",       # Dev Home (+ GitHub extension)
     "Microsoft.Copilot",
+    # OS-inboxed Copilot package (distinct from Store Microsoft.Copilot —
+    # itsnileshhere/windows-iso-debloater)
+    "Microsoft.Windows.Copilot",
     "Microsoft.Windows.Ai.Copilot.Provider",  # Copilot provider package
     "MicrosoftWindows.Client.CoPilot",  # Copilot client (distinct from Microsoft.Copilot)
     "MicrosoftWindows.Client.CoreAI",   # Windows AI platform — Recall/ClickToDo runtime
@@ -121,6 +124,7 @@ DEFAULT_BLACKLIST = [
     "aimgr",                            # AI Manager package
     "Clipchamp.Clipchamp",
     "MSTeams",                          # New Teams (Work/School), provisioned via AppX push
+    "Microsoft.Windows.Teams",          # inbox Teams integration stub (iso-debloater)
     "Microsoft.OutlookForWindows",      # New Outlook, preinstalled since 23H2
     "Microsoft.WindowsCommunicationsApps",  # Mail & Calendar (discontinued Dec 2024)
     "MicrosoftCorporationII.MicrosoftFamily",
@@ -1131,9 +1135,12 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Policies\Microsoft\Windows\System",
     r"SOFTWARE\Microsoft\SQMClient",
     r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform",
+    r"Software\Policies\Microsoft\Windows NT\CurrentVersion\Software Protection Platform",
     r"SYSTEM\CurrentControlSet\Control\Power\EnergyEstimation\TaggedEnergy",
     r"SOFTWARE\Policies\Microsoft\Windows\CredUI",
     r"SOFTWARE\Policies\Microsoft\Windows\ScheduledDiagnostics",
+    r"SOFTWARE\Policies\Microsoft\Windows\Troubleshooting\AllowRecommendations",
+    r"SOFTWARE\Policies\Microsoft\Windows\ScriptedDiagnosticsProvider\Policy",
     r"SOFTWARE\NVIDIA Corporation\NvControlPanel2\Client",
     r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Audit",
@@ -1146,6 +1153,10 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Policies\Microsoft\FVE",
     r"SOFTWARE\Policies\Microsoft\Windows\GameDVR",
     r"SOFTWARE\Policies\Microsoft\InputPersonalization",
+    r"SOFTWARE\Policies\Microsoft\PenTraining",
+    r"SOFTWARE\Policies\Microsoft\TabletPC",
+    r"SOFTWARE\Policies\Microsoft\Internet Explorer",
+    r"SOFTWARE\Policies\Microsoft\Windows\ShareSheet",
     r"SOFTWARE\Policies\Microsoft\Windows\TextInput",
     r"SOFTWARE\Policies\Microsoft\Windows\IME",
     r"SOFTWARE\Policies\Microsoft\Windows\AI\Copilot",
@@ -1178,6 +1189,7 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\generativeAI",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\RunNotification",
     r"SOFTWARE\Policies\Microsoft\MicrosoftEdge\SearchScopes",
+    r"SOFTWARE\Policies\Microsoft\MicrosoftEdge\Books",
     r"SOFTWARE\Policies\Microsoft\Peernet",
     r"SOFTWARE\Policies\Microsoft\Windows\CredentialsDelegation",
     r"SOFTWARE\Microsoft\Cryptography\Wintrust\Config",
@@ -1500,6 +1512,14 @@ _USER_BACKUP_KEY_PATHS = (
     r"Software\Policies\Microsoft\Office\16.0\Outlook\Preferences",
     r"Software\Policies\Microsoft\Windows\CloudContent",
     r"Software\Policies\Microsoft\Windows\EdgeUI",
+    r"Software\Policies\Microsoft\InputPersonalization",
+    r"Software\Policies\Microsoft\TabletPC",
+    r"Software\Policies\Microsoft\PenTraining",
+    r"Software\Policies\Microsoft\Internet Explorer",
+    r"Software\Policies\Microsoft\Control Panel\International",
+    r"Software\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
+    r"Software\Policies\Microsoft\Windows\Windows Error Reporting",
+    r"Software\Policies\Microsoft\Windows\CurrentVersion\PushNotifications",
     r"Software\Policies\Microsoft\Windows\Explorer",
     r"Software\Policies\Microsoft\Windows\Privacy",
     r"Software\Policies\Microsoft\Windows\WindowsAI",
@@ -1600,6 +1620,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                                 "hide:home;aicomponents;appactions")
             # Third-party content suggestions surface (sponsored tiles/ads)
             set_registry_dword("HKLM", cloud_content, "DisableThirdPartySuggestions", 1)
+            # Share-sheet app promotions off (25H2 ADMX ShareSheet —
+            # Machine class only)
+            set_registry_dword(
+                "HKLM", r"SOFTWARE\Policies\Microsoft\Windows\ShareSheet",
+                "DisableShareAppPromotions", 1)
             # App notifications must not show on the lock screen
             # (WinOpt) — documented CloudContent policy
             set_registry_dword("HKLM", cloud_content,
@@ -1838,6 +1863,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             _pwa = (r"Software\Microsoft\Windows\CurrentVersion"
                     r"\Explorer\AutoInstalledPWAs")
             set_user_dword_all_hives(_pwa, "CopilotPWAPreinstallCompleted", 1, logger)
+            # noverse.dev copilot page: sibling marker for the Copilot
+            # hardware-key choice prompt — same fake-completed mechanism
+            set_user_dword_all_hives(_pwa, "CopilotHWKeyChoiceSet", 1, logger)
             set_user_dword_all_hives(
                 _pwa, "Microsoft.Copilot_8wekyb3d8bbwe", 1, logger)
             set_user_dword_all_hives(
@@ -1876,6 +1904,17 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_user_dword_all_hives(
                 r"Software\Microsoft\Speech_OneCore\Preferences",
                 "VoiceActivationOn", 0, logger)
+            # Default/master voice-activation toggle (privacy.sexy) — the
+            # always-on "Hey Cortana"-class listening preference; same key as
+            # VoiceActivationOn but a distinct value honoured by SpeechRuntime
+            set_user_dword_all_hives(
+                r"Software\Microsoft\Speech_OneCore\Preferences",
+                "VoiceActivationDefaultOn", 0, logger)
+            # Voice activation above the lock screen (parity with C#
+            # VoiceActivationEnableAboveLockscreen write)
+            set_user_dword_all_hives(
+                r"Software\Microsoft\Speech_OneCore\Preferences",
+                "VoiceActivationEnableAboveLockscreen", 0, logger)
             # IME cloud AI suggestions off (RegiLattice CopilotPlus —
             # per-user InputMethod settings)
             set_user_dword_all_hives(
@@ -1981,6 +2020,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 set_registry_dword("HKLM", ai_pol, name, 2)
             set_registry_dword("HKLM", ai_pol, "AgentConnectorMinimumPolicy", 1)
             set_registry_dword("HKLM", ai_pol, "AgentConsentDuration", 1)
+            # April 2026 RemoveMicrosoftCopilotApp also exists at Device scope
+            # (./Device/.../WindowsAI per KB5083769 doc)
+            set_registry_dword("HKLM", ai_pol, "RemoveMicrosoftCopilotApp", 1)
             set_user_dword_all_hives(_USER_WINDOWS_AI, "DisableAIDataAnalysis", 1, logger)
             set_user_dword_all_hives(_USER_WINDOWS_AI, "DisableClickToDo", 1, logger)
             set_user_dword_all_hives(_USER_WINDOWS_AI, "DisableSettingsAgent", 1, logger)
@@ -2180,6 +2222,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Dsh", "AllowNewsAndInterests", 0)
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\Windows Feeds",
                                "EnableFeeds", 0)
+            # Widgets board + lock-screen widgets off (NewsAndInterests.admx —
+            # policy enabledValue is 0 for both, i.e. 0 disables the surface)
+            set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Dsh", "DisableWidgetsBoard", 0)
+            set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Dsh", "DisableWidgetsOnLockScreen", 0)
             set_user_dword_all_hives(_USER_EXPLORER_ADV, "TaskbarDa", 0, logger)
             # 2 = Feeds view hidden entirely (news/interests flyout off)
             set_user_dword_all_hives(
@@ -2207,6 +2253,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword(
                 "HKLM", r"SOFTWARE\Policies\Microsoft\Windows\DataCollection",
                 "ConfigureTelemetryOptInSettingsUx", 2)
+            # KMS client activation data opt-out (AVSValidationGP.admx
+            # NoAcquireGT policy — prevents sending activation-state data)
+            set_registry_dword(
+                "HKLM", r"Software\Policies\Microsoft\Windows NT\CurrentVersion\Software Protection Platform",
+                "NoGenTicket", 1)
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\System",
                                "PublishUserActivities", 0)
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\System",
@@ -2390,6 +2441,12 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                       "AllowInkRecognitionLearning",
                       "AllowInkingAndTypingPersonalization"):
                 set_registry_dword("HKLM", ipz, v, 0)
+            # Implicit ink/typing collection off (25H2 ADMX
+            # InputPersonalization — Machine+User classes)
+            set_registry_dword("HKLM", ipz, "ImplicitDataCollectionOff", 1)
+            set_user_dword_all_hives(
+                r"Software\Policies\Microsoft\InputPersonalization",
+                "ImplicitDataCollectionOff", 1, logger)
             tip = r"SOFTWARE\Policies\Microsoft\Windows\TextInput"
             for v in ("AllowHandwritingLMUpdate",
                       "AllowHandwritingPersonalizationUpload",
@@ -2440,6 +2497,22 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword(
                 "HKLM", r"SOFTWARE\Policies\Microsoft\Windows\ScriptedDiagnostics",
                 "AllowDiagnosticDataUpload", 0)
+            # Troubleshooter online-content access off (documented
+            # policy — Microsoft-server troubleshooting content)
+            set_registry_dword(
+                "HKLM", r"SOFTWARE\Policies\Microsoft\Windows\ScriptedDiagnostics",
+                "EnableDiagnostics", 0)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Policies\Microsoft\Windows"
+                r"\ScriptedDiagnosticsProvider\Policy",
+                "EnableQueryRemoteServer", 0)
+            # Recommended-troubleshooting suggestions off (documented)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Policies\Microsoft\Windows"
+                r"\Troubleshooting\AllowRecommendations",
+                "TroubleshootingAllowRecommendations", 0)
             # Windows ML inference telemetry off (RegiLattice
             # MachineLearning policy — kill flag polarity is 1)
             set_registry_dword(
@@ -2482,6 +2555,20 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword("HKLM",
                                r"SOFTWARE\Policies\Microsoft\Windows\TabletPC",
                                "PreventHandwritingDataSharing", 1)
+            # Pen feedback + pen-recognition training uploads off
+            # (25H2 ADMX TabletPC/PenTraining — Machine+User)
+            set_registry_dword(
+                "HKLM", r"SOFTWARE\Policies\Microsoft\TabletPC",
+                "TurnOffPenFeedback", 1)
+            set_user_dword_all_hives(
+                r"Software\Policies\Microsoft\TabletPC",
+                "TurnOffPenFeedback", 1, logger)
+            set_registry_dword(
+                "HKLM", r"SOFTWARE\Policies\Microsoft\PenTraining",
+                "DisablePenTraining", 1)
+            set_user_dword_all_hives(
+                r"Software\Policies\Microsoft\PenTraining",
+                "DisablePenTraining", 1, logger)
             # Web printing channels (ReviOS privacy.yml)
             printers = r"SOFTWARE\Policies\Microsoft\Windows NT\Printers"
             set_registry_dword("HKLM", printers, "DisableHTTPPrinting", 1)
@@ -2528,6 +2615,15 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                          # Limit optional-diagnostic configuration set (WGO)
                          "LimitDiagnosticDataConfigurationSet"):
                 set_registry_dword("HKLM", data_collection, name, 1)
+            # Microsoft 365 analytics commercial telemetry off (25H2
+            # ADMX — Machine+User under the non-Policies-hive path)
+            set_registry_dword(
+                "HKLM", data_collection,
+                "ConfigureTelemetryForMicrosoft365Analytics", 0)
+            set_user_dword_all_hives(
+                r"Software\Microsoft\Windows\CurrentVersion"
+                r"\Policies\DataCollection",
+                "ConfigureTelemetryForMicrosoft365Analytics", 0, logger)
             # MRT infection reports off
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\MRT",
                                "DontReportInfectionInformation", 1)
@@ -2565,10 +2661,23 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "HKLM",
                 r"SOFTWARE\Policies\Microsoft\Internet Explorer\Main",
                 "DisableInternetExplorerLaunchViaCOM", 1)
+            # IE service-powered quick-search suggestions off (25H2
+            # ADMX Internet Explorer policy — Machine+User)
+            set_registry_dword(
+                "HKLM", r"SOFTWARE\Policies\Microsoft\Internet Explorer",
+                "AllowServicePoweredQSA", 0)
+            set_user_dword_all_hives(
+                r"Software\Policies\Microsoft\Internet Explorer",
+                "AllowServicePoweredQSA", 0, logger)
             # Speech model downloads off (voice data pipeline)
             set_registry_dword("HKLM",
                                r"SOFTWARE\Microsoft\Speech_OneCore\Preferences",
                                "ModelDownloadAllowed", 0)
+            # Always-on voice-listening master default off (privacy.sexy —
+            # machine-wide default complementing the per-user writes)
+            set_registry_dword("HKLM",
+                               r"SOFTWARE\Microsoft\Speech_OneCore\Preferences",
+                               "VoiceActivationDefaultOn", 0)
             # "Sync your settings" off — stops settings roaming to MS accounts
             set_registry_dword("HKLM",
                                r"SOFTWARE\Policies\Microsoft\Windows\SettingSync",
@@ -2668,6 +2777,12 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "HKLM",
                 r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",
                 "DontDisplayLastUserName", 1)
+            # Hide the user name entirely on the sign-in screen
+            # (noverse.dev hide-last-logged-in-user)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",
+                "DontDisplayUserName", 1)
             # Account details hidden on the sign-in screen
             set_registry_dword(
                 "HKLM",
@@ -2950,6 +3065,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             # recent-items graph off (noid-privacy)
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\DataCollection",
                                "DisableOneSettingsDownloads", 1)
+            # OEM system-tray promotions off (Taskbar.admx policy)
+            set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\Explorer",
+                               "NoSystraySystemPromotion", 1)
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\Explorer",
                                "DisableGraphRecentItems", 1)
             # Per-user policy-level tailored-experiences lock (stronger
@@ -2960,6 +3078,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             # CDP master + Windows Backup cloud-sync kills (noid-privacy)
             sys_pol = r"SOFTWARE\Policies\Microsoft\Windows\System"
             set_registry_dword("HKLM", sys_pol, "EnableCdp", 0)
+            # Phone Link (MMX) + apps-for-websites URI handoff off
+            # (documented System policies — noverse.dev)
+            set_registry_dword("HKLM", sys_pol, "EnableMmx", 0)
+            set_registry_dword("HKLM", sys_pol, "EnableAppUriHandlers", 0)
             set_registry_dword(
                 "HKLM",
                 r"SOFTWARE\Policies\Microsoft\Windows\SettingSync",
@@ -3073,6 +3195,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             # Share drag tray off (Raphire 2026.06): suppresses the CDP
             # share surface that appears while dragging files
             set_user_dword_all_hives(cdp, "DragTrayEnabled", 0, logger)
+            # Remote-launch toast off — same per-user CDP surface
+            # (noverse.dev cross-device-experiences)
+            set_user_dword_all_hives(cdp, "EnableRemoteLaunchToast", 0, logger)
             set_user_dword_all_hives(cdp, "RomeSdkChannelUserAuthzPolicy", 0, logger)
             set_user_dword_all_hives(cdp + r"\SettingsPage",
                                      "RomeSdkChannelUserAuthzPolicy", 0, logger)
@@ -3242,6 +3367,12 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "HKLM",
                 r"SOFTWARE\Policies\Microsoft\MicrosoftEdge\SearchScopes",
                 "ShowSearchSuggestionsGlobal", 0)
+            # Legacy EdgeHTML Books extended telemetry off (25H2 ADMX
+            # MicrosoftEdge policy — same sibling hive as SearchScopes)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Policies\Microsoft\MicrosoftEdge\Books",
+                "EnableExtendedBooksTelemetry", 0)
             set_registry_dword("HKLM", edge_pol, "StartupBoostEnabled", 0)
             set_registry_dword("HKLM", edge_pol, "AllowPrelaunch", 0)
             set_registry_dword("HKLM", edge_pol, "HideFirstRunExperience", 1)
@@ -3366,6 +3497,12 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword("HKLM", wer, "DontSendAdditionalData", 1)
             set_registry_dword("HKLM", wer_policy, "Disabled", 1)
             set_registry_dword("HKLM", wer_policy, "AutoApproveOSDumps", 0)
+            # WER report archiving off (25H2 ADMX — Machine+User)
+            set_registry_dword("HKLM", wer_policy, "DisableArchive", 1)
+            set_user_dword_all_hives(
+                r"Software\Policies\Microsoft\Windows"
+                r"\Windows Error Reporting",
+                "DisableArchive", 1, logger)
             # WER consent policy — default deny + lock the user out of
             # re-consenting (ReviOS privacy/wer.yml)
             set_registry_dword("HKLM", wer + r"\Consent", "DefaultConsent", 0)
@@ -3474,7 +3611,8 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "LetAppsAccessEmail", "LetAppsAccessMessaging",
                 "LetAppsAccessMotion", "LetAppsAccessNotifications",
                 "LetAppsAccessPhone", "LetAppsAccessRadios",
-                "LetAppsAccessTasks", "LetAppsAccessTrustedDevices",
+                "LetAppsAccessSystemAIModels", "LetAppsAccessTasks",
+                "LetAppsAccessTrustedDevices",
                 "LetAppsSyncWithDevices", "LetAppsGetDiagnosticInfo",
                 "LetAppsActivateWithVoice", "LetAppsActivateWithVoiceAboveLock",
                 "LetAppsAccessGenerativeAI", "LetAppsAccessCalendar",
@@ -3706,6 +3844,21 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             # Enterprise Spotlight content off — inverse polarity (ledr)
             set_user_dword_all_hives(
                 cloud, "IncludeEnterpriseSpotlight", 0, logger)
+            # Organizational-messages feed off per user (25H2 ADMX
+            # CloudContent — User class only)
+            set_user_dword_all_hives(
+                cloud, "EnableOrganizationalMessages", 0, logger)
+            # Phone→PC notification mirroring off per user (25H2 ADMX
+            # PushNotifications — User class only)
+            set_user_dword_all_hives(
+                r"Software\Policies\Microsoft\Windows\CurrentVersion"
+                r"\PushNotifications",
+                "DisallowNotificationMirroring", 1, logger)
+            # Location hidden in Settings region page per user (25H2
+            # ADMX Control Panel International — User class only)
+            set_user_dword_all_hives(
+                r"Software\Policies\Microsoft\Control Panel\International",
+                "HideCurrentLocation", 1, logger)
             # Lock-screen overlay promos + Settings online tips + Start
             # recommended-sites promo (mxk group-policy diff)
             set_registry_dword(
@@ -3756,6 +3909,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword("HKLM",
                                r"SOFTWARE\Policies\Microsoft\Windows\Explorer",
                                "HideRecentlyAddedApps", 1)
+            # Start "Frequently used" list — sibling Explorer policy
+            # (dvandenburgh/Disable-Win11AI)
+            set_registry_dword("HKLM",
+                               r"SOFTWARE\Policies\Microsoft\Windows\Explorer",
+                               "HideFrequentlyUsedApps", 1)
             # The section draws from recent-doc tracking — stop collecting it
             set_user_dword_all_hives(
                 r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
@@ -4110,6 +4268,15 @@ _TELEMETRY_HOSTS = (
     "services.wes.df.telemetry.microsoft.com", "sqm.df.telemetry.microsoft.com",
     "settings-win.data.microsoft.com", "settings.data.microsoft.com",
     "statsfe2.ws.microsoft.com", "redir.metaservices.microsoft.com",
+    # RealSyferX/windows-11-debloat diff — app-experience bing telemetry,
+    # UAP telemetry, telemetry redirection, activity-feed upload
+    "telemetry.appex.bing.com", "telemetry-uap.microsoft.com",
+    "redirection.telemetry.microsoft.com", "prod.activity.windows.com",
+    # MS "manage connections" endpoint doc: Connected Devices Platform API
+    # (already policy/service-killed — server-side reinforcement) and the
+    # device-metadata service (PreventDeviceMetadataFromNetwork channel)
+    "api.cdp.microsoft.com", "msedge.api.cdp.microsoft.com",
+    "dmd.metaservices.microsoft.com",
     "choice.microsoft.com", "choice.microsoft.com.nsatc.net",
     "telemetry.appex.bing.net", "telemetry.urs.microsoft.com",
     "feedback.microsoft-hohm.com", "vortex-bn2.metron.live.com.nsatc.net",
@@ -4718,10 +4885,20 @@ _EXTRA_AUTOLOGGERS = (
     "WdiContextLog",
 )
 
+# Diagnostic ETW event-log channels feeding power/sleep diagnostics —
+# Enabled=0 under WINEVT\Channels (the wevtutil sl /e:false mechanism,
+# noverse.dev sleep-study doc). Same open-only convention as AutoLoggers.
+_EXTRA_DIAG_CHANNELS = (
+    "Microsoft-Windows-SleepStudy/Diagnostic",
+    "Microsoft-Windows-Kernel-Processor-Power/Diagnostic",
+    "Microsoft-Windows-UserModePowerService/Diagnostic",
+)
+
 
 def disable_telemetry_autologgers(logger: logging.Logger) -> int:
-    """Start=0 on telemetry ETW AutoLoggers. Opens — never creates — the
-    session key, so absent sessions don't get phantom AutoLogger entries."""
+    """Start=0 on telemetry ETW AutoLoggers plus Enabled=0 on diagnostic
+    ETW channels. Opens — never creates — each key, so absent sessions
+    don't get phantom entries."""
     import winreg
     killed = 0
     for session in _EXTRA_AUTOLOGGERS:
@@ -4735,8 +4912,22 @@ def disable_telemetry_autologgers(logger: logging.Logger) -> int:
             killed += 1
         except OSError:
             continue
+    channels = 0
+    for channel in _EXTRA_DIAG_CHANNELS:
+        try:
+            key = winreg.OpenKey(
+                winreg.HKEY_LOCAL_MACHINE,
+                rf"SOFTWARE\Microsoft\Windows\CurrentVersion"
+                rf"\WINEVT\Channels\{channel}",
+                0, winreg.KEY_WRITE)
+            winreg.SetValueEx(key, "Enabled", 0, winreg.REG_DWORD, 0)
+            winreg.CloseKey(key)
+            channels += 1
+        except OSError:
+            continue
     logger.info(f"Applied: DisableTelemetryAutologgers "
-                f"({killed}/{len(_EXTRA_AUTOLOGGERS)} sessions)")
+                f"({killed}/{len(_EXTRA_AUTOLOGGERS)} sessions, "
+                f"{channels}/{len(_EXTRA_DIAG_CHANNELS)} channels)")
     return killed
 
 
@@ -4867,6 +5058,20 @@ TELEMETRY_TASK_PATHS = (
     # Bluetooth CEIP SQM uploader (hst-windows-utility task list)
     "\\Microsoft\\Windows\\Customer Experience Improvement Program\\BthSQM",
     "\\Microsoft\\Windows\\Customer Experience Improvement Program\\KernelCeipTask",
+    # CEIP Uploader task — distinct from the Broker node UploadCachedReports
+    # (noverse.dev task catalog)
+    "\\Microsoft\\Windows\\Customer Experience Improvement Program\\Uploader",
+    # Server CEIP node (Windows Server CEIP tasks — privacy.sexy)
+    "\\Microsoft\\Windows\\Customer Experience Improvement Program\\Server\\ServerCeipAssistant",
+    "\\Microsoft\\Windows\\Customer Experience Improvement Program\\Server\\ServerRoleCollector",
+    "\\Microsoft\\Windows\\Customer Experience Improvement Program\\Server\\ServerRoleUsageCollector",
+    # CEIP Broker — uploads cached CEIP reports (RealSyferX/windows-11-debloat)
+    "\\Microsoft\\Windows\\Customer Experience Improvement Program Broker\\UploadCachedReports",
+    # OOBE third-party app scan triggers — usoclient-driven re-provisioning
+    # of OEM/Store apps after updates (privacy.sexy)
+    "\\Microsoft\\Windows\\UpdateOrchestrator\\StartOobeAppsScanAfterUpdate",
+    "\\Microsoft\\Windows\\UpdateOrchestrator\\StartOobeAppsScan_LicenseAccepted",
+    "\\Microsoft\\Windows\\UpdateOrchestrator\\StartOobeAppsScan_OobeAppReady",
     "\\Microsoft\\Windows\\DiskDiagnostic\\Microsoft-Windows-DiskDiagnosticDataCollector",
     "\\Microsoft\\Windows\\Feedback\\Siuf\\DmClient",
     "\\Microsoft\\Windows\\Feedback\\Siuf\\DmClientOnScenarioDownload",

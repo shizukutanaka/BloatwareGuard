@@ -2,6 +2,110 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- 25H2 ADMX kill-named policy sweep (Disable*/TurnOff*/No*/Hide* — 406
+  policies, 21 privacy-adjacent candidates): `DisableWidgetsBoard`=0 +
+  `DisableWidgetsOnLockScreen`=0 under `SOFTWARE\Policies\Microsoft\Dsh`
+  (NewsAndInterests.admx — the policies' enabledValue is 0, i.e. 0 turns
+  the surface off) and `NoSystraySystemPromotion`=1 under
+  `Software\Policies\Microsoft\Windows\Explorer` (Taskbar.admx — blocks
+  OEM system-tray promotions). Remaining candidates were already covered
+  (`DisabledByGroupPolicy`, `NoCloudApplicationNotification`) or
+  skip-class (IE/legacy-Edge/functional UX/security).
+- `NoGenTicket`=1 added under
+  `Software\Policies\Microsoft\Windows NT\CurrentVersion\Software Protection Platform`
+  (AVSValidationGP.admx NoAcquireGT policy — opt-out of sending KMS client
+  activation data to Microsoft; complements the existing non-policy
+  SPP-path write). Backup-key list covers the new Policies path.
+- `LetAppsAccessSystemAIModels`=2 (ForceDeny) re-landed in
+  DisableAppPermissions — verified present in the official 25H2 ADMX
+  (AppPrivacy.admx enum: 0=user-in-control/1=force-allow/2=force-deny);
+  the earlier revert (commit c382a17) predated the ADMX evidence.
+  LetApps* deny list now 24 entries.
+- Docs parity — remaining stale counts synced to implementation: LetApps*
+  denies 23 (DESIGN was 16), AutoLogger sessions 18 + 3 diagnostic channels
+  (README was 13), hosts block 514 domains (README was 515)
+- Docs parity — telemetry-task count brought to current 165 (DESIGN.md
+  diagram was 98, README row 21 was 125)
+- 25H2 ADMX .adml deep-scan — `MicrosoftEdge\Books\
+  EnableExtendedBooksTelemetry`=0 (legacy EdgeHTML Books telemetry; only
+  uncovered telemetry-flagged policy left in the official catalog)
+- Microsoft 25H2 ADMX reference (official Jan-2026 V3 catalog) — policy
+  kills +10, each verified against the canonical .admx set:
+  `InputPersonalization\ImplicitDataCollectionOff`=1,
+  `TabletPC\TurnOffPenFeedback`=1, `PenTraining\DisablePenTraining`=1,
+  `Windows Error Reporting\DisableArchive`=1, `ShareSheet\
+  DisableShareAppPromotions`=1, `Internet Explorer\AllowServicePoweredQSA`=0,
+  `DataCollection\ConfigureTelemetryForMicrosoft365Analytics`=0 (all
+  Machine+User) + per-user `PushNotifications\DisallowNotificationMirroring`=1,
+  `CloudContent\EnableOrganizationalMessages`=0,
+  `Control Panel\International\HideCurrentLocation`=1
+- dvandenburgh/Disable-Win11AI diff — `Explorer\HideFrequentlyUsedApps`=1
+  (sibling of the already-covered HideRecentlyAddedApps policy)
+- noverse.dev privacy/security pages — documented policy kills +7:
+  `System\EnableMmx`=0 (Phone Link), `System\EnableAppUriHandlers`=0
+  (apps-for-websites handoff), `ScriptedDiagnostics\EnableDiagnostics`=0 +
+  `ScriptedDiagnosticsProvider\Policy\EnableQueryRemoteServer`=0 (online
+  troubleshooting content), `Troubleshooting\AllowRecommendations\
+  TroubleshootingAllowRecommendations`=0, `Policies\System\
+  DontDisplayUserName`=1, per-user `CDP\EnableRemoteLaunchToast`=0
+- noverse.dev copilot page — `CopilotHWKeyChoiceSet`=1 under per-user
+  `Explorer\AutoInstalledPWAs`: suppresses the Copilot hardware-key
+  choice prompt via the same fake-completed marker mechanism as the
+  adjacent CopilotPWAPreinstallCompleted write
+- noverse.dev sleep-study doc — diagnostic ETW channels +3 inside
+  DisableTelemetryAutologgers: `Enabled`=0 under
+  `SOFTWARE\Microsoft\Windows\CurrentVersion\WINEVT\Channels\` for
+  `Microsoft-Windows-SleepStudy/Diagnostic`,
+  `Microsoft-Windows-Kernel-Processor-Power/Diagnostic`,
+  `Microsoft-Windows-UserModePowerService/Diagnostic`
+  (wevtutil sl /e:false mechanism; open-only, never creates keys)
+- noverse.dev scheduled-task catalog diff — telemetry tasks +1:
+  `\Microsoft\Windows\Customer Experience Improvement Program\Uploader`
+  (CEIP upload task, distinct from the Broker node UploadCachedReports)
+- itsnileshhere/windows-iso-debloater diff — blacklist +2:
+  `Microsoft.Windows.Copilot` (OS-inboxed Copilot package, distinct
+  from Store `Microsoft.Copilot`), `Microsoft.Windows.Teams` (inbox
+  Teams integration stub)
+- RealSyferX/windows-11-debloat diff:
+  - telemetry tasks +1 → `\Microsoft\Windows\Customer Experience
+    Improvement Program Broker\UploadCachedReports` (cached CEIP
+    report upload)
+  - hosts +4 → 515: `telemetry.appex.bing.com`,
+    `telemetry-uap.microsoft.com`,
+    `redirection.telemetry.microsoft.com`,
+    `prod.activity.windows.com`
+  - `DiagSvc` already covered (diagsvc); `fhsvc`/CDN/STS/DHA endpoints
+    skipped as functional
+- KB5083769 / Neowin doc confirmation — `RemoveMicrosoftCopilotApp`=1
+  additionally at Device scope (`HKLM\SOFTWARE\Policies\Microsoft\Windows\
+  WindowsAI`); MS doc lists the policy at both `./Device/` and `./User/`
+  WindowsAI, we previously wrote only the user hives.
+- MS "manage connections" endpoint-doc diff (hosts +3 → 511):
+  - `api.cdp.microsoft.com`, `msedge.api.cdp.microsoft.com` — Connected
+    Devices Platform API (CDP services/policies already killed;
+    server-side reinforcement)
+  - `dmd.metaservices.microsoft.com` — device-metadata service endpoint
+    (`PreventDeviceMetadataFromNetwork` channel)
+  - (Skipped: Windows Update/SmartScreen/Store/OCSP/Teams/Office/OneDrive
+    functional endpoints — blocking them breaks documented connectivity)
+- Turtlecute33/Privacy.sexy-Revamped diff (maintained privacy.sexy fork):
+  - Telemetry tasks +6 — Server CEIP node (`Server\ServerCeipAssistant`,
+    `Server\ServerRoleCollector`, `Server\ServerRoleUsageCollector` —
+    Windows Server CEIP, sibling of the client CEIP tasks already covered)
+    and OOBE third-party app scan triggers
+    (`UpdateOrchestrator\StartOobeAppsScan{AfterUpdate,LicenseAccepted,
+    OobeAppReady}` — usoclient-driven OEM/Store app re-provisioning after
+    updates)
+  - `Speech_OneCore\Preferences` +`VoiceActivationDefaultOn`=0 on all user
+    hives and HKLM (master "always-on voice listening" default — distinct
+    value from the existing `VoiceActivationOn` write); Python also gained
+    `VoiceActivationEnableAboveLockscreen`=0 (parity with the existing C#
+    write)
+  - (Skipped: Windows Update defer/pause tasks, Defender/Wd*/SmartScreen
+    kills, vendor updaters (Google/Adobe/Firefox/Nvidia/Office), UI
+    preferences, and previously-rejected `AllowInputPersonalization`/
+    `GlobalUserDisabled`/`ShowCortanaButton`/`UsageTracking`/
+    `AitAgent`)
 - Subprocess output decoding parity (C#):
   - `Proc.Capture` now sets `StandardOutputEncoding`/`StandardErrorEncoding`
     to the system OEM code page (cp932 on ja-JP) via
