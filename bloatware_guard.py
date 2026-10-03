@@ -1188,6 +1188,7 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\generativeAI",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\RunNotification",
     r"SOFTWARE\Policies\Microsoft\MicrosoftEdge\SearchScopes",
+    r"SOFTWARE\Policies\Microsoft\MicrosoftEdge\Books",
     r"SOFTWARE\Policies\Microsoft\Peernet",
     r"SOFTWARE\Policies\Microsoft\Windows\CredentialsDelegation",
     r"SOFTWARE\Microsoft\Cryptography\Wintrust\Config",
@@ -3353,6 +3354,12 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "HKLM",
                 r"SOFTWARE\Policies\Microsoft\MicrosoftEdge\SearchScopes",
                 "ShowSearchSuggestionsGlobal", 0)
+            # Legacy EdgeHTML Books extended telemetry off (25H2 ADMX
+            # MicrosoftEdge policy — same sibling hive as SearchScopes)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Policies\Microsoft\MicrosoftEdge\Books",
+                "EnableExtendedBooksTelemetry", 0)
             set_registry_dword("HKLM", edge_pol, "StartupBoostEnabled", 0)
             set_registry_dword("HKLM", edge_pol, "AllowPrelaunch", 0)
             set_registry_dword("HKLM", edge_pol, "HideFirstRunExperience", 1)

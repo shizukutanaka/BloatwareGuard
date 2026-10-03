@@ -4087,6 +4087,11 @@ public static class RegistryGuard
             using var searchScopes = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                 @"SOFTWARE\Policies\Microsoft\MicrosoftEdge\SearchScopes");
             searchScopes?.SetValue("ShowSearchSuggestionsGlobal", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // Legacy EdgeHTML Books extended telemetry off (25H2 ADMX
+            // MicrosoftEdge policy — same sibling hive as SearchScopes)
+            using var ebooks = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Policies\Microsoft\MicrosoftEdge\Books");
+            ebooks?.SetValue("EnableExtendedBooksTelemetry", 0, Microsoft.Win32.RegistryValueKind.DWord);
             // Shopping assistant, content recommendations, error-page web
             // service calls and user feedback — all upload/suggestion surfaces
             key?.SetValue("EdgeShoppingAssistantEnabled", 0, Microsoft.Win32.RegistryValueKind.DWord);
@@ -4763,6 +4768,7 @@ public static class RegistryGuard
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\Deprovisioned",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\EndOfLife",
         @"SOFTWARE\Policies\Microsoft\MicrosoftEdge\SearchScopes",
+        @"SOFTWARE\Policies\Microsoft\MicrosoftEdge\Books",
         @"SOFTWARE\Policies\Microsoft\Peernet",
         @"SOFTWARE\Policies\Microsoft\Messenger\Client",
         @"SOFTWARE\Policies\Microsoft\Windows\CredentialsDelegation",

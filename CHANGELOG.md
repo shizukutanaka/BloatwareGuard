@@ -2,6 +2,9 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- 25H2 ADMX .adml deep-scan — `MicrosoftEdge\Books\
+  EnableExtendedBooksTelemetry`=0 (legacy EdgeHTML Books telemetry; only
+  uncovered telemetry-flagged policy left in the official catalog)
 - Microsoft 25H2 ADMX reference (official Jan-2026 V3 catalog) — policy
   kills +10, each verified against the canonical .admx set:
   `InputPersonalization\ImplicitDataCollectionOff`=1,
