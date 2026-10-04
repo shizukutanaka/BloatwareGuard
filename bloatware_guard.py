@@ -2867,6 +2867,13 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "HKLM",
                 r"SYSTEM\CurrentControlSet\Control\Diagnostics\Performance",
                 "DisableDiagnosticTracing", 1)
+            for _v in ("BootCKCLSettings", "SecondaryLogonCKCLSettings",
+                       "ShutdownCKCLSettings"):
+                set_registry_dword(
+                    "HKLM",
+                    r"SYSTEM\CurrentControlSet\Control\Diagnostics\Performance"
+                    + "\\" + _v,
+                    "Start", 0)
             # NVIDIA driver-level telemetry opt-out (NvTelemetryContainer
             # service is already demoted; these cover the driver knobs)
             for _v in ("SendTelemetryData", "SendNonNvDisplayDetails"):
@@ -2970,6 +2977,13 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword("HKLM",
                                r"SYSTEM\CurrentControlSet\Control\Diagnostics\Performance",
                                "DisableDiagnosticTracing", 1)
+            for _v in ("BootCKCLSettings", "SecondaryLogonCKCLSettings",
+                       "ShutdownCKCLSettings"):
+                set_registry_dword(
+                    "HKLM",
+                    r"SYSTEM\CurrentControlSet\Control\Diagnostics\Performance"
+                    + "\\" + _v,
+                    "Start", 0)
             # Device Health Attestation + speech-model auto-download +
             # cloud message-sync channels off
             set_registry_dword("HKLM",

@@ -3568,6 +3568,10 @@ public static class RegistryGuard
                 using var dperf = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SYSTEM\CurrentControlSet\Control\Diagnostics\Performance");
                 dperf?.SetValue("DisableDiagnosticTracing", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                foreach (var ckcl in new[] { "BootCKCLSettings", "SecondaryLogonCKCLSettings", "ShutdownCKCLSettings" })
+                    using (var ck = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                               @"SYSTEM\CurrentControlSet\Control\Diagnostics\Performance\" + ckcl))
+                        ck?.SetValue("Start", 0, Microsoft.Win32.RegistryValueKind.DWord);
                 // NVIDIA driver-level telemetry opt-out
                 using var nvg = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SYSTEM\CurrentControlSet\Services\nvlddmkm\Global\Startup");
@@ -3645,6 +3649,10 @@ public static class RegistryGuard
                 using var diagp = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SYSTEM\CurrentControlSet\Control\Diagnostics\Performance");
                 diagp?.SetValue("DisableDiagnosticTracing", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                foreach (var ckcl in new[] { "BootCKCLSettings", "SecondaryLogonCKCLSettings", "ShutdownCKCLSettings" })
+                    using (var ck = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                               @"SYSTEM\CurrentControlSet\Control\Diagnostics\Performance\" + ckcl))
+                        ck?.SetValue("Start", 0, Microsoft.Win32.RegistryValueKind.DWord);
                 // Device Health Attestation + speech-model auto-download +
                 // cloud message-sync channels off
                 using var dha = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(

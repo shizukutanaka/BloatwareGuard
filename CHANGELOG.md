@@ -2,6 +2,12 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Japanese-source diff (Qiita Windows IoT/UWF hardening article): kernel
+  CKCL context-logger sessions now stopped — `Start`=0 written under
+  `...\Control\Diagnostics\Performance\{BootCKCLSettings,
+  SecondaryLogonCKCLSettings, ShutdownCKCLSettings}` at both diagnostic-
+  disable sites (C# + Python). The parent key was already backed up and
+  already received `DisableDiagnosticTracing`=1.
 - Docs parity — telemetry-task count corrected to the true
   TELEMETRY_TASK_PATHS length (134; README row 21 + DESIGN diagram).
   The earlier "165" counted every `\Microsoft\` task-path string in the
