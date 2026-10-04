@@ -2,6 +2,9 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Docs parity — hosts domain count corrected to the true
+  _TELEMETRY_HOSTS length (520; README feature table + DESIGN layer
+  table had drifted to 518 across the two host additions).
 - Microsoft Learn non-Enterprise endpoints doc diff: adopted
   `iris.api.iris.microsoft.com` (canonical Windows Spotlight/Iris
   metadata API alongside the existing `ris.api.iris.microsoft.com`
