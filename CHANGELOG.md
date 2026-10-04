@@ -2,6 +2,12 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Self-test coverage — `_EXTRA_DIAG_CHANNELS` and `DEFAULT_WHITELIST`
+  added to the T9 py↔cs shared-list parity sweep and T10 duplicate
+  guard; whitelist extracted to a module constant (was inline in
+  `load_config`) matching `DEFAULT_BLACKLIST`. T9 also gained a
+  symmetric `cfg["Whitelist"]` vs defaults assertion — previously
+  only Blacklist drift was caught.
 - Docs parity — LetApps* app-privacy value count corrected to the
   true covered set (19; DESIGN layer table said 24).
 - Docs parity — hosts domain count corrected to the true

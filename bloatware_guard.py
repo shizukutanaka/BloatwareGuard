@@ -314,31 +314,34 @@ def _atomic_write_text(path: Path, text: str) -> None:
     os.replace(tmp, path)
 
 
+DEFAULT_WHITELIST = [
+    "Microsoft.WindowsStore",
+    "Microsoft.WindowsCalculator",
+    "Microsoft.WindowsNotepad",
+    "Microsoft.WindowsTerminal",
+    "Microsoft.Windows.ShellExperienceHost",
+    "Microsoft.Windows.Cortana",
+    "Microsoft.Windows.SecHealthUI",
+    "Microsoft.Windows.Apprep.ChxApp",
+    # Xbox/Troubleshooter framework packages the broad
+    # "Microsoft.Xbox"/"Microsoft.GetHelp" blacklist prefixes
+    # would otherwise hit — removing them breaks the Store,
+    # Photos, some games, and speech-to-text overlay
+    # (Win11Debloat "unsafe" list)
+    "Microsoft.Xbox.TCUI",
+    "Microsoft.XboxIdentityProvider",
+    "Microsoft.XboxSpeechToTextOverlay",
+    "Microsoft.GetHelp",
+]
+
+
 def load_config(path: Path) -> dict:
     if not path.exists():
         config = {
             "ScanIntervalSeconds": 300,
             "LogFilePath": str(LOG_FILE),
             "Blacklist": DEFAULT_BLACKLIST,
-            "Whitelist": [
-                "Microsoft.WindowsStore",
-                "Microsoft.WindowsCalculator",
-                "Microsoft.WindowsNotepad",
-                "Microsoft.WindowsTerminal",
-                "Microsoft.Windows.ShellExperienceHost",
-                "Microsoft.Windows.Cortana",
-                "Microsoft.Windows.SecHealthUI",
-                "Microsoft.Windows.Apprep.ChxApp",
-                # Xbox/Troubleshooter framework packages the broad
-                # "Microsoft.Xbox"/"Microsoft.GetHelp" blacklist prefixes
-                # would otherwise hit — removing them breaks the Store,
-                # Photos, some games, and speech-to-text overlay
-                # (Win11Debloat "unsafe" list)
-                "Microsoft.Xbox.TCUI",
-                "Microsoft.XboxIdentityProvider",
-                "Microsoft.XboxSpeechToTextOverlay",
-                "Microsoft.GetHelp",
-            ],
+            "Whitelist": DEFAULT_WHITELIST,
             "Prevention": {
                 "RemoveAppxPackages": True,
                 "RemoveProvisionedPackages": True,
@@ -5762,6 +5765,8 @@ def run_self_test() -> int:
         assert not missing and not extra, f"defaults/config drift: -{missing} +{extra}"
         missing_bl = set(cfg["Blacklist"]) - set(DEFAULT_BLACKLIST)
         assert not missing_bl, f"defaults missing blacklist entries: {missing_bl}"
+        missing_wl = set(cfg["Whitelist"]) - set(defaults["Whitelist"])
+        assert not missing_wl, f"defaults missing whitelist entries: {missing_wl}"
         # src/config.json ships with the C# build — silent drift from the
         # root config means the two impls run different defaults
         src_cfg_path = Path(__file__).parent / "src" / "config.json"
@@ -5780,9 +5785,11 @@ def run_self_test() -> int:
             # (C# uses @"..." verbatim literals — backslashes appear unescaped)
             for name, entries in (("TELEMETRY_TASK_PATHS", TELEMETRY_TASK_PATHS),
                                   ("_EXTRA_AUTOLOGGERS", _EXTRA_AUTOLOGGERS),
+                                  ("_EXTRA_DIAG_CHANNELS", _EXTRA_DIAG_CHANNELS),
                                   ("_TELEMETRY_HOSTS", _TELEMETRY_HOSTS),
                                   ("_STARTUP_BLOAT_NAMES", _STARTUP_BLOAT_NAMES),
                                   ("DEFAULT_BLACKLIST", DEFAULT_BLACKLIST),
+                                  ("DEFAULT_WHITELIST", DEFAULT_WHITELIST),
                                   ("MICROSOFT_SYSTEM_TASK_PREFIXES",
                                    MICROSOFT_SYSTEM_TASK_PREFIXES),
                                   ("_BACKUP_KEY_PATHS", _BACKUP_KEY_PATHS),
@@ -5836,9 +5843,11 @@ def run_self_test() -> int:
         (a blacklist dup shipped until the doc-vs-list audit caught it)."""
         for name, entries in (("TELEMETRY_TASK_PATHS", TELEMETRY_TASK_PATHS),
                               ("_EXTRA_AUTOLOGGERS", _EXTRA_AUTOLOGGERS),
+                              ("_EXTRA_DIAG_CHANNELS", _EXTRA_DIAG_CHANNELS),
                               ("_TELEMETRY_HOSTS", _TELEMETRY_HOSTS),
                               ("_STARTUP_BLOAT_NAMES", _STARTUP_BLOAT_NAMES),
                               ("DEFAULT_BLACKLIST", DEFAULT_BLACKLIST),
+                              ("DEFAULT_WHITELIST", DEFAULT_WHITELIST),
                               ("MICROSOFT_SYSTEM_TASK_PREFIXES",
                                MICROSOFT_SYSTEM_TASK_PREFIXES),
                               ("_BACKUP_KEY_PATHS", _BACKUP_KEY_PATHS),
