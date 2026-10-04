@@ -2,6 +2,8 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Docs parity — LetApps* app-privacy value count corrected to the
+  true covered set (19; DESIGN layer table said 24).
 - Docs parity — hosts domain count corrected to the true
   _TELEMETRY_HOSTS length (520; README feature table + DESIGN layer
   table had drifted to 518 across the two host additions).
