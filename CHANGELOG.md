@@ -2,6 +2,12 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Microsoft Learn non-Enterprise endpoints doc diff: adopted
+  `iris.api.iris.microsoft.com` (canonical Windows Spotlight/Iris
+  metadata API alongside the existing `ris.api.iris.microsoft.com`
+  CDN variant, hosts → 520). All other non-Enterprise endpoints
+  reviewed — WU/licensing/Store/SmartScreen/NCSI/OCSP/auth/CDN and
+  Office/OneDrive/Skype/Teams consumer endpoints remain skip-class.
 - ReviOS playbook diff: adopted `in-v10.events.data.microsoft.com`
   (India-region ARIA/v10 event-ingest variant, hosts → 519). All other
   ReviOS surfaces reviewed — registry (380 values: UI/OOBE/TPM-bypass/

@@ -1904,6 +1904,10 @@ public static class RegistryGuard
         "az361816.vo.msecnd.net", "az512334.vo.msecnd.net",
         "location-inference-westus.cloudapp.net",
         "ris.api.iris.microsoft.com",
+        // Canonical Spotlight/Iris API host (MS Learn non-Enterprise
+        // endpoints doc names iris.api.iris.microsoft.com alongside
+        // the ris.api CDN variant above)
+        "iris.api.iris.microsoft.com",
         "statsfe2.update.microsoft.com.akadns.net",
         "arc.trafficmanager.net",
         "api.msa.diagnostics.office.com",
