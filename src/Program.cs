@@ -470,6 +470,7 @@ public static class ConfigLoader
             "Microsoft.SeaofThieves",        // game stub (TronScript)
             // zoicware RemoveWindowsAI 2026 diff — AI component packages
             "Microsoft.Office.ActionsServer", "Microsoft.WritingAssistant",
+            "Microsoft.OfficePushNotificationUtility",  // 25H2 inbox Office push-notification stub
             "Microsoft.Ink.Handwriting", "Voiess", "Speion", "Livtop",
             "Filons", "WindowsWorkload.",
                 "Microsoft.MicrosoftSolitaireCollection",
@@ -618,6 +619,7 @@ public static class ConfigLoader
                 "Microsoft.WidgetsPlatformRuntime", "Microsoft.StartExperiencesApp",
                 // M365 companion suite promo (24H2) + stable Instagram
                 "Microsoft.M365Companions",
+                "Microsoft.Microsoft365Copilot",  // 25H2 inbox M365 Copilot app (official RemoveDefaultMicrosoftStorePackages target)
                 "Facebook.Instagram",
                 // TronScript Metro diff — dead/promo/game-demo Microsoft appx
                 "Microsoft.Advertising.JavaScript", "Microsoft.Advertising.Xaml",
@@ -1827,6 +1829,7 @@ public static class RegistryGuard
         "zmetrics.msn.com",
         "vortex.data.microsoft.com", "vortex-win.data.microsoft.com",
         "telecommand.telemetry.microsoft.com", "telecommand.telemetry.microsoft.com.nsatc.net",
+        "cache.datamart.windows.com",  // diagnostic DataMart upload endpoint (WindowsSpyBlocker spy list)
         "oca.telemetry.microsoft.com", "oca.telemetry.microsoft.com.nsatc.net",
         "sqm.telemetry.microsoft.com",
         "sqm.ppe.telemetry.microsoft.com", "sqm.telemetry.microsoft.com.nsatc.net",
@@ -1984,6 +1987,9 @@ public static class RegistryGuard
         "g.msn.com.nsatc.net",
         "search.msn.com",  // MSN search-redirect (Start-search query leak)
         "ads1.msads.net", "a.ads2.msads.net", "bingads.microsoft.com",
+        "www.bingads.microsoft.com",  // www sibling of the Bing-ads endpoint (W4RH4WK hosts diff)
+        "livetileedge.dsx.mp.microsoft.com",  // legacy live-tile content delivery (dead surface in Win11)
+        "any.edge.bing.com",        // Bing edge endpoint behind Start-search web results
         "a.rad.msn.com", "b.rad.msn.com", "ac3.msn.com", "live.rads.msn.com",
         "bs.serving-sys.com", "msntest.serving-sys.com",
         "secure.flashtalking.com",
@@ -4787,6 +4793,8 @@ public static class RegistryGuard
         @"SOFTWARE\Policies\Microsoft\Windows\CredentialsDelegation",
         @"SOFTWARE\Microsoft\Cryptography\Wintrust\Config",
         @"SOFTWARE\Wow6432Node\Microsoft\Cryptography\Wintrust\Config",
+        @"SOFTWARE\Microsoft\.NETFramework",
+        @"SOFTWARE\Wow6432Node\Microsoft\.NETFramework",
         @"SOFTWARE\Policies\Microsoft\Windows\WCN\Registrars",
         @"SOFTWARE\Policies\Microsoft\Windows\Appx",
         @"SOFTWARE\Policies\Microsoft\Windows\Appx\RemoveDefaultMicrosoftStorePackages",
@@ -5788,8 +5796,9 @@ public static class ScheduledTaskGuard
         @"\Microsoft\Windows\ApplicationData\appuriverifierdaily",
         @"\Microsoft\Windows\ApplicationData\appuriverifierinstall",
         @"\Microsoft\Windows\AppListBackup\Backup",
-        // Windows Error Reporting queue upload
+        // Windows Error Reporting queue upload + error-details updater
         @"\Microsoft\Windows\Windows Error Reporting\QueueReporting",
+        @"\Microsoft\Windows\ErrorDetails\EnableErrorDetailsUpdate",
         // Consumer subscription/license offers (Microsoft 365 upsell channel)
         @"\Microsoft\Windows\Subscription\EnableLicenseAcquisition",
         @"\Microsoft\Windows\Subscription\LicenseAcquisition",
@@ -6375,7 +6384,7 @@ public class Program
                     return;
                 case "--version":
                 case "-v":
-                    Console.WriteLine("BloatwareGuard v1.61.2");
+                    Console.WriteLine("BloatwareGuard v1.61.3");
                     return;
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
@@ -6464,7 +6473,7 @@ public class Program
     private static void ShowHelp()
     {
         var help = @"
-BloatwareGuard v1.61.2 — Windows 11 bloatware removal + prevention
+BloatwareGuard v1.61.3 — Windows 11 bloatware removal + prevention
 
 Usage: BloatwareGuard.exe <command>
 
@@ -6746,8 +6755,8 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var total = 8;
         var results = new List<string>();
 
-        GuardLogger.Info("=== BloatwareGuard v1.61.2 — Self-Test Mode === [no admin required]");
-        Console.WriteLine("=== BloatwareGuard v1.61.2 — Self-Test Mode === [no admin required]");
+        GuardLogger.Info("=== BloatwareGuard v1.61.3 — Self-Test Mode === [no admin required]");
+        Console.WriteLine("=== BloatwareGuard v1.61.3 — Self-Test Mode === [no admin required]");
 
         // Test 1: Arg parsing (switch works)
         try
