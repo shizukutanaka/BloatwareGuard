@@ -2,6 +2,13 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- ReviOS playbook diff: adopted `in-v10.events.data.microsoft.com`
+  (India-region ARIA/v10 event-ingest variant, hosts → 519). All other
+  ReviOS surfaces reviewed — registry (380 values: UI/OOBE/TPM-bypass/
+  WU/Defender/perf/vendor/rejected classes), services (driver-level
+  perf services excluded), tasks, hosts (Brave vendor telemetry, VS
+  AppInsights, CDN/OneDrive instances), appx — remaining diffs are all
+  skip-class or prefix-covered.
 - Japanese-source diff (Qiita Windows IoT/UWF hardening article): kernel
   CKCL context-logger sessions now stopped — `Start`=0 written under
   `...\Control\Diagnostics\Performance\{BootCKCLSettings,

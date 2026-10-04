@@ -1862,6 +1862,7 @@ public static class RegistryGuard
         // regional/v10c ingest variants on the same ARIA pipe
         "self.events.data.microsoft.com", "v10c.events.data.microsoft.com",
         "au-v10.events.data.microsoft.com", "eu-v10.events.data.microsoft.com",
+        "in-v10.events.data.microsoft.com",
         "jp-v10.events.data.microsoft.com", "us-v10.events.data.microsoft.com",
         "au-v10c.events.data.microsoft.com", "eu-v10c.events.data.microsoft.com",
         "jp-v10c.events.data.microsoft.com", "us-v10c.events.data.microsoft.com",
