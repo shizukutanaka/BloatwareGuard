@@ -2,6 +2,11 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 24 (self-test gap): T25 — `uninstall_service` is now
+  machine-checked end-to-end: `sc stop`/`sc delete` run in order and
+  the tool-owned hosts block is stripped (an uninstalled tool leaves
+  no stale null-routes) while user hosts lines are preserved.
+  DESIGN.md counts synced (py T1–T25).
 - Audit round 23 (self-test gap): T24 — `remove_appx_package` /
   `remove_provisioned_package` are now machine-checked: unsafe names
   never reach PowerShell, non-admin runs take the user-scope path

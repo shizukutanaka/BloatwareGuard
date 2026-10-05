@@ -6320,6 +6320,36 @@ def run_self_test() -> int:
         finally:
             globals()["run_powershell"] = orig
 
+    def t_uninstall_strips_hosts():
+        """`uninstall` issues sc stop/delete AND strips the hosts block —
+        an uninstalled tool must not leave stale null-routes behind."""
+        with tempfile.TemporaryDirectory() as td:
+            etc = Path(td) / "System32" / "drivers" / "etc"
+            etc.mkdir(parents=True)
+            hosts = etc / "hosts"
+            hosts.write_text("127.0.0.1 localhost\n", encoding="utf-8")
+            orig_root = os.environ.get("SystemRoot")
+            os.environ["SystemRoot"] = td
+            calls: List = []
+            orig_cmd = run_cmd
+            globals()["run_cmd"] = lambda *a, **k: calls.append(a[0]) or ("", 0)
+            try:
+                lg = logging.getLogger("t_uninstall")
+                set_telemetry_hosts_block(True, lg)
+                assert _HOSTS_BLOCK_BEGIN in hosts.read_text(encoding="utf-8")
+                uninstall_service(lg)
+                sc_verbs = [c[1] for c in calls if c[:1] == ["sc"]]
+                assert sc_verbs == ["stop", "delete"], calls
+                text = hosts.read_text(encoding="utf-8")
+                assert _HOSTS_BLOCK_BEGIN not in text
+                assert "127.0.0.1 localhost" in text
+            finally:
+                globals()["run_cmd"] = orig_cmd
+                if orig_root is None:
+                    os.environ.pop("SystemRoot", None)
+                else:
+                    os.environ["SystemRoot"] = orig_root
+
     check("T1: Config default-create + reload", t_config_roundtrip)
     check("T2: Blacklist/whitelist matching", t_matching)
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
@@ -6730,6 +6760,7 @@ def run_self_test() -> int:
           t_task_disable_machinery)
     check("T24: appx/provisioned name guards + rc fidelity",
           t_remove_guards_and_rc)
+    check("T25: uninstall strips hosts + sc stop/delete", t_uninstall_strips_hosts)
 
     print()
     passed = 0
