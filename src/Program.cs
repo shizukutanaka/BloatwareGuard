@@ -6935,7 +6935,7 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
     private static int RunSelfTest(GuardConfig config)
     {
         var passed = 0;
-        var total = 9;
+        var total = 10;
         var results = new List<string>();
 
         GuardLogger.Info("=== BloatwareGuard v1.61.3 — Self-Test Mode === [no admin required]");
@@ -7175,6 +7175,47 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         catch (Exception ex)
         {
             results.Add($"[FAIL] T9: match contract — {ex.Message}");
+        }
+
+        // Test 10: SplitCommandLine — quoted-path extraction and bare
+        // command split (private static — mirrored by py T14)
+        try
+        {
+            var mi = typeof(Win32Guard).GetMethod("SplitCommandLine",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            var cases = new (string input, string cmd, string args)[]
+            {
+                ("\"C:\\Program Files\\App\\un.exe\" /S", "C:\\Program Files\\App\\un.exe", "/S"),
+                ("C:\\app\\un.exe /qn", "C:\\app\\un.exe", "/qn"),
+                ("C:\\app\\un.exe", "C:\\app\\un.exe", ""),
+                // no closing quote — falls back to the first-space split
+                // (the leading quote stays part of the command token)
+                ("\"C:\\unclosed\\un.exe x", "\"C:\\unclosed\\un.exe", "x"),
+            };
+            var ok = mi != null;
+            if (ok)
+            {
+                foreach (var (input, cmd, args) in cases)
+                {
+                    var r = ((string cmd, string args)?)mi!.Invoke(null, new object[] { input });
+                    if (r == null || r.Value.cmd != cmd || r.Value.args != args) { ok = false; break; }
+                }
+            }
+            if (ok)
+            {
+                results.Add("[PASS] T10: SplitCommandLine quoted/bare contract");
+                GuardLogger.Info("[PASS] T10: SplitCommandLine contract");
+                passed++;
+            }
+            else
+            {
+                results.Add("[FAIL] T10: SplitCommandLine contract broken");
+                GuardLogger.Error("[FAIL] T10: SplitCommandLine contract broken");
+            }
+        }
+        catch (Exception ex)
+        {
+            results.Add($"[FAIL] T10: split check — {ex.Message}");
         }
 
         // Summary

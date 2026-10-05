@@ -2,6 +2,11 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 40 (self-test gap, C#): T10 — `SplitCommandLine` is now
+  pinned via reflection (quoted-path extraction, bare command split,
+  unclosed-quote fallback where the leading quote stays part of the
+  command token), mirroring py T14. DESIGN.md counts synced
+  (py T1–T39 / C# T1–T10).
 - Audit round 39 (self-test gap): the reinstall monitor's diff is
   extracted to `_monitor_delta` (first scan establishes the baseline,
   later scans flag only new entries, a vanished-and-returned item
