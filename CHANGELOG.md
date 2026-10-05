@@ -2,6 +2,12 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 22 (self-test gap): T23 — task-disable machinery is now
+  machine-checked: `disable_telemetry_tasks` issues `schtasks /Change
+  /TN … /DISABLE` for all 135 known paths verbatim, and the OEM sweep
+  still refuses tasks under protected `\\Microsoft\\Windows\\*`
+  prefixes even when their names match the OEM patterns. DESIGN.md
+  counts synced (py T1–T23).
 - Audit round 21 (self-test gap): T22 — the optional-capability flow is
   now machine-checked: only names the post-removal re-query confirms
   gone reach the ledger (a `Remove-WindowsCapability` survivor is never

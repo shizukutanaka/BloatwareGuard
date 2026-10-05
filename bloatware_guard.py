@@ -6265,6 +6265,37 @@ def run_self_test() -> int:
             assert [e["name"] for e in entries] == ["Steps.Recorder"], entries
             assert entries[0]["kind"] == "capability"
 
+    def t_task_disable_machinery():
+        """Telemetry disabling walks every known path verbatim; the OEM
+        sweep disables vendor tasks but never touches protected Microsoft
+        prefixes even when a system task's name matches OEM patterns."""
+        calls: List = []
+        orig_cmd, orig_ps = run_cmd, run_powershell
+        globals()["run_cmd"] = lambda *a, **k: calls.append(a[0]) or ("", 0)
+        try:
+            disable_telemetry_tasks(logging.getLogger("t_tasks"))
+            assert [c[3] for c in calls] == list(TELEMETRY_TASK_PATHS)
+            for c in calls:
+                assert c[:3] == ["schtasks", "/Change", "/TN"]
+                assert c[4:] == ["/DISABLE"]
+            calls.clear()
+
+            def fake_ps(cmd, timeout=60):
+                return json.dumps([
+                    {"TaskName": "SupportAssistAgent", "TaskPath": "\\Dell\\"},
+                    # 'Restore' matches the OEM name patterns but lives
+                    # under a protected prefix — must be skipped
+                    {"TaskName": "Restore Point",
+                     "TaskPath": "\\Microsoft\\Windows\\WindowsUpdate\\"},
+                ]), "", 0
+
+            globals()["run_powershell"] = fake_ps
+            disable_oem_scheduled_tasks(logging.getLogger("t_tasks"))
+            assert [c[3] for c in calls] == ["\\Dell\\SupportAssistAgent"], calls
+        finally:
+            globals()["run_cmd"] = orig_cmd
+            globals()["run_powershell"] = orig_ps
+
     check("T1: Config default-create + reload", t_config_roundtrip)
     check("T2: Blacklist/whitelist matching", t_matching)
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
@@ -6671,6 +6702,8 @@ def run_self_test() -> int:
     check("T20: Win32 uninstall rc/MSI/manual branches", t_win32_remove_rcs)
     check("T21: winget sweep id gating + ledger on success only", t_winget_sweep)
     check("T22: capability re-query gates ledger", t_capability_requery)
+    check("T23: task disable — 135 paths + OEM protected-prefix guard",
+          t_task_disable_machinery)
 
     print()
     passed = 0
