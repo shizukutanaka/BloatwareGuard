@@ -3519,6 +3519,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword("HKLM", wer, "Disabled", 1)
             set_registry_dword("HKLM", wer, "DontSendAdditionalData", 1)
             set_registry_dword("HKLM", wer_policy, "Disabled", 1)
+            # Policy-key spelling of the extra-data block (distinct from the
+            # machine-key DontSendAdditionalData above — Windows-Telemetry-OFF
+            # batch diff)
+            set_registry_dword("HKLM", wer_policy, "DoNotSendAdditionalData", 1)
             set_registry_dword("HKLM", wer_policy, "AutoApproveOSDumps", 0)
             # WER report archiving off (25H2 ADMX — Machine+User)
             set_registry_dword("HKLM", wer_policy, "DisableArchive", 1)

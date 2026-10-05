@@ -4453,6 +4453,9 @@ public static class RegistryGuard
 
             using var policy = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(WerPolicyPath);
             policy?.SetValue("Disabled", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            // Policy-key spelling of the extra-data block (distinct from the
+            // machine-key DontSendAdditionalData above — Windows-Telemetry-OFF)
+            policy?.SetValue("DoNotSendAdditionalData", 1, Microsoft.Win32.RegistryValueKind.DWord);
             policy?.SetValue("AutoApproveOSDumps", 0, Microsoft.Win32.RegistryValueKind.DWord);
             // WER report archiving off (25H2 ADMX — Machine+User)
             policy?.SetValue("DisableArchive", 1, Microsoft.Win32.RegistryValueKind.DWord);

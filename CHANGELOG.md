@@ -2,6 +2,11 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- `DisableErrorReporting` also sets `DoNotSendAdditionalData` = 1 on
+  the WER *policy* key — the policy spelling of the extra-data block,
+  distinct from the machine-key `DontSendAdditionalData` already set
+  (J-udgW05/Windows-Telemetry-OFF batch diff).
+
 - `DisableEdgeBloat` also sets `CopilotPageAction` = 0 (Edge 136+
   policy that hides the Copilot page/toolbar action) — winutil
   (ChrisTitusTech) Edge-policy diff, one new value on top of the
