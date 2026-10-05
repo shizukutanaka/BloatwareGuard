@@ -6379,6 +6379,33 @@ public class GuardService : BackgroundService
 
 public class Program
 {
+    // Named mutex shared with the Python build — a mutating run (scan/
+    // service/restore) refuses to start while another instance holds it.
+    private const string InstanceMutexName = @"Global\BloatwareGuard";
+    private static Mutex? _instanceMutex;
+
+    private static bool AcquireInstanceMutex()
+    {
+        try
+        {
+            _instanceMutex = new Mutex(true, InstanceMutexName, out var createdNew);
+            return createdNew;
+        }
+        catch
+        {
+            return true;  // API unavailable — don't gate on it
+        }
+    }
+
+    private static bool RequireSingleInstance()
+    {
+        if (AcquireInstanceMutex())
+            return true;
+        GuardLogger.Error("Another BloatwareGuard instance is already running — exiting.");
+        Environment.ExitCode = 1;
+        return false;
+    }
+
     public static void Main(string[] args)
     {
         // Windows consoles default to a legacy code page (cp1252/cp932) —
@@ -6415,6 +6442,8 @@ public class Program
             switch (args[cmdIndex].ToLower())
             {
                 case "scan":
+                    if (!RequireSingleInstance())
+                        return;
                     RunOnce(config, dryRun: false);
                     return;
                 case "dry-run":
@@ -6433,6 +6462,8 @@ public class Program
                     ShowStatus();
                     return;
                 case "restore":
+                    if (!RequireSingleInstance())
+                        return;
                     RestorePackages(config);
                     return;
                 case "help":
@@ -6463,6 +6494,8 @@ public class Program
         }
 
         // Run as Windows Service (if started by SCM) or console (if interactive)
+        if (!RequireSingleInstance())
+            return;
         ServiceConfig.Current = config;
 
         if (Environment.UserInteractive)

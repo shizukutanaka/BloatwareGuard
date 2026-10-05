@@ -38,6 +38,9 @@ from typing import Dict, List, Set, Tuple
 APP_NAME = "BloatwareGuard"
 APP_VERSION = "1.61.3"
 SERVICE_NAME = "BloatwareGuard"
+# Named mutex shared with the C# build — a mutating run (scan/service/
+# restore) refuses to start while another instance holds it.
+_MUTEX_NAME = r"Global\BloatwareGuard"
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.json"
 LOG_DIR = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "BloatwareGuard"
 LOG_FILE = LOG_DIR / "bloatware-guard.log"
@@ -420,6 +423,35 @@ def _relaunch_elevated(flag: str) -> None:
         print(f"ERROR: elevation declined or failed (ShellExecute rc={rc}).")
         sys.exit(1)
     print(f"Elevation requested — '{flag}' is running in an elevated window.")
+
+
+_INSTANCE_MUTEX = None
+
+
+def _instance_mutex_acquire() -> bool:
+    """False when another BloatwareGuard process already owns the named
+    mutex. The handle is kept for the process lifetime so the guard holds
+    until exit."""
+    global _INSTANCE_MUTEX
+    try:
+        handle = ctypes.windll.kernel32.CreateMutexW(None, False, _MUTEX_NAME)
+        if not handle:
+            return True  # API failed — don't gate on it
+        if ctypes.GetLastError() == 183:  # ERROR_ALREADY_EXISTS
+            ctypes.windll.kernel32.CloseHandle(handle)
+            return False
+        _INSTANCE_MUTEX = handle
+        return True
+    except Exception:
+        return True  # non-Windows / API missing — don't gate
+
+
+def _require_single_instance(logger: logging.Logger) -> None:
+    """Refuse a second mutating instance — a service scan and a manual
+    scan/restore racing would interleave registry and hosts writes."""
+    if not _instance_mutex_acquire():
+        logger.error("Another BloatwareGuard instance is already running — exiting.")
+        sys.exit(1)
 
 
 def _console_encoding() -> str:
@@ -5881,7 +5913,8 @@ def run_self_test() -> int:
                                   ("_HOSTS_BLOCK_BEGIN",
                                    (_HOSTS_BLOCK_BEGIN,)),
                                   ("_HOSTS_BLOCK_END",
-                                   (_HOSTS_BLOCK_END,))):
+                                   (_HOSTS_BLOCK_END,)),
+                                  ("_MUTEX_NAME", (_MUTEX_NAME,))):
                 miss = []
                 for e in entries:
                     # structured entries ((subkey, value) pairs) — verify each
@@ -6285,10 +6318,12 @@ def main():
         return
 
     if args.restore:
+        _require_single_instance(logger)
         run_restore(config, logger)
         return
 
     if args.scan:
+        _require_single_instance(logger)
         run_scan(config, logger, dry_run=False)
         return
 
@@ -6301,6 +6336,7 @@ def main():
     if args.service_dry_run:
         config["DryRun"] = True
         logger.info("SERVICE MODE IN DRY-RUN — no removal actions will execute")
+    _require_single_instance(logger)
     run_service(config, logger, config_path=args.config,
                 force_dry_run=bool(args.service_dry_run))
 

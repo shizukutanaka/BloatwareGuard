@@ -2,6 +2,12 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 4 (improvement queue P2): single-instance guard — a mutating
+  run (scan / service / restore) now takes the named `Global\BloatwareGuard`
+  mutex shared by both builds and exits when another instance holds it,
+  so a service scan and a manual run can't interleave registry/hosts
+  writes. Dry-run / list / status / install / uninstall are ungated
+  (they don't write). The mutex name joined the T9 scalar parity list.
 - Audit round 3 (improvement queue P1): service mode now hot-reloads
   config.json — the scan loop watches the file mtime and re-applies
   edited Blacklist/Whitelist/Prevention/DryRun/ScanIntervalSeconds
