@@ -5952,13 +5952,17 @@ public static class WingetGuard
 public static class ServiceConfig
 {
     public static GuardConfig Current { get; set; } = null!;
+    /// <summary>Config file the service hot-reloads when it changes on disk.</summary>
+    public static string ConfigPath { get; set; } = "";
+    /// <summary>--service-dry-run was passed: keep DryRun forced across reloads.</summary>
+    public static bool ForceDryRun { get; set; }
 }
 
 // ─── Main Service ────────────────────────────────────────────────────────────
 
 public class GuardService : BackgroundService
 {
-    private readonly GuardConfig _config;
+    private GuardConfig _config;
 
     public GuardService()
     {
@@ -6010,11 +6014,43 @@ public class GuardService : BackgroundService
         var seenWin32 = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var firstScan = true;
 
+        // Hot-reload state: mtime of the last config we applied. The loop
+        // picks up config.json edits without a service restart; a file that
+        // fails to parse keeps the last-good config (fail-fast would kill
+        // the service).
+        var configPath = ServiceConfig.ConfigPath;
+        var configMtime = !string.IsNullOrEmpty(configPath) && File.Exists(configPath)
+            ? File.GetLastWriteTimeUtc(configPath)
+            : DateTime.MinValue;
+
         // Main scan loop
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
+                if (!string.IsNullOrEmpty(configPath) && File.Exists(configPath))
+                {
+                    var mtime = File.GetLastWriteTimeUtc(configPath);
+                    if (mtime != configMtime)
+                    {
+                        configMtime = mtime;  // bump first — a bad edit logs once, not per cycle
+                        try
+                        {
+                            var reloaded = ConfigLoader.Load(configPath);
+                            reloaded.DryRun = reloaded.DryRun || ServiceConfig.ForceDryRun;
+                            if (reloaded.ScanIntervalSeconds < 60)
+                                reloaded.ScanIntervalSeconds = 60;
+                            _config = reloaded;
+                            ServiceConfig.Current = reloaded;
+                            GuardLogger.Info("Config reloaded (file changed)");
+                        }
+                        catch (Exception rex)
+                        {
+                            GuardLogger.Warn($"Config reload failed — keeping last-good: {rex.Message}");
+                        }
+                    }
+                }
+
                 RunScan(_config.DryRun);
 
                 if (_config.Prevention.ReinstallMonitor)
@@ -6352,7 +6388,7 @@ public class Program
         try { Console.OutputEncoding = new System.Text.UTF8Encoding(false); } catch { /* no console in service mode */ }
         // Non-Unicode code pages (cp932, cp437...) aren't built into .NET Core —
         // register the provider so Proc.OemEncoding can decode console tools'
-        // localized output (Python decodes subprocess bytes as cp932).
+        // localized output (Python decodes them via GetOEMCP).
         System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
         // --config <path> overrides the default config.json location
         // (Python parity: --config PATH). Scan args before loading.
@@ -6364,6 +6400,7 @@ public class Program
                 configPath = args[i + 1];
         }
         var config = ConfigLoader.Load(configPath);
+        ServiceConfig.ConfigPath = configPath;
 
         // First non-flag argument is the command (flags like --config <path>
         // are consumed above and skipped here).
@@ -6412,6 +6449,7 @@ public class Program
                     return;
                 case "--service-dry-run":
                     config.DryRun = true;
+                    ServiceConfig.ForceDryRun = true;
                     GuardLogger.Info("Service mode: DRY-RUN (no removal actions will execute)");
                     break;
                 default:

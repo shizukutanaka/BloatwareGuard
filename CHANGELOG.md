@@ -2,6 +2,13 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 3 (improvement queue P1): service mode now hot-reloads
+  config.json — the scan loop watches the file mtime and re-applies
+  edited Blacklist/Whitelist/Prevention/DryRun/ScanIntervalSeconds
+  without a service restart or reinstall. A file that fails to parse
+  keeps the last-good config (fail-fast would kill the service) and the
+  mtime is bumped first so a bad edit logs once, not every cycle;
+  `--service-dry-run` keeps DryRun forced across reloads.
 - Audit round 2 (improvement queue P1): Win32 silent-uninstall now treats
   rc 1641 (ERROR_SUCCESS_REBOOT_INITIATED) and 3010
   (ERROR_SUCCESS_REBOOT_REQUIRED) as success with a reboot-pending log —

@@ -5447,19 +5447,26 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
 
 # ─── Service Mode ────────────────────────────────────────────────────────────
 
-def run_service(config: dict, logger: logging.Logger):
-    """Run as a persistent background process."""
+def _scan_interval(config: dict, logger: logging.Logger) -> int:
+    """Effective scan interval: clamp a zero/negative/garbage value to a 60s
+    floor — each scan spawns real work, so a bad interval would spin or
+    crash the service loop."""
     try:
         interval = int(config.get("ScanIntervalSeconds", 300))
     except (TypeError, ValueError):
         interval = 300
-    # Each scan spawns real work — clamp a zero/negative/garbage interval to
-    # a floor instead of letting it spin or crash the service loop.
     if interval < 60:
         logger.warning(
             f"ScanIntervalSeconds={config.get('ScanIntervalSeconds')!r} invalid"
             " — clamped to 60s minimum")
         interval = 60
+    return interval
+
+
+def run_service(config: dict, logger: logging.Logger,
+                config_path: Path = None, force_dry_run: bool = False):
+    """Run as a persistent background process."""
+    interval = _scan_interval(config, logger)
     prev = config.get("Prevention", {})
     blacklist = config.get("Blacklist", [])
     whitelist = config.get("Whitelist", [])
@@ -5497,8 +5504,36 @@ def run_service(config: dict, logger: logging.Logger):
             except Exception as e:
                 logger.warning(f"DisableTelemetryTasks layer failed: {e}")
 
+    # Hot-reload state: mtime of the last config we applied. The loop picks
+    # up config.json edits without a service restart; a file that fails to
+    # parse keeps the last-good config (fail-fast would kill the service).
+    config_mtime = None
+    if config_path is not None:
+        try:
+            config_mtime = Path(config_path).stat().st_mtime
+        except OSError:
+            pass
+
     while True:
         try:
+            if config_path is not None:
+                try:
+                    mtime = Path(config_path).stat().st_mtime
+                except OSError:
+                    mtime = None  # file deleted — skip quietly until it returns
+                if mtime is not None and mtime != config_mtime:
+                    config_mtime = mtime  # bump first — a bad edit logs once, not per cycle
+                    try:
+                        config = load_config(Path(config_path))
+                        config["DryRun"] = config.get("DryRun", False) or force_dry_run
+                        interval = _scan_interval(config, logger)
+                        prev = config.get("Prevention", {})
+                        blacklist = config.get("Blacklist", [])
+                        whitelist = config.get("Whitelist", [])
+                        logger.info("Config reloaded (file changed)")
+                    except Exception as e:
+                        logger.warning(f"Config reload failed — keeping last-good: {e}")
+
             # Standard scan (dry-run mode if configured)
             run_scan(config, logger, dry_run=config.get("DryRun", False))
 
@@ -6266,7 +6301,8 @@ def main():
     if args.service_dry_run:
         config["DryRun"] = True
         logger.info("SERVICE MODE IN DRY-RUN — no removal actions will execute")
-    run_service(config, logger)
+    run_service(config, logger, config_path=args.config,
+                force_dry_run=bool(args.service_dry_run))
 
 
 if __name__ == "__main__":
