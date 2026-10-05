@@ -31,7 +31,7 @@ import logging.handlers
 import tempfile
 import shutil
 from pathlib import Path
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 # ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -530,7 +530,8 @@ def get_blacklisted_packages(blacklist: List[str], whitelist: List[str]) -> List
     return [(f, n, p) for f, n, p, _full in _enum_blacklisted_packages(blacklist, whitelist)]
 
 
-def _enum_blacklisted_packages(blacklist: List[str], whitelist: List[str]) -> List[Tuple[str, str, str, str]]:
+def _enum_blacklisted_packages(blacklist: List[str], whitelist: List[str],
+                               framework_skipped: Optional[List[str]] = None) -> List[Tuple[str, str, str, str]]:
     """Return (PackageFamilyName, Name, InstallPath, PackageFullName) for
     packages matching blacklist. InstallPath is None for SystemApps (cannot be
     removed per-user); PackageFullName comes from the same query — no second
@@ -564,11 +565,17 @@ def _enum_blacklisted_packages(blacklist: List[str], whitelist: List[str]) -> Li
             install_path = pkg.get("InstallPath", "")  # None for SystemApps
             full_name = pkg.get("PackageFullName", "")
             key = full_name or family
-            if bool(pkg.get("IsFramework")) or key in seen:
+            if key in seen or not is_target_package(family, blacklist, whitelist):
                 continue
-            if is_target_package(family, blacklist, whitelist):
+            if bool(pkg.get("IsFramework")):
+                # framework hits stay out of results but are countable for
+                # the scan summary (C# counts them as 'skipped')
                 seen.add(key)
-                results.append((family, name, install_path, full_name))
+                if framework_skipped is not None:
+                    framework_skipped.append(family)
+                continue
+            seen.add(key)
+            results.append((family, name, install_path, full_name))
     except (json.JSONDecodeError, TypeError):
         pass
 
@@ -5326,6 +5333,9 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
     prev = config.get("Prevention", {})
     removed = 0
     matched = 0
+    skipped = 0
+    system_apps_skipped = 0
+    failed = 0
 
     # 0. Safety net: restore point before destructive changes (self-throttles)
     if prev.get("CreateRestorePoint", True):
@@ -5347,7 +5357,10 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
 
     # 1. Remove installed packages
     if prev.get("RemoveAppxPackages", True):
-        packages = _enum_blacklisted_packages(blacklist, whitelist)
+        framework_skips: List[str] = []
+        packages = _enum_blacklisted_packages(
+            blacklist, whitelist, framework_skipped=framework_skips)
+        skipped += len(framework_skips)
         matched += len(packages)
         for family_name, display_name, install_path, full_name in packages:
             matched_families.add(family_name)
@@ -5361,9 +5374,11 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
                     logger.info(
                         f"[DRY-RUN] Would remove AppxPackage: {family_name} "
                         f"(non-admin: full name not resolvable) {note}")
+                removed += 1  # would-remove count (C# dry-run parity)
             else:
                 if is_system_app:
                     logger.info(f"SystemApp skipped (requires admin): {family_name}")
+                    system_apps_skipped += 1
                 elif full_name and remove_appx_package(full_name):
                     logger.info(f"Removed AppxPackage: {family_name} ({display_name})")
                     record_removal(config, {
@@ -5373,6 +5388,7 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
                     removed += 1
                 else:
                     logger.warning(f"Failed to remove AppxPackage: {family_name}")
+                    failed += 1
 
     # 2. Remove provisioned packages (independent toggle — prevents re-deploy on new users)
     if prev.get("RemoveProvisionedPackages", True):
@@ -5382,6 +5398,7 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
             matched_families.add(_provisioned_family(package_name, display_name))
             if dry_run:
                 logger.info(f"[DRY-RUN] Would remove ProvisionedPackage: {display_name} [requires admin]")
+                removed += 1
             else:
                 if remove_provisioned_package(package_name):
                     logger.info(f"Removed ProvisionedPackage: {display_name}")
@@ -5389,6 +5406,7 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
                     removed += 1
                 else:
                     logger.warning(f"Failed to remove ProvisionedPackage: {display_name} [admin required]")
+                    system_apps_skipped += 1
 
     # 2.5 Remove optional Windows capabilities (IE mode, Steps Recorder, WordPad)
     if prev.get("RemoveOptionalCapabilities", True):
@@ -5412,6 +5430,7 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
                 continue
             if dry_run:
                 logger.info(f"[DRY-RUN] Would uninstall Win32 program: {display} [requires admin]")
+                removed += 1
             else:
                 if remove_win32_program(display, uninstall, quiet, logger):
                     logger.info(f"Removed Win32 program: {display}")
@@ -5419,6 +5438,7 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
                     removed += 1
                 else:
                     logger.warning(f"Failed/manual: {display} [admin required or no silent uninstaller]")
+                    failed += 1
 
     # 2.9 Reprovisioning persistence — the deprovision markers + the 25H2
     # policy need the family list even when a removal toggle is off, so
@@ -5498,7 +5518,10 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
             except Exception as e:
                 logger.warning(f"WingetSweep layer failed: {e}")
 
-    logger.info(f"Scan complete. {matched} packages matched blacklist; removed {removed}.")
+    logger.info(f"Scan complete. {matched} packages matched blacklist; "
+                f"{'would remove' if dry_run else 'removed'} {removed}, "
+                f"skipped {skipped}, system apps skipped {system_apps_skipped}, "
+                f"failed {failed}.")
     return removed
 
 

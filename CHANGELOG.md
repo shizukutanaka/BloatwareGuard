@@ -2,6 +2,12 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 7 (improvement queue P2): per-layer scan counters — the
+  Python scan summary now reports the same fields the C# service scan
+  does: matched / removed|would-remove / skipped / system-apps-skipped /
+  failed (previously matched+removed only). Framework packages skipped
+  inside `_enum_blacklisted_packages` are countable via an optional
+  out-param; dry-run also counts would-removes like the C# side.
 - Audit round 6 (improvement queue P1, scoped): read-before-write in the
   per-user-hive DWORD helpers (`set_user_dword_all_hives` /
   `SetHiveDword`) — service mode re-applies ~50 user values × every hive
