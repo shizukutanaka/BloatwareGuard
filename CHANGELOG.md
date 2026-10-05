@@ -2,6 +2,14 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 36 (self-test gap, C#): T9 — matching/family-name
+  contracts are now pinned on the C# side (mirroring py T2/T28/T29):
+  `=` means the FULL name, haystack scans strip `=` and still needle,
+  PatternAtom anchors `=` entries to the whole name, package-name
+  safety gates the PS-interpolation charset, and provisioned family
+  derivation strips the four right-side suffixes while returning
+  malformed names as-is. DESIGN.md counts synced (py T1–T36 /
+  C# T1–T9).
 - Audit round 35 (self-test gap): T36 — restore kind dispatch is now
   machine-checked: appx and provisioned entries re-register through
   Add-AppxPackage, capability entries re-enable via

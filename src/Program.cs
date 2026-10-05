@@ -6935,7 +6935,7 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
     private static int RunSelfTest(GuardConfig config)
     {
         var passed = 0;
-        var total = 8;
+        var total = 9;
         var results = new List<string>();
 
         GuardLogger.Info("=== BloatwareGuard v1.61.3 — Self-Test Mode === [no admin required]");
@@ -7128,6 +7128,53 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         catch (Exception ex)
         {
             results.Add($"[FAIL] T8: dup check — {ex.Message}");
+        }
+
+        // Test 9: matching/family-name contracts — the '=' exact mode,
+        // haystack needle semantics, PatternAtom anchoring, package-name
+        // safety, and provisioned family derivation (mirrors py T2/T28/T29)
+        try
+        {
+            var ok = true;
+            // '=' means the FULL name — never a substring hit
+            ok &= MatchRule.EntryMatchesName("=Foo.App", "Foo.App");
+            ok &= !MatchRule.EntryMatchesName("=Foo.App", "Foo.AppX");
+            ok &= MatchRule.EntryMatchesName("Foo.App", "Foo.AppX");
+            ok &= MatchRule.EntryMatchesName("foo.app", "FOO.APP");
+            ok &= !MatchRule.EntryMatchesName("", "Foo.App");
+            ok &= !MatchRule.EntryMatchesName("=", "Foo.App");
+            // haystack scan strips '=' — an exact entry still needles
+            ok &= MatchRule.EntryMatchesHaystack("=Svc.Name", "Svc.Name data tail");
+            ok &= !MatchRule.EntryMatchesHaystack("=", "anything");
+            // PatternAtom anchors '=' entries to the whole name
+            ok &= MatchRule.PatternAtom("=Foo.App") == "^Foo\\.App$";
+            ok &= MatchRule.PatternAtom("Foo.App") == "Foo\\.App";
+            // package-name safety gate (PowerShell interpolation charset)
+            ok &= AppxManager.IsPackageNameSafe("Good.App_1-x~res");
+            ok &= !AppxManager.IsPackageNameSafe("bad';evil");
+            ok &= !AppxManager.IsPackageNameSafe("");
+            // provisioned family derivation — strip 4 right-side suffixes,
+            // keep underscores inside the name; malformed names return as-is
+            ok &= AppxManager.ProvisionedFamilyName(
+                "Microsoft.WindowsCalculator_11.0_x64__8wekyb3d8bbwe")
+                == "Microsoft.WindowsCalculator_8wekyb3d8bbwe";
+            ok &= AppxManager.ProvisionedFamilyName("A_B_1_x64__pub") == "A_B_pub";
+            ok &= AppxManager.ProvisionedFamilyName("NoUnderscoreName") == "NoUnderscoreName";
+            if (ok)
+            {
+                results.Add("[PASS] T9: matching/family-name contracts hold");
+                GuardLogger.Info("[PASS] T9: matching/family contracts hold");
+                passed++;
+            }
+            else
+            {
+                results.Add("[FAIL] T9: matching/family-name contract broken");
+                GuardLogger.Error("[FAIL] T9: matching/family contract broken");
+            }
+        }
+        catch (Exception ex)
+        {
+            results.Add($"[FAIL] T9: match contract — {ex.Message}");
         }
 
         // Summary
