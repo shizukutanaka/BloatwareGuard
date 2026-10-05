@@ -1436,6 +1436,7 @@ _BACKUP_KEY_PATHS = (
     r"SYSTEM\CurrentControlSet\Services\Tcpip\Parameters",
     r"SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters",
     r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\LSASS.exe",
+    r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\CompatTelRunner.exe",
     r"SOFTWARE\Policies\Microsoft\Notepad",
     r"SOFTWARE\Policies\Microsoft\Windows\OOBE",
 )
@@ -3321,6 +3322,13 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword("HKLM",
                                r"SYSTEM\Setup\UpgradeNotification",
                                "UpgradeAvailable", 0)
+            # IFEO kill for CompatTelRunner.exe — a Windows update can
+            # re-arm the Appraiser task; the debugger stub blocks the
+            # exe from ever launching (Privatezilla DisableCompTelemetry)
+            set_registry_string(
+                "HKLM",
+                r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\CompatTelRunner.exe",
+                "Debugger", r"%windir%\System32\taskkill.exe")
             # WMP legacy auto-update channel (dead on modern builds)
             set_registry_dword("HKLM",
                                r"SOFTWARE\Policies\Microsoft\WindowsMediaPlayer",

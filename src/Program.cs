@@ -3944,6 +3944,13 @@ public static class RegistryGuard
                 using var wmp = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\WindowsMediaPlayer");
                 wmp?.SetValue("DisableAutoUpdate", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // IFEO kill for CompatTelRunner.exe — a Windows update can
+                // re-arm the Appraiser task; the debugger stub blocks the
+                // exe from ever launching (Privatezilla DisableCompTelemetry)
+                using var ifeo = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\CompatTelRunner.exe");
+                ifeo?.SetValue("Debugger", @"%windir%\System32\taskkill.exe",
+                    Microsoft.Win32.RegistryValueKind.String);
                 // WMP online metadata lookups (windowsmedia.com) — per-user
                 foreach (var v in new[] { "PreventCDDVDMetadataRetrieval",
                         "PreventMusicFileMetadataRetrieval",
@@ -4973,6 +4980,7 @@ public static class RegistryGuard
         @"SYSTEM\CurrentControlSet\Services\Tcpip\Parameters",
         @"SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters",
         @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\LSASS.exe",
+        @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\CompatTelRunner.exe",
         @"SOFTWARE\Policies\Microsoft\Windows\OOBE",
     };
     private static readonly string[] ExtraBackupServiceNames =

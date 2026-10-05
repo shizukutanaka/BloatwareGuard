@@ -2,6 +2,14 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 44 (Privatezilla diff): IFEO kill for
+  CompatTelRunner.exe — a Windows update can re-arm the Appraiser
+  task; the Debugger stub (`%windir%\System32\taskkill.exe`) blocks
+  the exe from ever launching, closing the last hole in the
+  CompatTel kill-chain (Privatezilla DisableCompTelemetry; both
+  impls + backup coverage). Other Privatezilla paths were already
+  covered or forbidden territory (ConsentStore denies, AppHost
+  SmartScreen — off-limits).
 - Audit round 43 (self-test gap, C#): T11 — `RemovalLedger` rotation
   is now machine-checked: oversized ledger rolls to .1 … .5 with the
   sixth generation dropped, `GenerationPaths` yields oldest-first for
