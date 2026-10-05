@@ -6524,6 +6524,73 @@ def run_self_test() -> int:
             else:
                 os.environ["PROGRAMDATA"] = orig_pd
 
+    def t_removal_toggle_gating():
+        """Each removal layer honours its own toggle: with the Appx
+        toggle off the provisioned path still runs (and vice versa),
+        and a disabled layer issues neither enumeration nor removal."""
+        calls_cmd, calls_ps = [], []
+        orig_cmd, orig_ps = run_cmd, run_powershell
+        globals()["run_cmd"] = lambda *a, **k: calls_cmd.append(a[0]) or ("", 0)
+        appx_json = json.dumps([{"PackageFamilyName": "Bad.App_abc",
+                                 "Name": "Bad.App", "InstallPath": "C:\\x",
+                                 "IsFramework": False,
+                                 "PackageFullName": "Bad.App_1_x"}])
+        prov_json = json.dumps([{"DisplayName": "Bad.Prov",
+                                 "PackageName": "Bad.Prov_1_x"}])
+
+        def fake_ps(cmd, timeout=60):
+            calls_ps.append(cmd)
+            if "ProvisionedPackage" in cmd:
+                return prov_json, "", 0
+            if "WindowsCapability" in cmd or "Get-ScheduledTask" in cmd:
+                return "[]", "", 0
+            return appx_json, "", 0
+
+        globals()["run_powershell"] = fake_ps
+        orig_root = os.environ.get("SystemRoot")
+        orig_pd = os.environ.get("PROGRAMDATA")
+        os.environ["SystemRoot"] = tempfile.mkdtemp()
+        os.environ["PROGRAMDATA"] = tempfile.mkdtemp()
+        try:
+            def scan_off(*toggles):
+                globals()["_registry_backup_done"] = False
+                cfg = load_config(Path(tempfile.mkdtemp()) / "config.json")
+                cfg["Blacklist"] = ["Bad.App", "Bad.Prov"]
+                cfg["Prevention"].update({
+                    "RemoveWin32Programs": False,
+                    "MarkDeprovisioned": False,
+                    "RemoveDefaultStorePackages": False,
+                    **{t: False for t in toggles}})
+                calls_ps.clear()
+                return run_scan(cfg, logging.getLogger("t_gates"),
+                                dry_run=False)
+
+            # Appx off → provisioned still removed, appx never touched
+            n = scan_off("RemoveAppxPackages")
+            assert n == 1, n
+            assert any("Remove-AppxProvisionedPackage" in c for c in calls_ps)
+            assert not any("Get-AppxPackage" in c or "Remove-AppxPackage" in c
+                           for c in calls_ps)
+            # Provisioned off → appx still removed, provisioned never touched
+            n = scan_off("RemoveProvisionedPackages")
+            assert n == 1, n
+            assert any("Remove-AppxPackage" in c for c in calls_ps)
+            assert not any("ProvisionedPackage" in c for c in calls_ps)
+            # both off → nothing removed
+            n = scan_off("RemoveAppxPackages", "RemoveProvisionedPackages")
+            assert n == 0, n
+        finally:
+            globals()["run_cmd"] = orig_cmd
+            globals()["run_powershell"] = orig_ps
+            if orig_root is None:
+                os.environ.pop("SystemRoot", None)
+            else:
+                os.environ["SystemRoot"] = orig_root
+            if orig_pd is None:
+                os.environ.pop("PROGRAMDATA", None)
+            else:
+                os.environ["PROGRAMDATA"] = orig_pd
+
     check("T1: Config default-create + reload", t_config_roundtrip)
     check("T2: Blacklist/whitelist matching", t_matching)
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
@@ -6944,6 +7011,8 @@ def run_self_test() -> int:
     check("T30: atomic write + encoding + profile-dat fallback",
           t_io_and_fallback_helpers)
     check("T31: dry-run performs zero mutations", t_dry_run_zero_mutations)
+    check("T32: removal toggles gate each layer independently",
+          t_removal_toggle_gating)
 
     print()
     passed = 0

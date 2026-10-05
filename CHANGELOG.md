@@ -2,6 +2,11 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 31 (self-test gap): T32 — removal-layer toggle gating
+  is now machine-checked: with `RemoveAppxPackages` off the provisioned
+  path still runs and vice versa, a disabled layer issues neither
+  enumeration nor removal calls, and both-off removes nothing.
+  DESIGN.md counts synced (py T1–T32).
 - Audit round 30 (self-test gap): T31 — the dry-run safety invariant
   is now machine-checked: `run_cmd` is never invoked (no schtasks/
   reg.exe/winget) and no Remove-/Disable-/Stop-/Clear- verb reaches
