@@ -2,6 +2,11 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 23 (self-test gap): T24 — `remove_appx_package` /
+  `remove_provisioned_package` are now machine-checked: unsafe names
+  never reach PowerShell, non-admin runs take the user-scope path
+  verbatim, and non-zero rc propagates as failure. DESIGN.md counts
+  synced (py T1–T24).
 - Audit round 22 (self-test gap): T23 — task-disable machinery is now
   machine-checked: `disable_telemetry_tasks` issues `schtasks /Change
   /TN … /DISABLE` for all 135 known paths verbatim, and the OEM sweep

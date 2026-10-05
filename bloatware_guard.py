@@ -6296,6 +6296,30 @@ def run_self_test() -> int:
             globals()["run_cmd"] = orig_cmd
             globals()["run_powershell"] = orig_ps
 
+    def t_remove_guards_and_rc():
+        """Unsafe package names never reach PowerShell; non-admin runs
+        use the user-scope removal verbatim and report rc faithfully."""
+        calls: List = []
+        rcv = [0]
+        orig = run_powershell
+        globals()["run_powershell"] = (
+            lambda *a, **k: calls.append(a[0]) or ("", "", rcv[0]))
+        try:
+            assert not remove_appx_package("bad';evil")
+            assert calls == []               # name guard fired before PS
+            assert remove_appx_package("Pkg_1.0_x64__abc123")
+            assert "-AllUsers" not in calls[-1]   # non-admin: user scope
+            assert "'Pkg_1.0_x64__abc123'" in calls[-1]
+            assert not remove_provisioned_package("bad;name")
+            assert len(calls) == 1
+            assert remove_provisioned_package("Pkg_2024.1")
+            assert "Remove-AppxProvisionedPackage" in calls[-1]
+            rcv[0] = 1
+            assert not remove_appx_package("Pkg_1.0_x64__abc123")
+            assert not remove_provisioned_package("Pkg_2024.1")
+        finally:
+            globals()["run_powershell"] = orig
+
     check("T1: Config default-create + reload", t_config_roundtrip)
     check("T2: Blacklist/whitelist matching", t_matching)
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
@@ -6704,6 +6728,8 @@ def run_self_test() -> int:
     check("T22: capability re-query gates ledger", t_capability_requery)
     check("T23: task disable — 135 paths + OEM protected-prefix guard",
           t_task_disable_machinery)
+    check("T24: appx/provisioned name guards + rc fidelity",
+          t_remove_guards_and_rc)
 
     print()
     passed = 0
