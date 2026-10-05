@@ -3352,6 +3352,8 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                          "CopilotAddressBarSuggestionsEnabled",
                          "CopilotNewTabPageEnabled",
                          "AllowBrowsingWithCopilot",
+                         # Copilot toolbar/page action (winutil Edge diff)
+                         "CopilotPageAction",
                          "M365LinksAutoOpenCopilotEnabled",
                          "VisualSearchEnabled",
                          # Address-bar trending suggestions + reading-mode

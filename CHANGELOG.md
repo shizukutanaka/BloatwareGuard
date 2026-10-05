@@ -2,6 +2,11 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- `DisableEdgeBloat` also sets `CopilotPageAction` = 0 (Edge 136+
+  policy that hides the Copilot page/toolbar action) — winutil
+  (ChrisTitusTech) Edge-policy diff, one new value on top of the
+  existing Copilot-surface group.
+
 - Parity fix — `_provisioned_family` fallback for underscore-free
   `PackageName` returned `display_name` in Python but `packageName`
   in C#; now returns `package_name` (the more stable identifier,

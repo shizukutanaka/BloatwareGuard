@@ -4080,7 +4080,7 @@ public static class RegistryGuard
             // Copilot surfaces inside Edge (noid-privacy AntiAI edge group)
             foreach (var n in new[] { "Microsoft365CopilotChatIconEnabled",
                     "CopilotAddressBarSuggestionsEnabled", "CopilotNewTabPageEnabled",
-                    "AllowBrowsingWithCopilot", "M365LinksAutoOpenCopilotEnabled",
+                    "AllowBrowsingWithCopilot", "CopilotPageAction", "M365LinksAutoOpenCopilotEnabled",
                     "VisualSearchEnabled", "AddressBarTrendingSuggestEnabled",
                     "EdgeReadingModeServiceBasedExtractionEnabled",
                     // URL-keyed "anonymized" browsing-data uploads (winutil)
