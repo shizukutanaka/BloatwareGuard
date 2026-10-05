@@ -6943,7 +6943,7 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
     private static int RunSelfTest(GuardConfig config)
     {
         var passed = 0;
-        var total = 11;
+        var total = 12;
         var results = new List<string>();
 
         GuardLogger.Info("=== BloatwareGuard v1.61.3 — Self-Test Mode === [no admin required]");
@@ -7276,6 +7276,60 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         catch (Exception ex)
         {
             results.Add($"[FAIL] T11: ledger rotation — {ex.Message}");
+        }
+
+        // Test 12: removal-ledger record shape — each line is JSON with
+        // ts/kind/name/family/full_name keys, and GenerationPaths finds
+        // the live file for the restore pass (mirrors py T7)
+        try
+        {
+            var ok = true;
+            var td = Path.Combine(Path.GetTempPath(),
+                "bg-t12-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(td);
+            try
+            {
+                var cfg = new GuardConfig { BackupDirectory = td };
+                RemovalLedger.Record(cfg, "appx", "Bad.App",
+                    "Bad.App_abc", "Bad.App_1_x64__abc");
+                RemovalLedger.Record(cfg, "provisioned", "Bad.Prov",
+                    "", "Bad.Prov_2_x64__abc");
+                var ledger = Path.Combine(td, "removed-packages.jsonl");
+                ok &= File.Exists(ledger);
+                var lines = File.ReadAllLines(ledger);
+                ok &= lines.Length == 2;
+                foreach (var line in lines)
+                {
+                    var e = JsonSerializer.Deserialize(
+                        line, GuardJsonContext.Default.DictionaryStringString);
+                    ok &= e != null
+                        && e!.ContainsKey("ts") && e.ContainsKey("kind")
+                        && e.ContainsKey("name") && e.ContainsKey("family")
+                        && e.ContainsKey("full_name");
+                }
+                var first = JsonSerializer.Deserialize(
+                    lines[0], GuardJsonContext.Default.DictionaryStringString);
+                ok &= first != null && first!["name"] == "Bad.App"
+                    && first["kind"] == "appx";
+                var gens = RemovalLedger.GenerationPaths(ledger);
+                ok &= gens.Count == 1 && gens[0] == ledger;
+            }
+            finally { Directory.Delete(td, recursive: true); }
+            if (ok)
+            {
+                results.Add("[PASS] T12: ledger record JSON shape");
+                GuardLogger.Info("[PASS] T12: ledger record shape");
+                passed++;
+            }
+            else
+            {
+                results.Add("[FAIL] T12: ledger record shape broken");
+                GuardLogger.Error("[FAIL] T12: ledger record shape broken");
+            }
+        }
+        catch (Exception ex)
+        {
+            results.Add($"[FAIL] T12: ledger record — {ex.Message}");
         }
 
         // Summary

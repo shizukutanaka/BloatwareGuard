@@ -2,6 +2,15 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 46 (BloatyNosy diff + self-test gap, C#): T12 —
+  `RemovalLedger.Record` line shape machine-checked: every entry
+  parses with ts/kind/name/family/full_name keys and
+  `GenerationPaths` finds the live file (mirrors py T7).
+  BloatyNosy/ThisIsWin11 full-diff clean: its 13-name app list is
+  covered by existing prefixes (Microsoft.Xbox catches
+  XboxGameBar), Walks registry surface already covered, plugin
+  keys are UI prefs or covered (OutlookUpdate → BlockedOobeUpdaters).
+  DESIGN.md counts synced (py T1–T42 / C# T1–T12).
 - Audit round 45 (Sycnex diff + self-test gap): T42 — provisioned
   rows are now machine-verified to need BOTH DisplayName (something
   to match) and PackageName (something to remove); nameless rows can
