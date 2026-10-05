@@ -2,6 +2,11 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 19 (self-test gap): T20 — `remove_win32_program` branches
+  are now machine-checked: quiet uninstallers run verbatim, rc
+  1641/3010 (reboot success) count as removed, MSI GUIDs route through
+  `msiexec /x … /qn /norestart`, and a program with no silent
+  uninstaller is never executed. DESIGN.md counts synced (py T1–T20).
 - Audit round 18 (self-test gap): T19 — config-load edges (missing →
   defaults written, BOM tolerated, corrupt JSON fails fast by design)
   and the haystack matcher (`=` needles stay live in startup/ActiveSetup

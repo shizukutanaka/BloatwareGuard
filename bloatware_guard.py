@@ -6173,6 +6173,37 @@ def run_self_test() -> int:
         assert not _entry_matches_haystack("   ", "anything")
         assert not _entry_matches_haystack("nope", "nothing here")
 
+    def t_win32_remove_rcs():
+        """Win32 removal: 1641/3010 reboot codes count as success, quiet
+        uninstallers run verbatim, MSI GUIDs go through msiexec /x, and a
+        program with no silent uninstaller is never executed."""
+        calls: List = []
+        rc_holder = [0]
+        orig = run_cmd
+        globals()["run_cmd"] = (
+            lambda *a, **k: calls.append(a[0]) or ("out", rc_holder[0]))
+        try:
+            lg = logging.getLogger("t_win32")
+            quiet = '"C:\\U\\un.exe" /S'
+            assert remove_win32_program("App", "", quiet, lg)
+            assert calls[-1] == '"C:\\U\\un.exe" /S'  # verbatim string argv
+            for rc in (1641, 3010):
+                rc_holder[0] = rc
+                assert remove_win32_program("App", "", quiet, lg), rc
+            rc_holder[0] = 1603
+            assert not remove_win32_program("App", "", quiet, lg)
+            rc_holder[0] = 0
+            guid = "{12345678-1234-1234-1234-1234567890AB}"
+            assert remove_win32_program(
+                "App", f"MsiExec.exe /X{guid}", "", lg)
+            assert calls[-1] == ["msiexec.exe", "/x", guid, "/qn", "/norestart"]
+            calls.clear()
+            assert not remove_win32_program(
+                "App", "uninstall.exe --interactive", "", lg)
+            assert calls == [], f"manual-only program was executed: {calls}"
+        finally:
+            globals()["run_cmd"] = orig
+
     check("T1: Config default-create + reload", t_config_roundtrip)
     check("T2: Blacklist/whitelist matching", t_matching)
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
@@ -6576,6 +6607,7 @@ def run_self_test() -> int:
     check("T17: dry-run scan orchestration + counters", t_dry_run_scan)
     check("T18: live-scan removal path + ledger records", t_live_scan_removal)
     check("T19: config load edges + haystack matching", t_config_edges_and_haystack)
+    check("T20: Win32 uninstall rc/MSI/manual branches", t_win32_remove_rcs)
 
     print()
     passed = 0
