@@ -1734,6 +1734,7 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 # OneDrive desktop nags (Windows-Utility/winutil)
                 for _toast in ("Windows.SystemToast.StartupApp",
                                "Windows.SystemToast.AccountHealth",
+                               "Windows.SystemToast.BackupReminder",
                                "Microsoft.SkyDrive.Desktop"):
                     w(_USER_NOTIFICATION_SETTINGS + "\\" + _toast,
                       "Enabled", 0)
@@ -5082,6 +5083,7 @@ TELEMETRY_TASK_PATHS = (
     "\\Microsoft\\Windows\\Application Experience\\StartupAppTask",
     # Gathers Win32 app data for the Windows Backup app scenario (24H2+)
     "\\Microsoft\\Windows\\Application Experience\\MareBackup",
+    "\\Microsoft\\Windows\\Application Experience\\PautoRequest",
     "\\Microsoft\\Windows\\Autochk\\Proxy",
     "\\Microsoft\\Windows\\Customer Experience Improvement Program\\Consolidator",
     "\\Microsoft\\Windows\\Customer Experience Improvement Program\\UsbCeip",

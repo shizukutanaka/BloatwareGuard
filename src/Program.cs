@@ -2360,6 +2360,7 @@ public static class RegistryGuard
                 // OneDrive desktop nags (Windows-Utility/winutil)
                 foreach (var toast in new[] { "Windows.SystemToast.StartupApp",
                                             "Windows.SystemToast.AccountHealth",
+                                            "Windows.SystemToast.BackupReminder",
                                             "Microsoft.SkyDrive.Desktop" })
                     SetHiveDword(hive, UserNotificationSettingsPath + "\\" + toast,
                         "Enabled", 0);
@@ -5696,6 +5697,7 @@ public static class ScheduledTaskGuard
         @"\Microsoft\Windows\Application Experience\StartupAppTask",
         // Gathers Win32 app data for the Windows Backup app scenario (24H2+)
         @"\Microsoft\Windows\Application Experience\MareBackup",
+        @"\Microsoft\Windows\Application Experience\PautoRequest",
         @"\Microsoft\Windows\Autochk\Proxy",
         @"\Microsoft\Windows\Customer Experience Improvement Program\Consolidator",
         @"\Microsoft\Windows\Customer Experience Improvement Program\UsbCeip",

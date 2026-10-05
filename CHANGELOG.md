@@ -2,6 +2,13 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- tomytate/Win-Debloat7 diff — two adoptions: `Windows.SystemToast.BackupReminder`
+  Enabled=0 joins the sibling promo-toast loop (backup-reminder nag, same class
+  as the existing Suggested/StartupApp/AccountHealth kills), and
+  `\Microsoft\Windows\Application Experience\PautoRequest` joins
+  TELEMETRY_TASK_PATHS (PCA auto-request; tasks → 135, README/DESIGN counts
+  updated). Remaining surface skipped — unverifiable WindowsCopilot policy
+  names, functional licensing tasks, functional-app blacklist entries.
 - Self-test coverage — `_EXTRA_DIAG_CHANNELS` and `DEFAULT_WHITELIST`
   added to the T9 py↔cs shared-list parity sweep and T10 duplicate
   guard; whitelist extracted to a module constant (was inline in
