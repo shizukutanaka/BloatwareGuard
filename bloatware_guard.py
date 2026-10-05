@@ -6439,6 +6439,28 @@ def run_self_test() -> int:
         # no '_' at all → display_name fallback
         assert _provisioned_family("PlainName", "Nice App") == "Nice App"
 
+    def t_name_regex_contracts():
+        """The regex contracts that gate every string before it reaches
+        PowerShell/reg.exe/schtasks/winget: package names allow '~/!'
+        (resource segments), winget ids reject them, SIDs are the
+        interactive-user S-1-5-21 shape only, MSI GUIDs are braced
+        36-char hex tokens."""
+        assert _safe_pkg_name("Microsoft.VCLibs.140.00_14.0_x64__8wekyb3d8bbwe")
+        assert _safe_pkg_name("Pkg_1.0_neutral_~_8wekyb3d8bbwe")  # ~ allowed
+        for bad in ("", "bad;name", "bad'name", "bad name", "a/b",
+                    "$(evil)", "{guid}"):
+            assert not _safe_pkg_name(bad), bad
+        assert _WINGET_ID_RE.fullmatch("Microsoft.StorePurchaseApp")
+        assert not _WINGET_ID_RE.fullmatch("Pkg~res")
+        assert _USER_SID_RE.match("S-1-5-21-123-456-789-1001")
+        for bad in ("S-1-5-18", "S-1-5-19", "S-1-5-21-123",
+                    "S-1-5-21-123-456-789-1001-x"):
+            assert not _USER_SID_RE.match(bad), bad
+        g = "{12345678-1234-1234-1234-1234567890AB}"
+        assert _MSI_GUID_RE.search(f"MsiExec.exe /X{g}")
+        assert _MSI_GUID_RE.search(g).group(0) == g
+        assert not _MSI_GUID_RE.search("uninstall.exe")
+
     check("T1: Config default-create + reload", t_config_roundtrip)
     check("T2: Blacklist/whitelist matching", t_matching)
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
@@ -6855,6 +6877,7 @@ def run_self_test() -> int:
           t_backup_registry_keys)
     check("T28: provisioned family derivation (right-strip + fallback)",
           t_provisioned_family_derivation)
+    check("T29: name/SID/GUID regex contracts", t_name_regex_contracts)
 
     print()
     passed = 0

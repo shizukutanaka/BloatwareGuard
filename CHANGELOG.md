@@ -2,6 +2,12 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 28 (self-test gap): T29 — the regex contracts gating
+  every string before it reaches PowerShell/reg.exe/schtasks/winget
+  are now pinned: package names allow `~`/`!` (resource segments),
+  winget ids reject them, SIDs are the interactive-user S-1-5-21
+  shape only, MSI GUIDs are braced 36-char hex tokens. DESIGN.md
+  counts synced (py T1–T29).
 - Audit round 27 (self-test gap): T28 — `_provisioned_family` derivation
   is now pinned: four suffix fields are stripped from the RIGHT end
   (names may contain underscores), malformed names collapse to
