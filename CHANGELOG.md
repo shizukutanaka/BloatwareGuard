@@ -2,6 +2,12 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 17 (self-test gap): T18 — the LIVE scan path now runs
+  end-to-end in the self-test too: stubbed system calls feed the real
+  removal flow, verifying the counter bookkeeping (removed /
+  system-apps-skipped / framework-skipped) and that a removal ledger
+  entry is written per success — the destructive path previously had
+  zero coverage. DESIGN.md counts synced (py T1–T18).
 - Audit round 16 (self-test gap): T17 — the full dry-run scan now runs
   end-to-end in the self-test: stubbed PowerShell feeds fake
   Appx/provisioned JSON through the real orchestration (framework

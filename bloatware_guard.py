@@ -6078,6 +6078,74 @@ def run_self_test() -> int:
             # dry-run counts each would-remove like the C# build does
             assert n == 3, f"would-remove count: {n}"
 
+    def t_live_scan_removal():
+        """Stubbed non-dry-run scan: removal calls reach PowerShell, the
+        ledger records each success, system apps are skipped — still no
+        real system calls."""
+        with tempfile.TemporaryDirectory() as td:
+            (Path(td) / "System32" / "drivers" / "etc").mkdir(parents=True)
+            cfg = {
+                "BackupDirectory": td,
+                "Blacklist": ["Microsoft.Xbox", "Vendor.App"],
+                "Whitelist": [],
+                "Prevention": {
+                    "RemoveWin32Programs": False,
+                    "MarkDeprovisioned": False,
+                    "RemoveDefaultStorePackages": False,
+                },
+            }
+            appx_json = json.dumps([
+                {"PackageFamilyName": "Microsoft.XboxGamingOverlay_fam",
+                 "Name": "Microsoft.XboxGamingOverlay",
+                 "InstallPath": "C:\\Apps\\x", "IsFramework": False,
+                 "PackageFullName": "Microsoft.XboxGamingOverlay_1.0_full"},
+                {"PackageFamilyName": "Microsoft.XboxFW_fam",
+                 "Name": "Microsoft.XboxFW", "InstallPath": "",
+                 "IsFramework": True, "PackageFullName": ""},
+                {"PackageFamilyName": "Microsoft.XboxTCUI_fam",
+                 "Name": "Microsoft.Xbox.TCUI", "InstallPath": "",
+                 "IsFramework": False, "PackageFullName": ""},
+            ])
+            prov_json = json.dumps([
+                {"DisplayName": "Vendor.App", "PackageName": "Vendor.App_1.0_x64__pub"},
+            ])
+
+            def fake_ps(cmd, timeout=60):
+                if "ProvisionedPackage" in cmd:
+                    return prov_json, "", 0
+                if "WindowsCapability" in cmd:
+                    return "", "", 0
+                return appx_json, "", 0
+
+            orig_ps, orig_cmd = run_powershell, run_cmd
+            orig_root, orig_pd = (os.environ.get("SystemRoot"),
+                                  os.environ.get("PROGRAMDATA"))
+            globals()["run_powershell"] = fake_ps
+            globals()["run_cmd"] = lambda *a, **k: ("", 0)
+            globals()["_registry_backup_done"] = False
+            os.environ["SystemRoot"] = td
+            os.environ["PROGRAMDATA"] = td
+            try:
+                n = run_scan(cfg, logging.getLogger("t_live_scan"), dry_run=False)
+            finally:
+                globals()["run_powershell"] = orig_ps
+                globals()["run_cmd"] = orig_cmd
+                if orig_root is None:
+                    os.environ.pop("SystemRoot", None)
+                else:
+                    os.environ["SystemRoot"] = orig_root
+                if orig_pd is None:
+                    os.environ.pop("PROGRAMDATA", None)
+                else:
+                    os.environ["PROGRAMDATA"] = orig_pd
+            # appx normal + provisioned removed; framework filtered and the
+            # InstallPath-less SystemApp counted as system_apps_skipped
+            assert n == 2, f"removed count: {n}"
+            ledger = Path(td) / "removed-packages.jsonl"
+            kinds = [json.loads(ln)["kind"]
+                     for ln in ledger.read_text(encoding="utf-8").splitlines()]
+            assert kinds == ["appx", "provisioned"], f"ledger kinds: {kinds}"
+
     check("T1: Config default-create + reload", t_config_roundtrip)
     check("T2: Blacklist/whitelist matching", t_matching)
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
@@ -6479,6 +6547,7 @@ def run_self_test() -> int:
     check("T15: hosts block splice idempotent + non-destructive", t_hosts_splice)
     check("T16: --restore ledger replay safety", t_restore_ledger)
     check("T17: dry-run scan orchestration + counters", t_dry_run_scan)
+    check("T18: live-scan removal path + ledger records", t_live_scan_removal)
 
     print()
     passed = 0
