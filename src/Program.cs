@@ -6223,14 +6223,24 @@ public class GuardService : BackgroundService
         var matchedFamilies = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         // 0. Safety net: restore point before destructive changes (self-throttles)
-        if (!dryRun && _config.Prevention.CreateRestorePoint)
-            Win32Guard.CreateRestorePoint();
+        if (_config.Prevention.CreateRestorePoint)
+        {
+            if (dryRun)
+                GuardLogger.Info("[DRY-RUN] Would create system restore point");
+            else
+                Win32Guard.CreateRestorePoint();
+        }
 
         // 0.5 Back up every HKLM key BEFORE any writes — this scan touches the
         // deprovision/Store-policy keys before ApplyAll would back them up;
         // the once-per-process guard makes the later call a no-op
-        if (!dryRun && _config.Prevention.BackupRegistry)
-            RegistryGuard.BackupRegistryKeys();
+        if (_config.Prevention.BackupRegistry)
+        {
+            if (dryRun)
+                GuardLogger.Info("[DRY-RUN] Would export registry backup");
+            else
+                RegistryGuard.BackupRegistryKeys();
+        }
 
         // 1. Remove installed AppxPackages matching blacklist
         if (_config.Prevention.RemoveAppxPackages)
@@ -6429,7 +6439,16 @@ public class GuardService : BackgroundService
                 catch (Exception ex) { GuardLogger.Warn($"DisableTelemetryTasks layer failed: {ex.Message}"); }
         }
         else
+        {
             GuardLogger.Info("[DRY-RUN] Would re-apply registry prevention settings");
+            if (_config.Prevention.DisableOemScheduledTasks)
+                GuardLogger.Info("[DRY-RUN] Would disable OEM scheduled tasks");
+            if (_config.Prevention.DisableTelemetryTasks)
+                GuardLogger.Info("[DRY-RUN] Would disable Microsoft telemetry tasks");
+            if (_config.Prevention.DisableTelemetryAutologgers)
+                GuardLogger.Info("[DRY-RUN] Would disable telemetry ETW autologgers");
+            GuardLogger.Info("[DRY-RUN] Would manage telemetry endpoints hosts block");
+        }
 
         GuardLogger.Info($"Scan complete. {(dryRun ? "Would remove" : "Removed")} {removed} packages, skipped {skipped}, system apps skipped {systemAppsSkipped}, failed {failed}.");
     }

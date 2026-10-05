@@ -2,6 +2,13 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 10 (parity fix): C# dry-run now acknowledges every layer
+  the Python one does — restore point, registry backup, OEM tasks,
+  telemetry tasks, ETW autologgers and the hosts block all emit their
+  `[DRY-RUN] Would ...` lines (previously a single generic line covered
+  the whole registry+task block and the two pre-scan steps logged
+  nothing). Matches the Python per-layer acknowledgments, including the
+  per-toggle gating.
 - Audit round 9 (improvement queue P2): removal-ledger rotation — the
   ledger now rotates at 1 MB into up to 5 numbered generations
   (`removed-packages.jsonl.1` … `.5`) so a resident service can't grow
