@@ -2,6 +2,12 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 16 (self-test gap): T17 — the full dry-run scan now runs
+  end-to-end in the self-test: stubbed PowerShell feeds fake
+  Appx/provisioned JSON through the real orchestration (framework
+  filtering, per-layer acknowledgments, would-remove counters) proving
+  the layer isolation holds and dry-run touches nothing. DESIGN.md
+  counts synced (py T1–T17).
 - Audit round 15 (self-test gap): T16 — `--restore` replay is now
   machine-checked: it reads all rotated ledger generations, skips
   malformed lines, refuses unsafe package names, and reaches

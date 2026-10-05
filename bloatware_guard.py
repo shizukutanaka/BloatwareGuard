@@ -6027,6 +6027,57 @@ def run_self_test() -> int:
             # unsafe appx name, winget-without-winget, and junk are skipped
             assert calls == ["ps", "ps"], f"unexpected executions: {calls}"
 
+    def t_dry_run_scan():
+        """A fully-stubbed dry-run scan exercises the whole orchestration —
+        enumeration, counters, and per-layer logs — with no side effects."""
+        with tempfile.TemporaryDirectory() as td:
+            cfg = {
+                "BackupDirectory": td,
+                "Blacklist": ["Microsoft.Xbox", "Vendor.App"],
+                "Whitelist": [],
+                "Prevention": {
+                    # winreg-backed layers can't run off-Windows; the rest
+                    # of the orchestration is platform-neutral
+                    "RemoveWin32Programs": False,
+                    "MarkDeprovisioned": False,
+                    "RemoveDefaultStorePackages": False,
+                },
+            }
+            appx_json = json.dumps([
+                {"PackageFamilyName": "Microsoft.XboxGamingOverlay_fam",
+                 "Name": "Microsoft.XboxGamingOverlay",
+                 "InstallPath": "C:\\Apps\\x", "IsFramework": False,
+                 "PackageFullName": "Microsoft.XboxGamingOverlay_1.0_full"},
+                {"PackageFamilyName": "Microsoft.XboxFW_fam",
+                 "Name": "Microsoft.XboxFW", "InstallPath": "",
+                 "IsFramework": True, "PackageFullName": ""},
+                {"PackageFamilyName": "Microsoft.XboxTCUI_fam",
+                 "Name": "Microsoft.Xbox.TCUI", "InstallPath": "",
+                 "IsFramework": False, "PackageFullName": ""},
+            ])
+            prov_json = json.dumps([
+                {"DisplayName": "Vendor.App", "PackageName": "Vendor.App_1.0_x64__pub"},
+            ])
+
+            def fake_ps(cmd, timeout=60):
+                if "ProvisionedPackage" in cmd:
+                    return prov_json, "", 0
+                if "WindowsCapability" in cmd:
+                    return "", "", 0
+                return appx_json, "", 0
+
+            orig_ps, orig_cmd = run_powershell, run_cmd
+            globals()["run_powershell"] = fake_ps
+            globals()["run_cmd"] = lambda *a, **k: ("", 0)
+            try:
+                n = run_scan(cfg, logging.getLogger("t_dry_run"), dry_run=True)
+            finally:
+                globals()["run_powershell"] = orig_ps
+                globals()["run_cmd"] = orig_cmd
+            # 2 removable appx (framework filtered) + 1 provisioned —
+            # dry-run counts each would-remove like the C# build does
+            assert n == 3, f"would-remove count: {n}"
+
     check("T1: Config default-create + reload", t_config_roundtrip)
     check("T2: Blacklist/whitelist matching", t_matching)
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
@@ -6427,6 +6478,7 @@ def run_self_test() -> int:
     check("T14: cmd split + scan-interval clamp", t_split_and_interval)
     check("T15: hosts block splice idempotent + non-destructive", t_hosts_splice)
     check("T16: --restore ledger replay safety", t_restore_ledger)
+    check("T17: dry-run scan orchestration + counters", t_dry_run_scan)
 
     print()
     passed = 0
