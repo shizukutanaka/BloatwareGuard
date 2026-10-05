@@ -6609,7 +6609,8 @@ Commands:
   dry-run       Show what WOULD be removed (no changes made)
   --service-dry-run  Run as service in dry-run mode (no removal actions)
   list-installed  List installed packages matching blacklist
-  restore       Restore staged packages recorded in the removal ledger
+  restore       Restore staged Appx/winget/capability entries from the removal ledger
+                (registry, task, service and hosts changes are NOT reverted)
   install       Install as Windows Service (requires admin)
   uninstall     Remove Windows Service (requires admin)
   status        Show Windows Service status

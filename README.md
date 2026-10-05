@@ -114,9 +114,19 @@ BloatwareGuard.exe uninstall
 
 Every successful removal is appended to `removed-packages.jsonl` under
 `BackupDirectory` (default `C:\ProgramData\BloatwareGuard\Backups`).
-`restore` re-registers staged AppxPackages via their manifest;
-provisioned packages cannot be restored from the image and are reported
-for manual reinstall via the Microsoft Store.
+`restore` coverage is the same in both implementations:
+
+| Ledger kind | Action |
+|---|---|
+| `appx` / `provisioned` | Re-register the staged package via `Add-AppxPackage -Register` on its manifest; if the payload is gone it is reported for manual reinstall via the Microsoft Store |
+| `winget` | `winget install -e --id <id>` |
+| `capability` | `Add-WindowsCapability -Online` |
+| `win32` and anything else | Reported as manual — reinstall via the vendor |
+
+Registry policy values, disabled tasks/services/autologgers, and the
+telemetry hosts block are **not** reverted by `restore` — import the
+`.reg` exports under `BackupDirectory` for the registry side, or roll
+back everything with the pre-scan system restore point.
 
 ---
 

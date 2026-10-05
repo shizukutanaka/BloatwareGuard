@@ -6321,7 +6321,8 @@ def main():
     parser.add_argument("--list-installed", action="store_true",
                         help="List installed packages matching blacklist (C# parity: list-installed)")
     parser.add_argument("--restore", action="store_true",
-                        help="Restore staged packages recorded in the removal ledger")
+                        help="Restore staged Appx/winget/capability entries from the removal ledger "
+                             "(registry, task, service and hosts changes are NOT reverted)")
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG_PATH, help="Config file path")
     parser.add_argument("--version", action="store_true", help="Show version and exit")
     parser.add_argument("--self-test", action="store_true", help="Run internal wiring self-test (no admin required)")

@@ -2,6 +2,12 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 8 (improvement queue P2): `--restore` scope documented —
+  README now has a per-ledger-kind table (appx/provisioned → re-register,
+  winget → reinstall, capability → Add-WindowsCapability, win32/other →
+  manual) and states that registry/task/service/hosts changes are NOT
+  reverted (use the `.reg` exports or the pre-scan restore point). Same
+  scope note added to the `--restore`/help text and DESIGN.md.
 - Audit round 7 (improvement queue P2): per-layer scan counters — the
   Python scan summary now reports the same fields the C# service scan
   does: matched / removed|would-remove / skipped / system-apps-skipped /
