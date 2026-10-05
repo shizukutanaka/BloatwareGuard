@@ -6350,6 +6350,39 @@ def run_self_test() -> int:
                 else:
                     os.environ["SystemRoot"] = orig_root
 
+    def t_install_service_flow():
+        """install_service: refuses cleanly without NSSM (a pythonw
+        process is not SCM-aware), otherwise runs sc stop/delete → nssm
+        remove → install … --service → set, and propagates nssm rc."""
+        calls: List = []
+        rcv = [0]
+        orig_which, orig_cmd, orig_sleep = shutil.which, run_cmd, time.sleep
+        globals()["run_cmd"] = (
+            lambda *a, **k: calls.append(list(a[0])) or ("", rcv[0]))
+        try:
+            shutil.which = lambda x, path=None: None
+            time.sleep = lambda s: None
+            assert not install_service()
+            assert calls == []              # no half-registered service
+
+            shutil.which = lambda x, path=None: "/fake/nssm" if x == "nssm" else None
+            rcv[0] = 1                      # nssm install fails → False
+            assert not install_service()
+            rcv[0] = 0
+            assert install_service()
+            verbs = [c[1] for c in calls if c[0] == "sc"]
+            assert verbs == ["stop", "delete"] * 2, verbs
+            install_calls = [c for c in calls
+                             if c[0].endswith("nssm") and c[1] == "install"]
+            assert len(install_calls) == 2
+            assert install_calls[0][-1] == "--service"
+            assert any(c[0].endswith("nssm") and c[1] == "remove"
+                       for c in calls)
+        finally:
+            shutil.which = orig_which
+            globals()["run_cmd"] = orig_cmd
+            time.sleep = orig_sleep
+
     check("T1: Config default-create + reload", t_config_roundtrip)
     check("T2: Blacklist/whitelist matching", t_matching)
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
@@ -6761,6 +6794,7 @@ def run_self_test() -> int:
     check("T24: appx/provisioned name guards + rc fidelity",
           t_remove_guards_and_rc)
     check("T25: uninstall strips hosts + sc stop/delete", t_uninstall_strips_hosts)
+    check("T26: install_service NSSM flow + rc fidelity", t_install_service_flow)
 
     print()
     passed = 0

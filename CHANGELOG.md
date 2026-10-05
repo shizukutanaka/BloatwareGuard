@@ -2,6 +2,12 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 25 (self-test gap): T26 — `install_service` is now
+  machine-checked: refuses without NSSM (a pythonw process is not
+  SCM-aware, so `sc create` would always fail with error 1053), runs
+  sc stop/delete → nssm remove → install … --service → set in order,
+  and propagates nssm install failure. DESIGN.md counts synced
+  (py T1–T26).
 - Audit round 24 (self-test gap): T25 — `uninstall_service` is now
   machine-checked end-to-end: `sc stop`/`sc delete` run in order and
   the tool-owned hosts block is stripped (an uninstalled tool leaves
