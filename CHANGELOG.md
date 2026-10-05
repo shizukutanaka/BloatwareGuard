@@ -2,6 +2,13 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 43 (self-test gap, C#): T11 — `RemovalLedger` rotation
+  is now machine-checked: oversized ledger rolls to .1 … .5 with the
+  sixth generation dropped, `GenerationPaths` yields oldest-first for
+  the restore pass (private static via reflection; mirrors py T13).
+  Startup/ActiveSetup sweep audit clean: py `_is_bloat` ≡ cs `IsBloat`
+  (whitelist-first haystack match) and the stub deletion semantics
+  are identical. DESIGN.md counts synced (py T1–T41 / C# T1–T11).
 - Audit round 42 (self-test gap): T41 — failed restore attempts now
   machine-verified to land in the manual bucket: a non-zero rc on
   Add-AppxPackage/Add-WindowsCapability/winget install or an unsafe

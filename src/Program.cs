@@ -6935,7 +6935,7 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
     private static int RunSelfTest(GuardConfig config)
     {
         var passed = 0;
-        var total = 10;
+        var total = 11;
         var results = new List<string>();
 
         GuardLogger.Info("=== BloatwareGuard v1.61.3 — Self-Test Mode === [no admin required]");
@@ -7216,6 +7216,58 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         catch (Exception ex)
         {
             results.Add($"[FAIL] T10: split check — {ex.Message}");
+        }
+
+        // Test 11: removal-ledger rotation — oversized ledger rolls to
+        // .1 … .5 with the sixth generation dropped, and
+        // GenerationPaths yields oldest-first for the restore pass
+        // (private static — mirrored by py T13)
+        try
+        {
+            var ok = true;
+            var rot = typeof(RemovalLedger).GetMethod("RotateIfNeeded",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            var td = Path.Combine(Path.GetTempPath(),
+                "bg-t11-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(td);
+            try
+            {
+                var ledger = Path.Combine(td, "removed-packages.jsonl");
+                File.WriteAllText(ledger, new string('x', 1_100_000));
+                rot!.Invoke(null, new object?[] { ledger });
+                ok &= File.Exists(ledger + ".1") && !File.Exists(ledger);
+                // second rotation pushes the prior .1 → .2
+                File.WriteAllText(ledger, new string('y', 1_100_000));
+                rot.Invoke(null, new object?[] { ledger });
+                var gens = RemovalLedger.GenerationPaths(ledger);
+                ok &= gens.Count == 3
+                    && gens[0].EndsWith(".2") && gens[1].EndsWith(".1")
+                    && gens[2] == ledger;
+                // keep rotating — the sixth generation must drop off
+                for (var i = 0; i < 5; i++)
+                {
+                    File.WriteAllText(ledger, new string('z', 1_100_000));
+                    rot.Invoke(null, new object?[] { ledger });
+                }
+                ok &= !File.Exists(ledger + ".6");
+                ok &= RemovalLedger.GenerationPaths(ledger).Count == 6;
+            }
+            finally { Directory.Delete(td, recursive: true); }
+            if (ok)
+            {
+                results.Add("[PASS] T11: ledger rotation 5-gen cap + order");
+                GuardLogger.Info("[PASS] T11: ledger rotation contract");
+                passed++;
+            }
+            else
+            {
+                results.Add("[FAIL] T11: ledger rotation contract broken");
+                GuardLogger.Error("[FAIL] T11: ledger rotation contract broken");
+            }
+        }
+        catch (Exception ex)
+        {
+            results.Add($"[FAIL] T11: ledger rotation — {ex.Message}");
         }
 
         // Summary
