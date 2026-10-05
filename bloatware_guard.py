@@ -6383,6 +6383,43 @@ def run_self_test() -> int:
             globals()["run_cmd"] = orig_cmd
             time.sleep = orig_sleep
 
+    def t_backup_registry_keys():
+        """registry backup: exports every HKLM write-target, demoted
+        service key, and per-user path under HKCU (SID enumeration needs
+        Windows winreg); unique filenames; once per process."""
+        with tempfile.TemporaryDirectory() as td:
+            calls: List = []
+            orig_cmd = run_cmd
+            globals()["run_cmd"] = (
+                lambda *a, **k: calls.append(list(a[0])) or ("", 0))
+            orig_pd = os.environ.get("PROGRAMDATA")
+            os.environ["PROGRAMDATA"] = td
+            globals()["_registry_backup_done"] = False
+            try:
+                backup_registry_keys(logging.getLogger("t_backup"))
+                assert len(calls) == (
+                    len(_BACKUP_KEY_PATHS)
+                    + len(_MISC_DEMOTE_SERVICES) + len(_EXTRA_BACKUP_SERVICES)
+                    + len(_USER_BACKUP_KEY_PATHS)), len(calls)
+                hklm = [c for c in calls if c[2].startswith("HKLM\\")]
+                usr = [c for c in calls if c[2].startswith("HKCU\\")]
+                assert len(usr) == len(_USER_BACKUP_KEY_PATHS)
+                for c in calls:
+                    assert c[0] == "reg.exe" and c[1] == "export"
+                    assert c[-1] == "/y" and c[3].endswith(".reg")
+                assert hklm, "no HKLM exports recorded"
+                assert len({c[3] for c in calls}) == len(calls), "name collision"
+                assert (Path(td) / "BloatwareGuard" / "backup").is_dir()
+                n = len(calls)
+                backup_registry_keys(logging.getLogger("t_backup"))
+                assert len(calls) == n   # once per process
+            finally:
+                globals()["run_cmd"] = orig_cmd
+                if orig_pd is None:
+                    os.environ.pop("PROGRAMDATA", None)
+                else:
+                    os.environ["PROGRAMDATA"] = orig_pd
+
     check("T1: Config default-create + reload", t_config_roundtrip)
     check("T2: Blacklist/whitelist matching", t_matching)
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
@@ -6795,6 +6832,8 @@ def run_self_test() -> int:
           t_remove_guards_and_rc)
     check("T25: uninstall strips hosts + sc stop/delete", t_uninstall_strips_hosts)
     check("T26: install_service NSSM flow + rc fidelity", t_install_service_flow)
+    check("T27: registry backup sweep — all write paths, once per process",
+          t_backup_registry_keys)
 
     print()
     passed = 0

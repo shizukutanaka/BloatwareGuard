@@ -2,6 +2,12 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 26 (self-test gap): T27 — `backup_registry_keys` is now
+  machine-checked: `reg.exe export` fires for every HKLM write-target
+  path, every demoted service key, and every per-user path under HKCU
+  (SID enumeration needs Windows winreg), output filenames are unique,
+  and the sweep runs once per process. DESIGN.md counts synced
+  (py T1–T27).
 - Audit round 25 (self-test gap): T26 — `install_service` is now
   machine-checked: refuses without NSSM (a pythonw process is not
   SCM-aware, so `sc create` would always fail with error 1053), runs
