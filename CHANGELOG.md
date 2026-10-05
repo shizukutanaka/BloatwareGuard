@@ -2,6 +2,11 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 18 (self-test gap): T19 — config-load edges (missing →
+  defaults written, BOM tolerated, corrupt JSON fails fast by design)
+  and the haystack matcher (`=` needles stay live in startup/ActiveSetup
+  scans; empty/`=` entries inert) are now machine-checked. DESIGN.md
+  counts synced (py T1–T19).
 - Audit round 17 (self-test gap): T18 — the LIVE scan path now runs
   end-to-end in the self-test too: stubbed system calls feed the real
   removal flow, verifying the counter bookkeeping (removed /

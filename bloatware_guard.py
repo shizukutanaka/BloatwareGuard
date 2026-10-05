@@ -6146,6 +6146,33 @@ def run_self_test() -> int:
                      for ln in ledger.read_text(encoding="utf-8").splitlines()]
             assert kinds == ["appx", "provisioned"], f"ledger kinds: {kinds}"
 
+    def t_config_edges_and_haystack():
+        """load_config: missing file → defaults + atomic write, BOM tolerated,
+        corrupt JSON fails fast (a silent fallback would run rule-less).
+        _entry_matches_haystack: '=' needles stay live in startup/ActiveSetup
+        scans; empty and '='-only entries are inert."""
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "config.json"
+            created = load_config(path)
+            assert path.exists() and created["Blacklist"]
+            path.write_bytes(b"\xef\xbb\xbf" + b'{"Blacklist": ["A.B"], "Custom": 1}')
+            cfg = load_config(path)
+            assert cfg["Blacklist"] == ["A.B"] and cfg["Custom"] == 1
+            path.write_text("{not json", encoding="utf-8")
+            try:
+                load_config(path)
+                raise AssertionError("corrupt config did not raise")
+            except json.JSONDecodeError:
+                pass
+        # callers lowercase the haystack (cs uses OrdinalIgnoreCase Contains)
+        assert _entry_matches_haystack("=McAfee", "mcafee total protection")
+        assert _entry_matches_haystack("McAfee", "mcafee_total")
+        assert _entry_matches_haystack("xbox.tcui", "xbox.tcui stub")
+        assert not _entry_matches_haystack("", "anything")
+        assert not _entry_matches_haystack("=", "anything")
+        assert not _entry_matches_haystack("   ", "anything")
+        assert not _entry_matches_haystack("nope", "nothing here")
+
     check("T1: Config default-create + reload", t_config_roundtrip)
     check("T2: Blacklist/whitelist matching", t_matching)
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
@@ -6548,6 +6575,7 @@ def run_self_test() -> int:
     check("T16: --restore ledger replay safety", t_restore_ledger)
     check("T17: dry-run scan orchestration + counters", t_dry_run_scan)
     check("T18: live-scan removal path + ledger records", t_live_scan_removal)
+    check("T19: config load edges + haystack matching", t_config_edges_and_haystack)
 
     print()
     passed = 0
