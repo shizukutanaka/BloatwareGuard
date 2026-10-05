@@ -5684,7 +5684,8 @@ def run_service(config: dict, logger: logging.Logger,
                     current_win32 = set()
 
                 if not first_scan:
-                    for display_name in current_provisioned - seen_provisioned:
+                    for display_name in _monitor_delta(
+                            seen_provisioned, current_provisioned, first_scan):
                         logger.warning(
                             f"[MONITOR] RE-INSTALLED detected: {display_name} — removing immediately!")
                         if config.get("DryRun", False):
@@ -5694,7 +5695,8 @@ def run_service(config: dict, logger: logging.Logger,
                         else:
                             logger.warning(f"[MONITOR] Re-removal failed: {display_name}")
 
-                    reinstalled = current_installed - seen_installed
+                    reinstalled = _monitor_delta(
+                        seen_installed, current_installed, first_scan)
                     for family_name in reinstalled:
                         logger.warning(
                             f"[MONITOR] RE-INSTALLED AppxPackage: {family_name} — removing!")
@@ -5707,8 +5709,11 @@ def run_service(config: dict, logger: logging.Logger,
                             logger.warning(f"[MONITOR] Re-removal failed: {family_name}")
 
                     seen_names = {d for d, _, _, _ in seen_win32}
+                    new_win32 = _monitor_delta(
+                        seen_names, {d for d, _, _, _ in current_win32},
+                        first_scan)
                     for display, uninstall, quiet, user_hive in current_win32:
-                        if display in seen_names or user_hive:
+                        if display not in new_win32 or user_hive:
                             continue  # user-hive entries are report-only
                         logger.warning(
                             f"[MONITOR] RE-INSTALLED Win32: {display} — removing!")
@@ -5728,6 +5733,13 @@ def run_service(config: dict, logger: logging.Logger,
         except Exception as e:
             logger.error(f"Scan error: {e}")
         time.sleep(interval)
+
+
+def _monitor_delta(seen: set, current: set, first_scan: bool) -> set:
+    """Reinstall-detector diff: the first scan only establishes the
+    baseline — entries already present are not (re-)installs. Items that
+    disappear and come back re-enter `current` and get flagged again."""
+    return set() if first_scan else current - seen
 
 
 # ─── Windows Service Registration ────────────────────────────────────────────
@@ -6850,6 +6862,19 @@ def run_self_test() -> int:
             globals()["run_powershell"] = orig_ps
             globals()["is_admin"] = orig_admin
 
+    def t_monitor_delta_contract():
+        """Reinstall-detector diff: the first scan establishes the
+        baseline (no re-removal of what was already there), later
+        scans flag only new entries, and an item that vanishes and
+        returns is flagged again."""
+        assert _monitor_delta({"a", "b"}, {"a", "b", "c"}, True) == set()
+        assert _monitor_delta({"a", "b"}, {"a", "b", "c"}, False) == {"c"}
+        # seen tracks current each cycle — a vanished item that returns
+        # is flagged again ({"a"} seen → {"a","b"} current flags "b")
+        assert _monitor_delta({"a"}, {"a", "b"}, False) == {"b"}
+        # a disappeared entry produces no flag
+        assert _monitor_delta({"a", "b"}, {"a"}, False) == set()
+
     check("T1: Config default-create + reload", t_config_roundtrip)
     check("T2: Blacklist/whitelist matching", t_matching)
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
@@ -7281,6 +7306,8 @@ def run_self_test() -> int:
           t_single_object_json_wrap)
     check("T38: -AllUsers failure falls back to current-user scope",
           t_allusers_scope_fallback)
+    check("T39: reinstall-monitor delta (baseline + re-flag)",
+          t_monitor_delta_contract)
 
     print()
     passed = 0

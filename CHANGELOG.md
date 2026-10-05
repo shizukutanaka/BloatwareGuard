@@ -2,6 +2,12 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 39 (self-test gap): the reinstall monitor's diff is
+  extracted to `_monitor_delta` (first scan establishes the baseline,
+  later scans flag only new entries, a vanished-and-returned item
+  re-flags) and T39 pins it — the monitor path was previously
+  untestable inside the infinite service loop. DESIGN.md counts
+  synced (py T1–T39).
 - Audit round 38 (parity gap): `_enum_blacklisted_packages` now
   falls back to the current-user scope when the `-AllUsers` query
   errors under admin — previously it returned nothing while C#
