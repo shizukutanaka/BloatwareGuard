@@ -2,6 +2,12 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 2 (improvement queue P1): Win32 silent-uninstall now treats
+  rc 1641 (ERROR_SUCCESS_REBOOT_INITIATED) and 3010
+  (ERROR_SUCCESS_REBOOT_REQUIRED) as success with a reboot-pending log —
+  previously every non-zero exit counted as failure, so a finished
+  uninstall needing a reboot was never ledger-recorded and could be
+  retried on every scan cycle.
 - Audit round (first-principles + Socratic review): fixed the py console
   decode — child-process output (powershell/reg.exe/schtasks/winget/sc/
   dism) now decodes via the system OEM code page (`GetOEMCP`) instead of

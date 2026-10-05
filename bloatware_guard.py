@@ -879,6 +879,11 @@ def remove_win32_program(display, uninstall, quiet, logger):
         logger.info(f"Win32 program needs manual removal (no silent uninstaller): {display}")
         return False
     out, rc = run_cmd(argv, timeout=300)
+    # 1641 = ERROR_SUCCESS_REBOOT_INITIATED, 3010 = ERROR_SUCCESS_REBOOT_REQUIRED:
+    # the uninstall succeeded and the machine needs a reboot to finish.
+    if rc in (1641, 3010):
+        logger.info(f"Win32 uninstall succeeded, reboot pending (rc={rc}): {display}")
+        return True
     if rc == 0:
         return True
     logger.warning(f"Win32 uninstall failed for {display} (rc={rc}): {out[:200]}")

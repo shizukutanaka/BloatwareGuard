@@ -1208,7 +1208,12 @@ public static class Win32Guard
             UseShellExecute = false,
             CreateNoWindow = true
         };
-        return Proc.Wait(psi, 300000) == 0;  // uninstallers can take minutes
+        var rc = Proc.Wait(psi, 300000);  // uninstallers can take minutes
+        // 1641 = ERROR_SUCCESS_REBOOT_INITIATED, 3010 = ERROR_SUCCESS_REBOOT_REQUIRED:
+        // the uninstall succeeded and the machine needs a reboot to finish.
+        if (rc is 1641 or 3010)
+            GuardLogger.Info($"Win32 uninstall succeeded, reboot pending (rc={rc}): {displayName}");
+        return rc is 0 or 1641 or 3010;
     }
 
     private static (string cmd, string args) SplitCommandLine(string commandLine)
