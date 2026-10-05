@@ -2,6 +2,9 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- `deploy_verify.bat` banner stale at v1.61.1 while the app is v1.61.3 —
+  banner/echo strings bumped to match (display-only, no behavior change).
+
 - `DisableErrorReporting` also sets `DoNotSendAdditionalData` = 1 on
   the WER *policy* key — the policy spelling of the extra-data block,
   distinct from the machine-key `DontSendAdditionalData` already set
