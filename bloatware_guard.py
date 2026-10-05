@@ -5653,16 +5653,14 @@ def run_service(config: dict, logger: logging.Logger,
                     mtime = None  # file deleted — skip quietly until it returns
                 if mtime is not None and mtime != config_mtime:
                     config_mtime = mtime  # bump first — a bad edit logs once, not per cycle
-                    try:
-                        config = load_config(Path(config_path))
-                        config["DryRun"] = config.get("DryRun", False) or force_dry_run
+                    new_config = _try_reload_config(
+                        config_path, force_dry_run, logger)
+                    if new_config is not None:
+                        config = new_config
                         interval = _scan_interval(config, logger)
                         prev = config.get("Prevention", {})
                         blacklist = config.get("Blacklist", [])
                         whitelist = config.get("Whitelist", [])
-                        logger.info("Config reloaded (file changed)")
-                    except Exception as e:
-                        logger.warning(f"Config reload failed — keeping last-good: {e}")
 
             # Standard scan (dry-run mode if configured)
             run_scan(config, logger, dry_run=config.get("DryRun", False))
@@ -5741,6 +5739,22 @@ def run_service(config: dict, logger: logging.Logger,
         except Exception as e:
             logger.error(f"Scan error: {e}")
         time.sleep(interval)
+
+
+def _try_reload_config(config_path, force_dry_run: bool,
+                       logger: logging.Logger):
+    """Reload config.json after an mtime change. Returns the updated
+    config, or None when the new file fails to load so the caller can
+    keep the last-good one (fail-fast would kill the service). The
+    --service-dry-run override is re-applied to the reloaded config."""
+    try:
+        config = load_config(Path(config_path))
+        config["DryRun"] = config.get("DryRun", False) or force_dry_run
+        logger.info("Config reloaded (file changed)")
+        return config
+    except Exception as e:
+        logger.warning(f"Config reload failed — keeping last-good: {e}")
+        return None
 
 
 def _monitor_delta(seen: set, current: set, first_scan: bool) -> set:
@@ -6978,6 +6992,27 @@ def run_self_test() -> int:
         finally:
             globals()["run_powershell"] = orig_ps
 
+    def t_reload_failure_contract():
+        """Service hot-reload: a bad edit returns None so the loop keeps
+        the last-good config; --service-dry-run is re-forced on the
+        reloaded config even if the file says DryRun=false."""
+        logger = logging.getLogger("test")
+        with tempfile.TemporaryDirectory() as td:
+            good = Path(td) / "config.json"
+            good.write_text(json.dumps({"DryRun": False}))
+            bad = Path(td) / "broken.json"
+            bad.write_text("{not json")
+            nc = _try_reload_config(good, True, logger)
+            assert nc is not None and nc["DryRun"] is True
+            nc = _try_reload_config(good, False, logger)
+            assert nc is not None and nc["DryRun"] is False
+            assert _try_reload_config(bad, True, logger) is None
+            # a deleted file regenerates as defaults (load_config writes
+            # when absent) — reload still succeeds, dry-run re-forced
+            missing = Path(td) / "gone.json"
+            nc = _try_reload_config(missing, True, logger)
+            assert nc is not None and nc["DryRun"] is True
+
     check("T1: Config default-create + reload", t_config_roundtrip)
     check("T2: Blacklist/whitelist matching", t_matching)
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
@@ -7417,6 +7452,8 @@ def run_self_test() -> int:
           t_restore_failure_counts_manual)
     check("T42: provisioned rows need both names to be removable",
           t_provisioned_empty_fields_safe)
+    check("T43: hot-reload keeps last-good + forces dry-run",
+          t_reload_failure_contract)
 
     print()
     passed = 0

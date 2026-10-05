@@ -2,6 +2,13 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 48 (self-test gap): hot-reload's failure contract is
+  now machine-checked — `_try_reload_config` extracted from the
+  service loop so T43 can pin: a bad config edit returns None (loop
+  keeps last-good), a deleted file regenerates defaults, and
+  `--service-dry-run` is re-forced onto the reloaded config.
+  Log-rotation parity verified clean (both impls roll at 1 MB +
+  keep one prior generation). DESIGN.md counts synced (py T1–T43).
 - Audit round 47 (parity fix): `--list-installed` now shows
   framework-matched packages with a [FRAMEWORK] tag instead of
   dropping them silently — C# `ListInstalled` parity (they are
