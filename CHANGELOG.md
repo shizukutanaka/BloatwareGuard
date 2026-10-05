@@ -2,6 +2,12 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 37 (self-test gap): T37 — single-object JSON wrap is
+  now machine-checked at every parse site: ConvertTo-Json emits a
+  bare OBJECT when exactly one item survives, and appx, provisioned,
+  and the OEM-task sweep all wrap it into a list (single-bloat
+  machines would otherwise enumerate nothing). DESIGN.md counts
+  synced (py T1–T37).
 - Audit round 36 (self-test gap, C#): T9 — matching/family-name
   contracts are now pinned on the C# side (mirroring py T2/T28/T29):
   `=` means the FULL name, haystack scans strip `=` and still needle,

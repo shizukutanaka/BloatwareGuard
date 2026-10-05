@@ -6781,6 +6781,43 @@ def run_self_test() -> int:
             globals()["run_cmd"] = orig_cmd
             shutil.which = orig_which
 
+    def t_single_object_json_wrap():
+        """ConvertTo-Json emits a bare OBJECT when exactly one item
+        survives — every parse site must wrap it into a list or
+        single-bloat machines enumerate nothing."""
+        calls = []
+        orig_ps, orig_cmd = run_powershell, run_cmd
+        globals()["run_cmd"] = lambda a, **k: (calls.append(a), "", 0)[1:]
+        appx_obj = json.dumps({
+            "PackageFamilyName": "Bad.App_abc", "Name": "Bad.App",
+            "InstallPath": "C:\\x", "IsFramework": False,
+            "PackageFullName": "Bad.App_1_x"})
+        prov_obj = json.dumps({
+            "DisplayName": "Bad.Prov", "PackageName": "Bad.Prov_1_x"})
+        task_obj = json.dumps({
+            "TaskName": "OEM Junk", "TaskPath": "\\OEM\\",
+            "State": "Ready"})
+
+        def fake_ps(cmd, timeout=60):
+            if "ProvisionedPackage" in cmd:
+                return prov_obj, "", 0
+            if "Get-ScheduledTask" in cmd:
+                return task_obj, "", 0
+            return appx_obj, "", 0
+
+        globals()["run_powershell"] = fake_ps
+        try:
+            appx = _enum_blacklisted_packages(["Bad.App"], [])
+            assert len(appx) == 1 and appx[0][0] == "Bad.App_abc", appx
+            prov = get_blacklisted_provisioned(["Bad.Prov"], [])
+            assert len(prov) == 1 and prov[0][0] == "Bad.Prov", prov
+            disable_oem_scheduled_tasks(logging.getLogger("t_sj"))
+            assert any("OEM" in " ".join(c) and "/DISABLE" in c
+                       for c in calls), calls
+        finally:
+            globals()["run_powershell"] = orig_ps
+            globals()["run_cmd"] = orig_cmd
+
     check("T1: Config default-create + reload", t_config_roundtrip)
     check("T2: Blacklist/whitelist matching", t_matching)
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
@@ -7208,6 +7245,8 @@ def run_self_test() -> int:
           t_config_passthrough_semantics)
     check("T35: layer failure isolation", t_layer_failure_isolation)
     check("T36: restore dispatches each ledger kind", t_restore_kind_dispatch)
+    check("T37: single-object JSON wraps at all parse sites",
+          t_single_object_json_wrap)
 
     print()
     passed = 0
