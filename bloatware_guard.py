@@ -6654,6 +6654,30 @@ def run_self_test() -> int:
             else:
                 os.environ["PROGRAMDATA"] = orig_pd
 
+    def t_config_passthrough_semantics():
+        """An existing config is returned AS-IS — unknown user keys
+        survive, and a partial Prevention map is never back-filled:
+        absent toggles get their default at the `.get(..., True)` call
+        sites, which is what lets upgrades activate new layers without
+        rewriting the user's file."""
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / "config.json"
+            p.write_text(json.dumps({
+                "Blacklist": ["X.1"],
+                "Prevention": {"DisableCopilot": False},   # one key only
+                "CustomUserNote": "keep me",
+                "DryRun": True,
+            }), encoding="utf-8")
+            cfg = load_config(p)
+            assert cfg["CustomUserNote"] == "keep me"
+            assert cfg["DryRun"] is True
+            assert cfg["Prevention"] == {"DisableCopilot": False}
+            # upgrade semantics: absent toggles read default-True
+            assert cfg["Prevention"].get("MarkDeprovisioned", True) is True
+            assert cfg["Prevention"].get("WingetSweep", True) is True
+            # opt-in layers keep their explicit False semantics
+            assert cfg["Prevention"].get("DisableOneDrive", False) is False
+
     check("T1: Config default-create + reload", t_config_roundtrip)
     check("T2: Blacklist/whitelist matching", t_matching)
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
@@ -7077,6 +7101,8 @@ def run_self_test() -> int:
     check("T32: removal toggles gate each layer independently",
           t_removal_toggle_gating)
     check("T33: whitelist wins inside live scan", t_whitelist_wins_e2e)
+    check("T34: config passthrough — unknown keys + upgrade defaults",
+          t_config_passthrough_semantics)
 
     print()
     passed = 0

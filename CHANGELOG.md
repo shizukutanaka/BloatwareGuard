@@ -2,6 +2,13 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 33 (self-test gap): T34 — config passthrough semantics
+  are now pinned: existing configs are returned AS-IS (unknown user
+  keys survive, partial Prevention maps are never back-filled) and
+  absent toggles get their default at the `.get(..., True)` call
+  sites — the mechanism that lets upgrades activate new layers
+  without rewriting the user's file. DESIGN.md counts synced
+  (py T1–T34).
 - Audit round 32 (self-test gap): T33 — whitelist precedence is now
   machine-checked inside the live scan: a package matching both lists
   is filtered at enumeration — never removed, never counted — and a
