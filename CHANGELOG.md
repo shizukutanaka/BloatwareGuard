@@ -2,6 +2,11 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 38 (parity gap): `_enum_blacklisted_packages` now
+  falls back to the current-user scope when the `-AllUsers` query
+  errors under admin — previously it returned nothing while C#
+  retries without the flag. T38 pins the retry (AllUsers call then
+  scoped-out retry). DESIGN.md counts synced (py T1–T38).
 - Audit round 37 (self-test gap): T37 — single-object JSON wrap is
   now machine-checked at every parse site: ConvertTo-Json emits a
   bare OBJECT when exactly one item survives, and appx, provisioned,

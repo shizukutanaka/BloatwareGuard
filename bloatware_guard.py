@@ -547,6 +547,11 @@ def _enum_blacklisted_packages(blacklist: List[str], whitelist: List[str],
               " | Select-Object PackageFamilyName,Name,InstallPath,IsFramework,PackageFullName | ConvertTo-Json")
     stdout, stderr, rc = run_powershell(ps_cmd, timeout=120)
 
+    # -AllUsers needs admin — if it errors anyway, fall back to the
+    # current-user scope rather than enumerating nothing (C# parity).
+    if (rc != 0 or not stdout) and scope:
+        stdout, stderr, rc = run_powershell(ps_cmd.replace(" -AllUsers", ""), timeout=120)
+
     if rc != 0 or not stdout:
         return []
 
@@ -6818,6 +6823,33 @@ def run_self_test() -> int:
             globals()["run_powershell"] = orig_ps
             globals()["run_cmd"] = orig_cmd
 
+    def t_allusers_scope_fallback():
+        """An -AllUsers query that errors under admin falls back to the
+        current-user scope instead of enumerating nothing."""
+        calls = []
+        orig_ps, orig_admin = run_powershell, is_admin
+        globals()["is_admin"] = lambda: True
+        appx_json = json.dumps([{
+            "PackageFamilyName": "Bad.App_abc", "Name": "Bad.App",
+            "InstallPath": "C:\\x", "IsFramework": False,
+            "PackageFullName": "Bad.App_1_x"}])
+
+        def fake_ps(cmd, timeout=60):
+            calls.append(cmd)
+            if " -AllUsers" in cmd:
+                return "", "access denied", 1
+            return appx_json, "", 0
+
+        globals()["run_powershell"] = fake_ps
+        try:
+            appx = _enum_blacklisted_packages(["Bad.App"], [])
+            assert len(appx) == 1, appx
+            assert len(calls) == 2 and " -AllUsers" in calls[0] \
+                and " -AllUsers" not in calls[1], calls
+        finally:
+            globals()["run_powershell"] = orig_ps
+            globals()["is_admin"] = orig_admin
+
     check("T1: Config default-create + reload", t_config_roundtrip)
     check("T2: Blacklist/whitelist matching", t_matching)
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
@@ -7247,6 +7279,8 @@ def run_self_test() -> int:
     check("T36: restore dispatches each ledger kind", t_restore_kind_dispatch)
     check("T37: single-object JSON wraps at all parse sites",
           t_single_object_json_wrap)
+    check("T38: -AllUsers failure falls back to current-user scope",
+          t_allusers_scope_fallback)
 
     print()
     passed = 0
