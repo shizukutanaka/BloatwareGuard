@@ -697,6 +697,41 @@ public static class ConfigLoader
 
 // ─── Appx Package Manager ────────────────────────────────────────────────────
 
+/// <summary>Blacklist/whitelist entry matching, shared by every scan
+/// surface. '=' prefix narrows an entry to an exact name match; a bare
+/// entry stays a substring match (all case-insensitive).</summary>
+public static class MatchRule
+{
+    /// <summary>Entry vs a single package/display name.</summary>
+    public static bool EntryMatchesName(string entry, string name)
+    {
+        var e = entry.Trim();
+        if (e.Length == 0 || e == "=")
+            return false;
+        if (e.StartsWith("=", StringComparison.Ordinal))
+            return string.Equals(name, e.Substring(1), StringComparison.OrdinalIgnoreCase);
+        return name.Contains(e, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Needle scan over a joined name+data string — '=' is a
+    /// name-equality marker, so the literal body still needles.</summary>
+    public static bool EntryMatchesHaystack(string entry, string haystack)
+    {
+        var e = entry.Trim().TrimStart('=');
+        return e.Length != 0 && haystack.Contains(e, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Regex alternation atom for an entry sent to PowerShell
+    /// -match: '=' entries anchor to the whole name.</summary>
+    public static string PatternAtom(string entry)
+    {
+        var e = entry.Trim();
+        if (e.StartsWith("=", StringComparison.Ordinal))
+            return "^" + Regex.Escape(e.Substring(1)) + "$";
+        return Regex.Escape(e);
+    }
+}
+
 public static class AppxManager
 {
     /// <summary>Get all installed AppxPackages whose FamilyName matches any blacklist entry</summary>
@@ -705,7 +740,7 @@ public static class AppxManager
     {
         var results = new List<(string, string, string, bool, string?)>();
         var pattern = string.Join("|",
-            blacklist.Where(b => !string.IsNullOrWhiteSpace(b)).Select(Regex.Escape));
+            blacklist.Where(b => !string.IsNullOrWhiteSpace(b)).Select(MatchRule.PatternAtom));
         if (pattern.Length == 0)
             return results;  // empty pattern would -match every package
 
@@ -813,7 +848,7 @@ public static class AppxManager
     public static bool IsWhitelisted(string packageFamilyName, List<string> whitelist)
     {
         return whitelist.Any(w => !string.IsNullOrWhiteSpace(w) &&
-            packageFamilyName.Contains(w, StringComparison.OrdinalIgnoreCase));
+            MatchRule.EntryMatchesName(w, packageFamilyName));
     }
 
     /// <summary>Get all provisioned packages (these re-deploy on new user creation)</summary>
@@ -821,7 +856,7 @@ public static class AppxManager
     {
         var results = new List<string>();
         var pattern = string.Join("|",
-            blacklist.Where(b => !string.IsNullOrWhiteSpace(b)).Select(Regex.Escape));
+            blacklist.Where(b => !string.IsNullOrWhiteSpace(b)).Select(MatchRule.PatternAtom));
         if (pattern.Length == 0)
             return results;  // empty pattern would -match every package
 
@@ -1139,8 +1174,7 @@ public static class Win32Guard
                         var quiet = sk?.GetValue("QuietUninstallString") as string ?? "";
                         if (!IsWhitelisted(display, whitelist) &&
                             blacklist.Concat(Win32BloatNames).Any(
-                                b => !string.IsNullOrWhiteSpace(b) &&
-                                display.Contains(b, StringComparison.OrdinalIgnoreCase)) &&
+                                b => MatchRule.EntryMatchesName(b, display)) &&
                             seen.Add(display))
                         {
                             results.Add((display, uninstall, quiet, userHive));
@@ -1171,8 +1205,7 @@ public static class Win32Guard
     }
 
     private static bool IsWhitelisted(string display, List<string> whitelist) =>
-        whitelist.Any(w => !string.IsNullOrWhiteSpace(w) &&
-            display.Contains(w, StringComparison.OrdinalIgnoreCase));
+        whitelist.Any(w => MatchRule.EntryMatchesName(w, display));
 
     /// <summary>Silent-uninstall one program. Uses the vendor-supplied
     /// QuietUninstallString when present; MSI entries fall back to
@@ -4251,11 +4284,9 @@ public static class RegistryGuard
         bool IsBloat(string name, string? data)
         {
             var haystack = name + " " + data;
-            if (whitelist.Any(w => !string.IsNullOrWhiteSpace(w) &&
-                    haystack.Contains(w, StringComparison.OrdinalIgnoreCase)))
+            if (whitelist.Any(w => MatchRule.EntryMatchesHaystack(w, haystack)))
                 return false;
-            return needles.Any(n =>
-                haystack.Contains(n, StringComparison.OrdinalIgnoreCase));
+            return needles.Any(n => MatchRule.EntryMatchesHaystack(n, haystack));
         }
 
         void ScanAndMark(RegistryKey root, string runPath, string approvedPath,
@@ -5921,8 +5952,7 @@ public static class WingetGuard
             if (!entry.Contains('.') || !WingetIdPattern.IsMatch(entry))
                 continue;
             // Whitelist still wins — a protected entry never reaches winget
-            if (config.Whitelist.Any(w => !string.IsNullOrWhiteSpace(w) &&
-                    entry.Contains(w.Trim(), StringComparison.OrdinalIgnoreCase)))
+            if (config.Whitelist.Any(w => MatchRule.EntryMatchesName(w, entry)))
             {
                 GuardLogger.Info($"Whitelisted (winget skip): {entry}");
                 continue;
@@ -6368,7 +6398,7 @@ public class GuardService : BackgroundService
     private bool IsWhitelisted(string packageFamilyName)
     {
         var match = _config.Whitelist.FirstOrDefault(w =>
-            packageFamilyName.Contains(w, StringComparison.OrdinalIgnoreCase));
+            MatchRule.EntryMatchesName(w, packageFamilyName));
         if (match != null)
             GuardLogger.Info($"  WHITELIST MATCH: '{packageFamilyName}' contains '{match}'");
         return match != null;

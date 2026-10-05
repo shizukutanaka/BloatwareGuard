@@ -2,6 +2,14 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 5 (improvement queue P2): exact-match mode — a `=` prefix on
+  a Blacklist/Whitelist entry narrows it to an exact package/display-name
+  match (`"=Microsoft.YourPhone"` never hits `Microsoft.YourPhoneXYZ`).
+  One `MatchRule`/`_entry_matches_name`+`_entry_matches_haystack` helper
+  pair drives every consumer (appx/provisioned patterns — '=' becomes a
+  `^...$` regex atom in the PowerShell -match alternation — Win32, winget,
+  service monitor); haystack scans (startup, ActiveSetup) strip the marker
+  and keep needling so '=' entries never go dead there. T2 covers it.
 - Audit round 4 (improvement queue P2): single-instance guard — a mutating
   run (scan / service / restore) now takes the named `Global\BloatwareGuard`
   mutex shared by both builds and exits when another instance holds it,

@@ -143,6 +143,15 @@ Requires admin (`DISM /Online /Remove-ProvisionedPackage`). Non-admin path logs 
 
 Always preserves: `WindowsStore`, `Calculator`, `Notepad`, `Microsoft.VCLibs`, `Microsoft.VCWeb`.
 
+### Blacklist/Whitelist matching
+
+Entries are substring matches (case-insensitive) by default. Prefix an
+entry with `=` for an exact-name match — e.g. `"=Microsoft.YourPhone"`
+targets only that package, never `Microsoft.YourPhoneXYZ`. Applies to
+installed/provisioned Appx, Win32 programs, winget IDs, and the service
+monitor; startup/ActiveSetup haystack scans still match the literal
+body so `=` entries never go dead there.
+
 ---
 
 ## Files

@@ -496,13 +496,31 @@ def run_cmd(args, timeout: int = 30) -> Tuple[str, int]:
 
 # ─── Appx Package Manager ────────────────────────────────────────────────────
 
+def _entry_matches_name(entry: str, name: str) -> bool:
+    """One blacklist/whitelist entry vs a single package/display name.
+    '=' prefix requires an exact match; anything else is a substring
+    match (all case-insensitive)."""
+    e = entry.strip().lower()
+    if not e or e == "=":
+        return False
+    if e.startswith("="):
+        return name.lower() == e[1:]
+    return e in name.lower()
+
+
+def _entry_matches_haystack(entry: str, haystack: str) -> bool:
+    """Needle scan over a joined name+data string — '=' is a name-equality
+    marker, so the literal body still needles (never a dead entry)."""
+    e = entry.strip().lower().lstrip("=")
+    return bool(e) and e in haystack
+
+
 def is_target_package(pkg_name: str, blacklist: List[str], whitelist: List[str]) -> bool:
     """True if pkg_name matches any blacklist entry and no whitelist entry."""
-    name = pkg_name.lower()
-    if any(w and w.lower() in name for w in whitelist):
+    if any(_entry_matches_name(w, pkg_name) for w in whitelist):
         return False
     # empty entries would substring-match every package
-    return any(entry and entry.strip() and entry.lower() in name for entry in blacklist)
+    return any(_entry_matches_name(entry, pkg_name) for entry in blacklist)
 
 
 def get_blacklisted_packages(blacklist: List[str], whitelist: List[str]) -> List[Tuple[str, str, str]]:
@@ -4028,9 +4046,9 @@ def disable_startup_bloat(config: dict, logger: logging.Logger):
 
     def _is_bloat(name, data):
         haystack = f"{name} {data or ''}".lower()
-        if any(w and w.strip().lower() in haystack for w in whitelist):
+        if any(_entry_matches_haystack(w, haystack) for w in whitelist):
             return False
-        return any(n.lower() in haystack for n in needles)
+        return any(_entry_matches_haystack(n, haystack) for n in needles)
 
     def _scan(root, run_path, approved_path, peer_path=None):
         nonlocal applied
@@ -4872,7 +4890,7 @@ def winget_sweep(config: dict, logger: logging.Logger) -> int:
         if "." not in e or not _WINGET_ID_RE.fullmatch(e):
             continue
         # Whitelist still wins — a protected entry never reaches winget
-        if any(w.strip() and w.strip().lower() in e.lower() for w in whitelist):
+        if any(_entry_matches_name(w, e) for w in whitelist):
             logger.info(f"Whitelisted (winget skip): {e}")
             continue
         _, rc = run_cmd(["winget", "uninstall", "-e", "--id", e,
@@ -4906,9 +4924,9 @@ def disable_active_setup_stubs(config: dict, logger: logging.Logger) -> int:
 
     def _bloat(text):
         t = text.lower()
-        if any(w and w.strip().lower() in t for w in whitelist):
+        if any(_entry_matches_haystack(w, t) for w in whitelist):
             return False
-        return any(n.lower() in t for n in needles)
+        return any(_entry_matches_haystack(n, t) for n in needles)
 
     deleted = 0
     for path in _ACTIVE_SETUP_PATHS:
@@ -5728,6 +5746,14 @@ def run_self_test() -> int:
         assert is_target_package("McAfee.TotalProtection_xyz", bl, wl)
         assert not is_target_package("Microsoft.XboxGameCallableUI_abc", bl, wl)
         assert not is_target_package("Microsoft.WindowsStore_abc", bl, wl)
+        # '=' prefix = exact match only (C# MatchRule parity)
+        bl_exact = ["=Microsoft.XboxGamingOverlay", "=xbox.tcui"]
+        assert is_target_package("Microsoft.XboxGamingOverlay", bl_exact, [])
+        assert is_target_package("xbox.TCUI", bl_exact, [])
+        assert not is_target_package("Microsoft.XboxGamingOverlay_abc", bl_exact, [])
+        assert not is_target_package("xbox.tcui.extra", bl_exact, [])
+        assert not is_target_package("myxbox.tcui", bl_exact, [])
+        assert not is_target_package("Microsoft.XboxGamingOverlay", [], bl_exact)
 
     def t_get_packages_parse():
         fake_json = json.dumps([
