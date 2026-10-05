@@ -2,6 +2,14 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 45 (Sycnex diff + self-test gap): T42 — provisioned
+  rows are now machine-verified to need BOTH DisplayName (something
+  to match) and PackageName (something to remove); nameless rows can
+  never reach the uninstaller. Sycnex/Windows10Debloater blacklist
+  full-diff: all 52 unmatched entries were either covered
+  (KING.COM./RoyalRevolt/CandyCrush/FarmVille prefixes), infra/auth/
+  accessibility packages, or user-installed third-party apps —
+  nothing to land. DESIGN.md counts synced (py T1–T42).
 - Audit round 44 (Privatezilla diff): IFEO kill for
   CompatTelRunner.exe — a Windows update can re-arm the Appraiser
   task; the Debugger stub (`%windir%\System32\taskkill.exe`) blocks

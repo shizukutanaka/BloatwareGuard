@@ -6959,6 +6959,25 @@ def run_self_test() -> int:
             globals()["run_cmd"] = orig_cmd
             shutil.which = orig_which
 
+    def t_provisioned_empty_fields_safe():
+        """Nameless provisioned rows can never be selected for removal:
+        a missing DisplayName has nothing to match against, and a
+        missing PackageName cannot be uninstalled — both are skipped."""
+        orig_ps = run_powershell
+        prov_json = json.dumps([
+            {"DisplayName": "", "PackageName": "Nameless_1_x"},
+            {"PackageName": "Bad.Name_1_x"},  # no DisplayName key at all
+            {"DisplayName": "Bad.App", "PackageName": ""},
+            {"DisplayName": "Bad.App", "PackageName": "Bad.App_1_x"},
+        ])
+        globals()["run_powershell"] = lambda cmd, timeout=60: (
+            prov_json, "", 0)
+        try:
+            prov = get_blacklisted_provisioned(["Bad"], [])
+            assert prov == [("Bad.App", "Bad.App_1_x")], prov
+        finally:
+            globals()["run_powershell"] = orig_ps
+
     check("T1: Config default-create + reload", t_config_roundtrip)
     check("T2: Blacklist/whitelist matching", t_matching)
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
@@ -7396,6 +7415,8 @@ def run_self_test() -> int:
           t_allusers_dedupe_semantics)
     check("T41: failed restores counted as manual, never restored",
           t_restore_failure_counts_manual)
+    check("T42: provisioned rows need both names to be removable",
+          t_provisioned_empty_fields_safe)
 
     print()
     passed = 0
