@@ -2,6 +2,11 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 34 (self-test gap): T35 — layer failure isolation is
+  now machine-checked: a raising capability layer is contained, the
+  OEM-task sweep and telemetry-task disable still run, and
+  appx/provisioned removals still count. DESIGN.md counts synced
+  (py T1–T35).
 - Audit round 33 (self-test gap): T34 — config passthrough semantics
   are now pinned: existing configs are returned AS-IS (unknown user
   keys survive, partial Prevention maps are never back-filled) and

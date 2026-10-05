@@ -6678,6 +6678,69 @@ def run_self_test() -> int:
             # opt-in layers keep their explicit False semantics
             assert cfg["Prevention"].get("DisableOneDrive", False) is False
 
+    def t_layer_failure_isolation():
+        """A layer that raises is contained: the capability layer's
+        query throws, later layers (OEM-task sweep, telemetry-task
+        disable) still run, and appx/provisioned results still count."""
+        calls_ps, calls_cmd = [], []
+        orig_ps, orig_cmd = run_powershell, run_cmd
+        appx_json = json.dumps([{"PackageFamilyName": "Bad.App_abc",
+                                 "Name": "Bad.App", "InstallPath": "C:\\x",
+                                 "IsFramework": False,
+                                 "PackageFullName": "Bad.App_1_x"}])
+        prov_json = json.dumps([{"DisplayName": "Bad.Prov",
+                                 "PackageName": "Bad.Prov_1_x"}])
+
+        def fake_ps(cmd, timeout=60):
+            calls_ps.append(cmd)
+            if "WindowsCapability" in cmd:
+                raise RuntimeError("capability layer boom")
+            if "ProvisionedPackage" in cmd:
+                return prov_json, "", 0
+            if "Remove-AppxPackage" in cmd or \
+                    "Remove-AppxProvisionedPackage" in cmd:
+                return "", "", 0
+            if "Get-ScheduledTask" in cmd:
+                return "[]", "", 0
+            return appx_json, "", 0
+
+        def fake_cmd(*a, **k):
+            calls_cmd.append(a[0])
+            return "", 0
+
+        globals()["run_powershell"] = fake_ps
+        globals()["run_cmd"] = fake_cmd
+        orig_root = os.environ.get("SystemRoot")
+        orig_pd = os.environ.get("PROGRAMDATA")
+        os.environ["SystemRoot"] = tempfile.mkdtemp()
+        os.environ["PROGRAMDATA"] = tempfile.mkdtemp()
+        globals()["_registry_backup_done"] = False
+        try:
+            cfg = load_config(Path(tempfile.mkdtemp()) / "config.json")
+            cfg["BackupDirectory"] = tempfile.mkdtemp()
+            cfg["Blacklist"] = ["Bad.App", "Bad.Prov"]
+            cfg["Prevention"].update({
+                "RemoveWin32Programs": False,
+                "MarkDeprovisioned": False,
+                "RemoveDefaultStorePackages": False,
+            })
+            n = run_scan(cfg, logging.getLogger("t_iso"), dry_run=False)
+            assert n == 2, n  # appx + provisioned still removed
+            # subsequent layers ran despite the capability-layer raise
+            assert any("Get-ScheduledTask" in c for c in calls_ps)
+            assert any("schtasks" in c for c in calls_cmd)
+        finally:
+            globals()["run_powershell"] = orig_ps
+            globals()["run_cmd"] = orig_cmd
+            if orig_root is None:
+                os.environ.pop("SystemRoot", None)
+            else:
+                os.environ["SystemRoot"] = orig_root
+            if orig_pd is None:
+                os.environ.pop("PROGRAMDATA", None)
+            else:
+                os.environ["PROGRAMDATA"] = orig_pd
+
     check("T1: Config default-create + reload", t_config_roundtrip)
     check("T2: Blacklist/whitelist matching", t_matching)
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
@@ -7103,6 +7166,7 @@ def run_self_test() -> int:
     check("T33: whitelist wins inside live scan", t_whitelist_wins_e2e)
     check("T34: config passthrough — unknown keys + upgrade defaults",
           t_config_passthrough_semantics)
+    check("T35: layer failure isolation", t_layer_failure_isolation)
 
     print()
     passed = 0
