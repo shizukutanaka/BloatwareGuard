@@ -6204,6 +6204,36 @@ def run_self_test() -> int:
         finally:
             globals()["run_cmd"] = orig
 
+    def t_winget_sweep():
+        """winget sweep: only dotted regex-valid ids run, the whitelist
+        wins, and only successful removals land in the ledger."""
+        with tempfile.TemporaryDirectory() as td:
+            cfg = {"BackupDirectory": td,
+                   "Blacklist": ["Vendor.App", "Second.App", "noDotEntry",
+                                 "Bad;Id.1", "Skip.Me", ""],
+                   "Whitelist": ["=Skip.Me"]}
+            calls: List = []
+            orig_which, orig_cmd = shutil.which, run_cmd
+
+            def fake_cmd(argv, timeout=30):
+                calls.append(argv)
+                return "", 0 if argv[4] == "Vendor.App" else 1
+
+            try:
+                shutil.which = lambda x: "/fake/winget" if x == "winget" else None
+                globals()["run_cmd"] = fake_cmd
+                n = winget_sweep(cfg, logging.getLogger("t_winget"))
+            finally:
+                shutil.which = orig_which
+                globals()["run_cmd"] = orig_cmd
+            assert n == 1, n
+            assert len(calls) == 2, calls  # Vendor.App + Second.App only
+            assert calls[0][:5] == ["winget", "uninstall", "-e", "--id", "Vendor.App"]
+            names = [json.loads(ln)["name"] for ln in
+                     (Path(td) / "removed-packages.jsonl")
+                     .read_text(encoding="utf-8").splitlines()]
+            assert names == ["Vendor.App"], names  # failure not recorded
+
     check("T1: Config default-create + reload", t_config_roundtrip)
     check("T2: Blacklist/whitelist matching", t_matching)
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
@@ -6608,6 +6638,7 @@ def run_self_test() -> int:
     check("T18: live-scan removal path + ledger records", t_live_scan_removal)
     check("T19: config load edges + haystack matching", t_config_edges_and_haystack)
     check("T20: Win32 uninstall rc/MSI/manual branches", t_win32_remove_rcs)
+    check("T21: winget sweep id gating + ledger on success only", t_winget_sweep)
 
     print()
     passed = 0

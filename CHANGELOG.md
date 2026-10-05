@@ -2,6 +2,11 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 20 (self-test gap): T21 — `winget_sweep` is now
+  machine-checked: only dotted regex-valid ids reach `winget
+  uninstall`, the whitelist (incl. `=` exact entries) still wins,
+  failed uninstalls are never recorded in the ledger. DESIGN.md
+  counts synced (py T1–T21).
 - Audit round 19 (self-test gap): T20 — `remove_win32_program` branches
   are now machine-checked: quiet uninstallers run verbatim, rc
   1641/3010 (reboot success) count as removed, MSI GUIDs route through
