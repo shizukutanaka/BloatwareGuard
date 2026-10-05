@@ -1862,6 +1862,7 @@ public static class RegistryGuard
         // regional/v10c ingest variants on the same ARIA pipe
         "self.events.data.microsoft.com", "v10c.events.data.microsoft.com",
         "au-v10.events.data.microsoft.com", "eu-v10.events.data.microsoft.com",
+        "in-v10.events.data.microsoft.com",
         "jp-v10.events.data.microsoft.com", "us-v10.events.data.microsoft.com",
         "au-v10c.events.data.microsoft.com", "eu-v10c.events.data.microsoft.com",
         "jp-v10c.events.data.microsoft.com", "us-v10c.events.data.microsoft.com",
@@ -1903,6 +1904,10 @@ public static class RegistryGuard
         "az361816.vo.msecnd.net", "az512334.vo.msecnd.net",
         "location-inference-westus.cloudapp.net",
         "ris.api.iris.microsoft.com",
+        // Canonical Spotlight/Iris API host (MS Learn non-Enterprise
+        // endpoints doc names iris.api.iris.microsoft.com alongside
+        // the ris.api CDN variant above)
+        "iris.api.iris.microsoft.com",
         "statsfe2.update.microsoft.com.akadns.net",
         "arc.trafficmanager.net",
         "api.msa.diagnostics.office.com",
@@ -3568,6 +3573,10 @@ public static class RegistryGuard
                 using var dperf = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SYSTEM\CurrentControlSet\Control\Diagnostics\Performance");
                 dperf?.SetValue("DisableDiagnosticTracing", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                foreach (var ckcl in new[] { "BootCKCLSettings", "SecondaryLogonCKCLSettings", "ShutdownCKCLSettings" })
+                    using (var ck = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                               @"SYSTEM\CurrentControlSet\Control\Diagnostics\Performance\" + ckcl))
+                        ck?.SetValue("Start", 0, Microsoft.Win32.RegistryValueKind.DWord);
                 // NVIDIA driver-level telemetry opt-out
                 using var nvg = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SYSTEM\CurrentControlSet\Services\nvlddmkm\Global\Startup");
@@ -3645,6 +3654,10 @@ public static class RegistryGuard
                 using var diagp = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SYSTEM\CurrentControlSet\Control\Diagnostics\Performance");
                 diagp?.SetValue("DisableDiagnosticTracing", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                foreach (var ckcl in new[] { "BootCKCLSettings", "SecondaryLogonCKCLSettings", "ShutdownCKCLSettings" })
+                    using (var ck = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                               @"SYSTEM\CurrentControlSet\Control\Diagnostics\Performance\" + ckcl))
+                        ck?.SetValue("Start", 0, Microsoft.Win32.RegistryValueKind.DWord);
                 // Device Health Attestation + speech-model auto-download +
                 // cloud message-sync channels off
                 using var dha = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(

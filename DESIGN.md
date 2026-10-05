@@ -93,7 +93,7 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 | Windows Error Reporting | Disabled=1, DontSendAdditionalData=1 (HKLM+policy), DontShowUI=1, LoggingDisabled=1 (全ハイブ) | DisableErrorReporting |
 | Edge Update 常駐 | edgeupdate/edgeupdatem/MicrosoftEdgeElevationService → Start=3 + EdgeUpdateTask* 3件 /DISABLE | DisableEdgeUpdateBloat |
 | WU 経由 OEM ドライバ | ExcludeWUDriversInQualityUpdate=1 (WindowsUpdate policy) | BlockOemDriverUpdates |
-| アプリ権限 (保守的セット) | AppPrivacy LetApps* =2 (24 件、camera/mic/location 除外) | DisableAppPermissions |
+| アプリ権限 (保守的セット) | AppPrivacy LetApps* =2 (19 件、camera/mic/location 除外) | DisableAppPermissions |
 | Xbox サービス | XblAuthManager/XblGameSave/XboxNetApiSvc/XboxGipSvc → Start=3 | DisableXboxServices |
 | レジストリバックアップ | reg export → %ProgramData%\BloatwareGuard\backup\*.reg (適用前、1回/プロセス) | BackupRegistry |
 | Print Spooler (opt-in, 既定OFF) | sc stop + config start= disabled | DisablePrintSpooler |
@@ -109,7 +109,7 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 | Start「おすすめ」 | Policies\...\Explorer HideRecommendedSection=1 | HideStartRecommendations |
 | Deprovisioned マーカー | AppxAllUserStore\Deprovisioned\<family> にキー作成 (feature update 時の再プロビジョニングを OS がスキップ) | MarkDeprovisioned |
 | 25H2 RemoveDefaultMicrosoftStorePackages | Appx\RemoveDefaultStorePackages Enabled=1 + DynamicRemovalList (REG_MULTI_SZ) + <family>\RemovePackage=1 | RemoveDefaultStorePackages |
-| テレメトリドメイン遮断 | hosts にマーカー付きブロック (518 ドメイン、トグルOFFで除去・可逆) | BlockTelemetryEndpoints |
+| テレメトリドメイン遮断 | hosts にマーカー付きブロック (520 ドメイン、トグルOFFで除去・可逆) | BlockTelemetryEndpoints |
 | winget 掃除 | `winget uninstall -e --id <id> --silent --disable-interactivity` (winget 不在時スキップ) | WingetSweep |
 | テレメトリ ETW AutoLogger | Control\WMI\AutoLogger\<session> Start=0 (18 セッション; OpenKey で不存在なら作らない) | DisableTelemetryAutologgers |
 | 再インストール監視 | 削除済みパッケージが再出現したら再削除 (スキャン毎; 常駐の本質機能) | ReinstallMonitor |

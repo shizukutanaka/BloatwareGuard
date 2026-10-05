@@ -2,6 +2,36 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Self-test coverage — `_EXTRA_DIAG_CHANNELS` and `DEFAULT_WHITELIST`
+  added to the T9 py↔cs shared-list parity sweep and T10 duplicate
+  guard; whitelist extracted to a module constant (was inline in
+  `load_config`) matching `DEFAULT_BLACKLIST`. T9 also gained a
+  symmetric `cfg["Whitelist"]` vs defaults assertion — previously
+  only Blacklist drift was caught.
+- Docs parity — LetApps* app-privacy value count corrected to the
+  true covered set (19; DESIGN layer table said 24).
+- Docs parity — hosts domain count corrected to the true
+  _TELEMETRY_HOSTS length (520; README feature table + DESIGN layer
+  table had drifted to 518 across the two host additions).
+- Microsoft Learn non-Enterprise endpoints doc diff: adopted
+  `iris.api.iris.microsoft.com` (canonical Windows Spotlight/Iris
+  metadata API alongside the existing `ris.api.iris.microsoft.com`
+  CDN variant, hosts → 520). All other non-Enterprise endpoints
+  reviewed — WU/licensing/Store/SmartScreen/NCSI/OCSP/auth/CDN and
+  Office/OneDrive/Skype/Teams consumer endpoints remain skip-class.
+- ReviOS playbook diff: adopted `in-v10.events.data.microsoft.com`
+  (India-region ARIA/v10 event-ingest variant, hosts → 519). All other
+  ReviOS surfaces reviewed — registry (380 values: UI/OOBE/TPM-bypass/
+  WU/Defender/perf/vendor/rejected classes), services (driver-level
+  perf services excluded), tasks, hosts (Brave vendor telemetry, VS
+  AppInsights, CDN/OneDrive instances), appx — remaining diffs are all
+  skip-class or prefix-covered.
+- Japanese-source diff (Qiita Windows IoT/UWF hardening article): kernel
+  CKCL context-logger sessions now stopped — `Start`=0 written under
+  `...\Control\Diagnostics\Performance\{BootCKCLSettings,
+  SecondaryLogonCKCLSettings, ShutdownCKCLSettings}` at both diagnostic-
+  disable sites (C# + Python). The parent key was already backed up and
+  already received `DisableDiagnosticTracing`=1.
 - Docs parity — telemetry-task count corrected to the true
   TELEMETRY_TASK_PATHS length (134; README row 21 + DESIGN diagram).
   The earlier "165" counted every `\Microsoft\` task-path string in the

@@ -314,31 +314,34 @@ def _atomic_write_text(path: Path, text: str) -> None:
     os.replace(tmp, path)
 
 
+DEFAULT_WHITELIST = [
+    "Microsoft.WindowsStore",
+    "Microsoft.WindowsCalculator",
+    "Microsoft.WindowsNotepad",
+    "Microsoft.WindowsTerminal",
+    "Microsoft.Windows.ShellExperienceHost",
+    "Microsoft.Windows.Cortana",
+    "Microsoft.Windows.SecHealthUI",
+    "Microsoft.Windows.Apprep.ChxApp",
+    # Xbox/Troubleshooter framework packages the broad
+    # "Microsoft.Xbox"/"Microsoft.GetHelp" blacklist prefixes
+    # would otherwise hit — removing them breaks the Store,
+    # Photos, some games, and speech-to-text overlay
+    # (Win11Debloat "unsafe" list)
+    "Microsoft.Xbox.TCUI",
+    "Microsoft.XboxIdentityProvider",
+    "Microsoft.XboxSpeechToTextOverlay",
+    "Microsoft.GetHelp",
+]
+
+
 def load_config(path: Path) -> dict:
     if not path.exists():
         config = {
             "ScanIntervalSeconds": 300,
             "LogFilePath": str(LOG_FILE),
             "Blacklist": DEFAULT_BLACKLIST,
-            "Whitelist": [
-                "Microsoft.WindowsStore",
-                "Microsoft.WindowsCalculator",
-                "Microsoft.WindowsNotepad",
-                "Microsoft.WindowsTerminal",
-                "Microsoft.Windows.ShellExperienceHost",
-                "Microsoft.Windows.Cortana",
-                "Microsoft.Windows.SecHealthUI",
-                "Microsoft.Windows.Apprep.ChxApp",
-                # Xbox/Troubleshooter framework packages the broad
-                # "Microsoft.Xbox"/"Microsoft.GetHelp" blacklist prefixes
-                # would otherwise hit — removing them breaks the Store,
-                # Photos, some games, and speech-to-text overlay
-                # (Win11Debloat "unsafe" list)
-                "Microsoft.Xbox.TCUI",
-                "Microsoft.XboxIdentityProvider",
-                "Microsoft.XboxSpeechToTextOverlay",
-                "Microsoft.GetHelp",
-            ],
+            "Whitelist": DEFAULT_WHITELIST,
             "Prevention": {
                 "RemoveAppxPackages": True,
                 "RemoveProvisionedPackages": True,
@@ -2867,6 +2870,13 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "HKLM",
                 r"SYSTEM\CurrentControlSet\Control\Diagnostics\Performance",
                 "DisableDiagnosticTracing", 1)
+            for _v in ("BootCKCLSettings", "SecondaryLogonCKCLSettings",
+                       "ShutdownCKCLSettings"):
+                set_registry_dword(
+                    "HKLM",
+                    r"SYSTEM\CurrentControlSet\Control\Diagnostics\Performance"
+                    + "\\" + _v,
+                    "Start", 0)
             # NVIDIA driver-level telemetry opt-out (NvTelemetryContainer
             # service is already demoted; these cover the driver knobs)
             for _v in ("SendTelemetryData", "SendNonNvDisplayDetails"):
@@ -2970,6 +2980,13 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword("HKLM",
                                r"SYSTEM\CurrentControlSet\Control\Diagnostics\Performance",
                                "DisableDiagnosticTracing", 1)
+            for _v in ("BootCKCLSettings", "SecondaryLogonCKCLSettings",
+                       "ShutdownCKCLSettings"):
+                set_registry_dword(
+                    "HKLM",
+                    r"SYSTEM\CurrentControlSet\Control\Diagnostics\Performance"
+                    + "\\" + _v,
+                    "Start", 0)
             # Device Health Attestation + speech-model auto-download +
             # cloud message-sync channels off
             set_registry_dword("HKLM",
@@ -4296,6 +4313,7 @@ _TELEMETRY_HOSTS = (
     # dns-blocklists + MS Learn non-Enterprise endpoint doc; same ARIA pipe)
     "self.events.data.microsoft.com", "v10c.events.data.microsoft.com",
     "au-v10.events.data.microsoft.com", "eu-v10.events.data.microsoft.com",
+    "in-v10.events.data.microsoft.com",
     "jp-v10.events.data.microsoft.com", "us-v10.events.data.microsoft.com",
     "au-v10c.events.data.microsoft.com", "eu-v10c.events.data.microsoft.com",
     "jp-v10c.events.data.microsoft.com", "us-v10c.events.data.microsoft.com",
@@ -4340,6 +4358,10 @@ _TELEMETRY_HOSTS = (
     "az361816.vo.msecnd.net", "az512334.vo.msecnd.net",
     "location-inference-westus.cloudapp.net",
     "ris.api.iris.microsoft.com",
+    # Canonical Spotlight/Iris API host (MS Learn non-Enterprise
+    # endpoints doc names iris.api.iris.microsoft.com alongside the
+    # ris.api CDN variant above)
+    "iris.api.iris.microsoft.com",
     "statsfe2.update.microsoft.com.akadns.net",
     "arc.trafficmanager.net",
     "api.msa.diagnostics.office.com",
@@ -5743,6 +5765,8 @@ def run_self_test() -> int:
         assert not missing and not extra, f"defaults/config drift: -{missing} +{extra}"
         missing_bl = set(cfg["Blacklist"]) - set(DEFAULT_BLACKLIST)
         assert not missing_bl, f"defaults missing blacklist entries: {missing_bl}"
+        missing_wl = set(cfg["Whitelist"]) - set(defaults["Whitelist"])
+        assert not missing_wl, f"defaults missing whitelist entries: {missing_wl}"
         # src/config.json ships with the C# build — silent drift from the
         # root config means the two impls run different defaults
         src_cfg_path = Path(__file__).parent / "src" / "config.json"
@@ -5761,9 +5785,11 @@ def run_self_test() -> int:
             # (C# uses @"..." verbatim literals — backslashes appear unescaped)
             for name, entries in (("TELEMETRY_TASK_PATHS", TELEMETRY_TASK_PATHS),
                                   ("_EXTRA_AUTOLOGGERS", _EXTRA_AUTOLOGGERS),
+                                  ("_EXTRA_DIAG_CHANNELS", _EXTRA_DIAG_CHANNELS),
                                   ("_TELEMETRY_HOSTS", _TELEMETRY_HOSTS),
                                   ("_STARTUP_BLOAT_NAMES", _STARTUP_BLOAT_NAMES),
                                   ("DEFAULT_BLACKLIST", DEFAULT_BLACKLIST),
+                                  ("DEFAULT_WHITELIST", DEFAULT_WHITELIST),
                                   ("MICROSOFT_SYSTEM_TASK_PREFIXES",
                                    MICROSOFT_SYSTEM_TASK_PREFIXES),
                                   ("_BACKUP_KEY_PATHS", _BACKUP_KEY_PATHS),
@@ -5817,9 +5843,11 @@ def run_self_test() -> int:
         (a blacklist dup shipped until the doc-vs-list audit caught it)."""
         for name, entries in (("TELEMETRY_TASK_PATHS", TELEMETRY_TASK_PATHS),
                               ("_EXTRA_AUTOLOGGERS", _EXTRA_AUTOLOGGERS),
+                              ("_EXTRA_DIAG_CHANNELS", _EXTRA_DIAG_CHANNELS),
                               ("_TELEMETRY_HOSTS", _TELEMETRY_HOSTS),
                               ("_STARTUP_BLOAT_NAMES", _STARTUP_BLOAT_NAMES),
                               ("DEFAULT_BLACKLIST", DEFAULT_BLACKLIST),
+                              ("DEFAULT_WHITELIST", DEFAULT_WHITELIST),
                               ("MICROSOFT_SYSTEM_TASK_PREFIXES",
                                MICROSOFT_SYSTEM_TASK_PREFIXES),
                               ("_BACKUP_KEY_PATHS", _BACKUP_KEY_PATHS),
