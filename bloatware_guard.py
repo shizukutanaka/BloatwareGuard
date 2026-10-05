@@ -4169,7 +4169,9 @@ def _provisioned_family(package_name: str, display_name: str) -> str:
         return '_'.join(segs[:-4]) + '_' + segs[-1]
     if "_" in package_name:
         return f"{package_name.split('_')[0]}_{package_name.rsplit('_', 1)[-1]}"
-    return display_name
+    # No '_' at all — PackageName is already the most stable identifier;
+    # display_name may be localized/empty (cs parity: returns packageName).
+    return package_name
 
 
 def mark_deprovisioned(family_names, logger: logging.Logger) -> int:

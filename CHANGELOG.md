@@ -2,6 +2,10 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Parity fix — `_provisioned_family` fallback for underscore-free
+  `PackageName` returned `display_name` in Python but `packageName`
+  in C#; now returns `package_name` (the more stable identifier,
+  matching `ProvisionedFamilyName`).
 - Self-test coverage — `_EXTRA_DIAG_CHANNELS` and `DEFAULT_WHITELIST`
   added to the T9 py↔cs shared-list parity sweep and T10 duplicate
   guard; whitelist extracted to a module constant (was inline in
