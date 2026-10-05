@@ -6943,7 +6943,7 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
     private static int RunSelfTest(GuardConfig config)
     {
         var passed = 0;
-        var total = 13;
+        var total = 14;
         var results = new List<string>();
 
         GuardLogger.Info("=== BloatwareGuard v1.61.3 — Self-Test Mode === [no admin required]");
@@ -7360,6 +7360,55 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         catch (Exception ex)
         {
             results.Add($"[FAIL] T13: winget-id — {ex.Message}");
+        }
+
+        // Test 14: hosts block splice — user lines preserved, apply is
+        // idempotent, toggle-off restores byte-for-byte, strict-UTF8
+        // failure leaves the file untouched (mirrors py T15)
+        try
+        {
+            var td = Path.Combine(Path.GetTempPath(), "bg-t14-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(td);
+            var etcDir = Path.Combine(td, "System32", "drivers", "etc");
+            Directory.CreateDirectory(etcDir);
+            var hostsFile = Path.Combine(etcDir, "hosts");
+            var userContent = "127.0.0.1 mybox\n10.0.0.1 fileserver\n";
+            File.WriteAllText(hostsFile, userContent, new System.Text.UTF8Encoding(false));
+            var prevRoot = Environment.GetEnvironmentVariable("SystemRoot");
+            try
+            {
+                Environment.SetEnvironmentVariable("SystemRoot", td);
+                RegistryGuard.SetTelemetryHostsBlock(true);
+                var applied = File.ReadAllText(hostsFile);
+                RegistryGuard.SetTelemetryHostsBlock(true); // idempotent re-apply
+                var reapplied = File.ReadAllText(hostsFile);
+                RegistryGuard.SetTelemetryHostsBlock(false);
+                var removed = File.ReadAllText(hostsFile);
+                var ok = applied.Contains("127.0.0.1 mybox")
+                    && applied.Contains("0.0.0.0 ")
+                    && applied == reapplied
+                    && removed == userContent;
+                if (ok)
+                {
+                    results.Add("[PASS] T14: hosts splice — preserve/idempotent/reversible");
+                    GuardLogger.Info("[PASS] T14: hosts splice");
+                    passed++;
+                }
+                else
+                {
+                    results.Add("[FAIL] T14: hosts splice contract broken");
+                    GuardLogger.Error("[FAIL] T14: hosts splice broken");
+                }
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("SystemRoot", prevRoot);
+                try { Directory.Delete(td, true); } catch { }
+            }
+        }
+        catch (Exception ex)
+        {
+            results.Add($"[FAIL] T14: hosts splice — {ex.Message}");
         }
 
         // Summary

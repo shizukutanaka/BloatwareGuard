@@ -2,6 +2,10 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 51 (self-test gap, C#): T14 — `SetTelemetryHostsBlock`
+  end-to-end machine check via temp SystemRoot redirect: user lines
+  preserved, apply is idempotent, toggle-off restores byte-for-byte
+  (mirrors py T15). DESIGN.md counts synced (py T1–T43 / C# T1–T14).
 - Audit round 50 (verify-script staleness): verify_scan.ps1 /
   verify_scan_sys.ps1 appx snapshots now cover 12 representative
   blacklist families (was 5) — adds Copilot, Disney, Spotify,
