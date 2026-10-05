@@ -6555,6 +6555,10 @@ def run_self_test() -> int:
             def scan_off(*toggles):
                 globals()["_registry_backup_done"] = False
                 cfg = load_config(Path(tempfile.mkdtemp()) / "config.json")
+                # keep the test hermetic — the default BackupDirectory is
+                # resolved at import time and points at C:/ProgramData
+                # off-Windows, which would drop a stray dir in the CWD
+                cfg["BackupDirectory"] = tempfile.mkdtemp()
                 cfg["Blacklist"] = ["Bad.App", "Bad.Prov"]
                 cfg["Prevention"].update({
                     "RemoveWin32Programs": False,
