@@ -5966,6 +5966,39 @@ def run_self_test() -> int:
         assert _scan_interval({"ScanIntervalSeconds": None}, lg) == 300
         assert _scan_interval({"ScanIntervalSeconds": 120}, lg) == 120
 
+    def t_hosts_splice():
+        """Marked hosts block: preserves user lines, applies/removes
+        idempotently, restores the file byte-for-byte, and refuses to
+        rewrite a file it cannot strictly decode."""
+        with tempfile.TemporaryDirectory() as td:
+            etc = Path(td) / "System32" / "drivers" / "etc"
+            etc.mkdir(parents=True)
+            hosts = etc / "hosts"
+            baseline = "127.0.0.1 localhost\n0.0.0.0 keep.me\n"
+            hosts.write_text(baseline, encoding="utf-8")
+            orig = os.environ.get("SystemRoot")
+            os.environ["SystemRoot"] = td
+            try:
+                lg = logging.getLogger("t_hosts")
+                set_telemetry_hosts_block(True, lg)
+                text = hosts.read_text(encoding="utf-8")
+                assert "0.0.0.0 keep.me" in text  # user line preserved
+                assert _HOSTS_BLOCK_BEGIN in text and _HOSTS_BLOCK_END in text
+                assert all(f"0.0.0.0 {d}" in text for d in list(_TELEMETRY_HOSTS)[:5])
+                set_telemetry_hosts_block(True, lg)  # idempotent apply
+                assert hosts.read_text(encoding="utf-8") == text
+                set_telemetry_hosts_block(False, lg)  # clean removal
+                assert hosts.read_text(encoding="utf-8") == baseline
+                # strict decode failure — must not rewrite the file
+                hosts.write_bytes(b"\xff\xfe\x00bad")
+                set_telemetry_hosts_block(True, lg)
+                assert hosts.read_bytes() == b"\xff\xfe\x00bad"
+            finally:
+                if orig is None:
+                    os.environ.pop("SystemRoot", None)
+                else:
+                    os.environ["SystemRoot"] = orig
+
     check("T1: Config default-create + reload", t_config_roundtrip)
     check("T2: Blacklist/whitelist matching", t_matching)
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
@@ -6364,6 +6397,7 @@ def run_self_test() -> int:
     check("T12: HKLM write-path backup coverage", t_backup_path_coverage)
     check("T13: Removal ledger rotation bounded + ordered", t_ledger_rotation)
     check("T14: cmd split + scan-interval clamp", t_split_and_interval)
+    check("T15: hosts block splice idempotent + non-destructive", t_hosts_splice)
 
     print()
     passed = 0

@@ -2,6 +2,11 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 14 (self-test gap): T15 — the hosts splice is now
+  machine-checked end-to-end against a redirected SystemRoot: user
+  lines survive, the block applies idempotently, removal restores the
+  file byte-for-byte, and an undecodable hosts file is never rewritten.
+  DESIGN.md counts synced (py T1–T15).
 - Audit round 13 (self-test gap): T14 — `_split_command_line` argv
   parsing (quoted path, bare exe, unterminated quote) and
   `_scan_interval` clamping (sub-60 floor, garbage/None → 300s default)
