@@ -2,6 +2,11 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 30 (self-test gap): T31 — the dry-run safety invariant
+  is now machine-checked: `run_cmd` is never invoked (no schtasks/
+  reg.exe/winget) and no Remove-/Disable-/Stop-/Clear- verb reaches
+  PowerShell, while the would-remove preview still counts matches.
+  DESIGN.md counts synced (py T1–T31).
 - Audit round 29 (self-test gap): T30 — the last pure helpers are now
   pinned: `_atomic_write_text` lands via same-dir replace with no
   leftover .tmp, `_console_encoding` always names a usable codec

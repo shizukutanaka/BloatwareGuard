@@ -6477,6 +6477,53 @@ def run_self_test() -> int:
         assert enc.startswith("cp") and "x".encode(enc) == b"x"
         assert _default_profile_dat() == ""   # no template off-Windows
 
+    def t_dry_run_zero_mutations():
+        """Dry-run previews but mutates nothing: `run_cmd` is never
+        invoked (no schtasks/reg.exe/winget) and no Remove-/Disable-/
+        Stop- verb reaches PowerShell even while enumeration runs and
+        the would-remove counter counts matches."""
+        calls_cmd, calls_ps = [], []
+        orig_cmd, orig_ps = run_cmd, run_powershell
+        globals()["run_cmd"] = lambda *a, **k: calls_cmd.append(a[0]) or ("", 0)
+
+        def fake_ps(cmd, timeout=60):
+            calls_ps.append(cmd)
+            if "ProvisionedPackage" in cmd:
+                return "[]", "", 0
+            if "WindowsCapability" in cmd:
+                return "", "", 0
+            return (json.dumps([{"PackageFamilyName": "Bad.App_abc",
+                                 "Name": "Bad.App",
+                                 "InstallPath": "C:\\x",
+                                 "IsFramework": False,
+                                 "PackageFullName": "Bad.App_1_x"}]), "", 0)
+
+        globals()["run_powershell"] = fake_ps
+        orig_pd = os.environ.get("PROGRAMDATA")
+        os.environ["PROGRAMDATA"] = tempfile.mkdtemp()
+        globals()["_registry_backup_done"] = False
+        try:
+            cfg = load_config(Path(tempfile.mkdtemp()) / "config.json")
+            cfg["Blacklist"] = ["Bad.App"]
+            cfg["Prevention"].update({
+                "RemoveWin32Programs": False,
+                "MarkDeprovisioned": False,
+                "RemoveDefaultStorePackages": False,
+            })
+            n = run_scan(cfg, logging.getLogger("t_dryzero"), dry_run=True)
+            assert n == 1, n   # preview counts the would-remove
+            assert calls_cmd == [], calls_cmd
+            for c in calls_ps:
+                for verb in ("Remove-", "Disable-", "Stop-", "Clear-"):
+                    assert verb not in c, c
+        finally:
+            globals()["run_cmd"] = orig_cmd
+            globals()["run_powershell"] = orig_ps
+            if orig_pd is None:
+                os.environ.pop("PROGRAMDATA", None)
+            else:
+                os.environ["PROGRAMDATA"] = orig_pd
+
     check("T1: Config default-create + reload", t_config_roundtrip)
     check("T2: Blacklist/whitelist matching", t_matching)
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
@@ -6896,6 +6943,7 @@ def run_self_test() -> int:
     check("T29: name/SID/GUID regex contracts", t_name_regex_contracts)
     check("T30: atomic write + encoding + profile-dat fallback",
           t_io_and_fallback_helpers)
+    check("T31: dry-run performs zero mutations", t_dry_run_zero_mutations)
 
     print()
     passed = 0
