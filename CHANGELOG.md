@@ -2,6 +2,13 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 42 (self-test gap): T41 — failed restore attempts now
+  machine-verified to land in the manual bucket: a non-zero rc on
+  Add-AppxPackage/Add-WindowsCapability/winget install or an unsafe
+  ledger name counts as "need manual reinstall", never as restored.
+  CLI dispatch audit clean: mutex gating identical on both impls
+  (scan/restore/service gated; dry-run/list/install/uninstall/status
+  write-free). DESIGN.md counts synced (py T1–T41).
 - Audit round 41 (self-test gap): T40 — `-AllUsers` dedupe is now
   machine-checked: keyed on PackageFullName, so duplicate per-user
   rows collapse while two coexisting versions of one family both

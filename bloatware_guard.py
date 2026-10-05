@@ -6913,6 +6913,44 @@ def run_self_test() -> int:
             globals()["run_powershell"] = orig_ps
             globals()["is_admin"] = orig_admin
 
+    def t_restore_failure_counts_manual():
+        """A failed restore attempt (rc != 0) must land in the manual
+        bucket — never counted as restored, so the summary tells the
+        user which entries still need hands-on attention."""
+        orig_ps, orig_cmd = run_powershell, run_cmd
+        orig_which = shutil.which
+        shutil.which = lambda name: "/fake/winget"
+        globals()["run_powershell"] = \
+            lambda cmd, timeout=60: ("", "err", 1)
+        globals()["run_cmd"] = lambda args, timeout=120: ("", 1)
+        ledger_entries = [
+            {"kind": "appx", "name": "Good.App_abc"},
+            {"kind": "capability", "name": "CapabilityName"},
+            {"kind": "provisioned", "name": "Good.Prov_abc"},
+            {"kind": "winget", "name": "Vendor.Tool"},
+        ]
+        try:
+            with tempfile.TemporaryDirectory() as td:
+                tp = Path(td)
+                f = tp / "removed-packages.jsonl"
+                f.write_text(
+                    "\n".join(json.dumps(e) for e in ledger_entries))
+                cfg = {"BackupDirectory": str(tp)}
+                logger = logging.getLogger("test")
+                records: List[str] = []
+                handler = logging.Handler()
+                handler.emit = lambda r: records.append(r.getMessage())
+                logger.addHandler(handler)
+                logger.setLevel(logging.INFO)
+                run_restore(cfg, logger)
+                summary = records[-1]
+                assert "0 restored" in summary
+                assert "4 need manual" in summary, summary
+        finally:
+            globals()["run_powershell"] = orig_ps
+            globals()["run_cmd"] = orig_cmd
+            shutil.which = orig_which
+
     check("T1: Config default-create + reload", t_config_roundtrip)
     check("T2: Blacklist/whitelist matching", t_matching)
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
@@ -7348,6 +7386,8 @@ def run_self_test() -> int:
           t_monitor_delta_contract)
     check("T40: -AllUsers dedupe keeps coexisting versions",
           t_allusers_dedupe_semantics)
+    check("T41: failed restores counted as manual, never restored",
+          t_restore_failure_counts_manual)
 
     print()
     passed = 0
