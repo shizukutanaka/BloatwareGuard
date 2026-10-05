@@ -7501,10 +7501,16 @@ def main():
     if args.list_installed:
         blacklist = config.get("Blacklist", [])
         whitelist = config.get("Whitelist", [])
-        pkgs = get_blacklisted_packages(blacklist, whitelist)
+        # framework hits are never removed but still listed with a tag
+        # (C# ListInstalled parity)
+        framework: List[str] = []
+        pkgs = _enum_blacklisted_packages(blacklist, whitelist,
+                                          framework_skipped=framework)
         logger.info("Installed packages matching blacklist:")
-        for family, name, _install_path in pkgs:
+        for family, name, _install_path, _full in pkgs:
             logger.info(f"  {family} ({name})")
+        for family in framework:
+            logger.info(f"  {family} [FRAMEWORK]")
         logger.info("Total: %d package(s) installed.", len(pkgs))
         return
 

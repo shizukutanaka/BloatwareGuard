@@ -2,6 +2,10 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 47 (parity fix): `--list-installed` now shows
+  framework-matched packages with a [FRAMEWORK] tag instead of
+  dropping them silently — C# `ListInstalled` parity (they are
+  still never removed).
 - Audit round 46 (BloatyNosy diff + self-test gap, C#): T12 —
   `RemovalLedger.Record` line shape machine-checked: every entry
   parses with ts/kind/name/family/full_name keys and
