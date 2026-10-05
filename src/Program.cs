@@ -2221,9 +2221,14 @@ public static class RegistryGuard
         }
     }
 
-    /// <summary>Set a DWORD inside a mounted user hive root.</summary>
+    /// <summary>Set a DWORD inside a mounted user hive root. Already-at-target
+    /// values are skipped — service mode re-applies these every cycle and a
+    /// redundant write still dirties the hive.</summary>
     private static void SetHiveDword(RegistryKey hiveRoot, string path, string name, int value)
     {
+        using var existing = hiveRoot.OpenSubKey(path);
+        if (existing?.GetValue(name) is int current && current == value)
+            return;
         using var key = hiveRoot.CreateSubKey(path);
         key?.SetValue(name, value, RegistryValueKind.DWord);
     }

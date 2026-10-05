@@ -2,6 +2,14 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 6 (improvement queue P1, scoped): read-before-write in the
+  per-user-hive DWORD helpers (`set_user_dword_all_hives` /
+  `SetHiveDword`) — service mode re-applies ~50 user values × every hive
+  each cycle, and a redundant write still dirties the hive; values
+  already at target are now skipped (type checked: a non-DWORD existing
+  value still rewrites). HKLM layer writes stay unconditional for now —
+  the C# side issues them as ~100 inline `CreateSubKey`/`SetValue` sites
+  with no shared helper to gate cheaply.
 - Audit round 5 (improvement queue P2): exact-match mode — a `=` prefix on
   a Blacklist/Whitelist entry narrows it to an exact package/display-name
   match (`"=Microsoft.YourPhone"` never hits `Microsoft.YourPhoneXYZ`).

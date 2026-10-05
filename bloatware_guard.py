@@ -1183,6 +1183,13 @@ def set_user_dword_all_hives(path: str, name: str, value: int, logger: logging.L
 
     def apply(root, prefix):
         key_path = f"{prefix}\\{path}" if prefix else path
+        try:
+            with winreg.OpenKey(root, key_path, 0, winreg.KEY_READ) as rk:
+                cur = winreg.QueryValueEx(rk, name)
+                if cur[0] == value and cur[1] == winreg.REG_DWORD:
+                    return  # already at target — skip the write
+        except OSError:
+            pass
         key = winreg.CreateKeyEx(root, key_path, 0, winreg.KEY_WRITE)
         winreg.SetValueEx(key, name, 0, winreg.REG_DWORD, value)
         winreg.CloseKey(key)
