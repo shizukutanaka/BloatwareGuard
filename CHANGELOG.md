@@ -2,6 +2,12 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 27 (self-test gap): T28 — `_provisioned_family` derivation
+  is now pinned: four suffix fields are stripped from the RIGHT end
+  (names may contain underscores), malformed names collapse to
+  first_last, and no-underscore names fall back to DisplayName — the
+  documented py/cs parity exception (C# returns packageName).
+  DESIGN.md counts synced (py T1–T28).
 - Audit round 26 (self-test gap): T27 — `backup_registry_keys` is now
   machine-checked: `reg.exe export` fires for every HKLM write-target
   path, every demoted service key, and every per-user path under HKCU

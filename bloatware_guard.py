@@ -6420,6 +6420,25 @@ def run_self_test() -> int:
                 else:
                     os.environ["PROGRAMDATA"] = orig_pd
 
+    def t_provisioned_family_derivation():
+        """PackageName has no PublisherId — the family is name+publisher
+        with four suffix fields stripped from the RIGHT end (names may
+        contain underscores); malformed 2–4-segment names collapse to
+        first_last; a name with no '_' falls back to DisplayName (the
+        documented py/cs parity exception — C# returns packageName)."""
+        w = "8wekyb3d8bbwe"
+        assert _provisioned_family(
+            f"Microsoft.WindowsCalculator_2020.190612.0.0_neutral_~_{w}",
+            "X") == f"Microsoft.WindowsCalculator_{w}"
+        # name itself contains underscores → preserved
+        assert _provisioned_family(
+            f"Microsoft.Windows.Photos_2024.11020.11003.0_x64__{w}",
+            "X") == f"Microsoft.Windows.Photos_{w}"
+        # malformed: underscores but <5 segments → first_last
+        assert _provisioned_family("A_B_C", "X") == "A_C"
+        # no '_' at all → display_name fallback
+        assert _provisioned_family("PlainName", "Nice App") == "Nice App"
+
     check("T1: Config default-create + reload", t_config_roundtrip)
     check("T2: Blacklist/whitelist matching", t_matching)
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
@@ -6834,6 +6853,8 @@ def run_self_test() -> int:
     check("T26: install_service NSSM flow + rc fidelity", t_install_service_flow)
     check("T27: registry backup sweep — all write paths, once per process",
           t_backup_registry_keys)
+    check("T28: provisioned family derivation (right-strip + fallback)",
+          t_provisioned_family_derivation)
 
     print()
     passed = 0
