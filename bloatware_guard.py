@@ -5772,7 +5772,7 @@ def install_service():
     return True
 
 
-def uninstall_service():
+def uninstall_service(logger) -> None:
     run_cmd(["sc", "stop", SERVICE_NAME])
     out, _ = run_cmd(["sc", "delete", SERVICE_NAME])
     print(out)
@@ -5781,7 +5781,7 @@ def uninstall_service():
     # policies and deprovision/startup markers intentionally persist: they are
     # the hardening itself and removing them would re-enable the telemetry
     # and reprovisioning the tool was installed to kill.
-    set_telemetry_hosts_block(False, logging.getLogger(APP_NAME))
+    set_telemetry_hosts_block(False, logger)
 
 
 # ─── Self-Test ───────────────────────────────────────────────────────────────
@@ -6349,7 +6349,8 @@ def main():
     parser = argparse.ArgumentParser(description="BloatwareGuard - Auto-remove Windows bloatware")
     parser.add_argument("--scan", action="store_true", help="Run one scan and exit")
     parser.add_argument("--dry-run", action="store_true", help="Scan and log planned actions WITHOUT executing removal")
-    parser.add_argument("--service", action="store_true", help="Run in service mode (background loop)")
+    parser.add_argument("--service", action="store_true",
+                        help="Run in service mode (default action — accepted for NSSM-installed command lines)")
     parser.add_argument("--service-dry-run", action="store_true",
                         help="Service mode with forced dry-run (monitoring only, mirrors C# --service-dry-run)")
     parser.add_argument("--install", action="store_true", help="Install as Windows service")
@@ -6372,6 +6373,12 @@ def main():
     if args.self_test:
         sys.exit(run_self_test())
 
+    # Config + logging first — service-management commands (uninstall's
+    # hosts-block strip) write to the log too, like the C# build.
+    config = load_config(args.config)
+    log_path = Path(config.get("LogFilePath", str(LOG_FILE)))
+    logger = setup_logging(log_path)
+
     if args.status:
         out, _ = run_cmd(["sc", "query", SERVICE_NAME])
         print(out)
@@ -6388,15 +6395,8 @@ def main():
         if not is_admin():
             _relaunch_elevated("--uninstall")
             return
-        uninstall_service()
+        uninstall_service(logger)
         return
-
-    # Load config
-    config = load_config(args.config)
-
-    # Setup logging
-    log_path = Path(config.get("LogFilePath", str(LOG_FILE)))
-    logger = setup_logging(log_path)
 
     if not is_admin():
         logger.warning("Running without admin rights — registry changes and package removal may fail.")

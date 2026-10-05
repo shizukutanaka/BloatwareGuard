@@ -2,6 +2,13 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 11 (parity fix): Python `uninstall` now uses the real
+  logger for its hosts-block strip — it previously logged to a
+  handler-less logger so the removal was silent (the C# build logs it
+  via GuardLogger). Config + logging now initialize before the
+  service-management commands, matching C# which loads config for every
+  command. Also documents `--service` as the default action (accepted
+  for NSSM-installed command lines).
 - Audit round 10 (parity fix): C# dry-run now acknowledges every layer
   the Python one does — restore point, registry backup, OEM tasks,
   telemetry tasks, ETW autologgers and the hosts block all emit their
