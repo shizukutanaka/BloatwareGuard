@@ -6875,6 +6875,44 @@ def run_self_test() -> int:
         # a disappeared entry produces no flag
         assert _monitor_delta({"a", "b"}, {"a"}, False) == set()
 
+    def t_allusers_dedupe_semantics():
+        """-AllUsers returns one row per user — dedupe is keyed on
+        PackageFullName, so two coexisting versions of one family
+        both get removed (the older one isn't silently skipped)."""
+        orig_ps, orig_admin = run_powershell, is_admin
+        globals()["is_admin"] = lambda: True
+        appx_json = json.dumps([
+            {"PackageFamilyName": "Bad.App_abc", "Name": "Bad.App",
+             "InstallPath": "C:\\x", "IsFramework": False,
+             "PackageFullName": "Bad.App_1_x"},
+            # same row again for a second profile — dedupes
+            {"PackageFamilyName": "Bad.App_abc", "Name": "Bad.App",
+             "InstallPath": "C:\\x", "IsFramework": False,
+             "PackageFullName": "Bad.App_1_x"},
+            # same family, older coexisting version — kept
+            {"PackageFamilyName": "Bad.App_abc", "Name": "Bad.App",
+             "InstallPath": "C:\\y", "IsFramework": False,
+             "PackageFullName": "Bad.App_0.9_x"},
+            # family-only rows (no full name) dedupe on the family
+            {"PackageFamilyName": "Bad.Two_abc", "Name": "Bad.Two",
+             "InstallPath": "C:\\z", "IsFramework": False,
+             "PackageFullName": ""},
+            {"PackageFamilyName": "Bad.Two_abc", "Name": "Bad.Two",
+             "InstallPath": "C:\\z", "IsFramework": False,
+             "PackageFullName": ""},
+        ])
+        globals()["run_powershell"] = lambda cmd, timeout=60: (
+            appx_json, "", 0)
+        try:
+            appx = _enum_blacklisted_packages(["Bad"], [])
+            fulls = [p[3] for p in appx]
+            assert len(appx) == 3, appx
+            assert fulls.count("Bad.App_1_x") == 1
+            assert "Bad.App_0.9_x" in fulls
+        finally:
+            globals()["run_powershell"] = orig_ps
+            globals()["is_admin"] = orig_admin
+
     check("T1: Config default-create + reload", t_config_roundtrip)
     check("T2: Blacklist/whitelist matching", t_matching)
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
@@ -7308,6 +7346,8 @@ def run_self_test() -> int:
           t_allusers_scope_fallback)
     check("T39: reinstall-monitor delta (baseline + re-flag)",
           t_monitor_delta_contract)
+    check("T40: -AllUsers dedupe keeps coexisting versions",
+          t_allusers_dedupe_semantics)
 
     print()
     passed = 0

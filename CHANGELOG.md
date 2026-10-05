@@ -2,6 +2,14 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 41 (self-test gap): T40 — `-AllUsers` dedupe is now
+  machine-checked: keyed on PackageFullName, so duplicate per-user
+  rows collapse while two coexisting versions of one family both
+  stay removable. Sophia Script (farag2) full-diff audit: every gap
+  was already covered or a deliberate skip (DisableLocation is
+  unset-only upstream; DisableAIDataAnalysis=1 already written to
+  HKLM policy and all user hives). DESIGN.md counts synced
+  (py T1–T40).
 - Audit round 40 (self-test gap, C#): T10 — `SplitCommandLine` is now
   pinned via reflection (quoted-path extraction, bare command split,
   unclosed-quote fallback where the leading quote stays part of the
