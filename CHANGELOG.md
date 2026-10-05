@@ -2,6 +2,12 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round (first-principles + Socratic review): fixed the py console
+  decode — child-process output (powershell/reg.exe/schtasks/winget/sc/
+  dism) now decodes via the system OEM code page (`GetOEMCP`) instead of
+  a hardcoded cp932, matching the C# `TextInfo.OEMCodePage` path. A fixed
+  cp932 mojibakes non-ASCII output on non-Japanese Windows and could
+  break name matching; C# comment updated to document the parity.
 - tomytate/Win-Debloat7 diff — two adoptions: `Windows.SystemToast.BackupReminder`
   Enabled=0 joins the sibling promo-toast loop (backup-reminder nag, same class
   as the existing Suggested/StartupApp/AccountHealth kills), and

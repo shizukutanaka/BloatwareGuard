@@ -422,6 +422,19 @@ def _relaunch_elevated(flag: str) -> None:
     print(f"Elevation requested — '{flag}' is running in an elevated window.")
 
 
+def _console_encoding() -> str:
+    """Code page of console child processes (powershell.exe, reg.exe,
+    schtasks, winget, sc, dism): they write stdout/stderr in the OEM code
+    page — cp932 on ja-JP but cp437/cp850 on Western systems. Resolve the
+    system OEM page like the C# implementation (TextInfo.OEMCodePage)
+    instead of assuming Japanese — a wrong guess mojibakes non-ASCII
+    output (e.g. accented Win32 DisplayNames) and can break matching."""
+    try:
+        return f"cp{ctypes.windll.kernel32.GetOEMCP()}"
+    except Exception:
+        return "cp437"  # US OEM default — only reached off-Windows
+
+
 def run_powershell(cmd: str, timeout: int = 60) -> Tuple[str, str, int]:
     """Run a PowerShell command and return (stdout, stderr, exit_code).
     Missing binaries/hangs return rc=-1 instead of propagating."""
@@ -432,9 +445,9 @@ def run_powershell(cmd: str, timeout: int = 60) -> Tuple[str, str, int]:
         )
     except (OSError, subprocess.TimeoutExpired) as e:
         return "", str(e), -1
-    # Windows console output is often CP932/Shift-JIS — use errors="replace" to avoid crashes
-    stdout = proc.stdout.decode("cp932", errors="replace") if proc.stdout else ""
-    stderr = proc.stderr.decode("cp932", errors="replace") if proc.stderr else ""
+    enc = _console_encoding()
+    stdout = proc.stdout.decode(enc, errors="replace") if proc.stdout else ""
+    stderr = proc.stderr.decode(enc, errors="replace") if proc.stderr else ""
     return stdout.strip(), stderr.strip(), proc.returncode
 
 
@@ -445,7 +458,7 @@ def run_cmd(args, timeout: int = 30) -> Tuple[str, int]:
         proc = subprocess.run(args, capture_output=True, timeout=timeout)
     except (OSError, subprocess.TimeoutExpired) as e:
         return str(e), -1
-    out = proc.stdout.decode("cp932", errors="replace") if proc.stdout else ""
+    out = proc.stdout.decode(_console_encoding(), errors="replace") if proc.stdout else ""
     return out.strip(), proc.returncode
 
 

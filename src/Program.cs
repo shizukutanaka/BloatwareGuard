@@ -245,7 +245,8 @@ internal static class Proc
     // Windows console tools (powershell.exe, reg.exe, schtasks, winget, sc,
     // dism) write stdout/stderr in the OEM code page (cp932 on ja-JP, cp437/
     // cp850 on Western systems) — .NET's UTF-8 default would mojibake any
-    // non-ASCII output. Python parity: subprocess output decoded as cp932.
+    // non-ASCII output. Python parity: subprocess output decoded via
+    // GetOEMCP (cp932 on ja-JP, cp437/cp850 elsewhere).
     private static readonly Encoding OemEncoding =
         Encoding.GetEncoding(CultureInfo.CurrentCulture.TextInfo.OEMCodePage);
 
