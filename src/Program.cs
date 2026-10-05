@@ -6943,7 +6943,7 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
     private static int RunSelfTest(GuardConfig config)
     {
         var passed = 0;
-        var total = 12;
+        var total = 13;
         var results = new List<string>();
 
         GuardLogger.Info("=== BloatwareGuard v1.61.3 — Self-Test Mode === [no admin required]");
@@ -7330,6 +7330,36 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         catch (Exception ex)
         {
             results.Add($"[FAIL] T12: ledger record — {ex.Message}");
+        }
+
+        // Test 13: winget-id gate — only dotted/alnum/hyphen ids are
+        // piped into `winget uninstall`; appx-style ~ and ! segments
+        // and anything with spaces stay out (mirrors py T29)
+        try
+        {
+            var ok = WingetGuard.WingetIdIsMatch("Vendor.Tool")
+                && WingetGuard.WingetIdIsMatch("a.b-C_1")
+                && !WingetGuard.WingetIdIsMatch("Vendor.Tool~x86")
+                && !WingetGuard.WingetIdIsMatch("Vendor!Tool")
+                && !WingetGuard.WingetIdIsMatch("Vendor Tool")
+                && !WingetGuard.WingetIdIsMatch("")
+                && !WingetGuard.WingetIdIsMatch("Vendor.Tool'--")
+                && !WingetGuard.WingetIdIsMatch(null!);
+            if (ok)
+            {
+                results.Add("[PASS] T13: winget-id charset gate");
+                GuardLogger.Info("[PASS] T13: winget-id gate");
+                passed++;
+            }
+            else
+            {
+                results.Add("[FAIL] T13: winget-id gate contract broken");
+                GuardLogger.Error("[FAIL] T13: winget-id gate broken");
+            }
+        }
+        catch (Exception ex)
+        {
+            results.Add($"[FAIL] T13: winget-id — {ex.Message}");
         }
 
         // Summary

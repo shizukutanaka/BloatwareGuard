@@ -2,6 +2,11 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 49 (self-test gap, C#): T13 — `WingetIdIsMatch` gate
+  machine-checked: only dotted/alnum/hyphen ids reach
+  `winget uninstall`; appx-style ~ and ! segments, spaces, quotes
+  and empty input stay out (mirrors py T29). DESIGN.md counts
+  synced (py T1–T43 / C# T1–T13).
 - Audit round 48 (self-test gap): hot-reload's failure contract is
   now machine-checked — `_try_reload_config` extracted from the
   service loop so T43 can pin: a bad config edit returns None (loop
