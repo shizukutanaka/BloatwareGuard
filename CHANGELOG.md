@@ -2,6 +2,12 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 29 (self-test gap): T30 — the last pure helpers are now
+  pinned: `_atomic_write_text` lands via same-dir replace with no
+  leftover .tmp, `_console_encoding` always names a usable codec
+  (OEM page on Windows, cp437 off-Windows), and `_default_profile_dat`
+  returns '' when the template is absent so callers skip that hive.
+  DESIGN.md counts synced (py T1–T30).
 - Audit round 28 (self-test gap): T29 — the regex contracts gating
   every string before it reaches PowerShell/reg.exe/schtasks/winget
   are now pinned: package names allow `~`/`!` (resource segments),

@@ -6461,6 +6461,22 @@ def run_self_test() -> int:
         assert _MSI_GUID_RE.search(g).group(0) == g
         assert not _MSI_GUID_RE.search("uninstall.exe")
 
+    def t_io_and_fallback_helpers():
+        """File/encoding helpers: `_atomic_write_text` lands via a
+        same-dir replace with no leftover .tmp; `_console_encoding`
+        always names a usable codec; `_default_profile_dat` returns ''
+        when the template is absent so callers skip that hive."""
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / "cfg.json"
+            _atomic_write_text(p, '{"a":1}\n')
+            assert p.read_text(encoding="utf-8") == '{"a":1}\n'
+            assert not (p.parent / (p.name + ".tmp")).exists()
+            _atomic_write_text(p, '{"b":2}\n')
+            assert json.loads(p.read_text()) == {"b": 2}
+        enc = _console_encoding()
+        assert enc.startswith("cp") and "x".encode(enc) == b"x"
+        assert _default_profile_dat() == ""   # no template off-Windows
+
     check("T1: Config default-create + reload", t_config_roundtrip)
     check("T2: Blacklist/whitelist matching", t_matching)
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
@@ -6878,6 +6894,8 @@ def run_self_test() -> int:
     check("T28: provisioned family derivation (right-strip + fallback)",
           t_provisioned_family_derivation)
     check("T29: name/SID/GUID regex contracts", t_name_regex_contracts)
+    check("T30: atomic write + encoding + profile-dat fallback",
+          t_io_and_fallback_helpers)
 
     print()
     passed = 0
