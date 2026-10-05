@@ -5948,6 +5948,24 @@ def run_self_test() -> int:
                 globals()["_LEDGER_MAX_BYTES"] = orig_max
                 globals()["_LEDGER_GENERATIONS"] = orig_gens
 
+    def t_split_and_interval():
+        """QuietUninstallString argv split + ScanIntervalSeconds clamp — the
+        two pure helpers the C# build mirrors 1:1."""
+        assert _split_command_line('"C:\\a b\\x.exe" /S /q') == ('C:\\a b\\x.exe', '/S /q')
+        assert _split_command_line('"C:\\a b\\x.exe"') == ('C:\\a b\\x.exe', '')
+        assert _split_command_line('C:\\x.exe /S') == ('C:\\x.exe', '/S')
+        assert _split_command_line('cmd') == ('cmd', '')
+        # unterminated quote falls back to first-space split (cs parity)
+        assert _split_command_line('"C:\\x.exe') == ('"C:\\x.exe', '')
+        lg = logging.getLogger("t_scan_interval")
+        assert _scan_interval({}, lg) == 300
+        assert _scan_interval({"ScanIntervalSeconds": 5}, lg) == 60
+        assert _scan_interval({"ScanIntervalSeconds": -10}, lg) == 60
+        assert _scan_interval({"ScanIntervalSeconds": "5"}, lg) == 60
+        assert _scan_interval({"ScanIntervalSeconds": "abc"}, lg) == 300
+        assert _scan_interval({"ScanIntervalSeconds": None}, lg) == 300
+        assert _scan_interval({"ScanIntervalSeconds": 120}, lg) == 120
+
     check("T1: Config default-create + reload", t_config_roundtrip)
     check("T2: Blacklist/whitelist matching", t_matching)
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
@@ -6345,6 +6363,7 @@ def run_self_test() -> int:
 
     check("T12: HKLM write-path backup coverage", t_backup_path_coverage)
     check("T13: Removal ledger rotation bounded + ordered", t_ledger_rotation)
+    check("T14: cmd split + scan-interval clamp", t_split_and_interval)
 
     print()
     passed = 0

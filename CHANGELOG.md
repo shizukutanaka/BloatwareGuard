@@ -2,6 +2,11 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 13 (self-test gap): T14 — `_split_command_line` argv
+  parsing (quoted path, bare exe, unterminated quote) and
+  `_scan_interval` clamping (sub-60 floor, garbage/None → 300s default)
+  are now machine-checked. Both helpers mirror C# 1:1, so the tests
+  pin the parity contract. DESIGN.md counts synced (py T1–T14).
 - Audit round 12 (self-test gap): T13 — ledger rotation is now
   machine-checked: monkeypatched small limits prove generations stay
   bounded (history drops past N+1 files), the current ledger always
