@@ -2,6 +2,11 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 53 (self-test gap, py): T44 — `run_cmd` bounded
+  real-process contract machine-checked (mirrors C# T15): quick
+  exit returns code + stdout, runaway hits timeout → rc -1,
+  missing executable → rc -1 without raising.
+  DESIGN.md counts synced (py T1–T44 / C# T1–T15).
 - Audit round 52 (self-test gap, C#): T15 — `Proc.Capture` bounded
   real-process contract machine-checked: a quick exit returns its
   code + stdout, a runaway is tree-killed on timeout and reported

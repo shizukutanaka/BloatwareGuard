@@ -7013,6 +7013,20 @@ def run_self_test() -> int:
             nc = _try_reload_config(missing, True, logger)
             assert nc is not None and nc["DryRun"] is True
 
+    def t_run_cmd_contract():
+        # run_cmd bounds every external call: a quick exit returns its
+        # code + stdout; a runaway hits the timeout and reports rc -1;
+        # a missing executable reports rc -1 too — never raises
+        # (mirrors C# Proc.Capture → null on timeout)
+        out, rc = run_cmd([sys.executable, "-c",
+                           "print('hello-proc')"], timeout=30)
+        assert "hello-proc" in out and rc == 0
+        _, rc2 = run_cmd([sys.executable, "-c",
+                          "import time; time.sleep(30)"], timeout=1)
+        assert rc2 == -1
+        _, rc3 = run_cmd(["definitely-not-an-exe-xyz"], timeout=5)
+        assert rc3 == -1
+
     check("T1: Config default-create + reload", t_config_roundtrip)
     check("T2: Blacklist/whitelist matching", t_matching)
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
@@ -7454,6 +7468,7 @@ def run_self_test() -> int:
           t_provisioned_empty_fields_safe)
     check("T43: hot-reload keeps last-good + forces dry-run",
           t_reload_failure_contract)
+    check("T44: run_cmd timeout + exit-code contract", t_run_cmd_contract)
 
     print()
     passed = 0
