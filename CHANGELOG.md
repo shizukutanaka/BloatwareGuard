@@ -2,6 +2,11 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 21 (self-test gap): T22 — the optional-capability flow is
+  now machine-checked: only names the post-removal re-query confirms
+  gone reach the ledger (a `Remove-WindowsCapability` survivor is never
+  recorded), and unsafe names are filtered before any remove call.
+  DESIGN.md counts synced (py T1–T22).
 - Audit round 20 (self-test gap): T21 — `winget_sweep` is now
   machine-checked: only dotted regex-valid ids reach `winget
   uninstall`, the whitelist (incl. `=` exact entries) still wins,

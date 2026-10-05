@@ -6234,6 +6234,37 @@ def run_self_test() -> int:
                      .read_text(encoding="utf-8").splitlines()]
             assert names == ["Vendor.App"], names  # failure not recorded
 
+    def t_capability_requery():
+        """Only capabilities the post-removal re-query confirms gone are
+        ledgered — a survivor of Remove-WindowsCapability must not be
+        recorded as removed (restore would reinstall it needlessly)."""
+        with tempfile.TemporaryDirectory() as td:
+            cfg = {"BackupDirectory": td}
+            state = {"q": 0}
+
+            def fake_ps(cmd, timeout=60):
+                if "ExpandProperty" in cmd:
+                    state["q"] += 1
+                    # first query: two installed + one unsafe name that
+                    # must be filtered out of the remove list entirely
+                    if state["q"] == 1:
+                        return "IE.Capability\nSteps.Recorder\nbad;name\n", "", 0
+                    return "IE.Capability\n", "", 0  # re-query: one survives
+                return "", "", 0  # Remove-WindowsCapability
+
+            orig = run_powershell
+            globals()["run_powershell"] = fake_ps
+            try:
+                assert remove_optional_capabilities(
+                    logging.getLogger("t_caps"), cfg)
+            finally:
+                globals()["run_powershell"] = orig
+            entries = [json.loads(ln) for ln in
+                       (Path(td) / "removed-packages.jsonl")
+                       .read_text(encoding="utf-8").splitlines()]
+            assert [e["name"] for e in entries] == ["Steps.Recorder"], entries
+            assert entries[0]["kind"] == "capability"
+
     check("T1: Config default-create + reload", t_config_roundtrip)
     check("T2: Blacklist/whitelist matching", t_matching)
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
@@ -6639,6 +6670,7 @@ def run_self_test() -> int:
     check("T19: config load edges + haystack matching", t_config_edges_and_haystack)
     check("T20: Win32 uninstall rc/MSI/manual branches", t_win32_remove_rcs)
     check("T21: winget sweep id gating + ledger on success only", t_winget_sweep)
+    check("T22: capability re-query gates ledger", t_capability_requery)
 
     print()
     passed = 0
