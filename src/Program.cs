@@ -1299,6 +1299,9 @@ public static class RegistryGuard
         // ObfuscateFeatureId — disables the Explorer-side feature that
         // depends on AIFabric (zoicware #236/#238 Explorer-ribbon fix)
         ("1561856655", 1),
+        // FeatureId 61161244 -> regID 940684430 via the same obfuscation;
+        // build >=26200.9550 successor of the Explorer-ribbon fix above
+        ("940684430", 1),
     };
     private const string UserSearchPath = @"Software\Microsoft\Windows\CurrentVersion\Search";
     private const string UserSearchSettingsPath = @"Software\Microsoft\Windows\CurrentVersion\SearchSettings";

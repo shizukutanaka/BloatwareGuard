@@ -2,6 +2,15 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- zoicware/RemoveWindowsAI diff — added velocity regID `940684430`
+  (FeatureId 61161244 via the same ObfuscateFeatureId transform) to
+  `_VELOCITY_AI_IDS`: the build >=26200.9550 successor of the existing
+  Explorer-ribbon AIFabric dependency disable (regID 1561856655).
+  Remaining script surface re-audited — all already covered or
+  deliberately skipped (Office vendor policies, consent runtime
+  entries, `SystemRestorePointCreationFrequency=0` which would spam
+  restore points on the service-mode scan loop, AIFabric package
+  exclusion for the Explorer dependency, transient value deletions).
 - Self-test coverage — `_EXTRA_DIAG_CHANNELS` and `DEFAULT_WHITELIST`
   added to the T9 py↔cs shared-list parity sweep and T10 duplicate
   guard; whitelist extracted to a module constant (was inline in
