@@ -6943,7 +6943,7 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
     private static int RunSelfTest(GuardConfig config)
     {
         var passed = 0;
-        var total = 14;
+        var total = 15;
         var results = new List<string>();
 
         GuardLogger.Info("=== BloatwareGuard v1.61.3 — Self-Test Mode === [no admin required]");
@@ -7409,6 +7409,45 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         catch (Exception ex)
         {
             results.Add($"[FAIL] T14: hosts splice — {ex.Message}");
+        }
+
+        // Test 15: Proc.Capture — bounded real-process contract: a quick
+        // exit returns code+stdout; a runaway is tree-killed and reported
+        // as null (the timeout every external call inherits)
+        try
+        {
+            var quickPsi = new ProcessStartInfo
+            {
+                FileName = "ping",
+                Arguments = "127.0.0.1 -n 1",
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            var (qOut, _, qRc) = Proc.Capture(quickPsi, 30000);
+            var killPsi = new ProcessStartInfo
+            {
+                FileName = "ping",
+                Arguments = "127.0.0.1",
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            var (_, _, kRc) = Proc.Capture(killPsi, 300);
+            var ok = qRc == 0 && qOut.Contains("127.0.0.1") && kRc == null;
+            if (ok)
+            {
+                results.Add("[PASS] T15: Proc.Capture — exit-code + stdout, timeout kill → null");
+                GuardLogger.Info("[PASS] T15: Proc.Capture");
+                passed++;
+            }
+            else
+            {
+                results.Add($"[FAIL] T15: Proc.Capture contract broken (rc={qRc}, kill={kRc})");
+                GuardLogger.Error("[FAIL] T15: Proc.Capture broken");
+            }
+        }
+        catch (Exception ex)
+        {
+            results.Add($"[FAIL] T15: Proc.Capture — {ex.Message}");
         }
 
         // Summary

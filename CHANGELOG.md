@@ -2,6 +2,11 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 52 (self-test gap, C#): T15 — `Proc.Capture` bounded
+  real-process contract machine-checked: a quick exit returns its
+  code + stdout, a runaway is tree-killed on timeout and reported
+  as null (the timeout semantics every external call inherits).
+  DESIGN.md counts synced (py T1–T43 / C# T1–T15).
 - Audit round 51 (self-test gap, C#): T14 — `SetTelemetryHostsBlock`
   end-to-end machine check via temp SystemRoot redirect: user lines
   preserved, apply is idempotent, toggle-off restores byte-for-byte
