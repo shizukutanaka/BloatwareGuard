@@ -6595,6 +6595,65 @@ def run_self_test() -> int:
             else:
                 os.environ["PROGRAMDATA"] = orig_pd
 
+    def t_whitelist_wins_e2e():
+        """A whitelisted match is filtered at enumeration inside the
+        live scan: a package matching both lists is never removed and
+        never counted."""
+        calls_ps = []
+        orig_ps, orig_cmd = run_powershell, run_cmd
+        globals()["run_cmd"] = lambda *a, **k: ("", 0)
+        appx_json = json.dumps([{"PackageFamilyName": "Bad.App_abc",
+                                 "Name": "Bad.App", "InstallPath": "C:\\x",
+                                 "IsFramework": False,
+                                 "PackageFullName": "Bad.App_1_x"}])
+        prov_json = json.dumps([{"DisplayName": "Bad.Prov",
+                                 "PackageName": "Bad.Prov_1_x"}])
+
+        def fake_ps(cmd, timeout=60):
+            calls_ps.append(cmd)
+            if "ProvisionedPackage" in cmd:
+                return prov_json, "", 0
+            if "WindowsCapability" in cmd or "Get-ScheduledTask" in cmd:
+                return "[]", "", 0
+            return appx_json, "", 0
+
+        globals()["run_powershell"] = fake_ps
+        orig_root = os.environ.get("SystemRoot")
+        orig_pd = os.environ.get("PROGRAMDATA")
+        os.environ["SystemRoot"] = tempfile.mkdtemp()
+        os.environ["PROGRAMDATA"] = tempfile.mkdtemp()
+        globals()["_registry_backup_done"] = False
+        try:
+            cfg = load_config(Path(tempfile.mkdtemp()) / "config.json")
+            cfg["BackupDirectory"] = tempfile.mkdtemp()
+            cfg["Blacklist"] = ["Bad.App", "Bad.Prov"]
+            # '=' whitelist means the FULL matched name — "Bad.App"
+            # alone would not protect family "Bad.App_abc"
+            cfg["Whitelist"] = ["=Bad.App_abc", "Bad.Prov"]
+            cfg["Prevention"].update({
+                "RemoveWin32Programs": False,
+                "MarkDeprovisioned": False,
+                "RemoveDefaultStorePackages": False,
+            })
+            n = run_scan(cfg, logging.getLogger("t_wl"), dry_run=False)
+            assert n == 0, n
+            # the whitelist's domain: no appx/provisioned removal call
+            assert not any(
+                "Remove-AppxPackage" in c
+                or "Remove-AppxProvisionedPackage" in c
+                for c in calls_ps), calls_ps
+        finally:
+            globals()["run_powershell"] = orig_ps
+            globals()["run_cmd"] = orig_cmd
+            if orig_root is None:
+                os.environ.pop("SystemRoot", None)
+            else:
+                os.environ["SystemRoot"] = orig_root
+            if orig_pd is None:
+                os.environ.pop("PROGRAMDATA", None)
+            else:
+                os.environ["PROGRAMDATA"] = orig_pd
+
     check("T1: Config default-create + reload", t_config_roundtrip)
     check("T2: Blacklist/whitelist matching", t_matching)
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
@@ -7017,6 +7076,7 @@ def run_self_test() -> int:
     check("T31: dry-run performs zero mutations", t_dry_run_zero_mutations)
     check("T32: removal toggles gate each layer independently",
           t_removal_toggle_gating)
+    check("T33: whitelist wins inside live scan", t_whitelist_wins_e2e)
 
     print()
     passed = 0

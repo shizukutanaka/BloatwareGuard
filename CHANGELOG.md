@@ -2,6 +2,13 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 32 (self-test gap): T33 — whitelist precedence is now
+  machine-checked inside the live scan: a package matching both lists
+  is filtered at enumeration — never removed, never counted — and a
+  `=` whitelist entry protects only the FULL matched name
+  ("=Bad.App_abc", not "Bad.App"). T32's BackupDirectory is pinned so
+  the suite stays hermetic off-Windows. DESIGN.md counts synced
+  (py T1–T33).
 - Audit round 31 (self-test gap): T32 — removal-layer toggle gating
   is now machine-checked: with `RemoveAppxPackages` off the provisioned
   path still runs and vice versa, a disabled layer issues neither
