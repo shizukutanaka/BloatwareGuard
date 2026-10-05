@@ -2,6 +2,14 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 9 (improvement queue P2): removal-ledger rotation — the
+  ledger now rotates at 1 MB into up to 5 numbered generations
+  (`removed-packages.jsonl.1` … `.5`) so a resident service can't grow
+  it unboundedly. Rotated generations stay on disk and `restore` reads
+  all of them oldest → newest (the ledger is the restore source — it
+  can't drop history like the log file). Shared `_ledger_path` /
+  `_ledger_generations` / `_ledger_rotate` helpers in Python;
+  `GenerationPaths` / `RotateIfNeeded` on `RemovalLedger` in C#.
 - Audit round 8 (improvement queue P2): `--restore` scope documented —
   README now has a per-ledger-kind table (appx/provisioned → re-register,
   winget → reinstall, capability → Add-WindowsCapability, win32/other →

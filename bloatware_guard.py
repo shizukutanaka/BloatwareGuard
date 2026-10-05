@@ -626,13 +626,47 @@ def remove_appx_package(package_full_name: str) -> bool:
 
 # ─── Removal Ledger (restore support) ────────────────────────────────────────
 
+_LEDGER_MAX_BYTES = 1_000_000
+_LEDGER_GENERATIONS = 5
+
+
+def _ledger_path(config: dict) -> Path:
+    return Path(config.get("BackupDirectory")
+                or (LOG_DIR / "Backups")) / "removed-packages.jsonl"
+
+
+def _ledger_generations(path: Path) -> List[Path]:
+    """Existing ledger files oldest → newest (rotated generations first)."""
+    files = [Path(f"{path}.{i}") for i in range(_LEDGER_GENERATIONS, 0, -1)]
+    return [p for p in files if p.exists()] + ([path] if path.exists() else [])
+
+
+def _ledger_rotate(path: Path) -> None:
+    """Bound ledger growth — called before each append. Rotated generations
+    stay on disk because the ledger is the `--restore` source (unlike the
+    log file it can't just drop its tail)."""
+    try:
+        if not path.exists() or path.stat().st_size < _LEDGER_MAX_BYTES:
+            return
+        Path(f"{path}.{_LEDGER_GENERATIONS}").unlink(missing_ok=True)
+        for i in range(_LEDGER_GENERATIONS - 1, 0, -1):
+            older = Path(f"{path}.{i}")
+            if older.exists():
+                older.replace(Path(f"{path}.{i + 1}"))
+        path.replace(Path(f"{path}.1"))
+    except OSError:
+        pass
+
+
 def record_removal(config: dict, entry: dict):
     """Append a removal record to the ledger for later `--restore`."""
     backup_dir = Path(config.get("BackupDirectory") or (LOG_DIR / "Backups"))
     try:
         backup_dir.mkdir(parents=True, exist_ok=True)
         entry = {"ts": time.strftime("%Y-%m-%dT%H:%M:%S"), **entry}
-        with open(backup_dir / "removed-packages.jsonl", "a", encoding="utf-8") as f:
+        ledger = backup_dir / "removed-packages.jsonl"
+        _ledger_rotate(ledger)
+        with open(ledger, "a", encoding="utf-8") as f:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
     except Exception:
         pass
@@ -641,14 +675,17 @@ def record_removal(config: dict, entry: dict):
 def run_restore(config: dict, logger: logging.Logger) -> int:
     """Re-register staged AppxPackages recorded in the removal ledger.
     Provisioned packages cannot be restored from the image — reported as manual."""
-    ledger = Path(config.get("BackupDirectory") or (LOG_DIR / "Backups")) / "removed-packages.jsonl"
-    if not ledger.exists():
+    files = _ledger_generations(_ledger_path(config))
+    if not files:
         logger.info("No removal ledger found — nothing to restore.")
         return 0
 
     restored = 0
     manual = 0
-    for line in ledger.read_text(encoding="utf-8").splitlines():
+    lines: List[str] = []
+    for p in files:
+        lines.extend(p.read_text(encoding="utf-8").splitlines())
+    for line in lines:
         try:
             entry = json.loads(line)
         except json.JSONDecodeError:

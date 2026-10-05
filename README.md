@@ -113,7 +113,11 @@ BloatwareGuard.exe uninstall
 ## Removal Ledger & Restore
 
 Every successful removal is appended to `removed-packages.jsonl` under
-`BackupDirectory` (default `C:\ProgramData\BloatwareGuard\Backups`).
+`BackupDirectory` (default `C:\ProgramData\BloatwareGuard\Backups`). The
+file rotates at 1 MB into up to 5 numbered generations
+(`removed-packages.jsonl.1` … `.5`) so service mode can't grow it
+unboundedly; `restore` reads every generation, so rotated history stays
+restorable.
 `restore` coverage is the same in both implementations:
 
 | Ledger kind | Action |

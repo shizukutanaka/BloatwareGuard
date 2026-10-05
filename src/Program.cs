@@ -383,6 +383,9 @@ public static class GuardLogger
 
 public static class RemovalLedger
 {
+    private const int LedgerMaxBytes = 1_000_000;
+    private const int LedgerGenerations = 5;
+
     public static string GetPath(GuardConfig config)
     {
         var dir = config.BackupDirectory;
@@ -393,6 +396,36 @@ public static class RemovalLedger
         return Path.Combine(dir, "removed-packages.jsonl");
     }
 
+    /// <summary>Existing ledger files oldest → newest (rotated generations
+    /// first) — the restore path reads every generation.</summary>
+    public static List<string> GenerationPaths(string path)
+    {
+        var files = new List<string>();
+        for (var i = LedgerGenerations; i >= 1; i--)
+            if (File.Exists($"{path}.{i}")) files.Add($"{path}.{i}");
+        if (File.Exists(path)) files.Add(path);
+        return files;
+    }
+
+    /// <summary>Bound ledger growth — called before each append. Rotated
+    /// generations stay on disk because the ledger is the restore source
+    /// (unlike the log file it can't just drop its tail).</summary>
+    private static void RotateIfNeeded(string path)
+    {
+        try
+        {
+            var info = new FileInfo(path);
+            if (!info.Exists || info.Length < LedgerMaxBytes)
+                return;
+            File.Delete($"{path}.{LedgerGenerations}");
+            for (var i = LedgerGenerations - 1; i >= 1; i--)
+                if (File.Exists($"{path}.{i}"))
+                    File.Move($"{path}.{i}", $"{path}.{i + 1}");
+            File.Move(path, $"{path}.1");
+        }
+        catch { /* best-effort like the append itself */ }
+    }
+
     public static void Record(GuardConfig config, string kind, string name,
         string family = "", string fullName = "")
     {
@@ -400,6 +433,7 @@ public static class RemovalLedger
         {
             var ledger = GetPath(config);
             Directory.CreateDirectory(Path.GetDirectoryName(ledger)!);
+            RotateIfNeeded(ledger);
             var entry = new Dictionary<string, string>
             {
                 ["ts"] = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss"),
@@ -6726,14 +6760,16 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
     private static void RestorePackages(GuardConfig config)
     {
         var ledger = RemovalLedger.GetPath(config);
-        if (!File.Exists(ledger))
+        var files = RemovalLedger.GenerationPaths(ledger);
+        if (files.Count == 0)
         {
             GuardLogger.Info("No removal ledger found — nothing to restore.");
             return;
         }
 
+        var lines = files.SelectMany(f => File.ReadLines(f));
         int restored = 0, manual = 0;
-        foreach (var line in File.ReadAllLines(ledger))
+        foreach (var line in lines)
         {
             Dictionary<string, string>? entry;
             try
