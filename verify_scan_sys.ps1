@@ -23,7 +23,8 @@ if (-not (Test-Path $exe)) {
 # --- BEFORE snapshots ---
 "Taking BEFORE snapshots..." | Out-File -Append $log
 Get-AppxProvisionedPackage -Online | Select-Object PackageName | Out-File -Append C:\temp\prov_before.txt
-Get-AppxPackage | Where-Object { $_.Name -like "*Xbox*" -or $_.Name -like "*Solitaire*" -or $_.Name -like "*YourPhone*" -or $_.Name -like "*MicrosoftTeams*" -or $_.Name -like "*Zune*" } | Select-Object PackageFamilyName | Out-File -Append C:\temp\appx_before.txt
+$nameMatch = { $n = $_.Name; @("Xbox","Solitaire","YourPhone","MicrosoftTeams","Zune","Copilot","Disney","Spotify","Clipchamp","TikTok","CandyCrush","BingSearch") | Where-Object { $n -like "*$_*" } }
+Get-AppxPackage | Where-Object $nameMatch | Select-Object PackageFamilyName | Out-File -Append C:\temp\appx_before.txt
 reg export "HKLM\SOFTWARE\Policies\Microsoft" C:\temp\before.reg 2>$null
 reg export "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" C:\temp\before_sys.reg 2>$null
 
@@ -35,7 +36,7 @@ $proc = Start-Process -FilePath $exe -ArgumentList "scan" -Wait -PassThru -Redir
 # --- AFTER snapshots ---
 "Taking AFTER snapshots..." | Out-File -Append $log
 Get-AppxProvisionedPackage -Online | Select-Object PackageName | Out-File -Append C:\temp\prov_after.txt
-Get-AppxPackage | Where-Object { $_.Name -like "*Xbox*" -or $_.Name -like "*Solitaire*" -or $_.Name -like "*YourPhone*" -or $_.Name -like "*MicrosoftTeams*" -or $_.Name -like "*Zune*" } | Select-Object PackageFamilyName | Out-File -Append C:\temp\appx_after.txt
+Get-AppxPackage | Where-Object $nameMatch | Select-Object PackageFamilyName | Out-File -Append C:\temp\appx_after.txt
 reg export "HKLM\SOFTWARE\Policies\Microsoft" C:\temp\after.reg 2>$null
 reg export "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" C:\temp\after_sys.reg 2>$null
 

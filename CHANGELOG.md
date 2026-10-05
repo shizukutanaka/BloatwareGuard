@@ -2,6 +2,13 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 50 (verify-script staleness): verify_scan.ps1 /
+  verify_scan_sys.ps1 appx snapshots now cover 12 representative
+  blacklist families (was 5) — adds Copilot, Disney, Spotify,
+  Clipchamp, TikTok, CandyCrush, BingSearch so the before/after
+  diff actually shows the removals the tool performs today.
+  Scripts verify via snapshot diff, not key assertions, so no
+  other updates needed for new registry writes.
 - Audit round 49 (self-test gap, C#): T13 — `WingetIdIsMatch` gate
   machine-checked: only dotted/alnum/hyphen ids reach
   `winget uninstall`; appx-style ~ and ! segments, spaces, quotes

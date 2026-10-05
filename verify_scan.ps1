@@ -15,7 +15,7 @@ reg export "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" C:\t
 powershell "Get-AppxProvisionedPackage -Online | Select PackageName" > C:\temp\prov_before.txt
 
 # 3. Appx packages matching blacklist BEFORE
-$blacklist_patterns = @("Xbox", "Solitaire", "YourPhone", "MicrosoftTeams", "Zune")
+$blacklist_patterns = @("Xbox", "Solitaire", "YourPhone", "MicrosoftTeams", "Zune", "Copilot", "Disney", "Spotify", "Clipchamp", "TikTok", "CandyCrush", "BingSearch")
 $installed_before = Get-AppxPackage | Where-Object { $n = $_.Name; $blacklist_patterns | Where-Object { $n -like "*$_*" } }
 $installed_before | Select PackageFamilyName | Export-Csv -NoType C:\temp\appx_before.csv
 
