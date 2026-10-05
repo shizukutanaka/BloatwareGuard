@@ -5999,6 +5999,34 @@ def run_self_test() -> int:
                 else:
                     os.environ["SystemRoot"] = orig
 
+    def t_restore_ledger():
+        """--restore replays every ledger generation oldest → newest, skips
+        malformed lines, and never executes an unsafe or un-runnable name."""
+        with tempfile.TemporaryDirectory() as td:
+            lg = logging.getLogger("t_restore")
+            # no ledger → clean no-op
+            assert run_restore({"BackupDirectory": td}, lg) == 0
+            Path(td, "removed-packages.jsonl.1").write_text(
+                json.dumps({"kind": "provisioned", "name": "Prov.Pkg_1"})
+                + "\nnot-json\n", encoding="utf-8")
+            Path(td, "removed-packages.jsonl").write_text(
+                json.dumps({"kind": "appx", "name": "bad';evil"}) + "\n"
+                + json.dumps({"kind": "appx", "name": "Good.Pkg"}) + "\n"
+                + json.dumps({"kind": "winget", "name": "Vendor.App"}) + "\n",
+                encoding="utf-8")
+            calls: List[str] = []
+            orig_ps, orig_cmd = run_powershell, run_cmd
+            globals()["run_powershell"] = lambda *a, **k: calls.append("ps") or ("", "", 0)
+            globals()["run_cmd"] = lambda *a, **k: calls.append("cmd") or ("", 0)
+            try:
+                assert run_restore({"BackupDirectory": td}, lg) == 0
+            finally:
+                globals()["run_powershell"] = orig_ps
+                globals()["run_cmd"] = orig_cmd
+            # exactly the two safe re-register entries reach PowerShell —
+            # unsafe appx name, winget-without-winget, and junk are skipped
+            assert calls == ["ps", "ps"], f"unexpected executions: {calls}"
+
     check("T1: Config default-create + reload", t_config_roundtrip)
     check("T2: Blacklist/whitelist matching", t_matching)
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
@@ -6398,6 +6426,7 @@ def run_self_test() -> int:
     check("T13: Removal ledger rotation bounded + ordered", t_ledger_rotation)
     check("T14: cmd split + scan-interval clamp", t_split_and_interval)
     check("T15: hosts block splice idempotent + non-destructive", t_hosts_splice)
+    check("T16: --restore ledger replay safety", t_restore_ledger)
 
     print()
     passed = 0

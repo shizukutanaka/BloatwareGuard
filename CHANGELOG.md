@@ -2,6 +2,12 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 15 (self-test gap): T16 — `--restore` replay is now
+  machine-checked: it reads all rotated ledger generations, skips
+  malformed lines, refuses unsafe package names, and reaches
+  PowerShell only for the two safe re-register kinds — the recovery
+  path previously had zero coverage. DESIGN.md counts synced
+  (py T1–T16).
 - Audit round 14 (self-test gap): T15 — the hosts splice is now
   machine-checked end-to-end against a redirected SystemRoot: user
   lines survive, the block applies idempotently, removal restores the
