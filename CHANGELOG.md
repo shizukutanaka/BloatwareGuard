@@ -2,6 +2,13 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 12 (self-test gap): T13 — ledger rotation is now
+  machine-checked: monkeypatched small limits prove generations stay
+  bounded (history drops past N+1 files), the current ledger always
+  sorts last, and rotated files list oldest → newest, which is the
+  exact order `--restore` replays. The round-9 feature previously had
+  no test coverage. DESIGN.md self-test counts synced (py T1–T13 /
+  C# T1–T8).
 - Audit round 11 (parity fix): Python `uninstall` now uses the real
   logger for its hosts-block strip — it previously logged to a
   handler-less logger so the removal was silent (the C# build logs it

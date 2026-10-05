@@ -5924,6 +5924,30 @@ def run_self_test() -> int:
             assert len(entries) == 1 and entries[0]["name"] == "Microsoft.XboxGamingOverlay"
             assert "ts" in entries[0]
 
+    def t_ledger_rotation():
+        """Ledger generations stay bounded and are listed oldest → newest —
+        the ordering `--restore` replays them in."""
+        with tempfile.TemporaryDirectory() as td:
+            orig_max, orig_gens = _LEDGER_MAX_BYTES, _LEDGER_GENERATIONS
+            globals()["_LEDGER_MAX_BYTES"] = 64
+            globals()["_LEDGER_GENERATIONS"] = 3
+            try:
+                cfg = {"BackupDirectory": td}
+                for i in range(8):
+                    # entries bigger than the 64-byte cap → one line per file
+                    record_removal(cfg, {"kind": "appx", "name": f"pkg{i}" + "x" * 80})
+                ledger = Path(td) / "removed-packages.jsonl"
+                gens = _ledger_generations(ledger)
+                assert gens and gens[-1] == ledger, "current ledger must come last"
+                nums = [int(p.name.rsplit(".", 1)[1]) for p in gens[:-1]]
+                assert nums == sorted(nums, reverse=True) and max(nums) <= 3, \
+                    f"bad generation set: {nums}"
+                total = sum(len(p.read_text().splitlines()) for p in gens)
+                assert total < 8, f"history must be bounded, kept {total}/8 lines"
+            finally:
+                globals()["_LEDGER_MAX_BYTES"] = orig_max
+                globals()["_LEDGER_GENERATIONS"] = orig_gens
+
     check("T1: Config default-create + reload", t_config_roundtrip)
     check("T2: Blacklist/whitelist matching", t_matching)
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
@@ -6320,6 +6344,7 @@ def run_self_test() -> int:
             f"demoted/disabled services in Program.cs with no backup: {miss_scs}"
 
     check("T12: HKLM write-path backup coverage", t_backup_path_coverage)
+    check("T13: Removal ledger rotation bounded + ordered", t_ledger_rotation)
 
     print()
     passed = 0
