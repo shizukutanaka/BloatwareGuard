@@ -2,6 +2,12 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 35 (self-test gap): T36 — restore kind dispatch is now
+  machine-checked: appx and provisioned entries re-register through
+  Add-AppxPackage, capability entries re-enable via
+  Add-WindowsCapability, winget entries reinstall with an exact-id
+  call, and win32/unknown kinds are manual-only (never executed).
+  DESIGN.md counts synced (py T1–T36).
 - Audit round 34 (self-test gap): T35 — layer failure isolation is
   now machine-checked: a raising capability layer is contained, the
   OEM-task sweep and telemetry-task disable still run, and

@@ -6741,6 +6741,46 @@ def run_self_test() -> int:
             else:
                 os.environ["PROGRAMDATA"] = orig_pd
 
+    def t_restore_kind_dispatch():
+        """Every ledger kind restores through its own verb: appx and
+        provisioned re-register, capability re-enables via
+        Add-WindowsCapability, winget reinstalls with an exact-id
+        call, and win32/unknown kinds are manual-only (never exec)."""
+        calls_ps, calls_cmd = [], []
+        orig_ps, orig_cmd = run_powershell, run_cmd
+        orig_which = shutil.which
+        globals()["run_powershell"] = lambda c, **k: (
+            calls_ps.append(c), "", "", 0)[1:]
+        globals()["run_cmd"] = lambda a, **k: (
+            calls_cmd.append(a), "", 0)[1:]
+        shutil.which = lambda n, path=None: "/usr/bin/winget" \
+            if n == "winget" else None
+        try:
+            cfg = load_config(Path(tempfile.mkdtemp()) / "config.json")
+            bd = Path(tempfile.mkdtemp())
+            cfg["BackupDirectory"] = str(bd)
+            entries = [
+                {"kind": "appx", "name": "Good.App"},
+                {"kind": "provisioned", "name": "Good.Prov"},
+                {"kind": "capability", "name": "Browser.IE"},
+                {"kind": "winget", "name": "Vendor.App"},
+                {"kind": "win32", "name": "Vendor.Tool"},
+                {"kind": "mystery", "name": "What.Ever"},
+            ]
+            (bd / "removed-packages.jsonl").write_text(
+                "\n".join(json.dumps(e) for e in entries), encoding="utf-8")
+            assert run_restore(cfg, logging.getLogger("t_rd")) == 0
+            joined = "\n".join(calls_ps)
+            assert "Add-WindowsCapability" in joined
+            assert joined.count("Add-AppxPackage") == 2  # appx + provisioned
+            winget = [a for a in calls_cmd if a and a[0] == "winget"]
+            assert len(winget) == 1
+            assert "-e" in winget[0] and "Vendor.App" in winget[0]
+        finally:
+            globals()["run_powershell"] = orig_ps
+            globals()["run_cmd"] = orig_cmd
+            shutil.which = orig_which
+
     check("T1: Config default-create + reload", t_config_roundtrip)
     check("T2: Blacklist/whitelist matching", t_matching)
     check("T3: Get-AppxPackage JSON parsing", t_get_packages_parse)
@@ -7167,6 +7207,7 @@ def run_self_test() -> int:
     check("T34: config passthrough — unknown keys + upgrade defaults",
           t_config_passthrough_semantics)
     check("T35: layer failure isolation", t_layer_failure_isolation)
+    check("T36: restore dispatches each ledger kind", t_restore_kind_dispatch)
 
     print()
     passed = 0
