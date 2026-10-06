@@ -6054,14 +6054,16 @@ def run_self_test() -> int:
                 + json.dumps({"kind": "winget", "name": "Vendor.App"}) + "\n",
                 encoding="utf-8")
             calls: List[str] = []
-            orig_ps, orig_cmd = run_powershell, run_cmd
+            orig_ps, orig_cmd, orig_which = run_powershell, run_cmd, shutil.which
             globals()["run_powershell"] = lambda *a, **k: calls.append("ps") or ("", "", 0)
             globals()["run_cmd"] = lambda *a, **k: calls.append("cmd") or ("", 0)
+            shutil.which = lambda *a, **k: None
             try:
                 assert run_restore({"BackupDirectory": td}, lg) == 0
             finally:
                 globals()["run_powershell"] = orig_ps
                 globals()["run_cmd"] = orig_cmd
+                shutil.which = orig_which
             # exactly the two safe re-register entries reach PowerShell —
             # unsafe appx name, winget-without-winget, and junk are skipped
             assert calls == ["ps", "ps"], f"unexpected executions: {calls}"
