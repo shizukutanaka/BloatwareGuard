@@ -2,6 +2,11 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 60 (doc-drift audit): mechanical recount of every shared
+  list — tasks py=cs=136 ✓, demoted services py=cs=91 (README said 89 →
+  fixed), blacklist py=cs=config.json=src/config.json=236 ✓,
+  telemetry hosts py=cs=520 ✓, whitelist py=cs=config=12 ✓,
+  capabilities=6 ✓, DESIGN task count 134→136 fixed. No code changes.
 - Audit round 59 (gordonbay/Windows-On-Reins diff): `NcdAutoSetup\Private
   AutoSetup=0` — UPnP/WSD network-device auto-install off: detected
   printers/media renderers no longer silently provision drivers +

@@ -44,7 +44,7 @@ also apply correctly when the tool runs as a SYSTEM service and for users create
 || 32. Cross-device clipboard sync off (copied content stays local) | ✅ | ✅ | HKLM needs admin |
 || 33. Remote Assistance inbound offers off | ✅ | ✅ | HKLM needs admin |
 || 34. Windows Insider preview enrollment blocked | ✅ | ✅ | HKLM needs admin |
-|| 35. Misc bloat services → demand-start (89: push/MDM, Maps, media sharing, diagnostics, Nearby Sharing, Store push-install, NFC payments, Phone Link, NVIDIA/Intel telemetry, SysMain prefetch, touch keyboard, search indexer, kiosk assigned-access, link tracking, WER CPL, AI-fabric listeners, OneSettings, FileSync, sensor stack, MR OpenXR, Fax, agent-isolation broker, Intel DAL/LMS/graphics-panel services) + RemoteRegistry disabled | ✅ | ✅ | HKLM needs admin |
+|| 35. Misc bloat services → demand-start (91: push/MDM, Maps, media sharing, diagnostics, Nearby Sharing, Store push-install, NFC payments, Phone Link, NVIDIA/Intel telemetry, SysMain prefetch, touch keyboard, search indexer, kiosk assigned-access, link tracking, WER CPL, AI-fabric listeners, OneSettings, FileSync, sensor stack, MR OpenXR, Fax, agent-isolation broker, Intel DAL/LMS/graphics-panel services) + RemoteRegistry disabled | ✅ | ✅ | HKLM needs admin |
 || 36. Desktop Spotlight off (wallpaper promo channel) | ✅ | ✅ | Per-hive |
 || 37. AutoPlay/AutoRun off (removable-media execution vector) | ✅ | ✅ | HKLM needs admin |
 || 38. No forced Windows Update reboot while logged on | ✅ | ✅ | HKLM needs admin |
