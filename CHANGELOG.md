@@ -2,6 +2,19 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 85 (prevention-layer dispatch parity — clean):
+  all 35 toggles verified present and gated on both sides; every
+  layer wrapped in its own catch→Warn so one failure can't abort
+  the rest. Two documented structural divergences (same
+  semantics): (a) py splits dispatch — `apply_registry_prevention`
+  covers 33 while autologgers/hosts-block/winget/tasks live in
+  `run_scan` so dry-run prints "[DRY-RUN] Would …" per layer, vs
+  cs `ApplyAll` dispatching all 35 and skipping the whole call in
+  dry-run ("Startup prevention changes skipped"); (b) py's
+  `BlockTelemetryEndpoints` call stays unconditional in both —
+  required so toggling off removes a previously written hosts
+  block. `DisableXboxServices` call order differs (independent
+  layers — no cross-dependencies).
 - Audit round 84 (restore dispatch parity — clean):
   `run_restore`/`RestorePackages` verified identical — same ledger
   path + JSONL line-tolerant parse, same display fallback
