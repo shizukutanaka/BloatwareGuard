@@ -2,6 +2,15 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 94 (logging substrate parity — clean):
+  `setup_logging`/`GuardLogger` verified equivalent — identical
+  `[yyyy-MM-dd HH:mm:ss] [LEVEL] msg` line format on both
+  console and file, same 1 MB rotation keeping one prior
+  generation (`.1` vs `.old` suffix — cosmetic), same
+  file-write-failure → console-only fallback, same once-per-
+  process source check. cs additionally mirrors into the Windows
+  Event Log — a cs-only sink; py's equivalent channel is NSSM's
+  service-stdout capture (documented SCM-awareness split).
 - Audit round 92/93 (scan orchestration + Win32 parity):
   `run_scan`/`RunScan` stage order verified — restore point →
   backup → appx → provisioned → capabilities → win32 →
