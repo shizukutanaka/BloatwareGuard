@@ -1265,6 +1265,7 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Policies\Microsoft\Windows\Kernel DMA Protection",
     r"SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Device Metadata",
+    r"SOFTWARE\Microsoft\Windows\CurrentVersion\NcdAutoSetup\Private",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked",
     # --- coverage completion (audit: every HKLM write path backed up) ---
     r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\UnattendSettings\SQMClient",
@@ -3635,6 +3636,13 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword("HKLM",
                                r"SOFTWARE\Microsoft\Windows\CurrentVersion\Device Installer",
                                "DisableCoInstallers", 1)
+            # UPnP/WSD network-device auto-install off — detected
+            # network devices (printers/media renderers) no longer
+            # silently provision drivers + companion apps
+            # (gordonbay/Windows-On-Reins)
+            set_registry_dword("HKLM",
+                               r"SOFTWARE\Microsoft\Windows\CurrentVersion\NcdAutoSetup\Private",
+                               "AutoSetup", 0)
             logger.info("Applied: BlockOemDriverUpdates "
                         "(ExcludeWUDriversInQualityUpdate=1)")
 

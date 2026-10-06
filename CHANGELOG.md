@@ -2,6 +2,14 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 59 (gordonbay/Windows-On-Reins diff): `NcdAutoSetup\Private
+  AutoSetup=0` — UPnP/WSD network-device auto-install off: detected
+  printers/media renderers no longer silently provision drivers +
+  companion apps (BlockOemDriverUpdates layer + both backup lists).
+  NetbiosOptions=2 skipped — NetBT driver + lmhosts already demoted;
+  WDigest/CredentialsDelegation already covered; Defender/firewall/
+  update kills, storage-disables, prefetch/hibernation prefs, and
+  history-wipes rejected by policy.
 - Audit round 58 (Disassembler0 diff): `UpdateOrchestrator\MusNotification`
   + `MusNotification_Ux` tasks disabled (134→136) — kills the
   "finish setting up your device"/restart-nag toasts; update

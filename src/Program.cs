@@ -4713,6 +4713,10 @@ public static class RegistryGuard
             using var coinst = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                 @"SOFTWARE\Microsoft\Windows\CurrentVersion\Device Installer");
             coinst?.SetValue("DisableCoInstallers", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            // UPnP/WSD network-device auto-install off (gordonbay/WoR)
+            using var ncd = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Microsoft\Windows\CurrentVersion\NcdAutoSetup\Private");
+            ncd?.SetValue("AutoSetup", 0, Microsoft.Win32.RegistryValueKind.DWord);
             GuardLogger.Info("Applied: BlockOemDriverUpdates (ExcludeWUDriversInQualityUpdate=1, SearchOrderConfig=0, DisableCoInstallers=1)");
         }
         catch (Exception ex)
@@ -4801,6 +4805,7 @@ public static class RegistryGuard
         @"SOFTWARE\Policies\Microsoft\FindMyDevice",
         @"SOFTWARE\Policies\Microsoft\Windows\SettingSync",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Device Metadata",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\NcdAutoSetup\Private",
         @"SOFTWARE\Microsoft\OneDrive",
         @"SOFTWARE\Microsoft\Windows\Shell\Copilot",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Search",
