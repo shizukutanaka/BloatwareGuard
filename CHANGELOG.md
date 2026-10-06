@@ -2,6 +2,17 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 96 (py fix — framework visibility in package enum):
+  `_enum_blacklisted_packages` now returns 5-tuples carrying the
+  IsFramework flag instead of dropping framework rows silently — the
+  C# `GetBlacklistedPackages` contract it was documented to mirror.
+  Callers skip framework rows for removal (scan, matched-families,
+  monitor skip only in removal contexts — the monitor still watches
+  framework families for re-installs, matching C#) and
+  `--list-installed` prints them with the `[FRAMEWORK]` tag, same as
+  `ListInstalled`. Framework skips in the scan are Warn-severity on
+  both sides now. `get_blacklisted_packages` keeps its public
+  3-tuple non-framework view for external callers.
 - Audit round 95 (Appx removal-path parity — clean):
   the admin→user dual path verified equivalent — py keeps the
   is_admin → `-AllUsers` → user-level fallback inside

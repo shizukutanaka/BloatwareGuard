@@ -481,16 +481,19 @@ def get_blacklisted_packages(blacklist: List[str], whitelist: List[str]) -> List
     """Public 3-tuple view (PackageFamilyName, Name, InstallPath) — kept for
     external callers (CI verification snippet unpacks 3 fields). The scan path
     uses _enum_blacklisted_packages which also carries PackageFullName."""
-    return [(f, n, p) for f, n, p, _full in _enum_blacklisted_packages(blacklist, whitelist)]
+    return [(f, n, p) for f, n, p, _full, fw in _enum_blacklisted_packages(blacklist, whitelist)
+            if not fw]
 
 
-def _enum_blacklisted_packages(blacklist: List[str], whitelist: List[str]) -> List[Tuple[str, str, str, str]]:
-    """Return (PackageFamilyName, Name, InstallPath, PackageFullName) for
-    packages matching blacklist. InstallPath is None for SystemApps (cannot be
-    removed per-user); PackageFullName comes from the same query — no second
-    PowerShell call per scan (C# GetBlacklistedPackages parity).
-    Whitelisted packages are never returned, and IsFramework packages (dependency
-    DLLs for other apps) are skipped. Enumerates -AllUsers when admin so packages
+def _enum_blacklisted_packages(blacklist: List[str], whitelist: List[str]) -> List[Tuple[str, str, str, str, bool]]:
+    """Return (PackageFamilyName, Name, InstallPath, PackageFullName,
+    IsFramework) for packages matching blacklist. InstallPath is None for
+    SystemApps (cannot be removed per-user); PackageFullName comes from the
+    same query — no second PowerShell call per scan (C#
+    GetBlacklistedPackages parity). Whitelisted packages are never returned.
+    IsFramework packages (dependency DLLs for other apps) are returned
+    flagged — callers skip them for removal but --list-installed shows them
+    tagged, same as C#. Enumerates -AllUsers when admin so packages
     installed for other profiles are caught too."""
     if not blacklist:
         return []
@@ -517,12 +520,14 @@ def _enum_blacklisted_packages(blacklist: List[str], whitelist: List[str]) -> Li
             name = pkg.get("Name", "")
             install_path = pkg.get("InstallPath", "")  # None for SystemApps
             full_name = pkg.get("PackageFullName", "")
+            is_framework = bool(pkg.get("IsFramework"))
             key = full_name or family
-            if bool(pkg.get("IsFramework")) or key in seen:
+            if key in seen:
                 continue
             if is_target_package(family, blacklist, whitelist):
                 seen.add(key)
-                results.append((family, name, install_path, full_name))
+                results.append((family, name, install_path, full_name,
+                                is_framework))
     except (json.JSONDecodeError, TypeError):
         pass
 
@@ -5337,8 +5342,11 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
     # 1. Remove installed packages
     if prev.get("RemoveAppxPackages", True):
         packages = _enum_blacklisted_packages(blacklist, whitelist)
-        matched += len(packages)
-        for family_name, display_name, install_path, full_name in packages:
+        matched += sum(1 for *_rest, fw in packages if not fw)
+        for family_name, display_name, install_path, full_name, is_framework in packages:
+            if is_framework:
+                logger.warning(f"Framework package (skip): {family_name}")
+                continue
             matched_families.add(family_name)
             is_system_app = not install_path or install_path.strip() == ""
             if dry_run:
@@ -5418,8 +5426,10 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
     if prev.get("MarkDeprovisioned", True) or prev.get("RemoveDefaultStorePackages", True):
         if not (prev.get("RemoveAppxPackages", True)
                 and prev.get("RemoveProvisionedPackages", True)):
-            for family_name, _, _, _ in _enum_blacklisted_packages(blacklist, whitelist):
-                matched_families.add(family_name)
+            for family_name, _, _, _, is_framework in _enum_blacklisted_packages(
+                    blacklist, whitelist):
+                if not is_framework:
+                    matched_families.add(family_name)
             for display_name, package_name in get_blacklisted_provisioned(
                     blacklist, whitelist):
                 matched_families.add(_provisioned_family(package_name, display_name))
@@ -5562,7 +5572,7 @@ def run_service(config: dict, logger: logging.Logger):
                 current_provisioned = set(prov_map)
                 installed_map = {
                     family: full_name
-                    for family, _, _, full_name
+                    for family, _, _, full_name, _fw
                     in _enum_blacklisted_packages(blacklist, whitelist)
                 }
                 current_installed = set(installed_map)
@@ -5740,6 +5750,7 @@ def run_self_test() -> int:
         globals()["run_powershell"] = lambda cmd, timeout=60: (fake_json, "", 0)
         try:
             pkgs = _enum_blacklisted_packages(["Xbox"], [])
+            pkgs = [(f, n, p, full) for f, n, p, full, _fw in pkgs]
             assert pkgs and pkgs[0][3] == \
                 "Microsoft.XboxGamingOverlay_1.0_x64__8wekyb3d8bbwe"
         finally:
@@ -6292,10 +6303,11 @@ def main():
     if args.list_installed:
         blacklist = config.get("Blacklist", [])
         whitelist = config.get("Whitelist", [])
-        pkgs = get_blacklisted_packages(blacklist, whitelist)
+        pkgs = _enum_blacklisted_packages(blacklist, whitelist)
         logger.info("Installed packages matching blacklist:")
-        for family, name, _install_path in pkgs:
-            logger.info(f"  {family} ({name})")
+        for family, name, _install_path, _full_name, is_framework in pkgs:
+            tag = " [FRAMEWORK]" if is_framework else ""
+            logger.info(f"  {family} ({name}){tag}")
         logger.info("Total: %d package(s) installed.", len(pkgs))
         return
 
