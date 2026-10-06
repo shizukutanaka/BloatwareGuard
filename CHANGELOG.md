@@ -2,6 +2,14 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 83 (registry backup-net parity): C# `BackupKeyPaths`
+  synced 122→191 and `UserBackupKeyPaths` 2→91 to match the Python
+  lists — the service's `.reg` export safety net was missing
+  coverage for ~70 HKLM write paths (SCHANNEL/TLS kills, Wdigest,
+  Lsa, Tcpip/6 hardening, DriverSearching, WindowsUpdate, OOBE,
+  EdgeUI, WDI, Windows Chat, etc.) and nearly every per-user
+  hardening path. Both implementations now snapshot every key the
+  tool touches on first apply.
 - Audit round 82 (per-user hive enumeration parity — clean):
   `for_each_user_hive`/`ForEachUserHive` verified identical —
   same `S-1-5-21-*` SID filter (excludes .DEFAULT/service
