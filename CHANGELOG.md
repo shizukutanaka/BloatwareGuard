@@ -2,6 +2,18 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 74 (startup-bloat layer parity — clean):
+  `disable_startup_bloat`/`DisableStartupBloat` verified fully
+  aligned — identical 8-way scan matrix (HKLM Run/RunOnce 64+32-bit
+  views, four per-user hive combos), same 0x03+11-byte
+  StartupApproved marker, same peer-view block (same-named
+  non-bloat entry in the paired view suppresses the marker), same
+  Explorer\Run policy-key purge with data logging, same
+  `.bgdisabled` folder rename in user+common Startup dirs, and the
+  Active Setup stub sweep deletes matching subkeys from the same
+  two Installed Components paths with the same blob fields
+  (name/default/LocalizedName/StubPath). Needle sources
+  (blacklist + startup names, whitelist precedence) identical.
 - Audit round 73 (scheduled-task + log-severity parity):
   `DisableOemTasks`/`disable_oem_scheduled_tasks` and the telemetry/
   OneDrive/EdgeUpdate task kills verified aligned — same
