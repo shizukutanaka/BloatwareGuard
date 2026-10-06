@@ -2,6 +2,15 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 75 (telemetry hosts-block parity — clean):
+  `set_telemetry_hosts_block`/`SetTelemetryHostsBlock` verified
+  fully aligned — same `%SystemRoot%\System32\drivers\etc\hosts`
+  resolution, strict UTF-8 decode (skip on undecodable bytes),
+  identical `>>> BloatwareGuard telemetry block`/`<<<` markers and
+  newline-normalized splice, same three no-op conditions (no
+  block+disabled, absent file, content already desired), atomic
+  rewrite, 520=520 domain set (no drift — the lone extractor
+  artifact was a code comment, not a domain).
 - Audit round 74 (startup-bloat layer parity — clean):
   `disable_startup_bloat`/`DisableStartupBloat` verified fully
   aligned — identical 8-way scan matrix (HKLM Run/RunOnce 64+32-bit
