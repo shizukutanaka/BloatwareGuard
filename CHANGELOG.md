@@ -2,6 +2,15 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 84 (restore dispatch parity — clean):
+  `run_restore`/`RestorePackages` verified identical — same ledger
+  path + JSONL line-tolerant parse, same display fallback
+  (name→family→"?"), all four kinds with identical gates,
+  commands and timeouts: appx/provisioned re-register
+  (`Add-AppxPackage -Register` 60s, safe-name gate first), winget
+  (`install -e --id` 300s, ID-regex + presence gate), capability
+  (`Add-WindowsCapability` 180s), everything else → manual bucket.
+  Same restored/manual accounting and Info/Warn log severity.
 - Audit round 83 (registry backup-net parity): C# `BackupKeyPaths`
   synced 122→191 and `UserBackupKeyPaths` 2→91 to match the Python
   lists — the service's `.reg` export safety net was missing
