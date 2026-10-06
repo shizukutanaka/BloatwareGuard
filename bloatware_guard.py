@@ -6345,9 +6345,11 @@ def run_self_test() -> int:
         use the user-scope removal verbatim and report rc faithfully."""
         calls: List = []
         rcv = [0]
-        orig = run_powershell
+        orig, orig_admin = run_powershell, is_admin
         globals()["run_powershell"] = (
             lambda *a, **k: calls.append(a[0]) or ("", "", rcv[0]))
+        # CI Windows runners are elevated — pin the non-admin path under test
+        globals()["is_admin"] = lambda: False
         try:
             assert not remove_appx_package("bad';evil")
             assert calls == []               # name guard fired before PS
@@ -6363,6 +6365,7 @@ def run_self_test() -> int:
             assert not remove_provisioned_package("Pkg_2024.1")
         finally:
             globals()["run_powershell"] = orig
+            globals()["is_admin"] = orig_admin
 
     def t_uninstall_strips_hosts():
         """`uninstall` issues sc stop/delete AND strips the hosts block —
