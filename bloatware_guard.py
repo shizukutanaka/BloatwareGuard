@@ -6158,12 +6158,14 @@ def run_self_test() -> int:
                     return "", "", 0
                 return appx_json, "", 0
 
-            orig_ps, orig_cmd = run_powershell, run_cmd
+            orig_ps, orig_cmd, orig_which = run_powershell, run_cmd, shutil.which
             orig_root, orig_pd = (os.environ.get("SystemRoot"),
                                   os.environ.get("PROGRAMDATA"))
             globals()["run_powershell"] = fake_ps
             globals()["run_cmd"] = lambda *a, **k: ("", 0)
             globals()["_registry_backup_done"] = False
+            # winget is present on Windows runners — keep WingetSweep inert
+            shutil.which = lambda *a, **k: None
             os.environ["SystemRoot"] = td
             os.environ["PROGRAMDATA"] = td
             try:
@@ -6171,6 +6173,7 @@ def run_self_test() -> int:
             finally:
                 globals()["run_powershell"] = orig_ps
                 globals()["run_cmd"] = orig_cmd
+                shutil.which = orig_which
                 if orig_root is None:
                     os.environ.pop("SystemRoot", None)
                 else:
