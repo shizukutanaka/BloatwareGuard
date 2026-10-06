@@ -2,6 +2,12 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 101 (service status probe parity — clean):
+  `ShowStatus`/`--status` verified equivalent — both run
+  `sc query BloatwareGuard` and print stdout verbatim, same 30s
+  bound (cs adds a 5s output-drain grace after kill; py hard-caps
+  at subprocess timeout — identical for an instant query,
+  differing only in the never-hit timeout path's display text).
 - Audit round 100 (package-query degrade parity — clean):
   `GetBlacklistedPackages`/`_enum_blacklisted_packages` degrade
   paths verified equivalent — cs tries `-AllUsers` and falls back
