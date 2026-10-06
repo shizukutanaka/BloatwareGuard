@@ -2,6 +2,13 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 56 (optimizer diff): `WcmSvc\Tethering
+  RemoteStartupDisabled=1` — paired devices can no longer turn on
+  Mobile Hotspot remotely; local start unaffected (hellzerg/optimizer
+  DisableTelemetry; under the WcmSvc backup parent). Rest of
+  optimizer's telemetry block already covered (WiFiSense surface
+  complete); Hotspot 2.0 keys skipped — semantics unverifiable;
+  AllowProjectionToPC skipped — kills a legitimate Miracast feature.
 - Audit round 55 (tiny11builder appx diff): blacklist
   +`DolbyLaboratories.DolbyDigitalPlusDecoderOEM` — the OEM Dolby
   audio codec pushed with Dolby hardware (removal leaves standard

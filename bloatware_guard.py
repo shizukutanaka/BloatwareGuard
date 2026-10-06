@@ -3065,6 +3065,12 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                                "WiFiConfigSyncDisabled", 1)
             set_registry_dword("HKLM", wcm + r"\config",
                                "WiFiSharingEnabled", 0)
+            # Remote mobile-hotspot turn-on off — paired devices can
+            # otherwise trigger the hotspot without local consent
+            # (hellzerg/optimizer DisableTelemetry); local start works
+            set_registry_dword(
+                "HKLM", r"SOFTWARE\Microsoft\WcmSvc\Tethering",
+                "RemoteStartupDisabled", 1)
             wifi = r"SOFTWARE\Microsoft\PolicyManager\default\WiFi"
             for p in ("AllowAutoConnectToWiFiSenseHotspots",
                       "AllowWiFiHotSpotReporting"):

@@ -3747,6 +3747,12 @@ public static class RegistryGuard
             // (RegiLattice wificonn)
             wcmc?.SetValue("WiFiConfigSyncDisabled", 1, RegistryValueKind.DWord);
             wcmc?.SetValue("WiFiSharingEnabled", 0, RegistryValueKind.DWord);
+            // Remote mobile-hotspot turn-on off — paired devices can
+            // otherwise trigger the hotspot without local consent
+            // (hellzerg/optimizer); local start keeps working
+            using var tether = Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Microsoft\WcmSvc\Tethering", true);
+            tether?.SetValue("RemoteStartupDisabled", 1, RegistryValueKind.DWord);
             foreach (var p in new[] { "AllowAutoConnectToWiFiSenseHotspots",
                     "AllowWiFiHotSpotReporting" })
             {
