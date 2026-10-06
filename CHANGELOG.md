@@ -2,6 +2,17 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 95 (Appx removal-path parity — clean):
+  the admin→user dual path verified equivalent — py keeps the
+  is_admin → `-AllUsers` → user-level fallback inside
+  `remove_appx_package`; cs splits it as `RemoveAppxPackage`
+  (unconditional `-AllUsers`) with the user-level fallback in
+  `RunScan` on failure (caller-side vs callee-side placement —
+  same coverage, same 60s bound, same safe-name gate).
+  SystemApp per-user skip uses the same InstallPath-empty
+  detection at the same stage on both sides, and provisioned
+  removal (`Remove-AppxProvisionedPackage -Online -PackageName`,
+  120s, stderr warn) matches exactly.
 - Audit round 94 (logging substrate parity — clean):
   `setup_logging`/`GuardLogger` verified equivalent — identical
   `[yyyy-MM-dd HH:mm:ss] [LEVEL] msg` line format on both
