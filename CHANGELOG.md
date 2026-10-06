@@ -2,6 +2,16 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 98 (config schema + defaults parity — clean):
+  machine-verified: all 46 Prevention toggles are consumed at
+  `prev.get` call sites whose per-site defaults equal both the
+  `load_config` literal and the C# `GuardConfig` initializers —
+  including the three opt-in-false layers (DisableOneDrive,
+  DisablePrintSpooler, DisableModernStandbyNetworking use
+  `, False`). Top-level fields match too: ScanIntervalSeconds=300,
+  DryRun=false, BackupDirectory/LogFilePath fallbacks, Blacklist/
+  Whitelist default lists, missing-file → write-then-return and
+  BOM-tolerant reads on both sides.
 - Audit round 97 (restore-path internals parity — clean):
   `RestorePackages`/`run_restore` verified equivalent — same ledger
   path, per-line JSON tolerance, name→family→"?" display fallback,
