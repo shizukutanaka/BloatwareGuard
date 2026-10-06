@@ -2,6 +2,17 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 99 (self-test invariant coverage — clean):
+  cross-mapped py T1–T12 against cs T1–T8. Shared invariants pin
+  the same contracts (logger T4≈T2, prevention keys/defaults
+  T6+T9≈T7, duplicate-free lists T10≈T8); cs-only tests cover
+  .NET-specific surfaces with no py analog (arg parsing, assembly
+  metadata, SystemApp wiring, trim safety). The strongest gates
+  live py-side and read `Program.cs` directly: T11 value-name
+  parity and T12 which is fully bidirectional — HKLM writes,
+  per-user writes, and demoted/disabled services are each checked
+  against both sides' backup lists, so a cross-language drift
+  cannot pass both gates. No silent-drift hole found.
 - Audit round 98 (config schema + defaults parity — clean):
   machine-verified: all 46 Prevention toggles are consumed at
   `prev.get` call sites whose per-site defaults equal both the
