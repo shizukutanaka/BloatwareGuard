@@ -2,6 +2,16 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 72 (winget sweep + restore parity — clean):
+  `winget_sweep`/`WingetGuard.Sweep` verified fully aligned — same
+  presence probe (`shutil.which` vs `--version` probe, 15s), same id
+  gate (dot required + `^[A-Za-z0-9_.\-]+$`), whitelist substring
+  precedence, identical `uninstall -e --id {e} --silent
+  --disable-interactivity --accept-source-agreements` args, 300s
+  timeout, ledger kind `winget`. Restore side identical too:
+  `install -e --id ... --accept-package-agreements` (cs caches
+  availability, py probes per entry — same outcome). Dry-run skips
+  the sweep entirely on both sides.
 - Audit round 71 (win32 uninstall path + dry-run counter parity):
   `get_blacklisted_win32`/`GetBlacklistedPrograms` verified aligned —
   same three hive scans (HKLM64/HKLM32/HKCU+HKU S-1-5-21 report-only),
