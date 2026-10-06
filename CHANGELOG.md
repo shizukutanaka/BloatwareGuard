@@ -2,6 +2,14 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 68 (registry write-kind parity — clean):
+  machine-diffed every `set_registry_*` py call vs every
+  `RegistryValueKind` cs SetValue by value-name — no DWord/String
+  kind drift. `SendTelemetryData` verified as the intended
+  DWORD `0` + REG_SZ `"0"` dual-write on both sides (covers
+  consumers reading either type); remaining name-level diffs were
+  extraction artifacts of variable-path call sites, all confirmed
+  present in the counterpart implementation by targeted check.
 - Audit round 67 (config load-path parity — semantics aligned):
   both loaders give the user's `config.json` full replace semantics
   for `Blacklist`/`Whitelist` (no merge with defaults) — identical
