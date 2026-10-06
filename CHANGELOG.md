@@ -2,6 +2,15 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 92 (Win32 enumeration parity — clean):
+  `get_blacklisted_win32`/`GetBlacklistedPrograms` verified
+  identical — same 4-way hive walk (HKLM 64 + WOW6432Node +
+  HKCU + every loaded `S-1-5-21-*` user hive, the last two
+  report-only since user-writable uninstall strings must never
+  run under an admin token), same DisplayName+UninstallString
+  presence gate, same SystemComponent=1 skip, same
+  whitelist-first predicate over blacklist+Win32BloatNames, same
+  case-insensitive display dedupe.
 - Audit round 91 (Win32 uninstall dispatch parity — clean):
   `remove_win32_program`/`RemoveProgram` verified identical —
   same quote-aware `SplitCommandLine` (quoted path + verbatim
