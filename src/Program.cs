@@ -551,6 +551,10 @@ public static class ConfigLoader
                 "Playtika.",      // casino-game stubs (Caesars Slots)
                 "ThumbmunkeysLtd.",  // Phototastic Collage stub
                 "DolbyAccess",    // Dolby Atmos trial console (OEM push)
+                // Dolby Digital Plus decoder — OEM audio codec pushed
+                // with Dolby hardware (tiny11builder); standard audio
+                // playback keeps working
+                "DolbyLaboratories.DolbyDigitalPlusDecoderOEM",
                 "D5EA27B7.Duolingo-LearnLanguagesforFree",
                 "PandoraMediaInc.29680B314EFC2",
                 "Facebook.InstagramBeta",

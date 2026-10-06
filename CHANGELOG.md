@@ -2,6 +2,14 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 55 (tiny11builder appx diff): blacklist
+  +`DolbyLaboratories.DolbyDigitalPlusDecoderOEM` — the OEM Dolby
+  audio codec pushed with Dolby hardware (removal leaves standard
+  audio playback working). Rest of the tiny11 prefix list already
+  covered (`DolbyAccess`, Copilot, Clipchamp, OutlookForWindows,
+  Xbox stack…); WindowsCamera deliberately out (legit feature,
+  same class as the mic). Coremaker `_`-suffixed names all match
+  existing substrings.
 - Audit round 54 (W4RH4WK service diff): `NetTcpPortSharing` added
   to the demote list — Net.Tcp Port Sharing hosts WCF NetTcp
   bindings only, so demand-start is invisible outside opted-in

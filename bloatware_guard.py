@@ -173,6 +173,9 @@ DEFAULT_BLACKLIST = [
     "Playtika.",      # casino-game stubs (Caesars Slots)
     "ThumbmunkeysLtd.",  # Phototastic Collage stub
     "DolbyAccess",    # Dolby Atmos trial console (OEM push)
+    # Dolby Digital Plus decoder — OEM audio codec pushed with Dolby
+    # hardware (tiny11builder removal list); standard audio keeps working
+    "DolbyLaboratories.DolbyDigitalPlusDecoderOEM",
     "Disney",                          # Disney+ etc.
     "Amazon.com.Amazon",
     "AmazonVideo.PrimeVideo",
