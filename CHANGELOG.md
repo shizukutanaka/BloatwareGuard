@@ -2,6 +2,16 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 78 (ETW autologger/channel parity — clean):
+  `disable_telemetry_autologgers`/`DisableTelemetryAutologgers`
+  verified identical — same 18-session list, same open-only
+  `Start=0` write, same 3 diagnostic WINEVT channels with
+  `Enabled=0`. DisableRecall's wevtutil kills match too (same 4
+  AI/MCP channel names, `sl <chan> /e:false`, 15s) plus the
+  `Disable-WindowsOptionalFeature -FeatureName 'Recall'` probe at
+  120s (py gates it on `is_admin()`; cs runs unconditionally —
+  harmless since ErrorAction SilentlyContinue absorbs the
+  non-admin failure).
 - Audit round 77 (capabilities + persistence-marker parity — clean):
   `remove_optional_capabilities`/`RemoveOptionalCapabilities`
   verified identical — same 6-name pattern, Installed-state filter,
