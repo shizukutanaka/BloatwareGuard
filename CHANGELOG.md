@@ -2,6 +2,16 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 105 (py fix + OEM task-sweep mechanics parity):
+  `disable_oem_scheduled_tasks` now warns when the
+  Get-ScheduledTask query fails or returns nothing instead of
+  silently returning — C# logs the same event as
+  "Scheduled task scan error". Mechanism verified identical:
+  same Get-ScheduledTask→`-match` query (25 escaped patterns,
+  TaskPath `*OEM*`), 120s bound, dict→single wrap, same
+  protected-prefix skip via `startswith(prefix+"\")`,
+  `schtasks /Change /TN /DISABLE` 15s per task, info/warn per
+  result, processed/skipped summary.
 - Audit round 104 (reinstall-monitor internals parity — clean):
   the three-channel seen-set semantics verified equivalent —
   empty sets + first-scan baseline so diffs fire only after cycle

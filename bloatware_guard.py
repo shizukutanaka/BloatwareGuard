@@ -5070,6 +5070,8 @@ def disable_oem_scheduled_tasks(logger: logging.Logger):
     stdout, _, rc = run_powershell(ps_cmd, timeout=120)
 
     if rc != 0 or not stdout:
+        logger.warning("Scheduled task scan: Get-ScheduledTask query failed "
+                       "or returned nothing (C# parity: scan error warn)")
         return
 
     try:
