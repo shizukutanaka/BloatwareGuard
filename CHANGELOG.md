@@ -2,6 +2,14 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 87 (Active Setup stub sweep parity — clean):
+  `disable_active_setup_stubs`/`DisableActiveSetupStubs` verified
+  identical — same two key paths (64-bit + WOW6432Node
+  `Installed Components`), same match blob (subkey name +
+  default value + LocalizedName + StubPath), same whitelist-first
+  bloat predicate over the same needle set (blacklist +
+  startup-bloat names), same `DeleteSubKey`/`DeleteKey` removal,
+  same per-key error isolation and identical log line.
 - Audit round 86 (matching-engine parity — clean):
   blacklist predicate verified equivalent on both sides — py
   `is_target_package` does a client-side case-folded literal
