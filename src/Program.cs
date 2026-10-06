@@ -734,7 +734,11 @@ public static class AppxManager
                 var fullName = el.GetProperty("PackageFullName").GetString() ?? "";
                 var isFw = el.TryGetProperty("IsFramework", out var fw) && fw.ValueKind == JsonValueKind.True;
                 var installPath = el.TryGetProperty("InstallPath", out var ip) ? ip.GetString() : null;
-                if (!IsWhitelisted(family, whitelist) && seen.Add(fullName))
+                // Dedupe key falls back to family when the full name is
+                // empty — otherwise every full-name-less row collapses
+                // into one seen entry (Python parity).
+                if (!IsWhitelisted(family, whitelist) &&
+                    seen.Add(fullName.Length > 0 ? fullName : family))
                     results.Add((family, name, fullName, isFw, installPath));
             }
         }

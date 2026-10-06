@@ -2,6 +2,16 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 70 (appx enumeration parity):
+  `GetBlacklistedPackages` dedupe now keys on `fullName or family`
+  (family fallback when PackageFullName is empty) — previously every
+  full-name-less row collapsed into a single `seen` entry so only
+  the first such package was ever queued for removal, diverging
+  from `_enum_blacklisted_packages`. Server-side regex filter vs
+  client-side substring match verified equivalent (both substring
+  semantics on `PackageFamilyName`); `-AllUsers`→fallback scope,
+  120s timeout, dict→array wrap, whitelist precedence and
+  IsFramework handling all aligned.
 - Audit round 69 (removal-ledger parity — clean):
   `record_removal`/`RemovalLedger.Record` write the same JSONL
   schema (`ts` + `kind`/`name`/`family`/`full_name`); Python stores
