@@ -2,6 +2,18 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 97 (restore-path internals parity — clean):
+  `RestorePackages`/`run_restore` verified equivalent — same ledger
+  path, per-line JSON tolerance, name→family→"?" display fallback,
+  all four kind dispatches (appx re-register 60s, winget install
+  300s with `--disable-interactivity` + both accept flags,
+  capability Add-WindowsCapability 180s, provisioned re-register
+  then manual), same safe-name/ID gates before interpolation,
+  restored/manual tally. Probe divergence noted: cs executes
+  `winget --version` once and caches (catches dead App-Installer
+  aliases); py's `shutil.which` only sees PATH presence — a dead
+  alias reaches `winget install`, fails, and lands in the same
+  manual bucket, so the end-state is identical.
 - Audit round 96 (py fix — framework visibility in package enum):
   `_enum_blacklisted_packages` now returns 5-tuples carrying the
   IsFramework flag instead of dropping framework rows silently — the
