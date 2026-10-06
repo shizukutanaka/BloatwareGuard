@@ -19,6 +19,7 @@ Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 import subprocess
 import ast
+import codecs
 import json
 import os
 import re
@@ -425,6 +426,20 @@ def _relaunch_elevated(flag: str) -> None:
     print(f"Elevation requested — '{flag}' is running in an elevated window.")
 
 
+def _oem_decode(data: bytes) -> str:
+    """Decode console output in the machine's OEM code page — cp932 on ja-JP
+    but cp437/cp850 on Western systems, so a hardcoded cp932 mojibakes
+    non-ASCII text elsewhere (C# Proc uses TextInfo.OEMCodePage)."""
+    enc = "cp932"
+    try:
+        cp = ctypes.windll.kernel32.GetOEMCP()
+        if codecs.lookup(f"cp{cp}"):
+            enc = f"cp{cp}"
+    except Exception:
+        pass
+    return data.decode(enc, errors="replace")
+
+
 def run_powershell(cmd: str, timeout: int = 60) -> Tuple[str, str, int]:
     """Run a PowerShell command and return (stdout, stderr, exit_code).
     Missing binaries/hangs return rc=-1 instead of propagating."""
@@ -435,9 +450,8 @@ def run_powershell(cmd: str, timeout: int = 60) -> Tuple[str, str, int]:
         )
     except (OSError, subprocess.TimeoutExpired) as e:
         return "", str(e), -1
-    # Windows console output is often CP932/Shift-JIS — use errors="replace" to avoid crashes
-    stdout = proc.stdout.decode("cp932", errors="replace") if proc.stdout else ""
-    stderr = proc.stderr.decode("cp932", errors="replace") if proc.stderr else ""
+    stdout = _oem_decode(proc.stdout) if proc.stdout else ""
+    stderr = _oem_decode(proc.stderr) if proc.stderr else ""
     return stdout.strip(), stderr.strip(), proc.returncode
 
 
@@ -448,7 +462,7 @@ def run_cmd(args, timeout: int = 30) -> Tuple[str, int]:
         proc = subprocess.run(args, capture_output=True, timeout=timeout)
     except (OSError, subprocess.TimeoutExpired) as e:
         return str(e), -1
-    out = proc.stdout.decode("cp932", errors="replace") if proc.stdout else ""
+    out = _oem_decode(proc.stdout) if proc.stdout else ""
     return out.strip(), proc.returncode
 
 

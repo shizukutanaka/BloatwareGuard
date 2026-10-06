@@ -2,6 +2,16 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 80 (process-runner parity):
+  `run_powershell`/`run_cmd` now decode console output in the
+  machine's actual OEM code page via `GetOEMCP()` instead of
+  hardcoded cp932 — C# `Proc.Capture` uses
+  `TextInfo.OEMCodePage`, so on non-Japanese Windows (cp437/cp850)
+  the Python side mojibake'd non-ASCII output, corrupting package
+  display names before matching. cp932 remains the fallback when
+  the CP lookup fails. Invocation flags, timeout semantics
+  (rc=-1 vs null), tree-kill and both-stream capture were already
+  aligned.
 - Audit round 79 (reinstall-monitor parity):
   `CheckReinstalls` now diffs provisioned packages on DisplayName —
   Python's `run_scan` monitor keys on DisplayName ("stable across
