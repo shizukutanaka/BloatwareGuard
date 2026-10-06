@@ -2,6 +2,16 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 100 (package-query degrade parity — clean):
+  `GetBlacklistedPackages`/`_enum_blacklisted_packages` degrade
+  paths verified equivalent — cs tries `-AllUsers` and falls back
+  to current-user scope on non-admin failure; py checks
+  `is_admin()` upfront and never attempts it. Same end-state
+  coverage, same dedupe (fullName→family fallback, case-insensitive
+  seen set), same whitelist-first substring matching on
+  PackageFamilyName (client-side literal `in` vs server-side
+  `-match` with Regex.Escape — documented semantics equal),
+  same empty-pattern guard.
 - Audit round 99 (self-test invariant coverage — clean):
   cross-mapped py T1–T12 against cs T1–T8. Shared invariants pin
   the same contracts (logger T4≈T2, prevention keys/defaults
