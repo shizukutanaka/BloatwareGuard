@@ -2,6 +2,15 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 71 (win32 uninstall path + dry-run counter parity):
+  `get_blacklisted_win32`/`GetBlacklistedPrograms` verified aligned —
+  same three hive scans (HKLM64/HKLM32/HKCU+HKU S-1-5-21 report-only),
+  SystemComponent skip, QuietUninstallString preference, msiexec GUID
+  `/x {guid} /qn /norestart` fallback, 300s timeout, user-hive strings
+  never executed as SYSTEM. Fixed divergence: `run_scan` now counts
+  dry-run would-removals in `removed` and reports them as "would
+  remove N" in the scan summary, matching `RunScan`'s counter
+  semantics (previously py always logged "removed 0" on dry-runs).
 - Audit round 70 (appx enumeration parity):
   `GetBlacklistedPackages` dedupe now keys on `fullName or family`
   (family fallback when PackageFullName is empty) — previously every

@@ -5337,6 +5337,7 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
                     logger.info(
                         f"[DRY-RUN] Would remove AppxPackage: {family_name} "
                         f"(non-admin: full name not resolvable) {note}")
+                removed += 1  # would-remove count (C# dry-run parity)
             else:
                 if is_system_app:
                     logger.info(f"SystemApp skipped (requires admin): {family_name}")
@@ -5358,6 +5359,7 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
             matched_families.add(_provisioned_family(package_name, display_name))
             if dry_run:
                 logger.info(f"[DRY-RUN] Would remove ProvisionedPackage: {display_name} [requires admin]")
+                removed += 1
             else:
                 if remove_provisioned_package(package_name):
                     logger.info(f"Removed ProvisionedPackage: {display_name}")
@@ -5388,6 +5390,7 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
                 continue
             if dry_run:
                 logger.info(f"[DRY-RUN] Would uninstall Win32 program: {display} [requires admin]")
+                removed += 1
             else:
                 if remove_win32_program(display, uninstall, quiet, logger):
                     logger.info(f"Removed Win32 program: {display}")
@@ -5474,7 +5477,8 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
             except Exception as e:
                 logger.warning(f"WingetSweep layer failed: {e}")
 
-    logger.info(f"Scan complete. {matched} packages matched blacklist; removed {removed}.")
+    verb = "would remove" if dry_run else "removed"
+    logger.info(f"Scan complete. {matched} packages matched blacklist; {verb} {removed}.")
     return removed
 
 
