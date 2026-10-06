@@ -2,6 +2,13 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 90 (restore-point creation parity): py
+  `create_restore_point` now runs through `run_powershell`
+  instead of a hand-rolled `run_cmd` argv — it was the one
+  PowerShell call site missing `-NonInteractive`, so a stray
+  prompt could hold the subprocess until the 120s timeout. Same
+  command text, same timeout, same Info/Warn outcome as C#
+  `CreateRestorePoint`.
 - Audit round 89 (deprovision markers + OEM-task sweep parity):
   `MarkDeprovisioned` now degrades per base key — previously both
   `Deprovisioned` and `EndOfLife` opens sat in one try, so a

@@ -892,11 +892,10 @@ def remove_win32_program(display, uninstall, quiet, logger):
 def create_restore_point(logger):
     """Create a system restore point before destructive changes. Windows throttles
     checkpoints to ~1 per 24h; failure is non-fatal."""
-    _, rc = run_cmd(
-        ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
-         "Enable-ComputerRestore -Drive \"$env:SystemDrive\\\" -ErrorAction SilentlyContinue | Out-Null; "
-         "Checkpoint-Computer -Description 'BloatwareGuard pre-scan' "
-         "-RestorePointType 'MODIFY_SETTINGS' -ErrorAction SilentlyContinue | Out-Null"],
+    _, _, rc = run_powershell(
+        "Enable-ComputerRestore -Drive \"$env:SystemDrive\\\" -ErrorAction SilentlyContinue | Out-Null; "
+        "Checkpoint-Computer -Description 'BloatwareGuard pre-scan' "
+        "-RestorePointType 'MODIFY_SETTINGS' -ErrorAction SilentlyContinue | Out-Null",
         timeout=120)
     if rc == 0:
         logger.info("Applied: CreateRestorePoint (created or throttled)")
