@@ -2,6 +2,16 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 82 (per-user hive enumeration parity — clean):
+  `for_each_user_hive`/`ForEachUserHive` verified identical —
+  same `S-1-5-21-*` SID filter (excludes .DEFAULT/service
+  accounts/*_Classes), same ordering (loaded hives →
+  default-profile NTUSER.DAT mounted under the same
+  `BloatwareGuard_DefaultProfile` name via `reg load`/`unload`
+  at 15s → HKCU fallback), same per-hive error isolation, same
+  warn-when-zero-applies contract. `GetDefaultProfileDat` now
+  mirrors `_default_profile_dat` (ProfileList read +
+  expandvars + exists check, try-scoped read only).
 - Audit round 81 (admin/elevation/service-install parity — clean):
   `is_admin`/`_relaunch_elevated` verified aligned with the C#
   elevation model — same `runas` mechanism (ShellExecuteW vs
