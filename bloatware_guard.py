@@ -1252,6 +1252,7 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Microsoft\PolicyManager\current\device\System",
     r"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU",
     r"SOFTWARE\Policies\Microsoft\MRT",
+    r"SOFTWARE\Policies\Microsoft\WMDRM",
     r"SOFTWARE\Policies\Microsoft\Windows\Explorer",
     r"SOFTWARE\Microsoft\Speech_OneCore\Preferences",
     r"SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo",
@@ -2640,6 +2641,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             # MRT infection reports off
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\MRT",
                                "DontReportInfectionInformation", 1)
+            # Windows Media DRM online access off — license-acquisition
+            # calls never leave the machine (simeononsecurity
+            # Windows-Optimize-Harden-Debloat)
+            set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\WMDRM",
+                               "DisableOnline", 1)
             # ReviOS telemetry.yml deep coverage: 32-bit policy mirror,
             # PolicyManager default-provider node, CPSS device/store
             # overrides (survive CSP re-sync), authenticated-proxy

@@ -3563,6 +3563,12 @@ public static class RegistryGuard
                 using var mrt = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\MRT");
                 mrt?.SetValue("DontReportInfectionInformation", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // Windows Media DRM online access off — license-
+                // acquisition calls never leave the machine
+                // (simeononsecurity Windows-Optimize-Harden-Debloat)
+                using var wmdrm = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\WMDRM");
+                wmdrm?.SetValue("DisableOnline", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 // Diagnostic log + dump collection ceilings off
                 using var dclim = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Windows\DataCollection");
@@ -4788,6 +4794,7 @@ public static class RegistryGuard
         @"SOFTWARE\Microsoft\PolicyManager\current\device\System",
         @"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU",
         @"SOFTWARE\Policies\Microsoft\MRT",
+        @"SOFTWARE\Policies\Microsoft\WMDRM",
         @"SOFTWARE\Policies\Microsoft\Windows\Explorer",
         @"SOFTWARE\Microsoft\Speech_OneCore\Preferences",
         @"SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo",

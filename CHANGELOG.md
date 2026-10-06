@@ -2,6 +2,13 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 57 (simeononsecurity diff): `Policies\Microsoft\WMDRM
+  DisableOnline=1` — Windows Media DRM license-acquisition calls
+  never leave the machine (HKLM write + both backup lists).
+  ConsentStore denies skipped — forbidden; IFEO CompatTelRunner in
+  source already exists in the closed-PR archive (not re-landed);
+  Office/VS/Adobe app telemetry out of product scope; sensor
+  overrides same class as the deliberately-kept location access.
 - Audit round 56 (optimizer diff): `WcmSvc\Tethering
   RemoteStartupDisabled=1` — paired devices can no longer turn on
   Mobile Hotspot remotely; local start unaffected (hellzerg/optimizer
