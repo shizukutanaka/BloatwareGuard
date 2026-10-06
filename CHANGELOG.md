@@ -2,6 +2,19 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 92/93 (scan orchestration + Win32 parity):
+  `run_scan`/`RunScan` stage order verified — restore point →
+  backup → appx → provisioned → capabilities → win32 →
+  deprovision/store-policy markers → registry prevention → OEM
+  + telemetry tasks → ETW/hosts → winget sweep → summary, with
+  identical toggles and dry-run gates at every stage. Documented
+  sequencing divergences (end-state identical, all layers
+  idempotent and re-applied each interval): cs runs the winget
+  sweep before the registry block and autologgers/hosts inside
+  `ApplyAll`, while py orders registry → tasks → autologgers →
+  hosts → winget; cs also double-checks whitelist/framework
+  inside the removal loop and counts skipped/failed/systemApps
+  separately where py tracks a single matched counter.
 - Audit round 92 (Win32 enumeration parity — clean):
   `get_blacklisted_win32`/`GetBlacklistedPrograms` verified
   identical — same 4-way hive walk (HKLM 64 + WOW6432Node +
