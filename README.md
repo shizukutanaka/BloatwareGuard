@@ -30,7 +30,7 @@ also apply correctly when the tool runs as a SYSTEM service and for users create
 || 18. Optional capabilities removed (IE mode, Steps Recorder, WordPad, XPS Viewer, Fax&Scan, Wireless Display) | ✅ | ✅ | Requires admin |
 || 19. Win32 bloatware uninstalled (McAfee/Norton OEM preinstalls — MSI silent) | ✅ | ✅ | Requires admin |
 || 20. Restore point before destructive scans (self-throttles 24h) | ✅ | ✅ | Requires admin |
-|| 21. Microsoft telemetry tasks off (134: CompatTelRunner, CEIP, Siuf, Maps, Office CEIP, RetailDemo, Insider flighting, feedback, Device Census, family safety, net-trace, AIT, speech models, disk diagnostics, PCA, location, IME/input sync, PerfTrack, push-install, WDI, WindowsAI Recall(3)/AISystem/NarrativeFlows, Office AI, power diagnostics, OneSettings, UCPD velocity, UNP, EOS nags, UsageAndQualityInsights, DUSM/diagnosis/input-sync/provisioning/MDM/offline-files/PTI-registration/profile-upload tasks) | ✅ | ✅ | Requires admin |
+|| 21. Microsoft telemetry tasks off (136: CompatTelRunner, CEIP, Siuf, Maps, Office CEIP, RetailDemo, Insider flighting, feedback, Device Census, family safety, net-trace, AIT, speech models, disk diagnostics, PCA, location, IME/input sync, PerfTrack, push-install, WDI, WindowsAI Recall(3)/AISystem/NarrativeFlows, Office AI, power diagnostics, OneSettings, UCPD velocity, UNP, EOS nags, UsageAndQualityInsights, DUSM/diagnosis/input-sync/provisioning/MDM/offline-files/PTI-registration/profile-upload, update nag-toast tasks) | ✅ | ✅ | Requires admin |
 || 22. Bloatware autostart entries disabled (StartupApproved marker + Startup-folder rename — restorable) | ✅ | ✅ | Per-hive, some HKLM |
 || 23. Windows Error Reporting uploads off | ✅ | ✅ | HKLM needs admin |
 || 24. Edge update services → demand-start + update tasks off | ✅ | ✅ | Requires admin |
@@ -44,7 +44,7 @@ also apply correctly when the tool runs as a SYSTEM service and for users create
 || 32. Cross-device clipboard sync off (copied content stays local) | ✅ | ✅ | HKLM needs admin |
 || 33. Remote Assistance inbound offers off | ✅ | ✅ | HKLM needs admin |
 || 34. Windows Insider preview enrollment blocked | ✅ | ✅ | HKLM needs admin |
-|| 35. Misc bloat services → demand-start (89: push/MDM, Maps, media sharing, diagnostics, Nearby Sharing, Store push-install, NFC payments, Phone Link, NVIDIA/Intel telemetry, SysMain prefetch, touch keyboard, search indexer, kiosk assigned-access, link tracking, WER CPL, AI-fabric listeners, OneSettings, FileSync, sensor stack, MR OpenXR, Fax, agent-isolation broker, Intel DAL/LMS/graphics-panel services) + RemoteRegistry disabled | ✅ | ✅ | HKLM needs admin |
+|| 35. Misc bloat services → demand-start (91: push/MDM, Maps, media sharing, diagnostics, Nearby Sharing, Store push-install, NFC payments, Phone Link, NVIDIA/Intel telemetry, SysMain prefetch, touch keyboard, search indexer, kiosk assigned-access, link tracking, WER CPL, AI-fabric listeners, OneSettings, FileSync, sensor stack, MR OpenXR, Fax, agent-isolation broker, Intel DAL/LMS/graphics-panel services) + RemoteRegistry disabled | ✅ | ✅ | HKLM needs admin |
 || 36. Desktop Spotlight off (wallpaper promo channel) | ✅ | ✅ | Per-hive |
 || 37. AutoPlay/AutoRun off (removable-media execution vector) | ✅ | ✅ | HKLM needs admin |
 || 38. No forced Windows Update reboot while logged on | ✅ | ✅ | HKLM needs admin |

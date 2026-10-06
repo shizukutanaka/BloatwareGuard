@@ -35,7 +35,7 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 │    ├─ Capability 除去 (IE/StepsRecorder/WordPad)    │
 │    ├─ Win32 除去 (Uninstall キー走査+MSI サイレント)│
 │    ├─ 復元ポイント作成 (スキャン前、24h スロットル)  │
-│    ├─ テレメトリタスク停止 (CompatTel/CEIP 等134件)  │
+│    ├─ テレメトリタスク停止 (CompatTel/CEIP 等136件)  │
 │    ├─ StartupApproved 無効化マーカー (Run/RunOnce)  │
 │    ├─ Windows Error Reporting 停止                 │
 │    ├─ Edge Update サービス/タスク → demand 化       │
@@ -136,7 +136,7 @@ Windows 11が自動的に再インストールしてくるメーカー/マイク
 - `BloatwareGuard.exe status` — サービス状態確認
 - `BloatwareGuard.exe list-installed` — ブラックリスト一致のインストール済みパッケージを一覧表示 (Python 側は `--list-installed`)
 - `BloatwareGuard.exe --version` — バージョン表示
-- `BloatwareGuard.exe --self-test` — 内部構造テスト (管理者不要; py T1–T9 / C# T1–T7)
+- `BloatwareGuard.exe --self-test` — 内部構造テスト (管理者不要; py T1–T12 / C# T1–T8)
 
 ## 注意
 - 管理者権限必須 (app.manifest で requireAdministrator)

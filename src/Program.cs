@@ -551,6 +551,10 @@ public static class ConfigLoader
                 "Playtika.",      // casino-game stubs (Caesars Slots)
                 "ThumbmunkeysLtd.",  // Phototastic Collage stub
                 "DolbyAccess",    // Dolby Atmos trial console (OEM push)
+                // Dolby Digital Plus decoder — OEM audio codec pushed
+                // with Dolby hardware (tiny11builder); standard audio
+                // playback keeps working
+                "DolbyLaboratories.DolbyDigitalPlusDecoderOEM",
                 "D5EA27B7.Duolingo-LearnLanguagesforFree",
                 "PandoraMediaInc.29680B314EFC2",
                 "Facebook.InstagramBeta",
@@ -2976,6 +2980,13 @@ public static class RegistryGuard
                 SetHiveDword(hive, UserExplorerAdvancedPath, "Start_TrackProgs", 0);
                 SetHiveDword(hive, UserSiufPath, "NumberOfSIUFInPeriod", 0);
                 SetHiveDword(hive, UserIntlProfilePath, "HttpAcceptLanguageOptOut", 1);
+                // Per-user CEIP opt-out (HKLM UploadDisableFlag covers
+                // the service side)
+                SetHiveDword(hive, @"Software\Microsoft\SQMClient\Windows",
+                    "CEIPEnable", 0);
+                // Per-user PCHC uninstall marker (pair of HKLM)
+                SetHiveDword(hive, @"Software\Microsoft\PCHC",
+                    "PreviousUninstall", 1);
                 // Tailored-experiences policy (policy-level, not just the value)
                 SetHiveDword(hive, UserPrivacyPoliciesPath, "TailoredExperiencesWithDiagnosticDataEnabled", 0);
                 // Mark the diagnostic-level toast as shown — silences the
@@ -3524,6 +3535,11 @@ public static class RegistryGuard
                 using var spp = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform");
                 spp?.SetValue("NoGenTicket", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // PC Health Check reinstall marker — WU stops re-pushing
+                // the "is your PC ready" app (O&O ShutUp10++ procmon diff)
+                using var pchc = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Microsoft\PCHC");
+                pchc?.SetValue("PreviousUninstall", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 // Per-app tagged-energy collection off (battery telemetry)
                 using var teg = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SYSTEM\CurrentControlSet\Control\Power\EnergyEstimation\TaggedEnergy");
@@ -3559,6 +3575,12 @@ public static class RegistryGuard
                 using var mrt = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\MRT");
                 mrt?.SetValue("DontReportInfectionInformation", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // Windows Media DRM online access off — license-
+                // acquisition calls never leave the machine
+                // (simeononsecurity Windows-Optimize-Harden-Debloat)
+                using var wmdrm = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\WMDRM");
+                wmdrm?.SetValue("DisableOnline", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 // Diagnostic log + dump collection ceilings off
                 using var dclim = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Windows\DataCollection");
@@ -3743,6 +3765,12 @@ public static class RegistryGuard
             // (RegiLattice wificonn)
             wcmc?.SetValue("WiFiConfigSyncDisabled", 1, RegistryValueKind.DWord);
             wcmc?.SetValue("WiFiSharingEnabled", 0, RegistryValueKind.DWord);
+            // Remote mobile-hotspot turn-on off — paired devices can
+            // otherwise trigger the hotspot without local consent
+            // (hellzerg/optimizer); local start keeps working
+            using var tether = Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Microsoft\WcmSvc\Tethering", true);
+            tether?.SetValue("RemoteStartupDisabled", 1, RegistryValueKind.DWord);
             foreach (var p in new[] { "AllowAutoConnectToWiFiSenseHotspots",
                     "AllowWiFiHotSpotReporting" })
             {
@@ -4697,6 +4725,15 @@ public static class RegistryGuard
             using var coinst = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                 @"SOFTWARE\Microsoft\Windows\CurrentVersion\Device Installer");
             coinst?.SetValue("DisableCoInstallers", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            // UPnP/WSD network-device auto-install off (gordonbay/WoR)
+            using var ncd = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Microsoft\Windows\CurrentVersion\NcdAutoSetup\Private");
+            ncd?.SetValue("AutoSetup", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // No device-software downloads over metered connections
+            // (LeDragoX/Win-Debloat-Tools)
+            using var devsetup = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Microsoft\Windows\CurrentVersion\DeviceSetup");
+            devsetup?.SetValue("CostedNetworkPolicy", 1, Microsoft.Win32.RegistryValueKind.DWord);
             GuardLogger.Info("Applied: BlockOemDriverUpdates (ExcludeWUDriversInQualityUpdate=1, SearchOrderConfig=0, DisableCoInstallers=1)");
         }
         catch (Exception ex)
@@ -4722,6 +4759,7 @@ public static class RegistryGuard
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",
         @"SOFTWARE\Policies\Microsoft\Windows\System",
         @"SOFTWARE\Microsoft\SQMClient",
+        @"SOFTWARE\Microsoft\PCHC",
         @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform",
         @"Software\Policies\Microsoft\Windows NT\CurrentVersion\Software Protection Platform",
         @"SYSTEM\CurrentControlSet\Control\Power\EnergyEstimation\TaggedEnergy",
@@ -4778,12 +4816,15 @@ public static class RegistryGuard
         @"SOFTWARE\Microsoft\PolicyManager\current\device\System",
         @"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU",
         @"SOFTWARE\Policies\Microsoft\MRT",
+        @"SOFTWARE\Policies\Microsoft\WMDRM",
         @"SOFTWARE\Policies\Microsoft\Windows\Explorer",
         @"SOFTWARE\Microsoft\Speech_OneCore\Preferences",
         @"SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo",
         @"SOFTWARE\Policies\Microsoft\FindMyDevice",
         @"SOFTWARE\Policies\Microsoft\Windows\SettingSync",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Device Metadata",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\DeviceSetup",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\NcdAutoSetup\Private",
         @"SOFTWARE\Microsoft\OneDrive",
         @"SOFTWARE\Microsoft\Windows\Shell\Copilot",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Search",
@@ -4927,8 +4968,10 @@ public static class RegistryGuard
         @"Software\Microsoft\InputMethod\Settings\CHS",
         @"Software\Microsoft\InputPersonalization\TrainedDataStore",
         @"Software\Microsoft\Narrator\NoRoam",
+        @"Software\Microsoft\PCHC",
         @"Software\Microsoft\Personalization\Settings",
         @"Software\Microsoft\Siuf\Rules",
+        @"Software\Microsoft\SQMClient\Windows",
         @"Software\Microsoft\Speech_OneCore\Settings\OnlineSpeechPrivacy",
         @"Software\Microsoft\Speech_OneCore\Preferences",
         @"Software\Microsoft\Speech_OneCore\Settings\VoiceActivation\UserPreferenceForAllApps",
@@ -5342,6 +5385,10 @@ public static class RegistryGuard
         // sandboxed runs (zoicware/RemoveWindowsAI); demand-start
         // keeps invocation working without the resident service
         "IsoEnvBroker",
+        // Net.Tcp Port Sharing — WCF NetTcp binding host only;
+        // nothing uses it outside WCF services that opt in
+        // (W4RH4WK/Debloat-Windows-10 service list)
+        "NetTcpPortSharing",
     };
 
     public static void DisableMiscBloatServices()
@@ -5717,6 +5764,10 @@ public static class ScheduledTaskGuard
         @"\Microsoft\Windows\UpdateOrchestrator\StartOobeAppsScanAfterUpdate",
         @"\Microsoft\Windows\UpdateOrchestrator\StartOobeAppsScan_LicenseAccepted",
         @"\Microsoft\Windows\UpdateOrchestrator\StartOobeAppsScan_OobeAppReady",
+        // MusNotification tasks spawn the update nag/restart toasts;
+        // orchestration itself untouched (Disassembler0)
+        @"\Microsoft\Windows\UpdateOrchestrator\MusNotification",
+        @"\Microsoft\Windows\UpdateOrchestrator\MusNotification_Ux",
         @"\Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticDataCollector",
         @"\Microsoft\Windows\Feedback\Siuf\DmClient",
         @"\Microsoft\Windows\Feedback\Siuf\DmClientOnScenarioDownload",

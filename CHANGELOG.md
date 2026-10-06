@@ -2,6 +2,73 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 62 (LeDragoX/Win-Debloat-Tools diff):
+  `CurrentVersion\DeviceSetup CostedNetworkPolicy=1` — no
+  device-software downloads over metered connections; closes the last
+  silent-provision path for OEM companion payloads
+  (BlockOemDriverUpdates layer + both backup lists). TextInput/
+  EventTranscript/DisableUAR/PresenceWriter already covered;
+  ConsentStore, UX prefs, mitigation-tuning skipped.
+- Audit round 61 (O&O ShutUp10++ procmon-diff):
+  `SOFTWARE\Microsoft\PCHC PreviousUninstall=1` (HKLM + per-user) —
+  Windows Update treats PC Health Check as previously uninstalled and
+  stops re-pushing the "is your PC ready" app; per-user
+  `SQMClient\Windows CEIPEnable=0` — CEIP opt-out now covers the user
+  hive too (HKLM service side already killed). Registered in all four
+  backup lists. ConsentStore denies + Biometrics/location policies
+  skipped — forbidden/kept-by-design.
+- Audit round 60 (doc-drift audit): mechanical recount of every shared
+  list — tasks py=cs=136 ✓, demoted services py=cs=91 (README said 89 →
+  fixed), blacklist py=cs=config.json=src/config.json=236 ✓,
+  telemetry hosts py=cs=520 ✓, whitelist py=cs=config=12 ✓,
+  capabilities=6 ✓, DESIGN task count 134→136 fixed. No code changes.
+- Audit round 59 (gordonbay/Windows-On-Reins diff): `NcdAutoSetup\Private
+  AutoSetup=0` — UPnP/WSD network-device auto-install off: detected
+  printers/media renderers no longer silently provision drivers +
+  companion apps (BlockOemDriverUpdates layer + both backup lists).
+  NetbiosOptions=2 skipped — NetBT driver + lmhosts already demoted;
+  WDigest/CredentialsDelegation already covered; Defender/firewall/
+  update kills, storage-disables, prefetch/hibernation prefs, and
+  history-wipes rejected by policy.
+- Audit round 58 (Disassembler0 diff): `UpdateOrchestrator\MusNotification`
+  + `MusNotification_Ux` tasks disabled (134→136) — kills the
+  "finish setting up your device"/restart-nag toasts; update
+  orchestration tasks (Schedule Scan, USO_UxBroker) untouched.
+  IFEO `Debugger` kill from same source skipped (task-disable is
+  reversible; IFEO breaks any future exe update path); ConsentStore
+  library denies skipped — forbidden.
+- Audit round 57 (simeononsecurity diff): `Policies\Microsoft\WMDRM
+  DisableOnline=1` — Windows Media DRM license-acquisition calls
+  never leave the machine (HKLM write + both backup lists).
+  ConsentStore denies skipped — forbidden; IFEO CompatTelRunner in
+  source already exists in the closed-PR archive (not re-landed);
+  Office/VS/Adobe app telemetry out of product scope; sensor
+  overrides same class as the deliberately-kept location access.
+- Audit round 56 (optimizer diff): `WcmSvc\Tethering
+  RemoteStartupDisabled=1` — paired devices can no longer turn on
+  Mobile Hotspot remotely; local start unaffected (hellzerg/optimizer
+  DisableTelemetry; under the WcmSvc backup parent). Rest of
+  optimizer's telemetry block already covered (WiFiSense surface
+  complete); Hotspot 2.0 keys skipped — semantics unverifiable;
+  AllowProjectionToPC skipped — kills a legitimate Miracast feature.
+- Audit round 55 (tiny11builder appx diff): blacklist
+  +`DolbyLaboratories.DolbyDigitalPlusDecoderOEM` — the OEM Dolby
+  audio codec pushed with Dolby hardware (removal leaves standard
+  audio playback working). Rest of the tiny11 prefix list already
+  covered (`DolbyAccess`, Copilot, Clipchamp, OutlookForWindows,
+  Xbox stack…); WindowsCamera deliberately out (legit feature,
+  same class as the mic). Coremaker `_`-suffixed names all match
+  existing substrings.
+- Audit round 54 (W4RH4WK service diff): `NetTcpPortSharing` added
+  to the demote list — Net.Tcp Port Sharing hosts WCF NetTcp
+  bindings only, so demand-start is invisible outside opted-in
+  WCF services. Remaining W4RH4WK kills reviewed and rejected:
+  WlanSvc (breaks Wi-Fi), wscsvc/WdNisSvc (security posture),
+  RemoteAccess (breaks VPN), WbioSrvc (breaks Windows Hello),
+  ndu (kernel driver), sensor permission deny (location left
+  alone by design). DESIGN.md self-test counts synced to actual
+  (py T1–T12 / C# T1–T8).
+
 - Self-test coverage — `_EXTRA_DIAG_CHANNELS` and `DEFAULT_WHITELIST`
   added to the T9 py↔cs shared-list parity sweep and T10 duplicate
   guard; whitelist extracted to a module constant (was inline in

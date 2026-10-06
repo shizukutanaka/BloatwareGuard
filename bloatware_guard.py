@@ -173,6 +173,9 @@ DEFAULT_BLACKLIST = [
     "Playtika.",      # casino-game stubs (Caesars Slots)
     "ThumbmunkeysLtd.",  # Phototastic Collage stub
     "DolbyAccess",    # Dolby Atmos trial console (OEM push)
+    # Dolby Digital Plus decoder — OEM audio codec pushed with Dolby
+    # hardware (tiny11builder removal list); standard audio keeps working
+    "DolbyLaboratories.DolbyDigitalPlusDecoderOEM",
     "Disney",                          # Disney+ etc.
     "Amazon.com.Amazon",
     "AmazonVideo.PrimeVideo",
@@ -1139,6 +1142,7 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",
     r"SOFTWARE\Policies\Microsoft\Windows\System",
     r"SOFTWARE\Microsoft\SQMClient",
+    r"SOFTWARE\Microsoft\PCHC",
     r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform",
     r"Software\Policies\Microsoft\Windows NT\CurrentVersion\Software Protection Platform",
     r"SYSTEM\CurrentControlSet\Control\Power\EnergyEstimation\TaggedEnergy",
@@ -1249,6 +1253,7 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Microsoft\PolicyManager\current\device\System",
     r"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU",
     r"SOFTWARE\Policies\Microsoft\MRT",
+    r"SOFTWARE\Policies\Microsoft\WMDRM",
     r"SOFTWARE\Policies\Microsoft\Windows\Explorer",
     r"SOFTWARE\Microsoft\Speech_OneCore\Preferences",
     r"SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo",
@@ -1261,6 +1266,8 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Policies\Microsoft\Windows\Kernel DMA Protection",
     r"SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Device Metadata",
+    r"SOFTWARE\Microsoft\Windows\CurrentVersion\DeviceSetup",
+    r"SOFTWARE\Microsoft\Windows\CurrentVersion\NcdAutoSetup\Private",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked",
     # --- coverage completion (audit: every HKLM write path backed up) ---
     r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\UnattendSettings\SQMClient",
@@ -1431,6 +1438,9 @@ _MISC_DEMOTE_SERVICES = (
     # runs (zoicware/RemoveWindowsAI); demand-start keeps invocation
     # working without the resident service
     "IsoEnvBroker",
+    # Net.Tcp Port Sharing — WCF NetTcp binding host only; nothing
+    # uses it outside WCF services that opt in (W4RH4WK/Debloat-Windows-10)
+    "NetTcpPortSharing",
 )
 
 
@@ -1459,8 +1469,10 @@ _USER_BACKUP_KEY_PATHS = (
     r"Software\Microsoft\InputMethod\Settings\CHS",
     r"Software\Microsoft\InputPersonalization\TrainedDataStore",
     r"Software\Microsoft\Narrator\NoRoam",
+    r"Software\Microsoft\PCHC",
     r"Software\Microsoft\Personalization\Settings",
     r"Software\Microsoft\Siuf\Rules",
+    r"Software\Microsoft\SQMClient\Windows",
     r"Software\Microsoft\Speech_OneCore\Preferences",
     r"Software\Microsoft\Speech_OneCore\Settings\OnlineSpeechPrivacy",
     r"Software\Microsoft\Speech_OneCore\Settings\VoiceActivation\UserPreferenceForAllApps",
@@ -2330,6 +2342,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 w(_USER_EXPLORER_ADV, "Start_TrackProgs", 0)
                 w(_USER_SIUF, "NumberOfSIUFInPeriod", 0)
                 w(_USER_INTL_PROFILE, "HttpAcceptLanguageOptOut", 1)
+                # Per-user CEIP opt-out (HKLM UploadDisableFlag covers
+                # the service side; this marks the user opt-out too)
+                w(r"Software\Microsoft\SQMClient\Windows", "CEIPEnable", 0)
+                # Per-user PCHC uninstall marker (pair of HKLM below)
+                w(r"Software\Microsoft\PCHC", "PreviousUninstall", 1)
                 # Tailored-experiences policy (policy-level, not just the value)
                 w(_USER_PRIVACY_POLICIES, "TailoredExperiencesWithDiagnosticDataEnabled", 0)
                 # Mark the diagnostic-level toast as shown — silences the
@@ -2634,6 +2651,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             # MRT infection reports off
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\MRT",
                                "DontReportInfectionInformation", 1)
+            # Windows Media DRM online access off — license-acquisition
+            # calls never leave the machine (simeononsecurity
+            # Windows-Optimize-Harden-Debloat)
+            set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\WMDRM",
+                               "DisableOnline", 1)
             # ReviOS telemetry.yml deep coverage: 32-bit policy mirror,
             # PolicyManager default-provider node, CPSS device/store
             # overrides (survive CSP re-sync), authenticated-proxy
@@ -2805,6 +2827,13 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "HKLM",
                 r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform",
                 "NoGenTicket", 1)
+            # PC Health Check reinstall marker — Windows Update treats
+            # PCHC as previously uninstalled and stops re-pushing the
+            # "is your PC ready" app (O&O ShutUp10++ procmon diff)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Microsoft\PCHC",
+                "PreviousUninstall", 1)
             # Per-app tagged-energy collection off (battery-usage
             # telemetry pipeline)
             for _v in ("TelemetryMaxApplication",
@@ -3059,6 +3088,12 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                                "WiFiConfigSyncDisabled", 1)
             set_registry_dword("HKLM", wcm + r"\config",
                                "WiFiSharingEnabled", 0)
+            # Remote mobile-hotspot turn-on off — paired devices can
+            # otherwise trigger the hotspot without local consent
+            # (hellzerg/optimizer DisableTelemetry); local start works
+            set_registry_dword(
+                "HKLM", r"SOFTWARE\Microsoft\WcmSvc\Tethering",
+                "RemoteStartupDisabled", 1)
             wifi = r"SOFTWARE\Microsoft\PolicyManager\default\WiFi"
             for p in ("AllowAutoConnectToWiFiSenseHotspots",
                       "AllowWiFiHotSpotReporting"):
@@ -3617,6 +3652,19 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword("HKLM",
                                r"SOFTWARE\Microsoft\Windows\CurrentVersion\Device Installer",
                                "DisableCoInstallers", 1)
+            # UPnP/WSD network-device auto-install off — detected
+            # network devices (printers/media renderers) no longer
+            # silently provision drivers + companion apps
+            # (gordonbay/Windows-On-Reins)
+            set_registry_dword("HKLM",
+                               r"SOFTWARE\Microsoft\Windows\CurrentVersion\NcdAutoSetup\Private",
+                               "AutoSetup", 0)
+            # No device-software downloads over metered connections —
+            # closes the last silent-provision path for OEM companion
+            # payloads (LeDragoX/Win-Debloat-Tools)
+            set_registry_dword("HKLM",
+                               r"SOFTWARE\Microsoft\Windows\CurrentVersion\DeviceSetup",
+                               "CostedNetworkPolicy", 1)
             logger.info("Applied: BlockOemDriverUpdates "
                         "(ExcludeWUDriversInQualityUpdate=1)")
 
@@ -5102,6 +5150,11 @@ TELEMETRY_TASK_PATHS = (
     "\\Microsoft\\Windows\\UpdateOrchestrator\\StartOobeAppsScanAfterUpdate",
     "\\Microsoft\\Windows\\UpdateOrchestrator\\StartOobeAppsScan_LicenseAccepted",
     "\\Microsoft\\Windows\\UpdateOrchestrator\\StartOobeAppsScan_OobeAppReady",
+    # MusNotification/MusNotification_Ux spawn the "finish setting up"
+    # + restart-nag toasts; update orchestration itself is untouched
+    # (Disassembler0/Win10-Initial-Setup-Script)
+    "\\Microsoft\\Windows\\UpdateOrchestrator\\MusNotification",
+    "\\Microsoft\\Windows\\UpdateOrchestrator\\MusNotification_Ux",
     "\\Microsoft\\Windows\\DiskDiagnostic\\Microsoft-Windows-DiskDiagnosticDataCollector",
     "\\Microsoft\\Windows\\Feedback\\Siuf\\DmClient",
     "\\Microsoft\\Windows\\Feedback\\Siuf\\DmClientOnScenarioDownload",
