@@ -2,6 +2,15 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 102 (task-disable mechanics parity — clean):
+  `DisableTelemetryTasks` and `DisableEdgeUpdateBloat` verified
+  byte-for-byte equivalent in mechanism — both iterate the same
+  explicit task paths through `schtasks /Change /TN "<path>"
+  /DISABLE` with a 15s bound, info-on-success / warn-on-failure,
+  and an applied-count summary. EdgeUpdate layer identical too:
+  same 3 demoted services, same 3 updater task names, same 4
+  channel-GUID shortcut suppressions plus
+  `DisableEdgeDesktopShortcutCreation`.
 - Audit round 101 (service status probe parity — clean):
   `ShowStatus`/`--status` verified equivalent — both run
   `sc query BloatwareGuard` and print stdout verbatim, same 30s
