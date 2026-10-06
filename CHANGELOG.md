@@ -2,6 +2,13 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 64 (shared-list mechanical parity — no changes
+  required): remaining unaudited shared lists re-diffed py↔cs —
+  `_STARTUP_BLOAT_NAMES`/`StartupBloatNames` 61=61,
+  `_WIN32_BLOAT_NAMES`/`Win32BloatNames` 101=101, OEM scheduled-task
+  match patterns 25=25, `MICROSOFT_SYSTEM_TASK_PREFIXES`/
+  `MicrosoftSystemPrefixes` 34=34 (py uses doubled-backslash
+  literals, cs verbatim — same paths). Zero drift.
 - Audit round 63+ (RegiLattice residual sweep + config-integrity
   audit — no changes required): non-SetDword RegOps mined —
   207 SetString sites are app-specific telemetry kills
