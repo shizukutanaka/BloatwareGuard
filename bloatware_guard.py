@@ -1431,6 +1431,9 @@ _MISC_DEMOTE_SERVICES = (
     # runs (zoicware/RemoveWindowsAI); demand-start keeps invocation
     # working without the resident service
     "IsoEnvBroker",
+    # Net.Tcp Port Sharing — WCF NetTcp binding host only; nothing
+    # uses it outside WCF services that opt in (W4RH4WK/Debloat-Windows-10)
+    "NetTcpPortSharing",
 )
 
 

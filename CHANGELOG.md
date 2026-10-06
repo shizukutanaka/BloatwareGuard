@@ -2,6 +2,16 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 54 (W4RH4WK service diff): `NetTcpPortSharing` added
+  to the demote list — Net.Tcp Port Sharing hosts WCF NetTcp
+  bindings only, so demand-start is invisible outside opted-in
+  WCF services. Remaining W4RH4WK kills reviewed and rejected:
+  WlanSvc (breaks Wi-Fi), wscsvc/WdNisSvc (security posture),
+  RemoteAccess (breaks VPN), WbioSrvc (breaks Windows Hello),
+  ndu (kernel driver), sensor permission deny (location left
+  alone by design). DESIGN.md self-test counts synced to actual
+  (py T1–T12 / C# T1–T8).
+
 - Self-test coverage — `_EXTRA_DIAG_CHANNELS` and `DEFAULT_WHITELIST`
   added to the T9 py↔cs shared-list parity sweep and T10 duplicate
   guard; whitelist extracted to a module constant (was inline in
