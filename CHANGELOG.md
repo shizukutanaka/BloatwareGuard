@@ -2,6 +2,16 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 103 (winget sweep internals parity — clean):
+  `WingetGuard.Sweep`/`winget_sweep` verified equivalent — same
+  ID gate (`^[A-Za-z0-9_.\-]+$` plus a required dot), same
+  trim/non-empty guard, same case-insensitive whitelist
+  containment that wins over removal, identical uninstall argv
+  (`uninstall -e --id <e> --silent --disable-interactivity
+  --accept-source-agreements`, 300s), same `winget` ledger kind
+  and applied-count summary. The only delta is the already-
+  documented probe style (spawned `winget --version` vs PATH
+  existence) whose end-state is the same.
 - Audit round 102 (task-disable mechanics parity — clean):
   `DisableTelemetryTasks` and `DisableEdgeUpdateBloat` verified
   byte-for-byte equivalent in mechanism — both iterate the same
