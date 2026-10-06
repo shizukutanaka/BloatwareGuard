@@ -2,6 +2,16 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 67 (config load-path parity — semantics aligned):
+  both loaders give the user's `config.json` full replace semantics
+  for `Blacklist`/`Whitelist` (no merge with defaults) — identical
+  contract. Noted divergence (kept intentionally): C#
+  `ConfigLoader.Load` returns `CreateDefault()` when the file parses
+  to JSON `null`; Python returns `None` which surfaces as a loud
+  `AttributeError` — a broken/empty config file should fail noisily
+  rather than silently re-run with defaults, so no change made.
+  Remaining verified-clean surfaces: startup-bloat names, win32
+  removal names, OEM task patterns, protected task prefixes.
 - Audit round 66 (user-hive enumeration parity):
   `RegistryGuard.GetDefaultProfileDat` no longer returns null when the
   ProfileList read itself throws — it now degrades to
