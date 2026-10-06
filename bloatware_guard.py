@@ -5120,6 +5120,11 @@ TELEMETRY_TASK_PATHS = (
     "\\Microsoft\\Windows\\UpdateOrchestrator\\StartOobeAppsScanAfterUpdate",
     "\\Microsoft\\Windows\\UpdateOrchestrator\\StartOobeAppsScan_LicenseAccepted",
     "\\Microsoft\\Windows\\UpdateOrchestrator\\StartOobeAppsScan_OobeAppReady",
+    # MusNotification/MusNotification_Ux spawn the "finish setting up"
+    # + restart-nag toasts; update orchestration itself is untouched
+    # (Disassembler0/Win10-Initial-Setup-Script)
+    "\\Microsoft\\Windows\\UpdateOrchestrator\\MusNotification",
+    "\\Microsoft\\Windows\\UpdateOrchestrator\\MusNotification_Ux",
     "\\Microsoft\\Windows\\DiskDiagnostic\\Microsoft-Windows-DiskDiagnosticDataCollector",
     "\\Microsoft\\Windows\\Feedback\\Siuf\\DmClient",
     "\\Microsoft\\Windows\\Feedback\\Siuf\\DmClientOnScenarioDownload",

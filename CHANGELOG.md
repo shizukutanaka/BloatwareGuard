@@ -2,6 +2,13 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 58 (Disassembler0 diff): `UpdateOrchestrator\MusNotification`
+  + `MusNotification_Ux` tasks disabled (134→136) — kills the
+  "finish setting up your device"/restart-nag toasts; update
+  orchestration tasks (Schedule Scan, USO_UxBroker) untouched.
+  IFEO `Debugger` kill from same source skipped (task-disable is
+  reversible; IFEO breaks any future exe update path); ConsentStore
+  library denies skipped — forbidden.
 - Audit round 57 (simeononsecurity diff): `Policies\Microsoft\WMDRM
   DisableOnline=1` — Windows Media DRM license-acquisition calls
   never leave the machine (HKLM write + both backup lists).
