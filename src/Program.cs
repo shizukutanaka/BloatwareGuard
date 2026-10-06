@@ -2980,6 +2980,13 @@ public static class RegistryGuard
                 SetHiveDword(hive, UserExplorerAdvancedPath, "Start_TrackProgs", 0);
                 SetHiveDword(hive, UserSiufPath, "NumberOfSIUFInPeriod", 0);
                 SetHiveDword(hive, UserIntlProfilePath, "HttpAcceptLanguageOptOut", 1);
+                // Per-user CEIP opt-out (HKLM UploadDisableFlag covers
+                // the service side)
+                SetHiveDword(hive, @"Software\Microsoft\SQMClient\Windows",
+                    "CEIPEnable", 0);
+                // Per-user PCHC uninstall marker (pair of HKLM)
+                SetHiveDword(hive, @"Software\Microsoft\PCHC",
+                    "PreviousUninstall", 1);
                 // Tailored-experiences policy (policy-level, not just the value)
                 SetHiveDword(hive, UserPrivacyPoliciesPath, "TailoredExperiencesWithDiagnosticDataEnabled", 0);
                 // Mark the diagnostic-level toast as shown — silences the
@@ -3528,6 +3535,11 @@ public static class RegistryGuard
                 using var spp = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform");
                 spp?.SetValue("NoGenTicket", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // PC Health Check reinstall marker — WU stops re-pushing
+                // the "is your PC ready" app (O&O ShutUp10++ procmon diff)
+                using var pchc = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Microsoft\PCHC");
+                pchc?.SetValue("PreviousUninstall", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 // Per-app tagged-energy collection off (battery telemetry)
                 using var teg = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SYSTEM\CurrentControlSet\Control\Power\EnergyEstimation\TaggedEnergy");
@@ -4742,6 +4754,7 @@ public static class RegistryGuard
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",
         @"SOFTWARE\Policies\Microsoft\Windows\System",
         @"SOFTWARE\Microsoft\SQMClient",
+        @"SOFTWARE\Microsoft\PCHC",
         @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform",
         @"Software\Policies\Microsoft\Windows NT\CurrentVersion\Software Protection Platform",
         @"SYSTEM\CurrentControlSet\Control\Power\EnergyEstimation\TaggedEnergy",
@@ -4949,8 +4962,10 @@ public static class RegistryGuard
         @"Software\Microsoft\InputMethod\Settings\CHS",
         @"Software\Microsoft\InputPersonalization\TrainedDataStore",
         @"Software\Microsoft\Narrator\NoRoam",
+        @"Software\Microsoft\PCHC",
         @"Software\Microsoft\Personalization\Settings",
         @"Software\Microsoft\Siuf\Rules",
+        @"Software\Microsoft\SQMClient\Windows",
         @"Software\Microsoft\Speech_OneCore\Settings\OnlineSpeechPrivacy",
         @"Software\Microsoft\Speech_OneCore\Preferences",
         @"Software\Microsoft\Speech_OneCore\Settings\VoiceActivation\UserPreferenceForAllApps",

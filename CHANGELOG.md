@@ -2,6 +2,14 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 61 (O&O ShutUp10++ procmon-diff):
+  `SOFTWARE\Microsoft\PCHC PreviousUninstall=1` (HKLM + per-user) —
+  Windows Update treats PC Health Check as previously uninstalled and
+  stops re-pushing the "is your PC ready" app; per-user
+  `SQMClient\Windows CEIPEnable=0` — CEIP opt-out now covers the user
+  hive too (HKLM service side already killed). Registered in all four
+  backup lists. ConsentStore denies + Biometrics/location policies
+  skipped — forbidden/kept-by-design.
 - Audit round 60 (doc-drift audit): mechanical recount of every shared
   list — tasks py=cs=136 ✓, demoted services py=cs=91 (README said 89 →
   fixed), blacklist py=cs=config.json=src/config.json=236 ✓,

@@ -1142,6 +1142,7 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",
     r"SOFTWARE\Policies\Microsoft\Windows\System",
     r"SOFTWARE\Microsoft\SQMClient",
+    r"SOFTWARE\Microsoft\PCHC",
     r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform",
     r"Software\Policies\Microsoft\Windows NT\CurrentVersion\Software Protection Platform",
     r"SYSTEM\CurrentControlSet\Control\Power\EnergyEstimation\TaggedEnergy",
@@ -1467,8 +1468,10 @@ _USER_BACKUP_KEY_PATHS = (
     r"Software\Microsoft\InputMethod\Settings\CHS",
     r"Software\Microsoft\InputPersonalization\TrainedDataStore",
     r"Software\Microsoft\Narrator\NoRoam",
+    r"Software\Microsoft\PCHC",
     r"Software\Microsoft\Personalization\Settings",
     r"Software\Microsoft\Siuf\Rules",
+    r"Software\Microsoft\SQMClient\Windows",
     r"Software\Microsoft\Speech_OneCore\Preferences",
     r"Software\Microsoft\Speech_OneCore\Settings\OnlineSpeechPrivacy",
     r"Software\Microsoft\Speech_OneCore\Settings\VoiceActivation\UserPreferenceForAllApps",
@@ -2338,6 +2341,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 w(_USER_EXPLORER_ADV, "Start_TrackProgs", 0)
                 w(_USER_SIUF, "NumberOfSIUFInPeriod", 0)
                 w(_USER_INTL_PROFILE, "HttpAcceptLanguageOptOut", 1)
+                # Per-user CEIP opt-out (HKLM UploadDisableFlag covers
+                # the service side; this marks the user opt-out too)
+                w(r"Software\Microsoft\SQMClient\Windows", "CEIPEnable", 0)
+                # Per-user PCHC uninstall marker (pair of HKLM below)
+                w(r"Software\Microsoft\PCHC", "PreviousUninstall", 1)
                 # Tailored-experiences policy (policy-level, not just the value)
                 w(_USER_PRIVACY_POLICIES, "TailoredExperiencesWithDiagnosticDataEnabled", 0)
                 # Mark the diagnostic-level toast as shown — silences the
@@ -2818,6 +2826,13 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "HKLM",
                 r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform",
                 "NoGenTicket", 1)
+            # PC Health Check reinstall marker — Windows Update treats
+            # PCHC as previously uninstalled and stops re-pushing the
+            # "is your PC ready" app (O&O ShutUp10++ procmon diff)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Microsoft\PCHC",
+                "PreviousUninstall", 1)
             # Per-app tagged-energy collection off (battery-usage
             # telemetry pipeline)
             for _v in ("TelemetryMaxApplication",
