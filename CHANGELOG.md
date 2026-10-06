@@ -2,6 +2,16 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 91 (Win32 uninstall dispatch parity — clean):
+  `remove_win32_program`/`RemoveProgram` verified identical —
+  same quote-aware `SplitCommandLine` (quoted path + verbatim
+  args → CreateProcess), same QuietUninstallString-first
+  preference, same `msiexec` substring trigger feeding the same
+  `\{[0-9A-Fa-f\-]{36}\}` GUID regex into
+  `msiexec /x {guid} /qn /norestart`, same 300s timeout, same
+  manual-removal log instead of guessing vendor switches. py
+  passes the vendor line as one verbatim string; cs splits
+  FileName/Arguments — equivalent CreateProcess outcome.
 - Audit round 90 (restore-point creation parity): py
   `create_restore_point` now runs through `run_powershell`
   instead of a hand-rolled `run_cmd` argv — it was the one
