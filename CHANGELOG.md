@@ -2,6 +2,13 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 62 (LeDragoX/Win-Debloat-Tools diff):
+  `CurrentVersion\DeviceSetup CostedNetworkPolicy=1` — no
+  device-software downloads over metered connections; closes the last
+  silent-provision path for OEM companion payloads
+  (BlockOemDriverUpdates layer + both backup lists). TextInput/
+  EventTranscript/DisableUAR/PresenceWriter already covered;
+  ConsentStore, UX prefs, mitigation-tuning skipped.
 - Audit round 61 (O&O ShutUp10++ procmon-diff):
   `SOFTWARE\Microsoft\PCHC PreviousUninstall=1` (HKLM + per-user) —
   Windows Update treats PC Health Check as previously uninstalled and

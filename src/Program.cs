@@ -4729,6 +4729,11 @@ public static class RegistryGuard
             using var ncd = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                 @"SOFTWARE\Microsoft\Windows\CurrentVersion\NcdAutoSetup\Private");
             ncd?.SetValue("AutoSetup", 0, Microsoft.Win32.RegistryValueKind.DWord);
+            // No device-software downloads over metered connections
+            // (LeDragoX/Win-Debloat-Tools)
+            using var devsetup = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                @"SOFTWARE\Microsoft\Windows\CurrentVersion\DeviceSetup");
+            devsetup?.SetValue("CostedNetworkPolicy", 1, Microsoft.Win32.RegistryValueKind.DWord);
             GuardLogger.Info("Applied: BlockOemDriverUpdates (ExcludeWUDriversInQualityUpdate=1, SearchOrderConfig=0, DisableCoInstallers=1)");
         }
         catch (Exception ex)
@@ -4818,6 +4823,7 @@ public static class RegistryGuard
         @"SOFTWARE\Policies\Microsoft\FindMyDevice",
         @"SOFTWARE\Policies\Microsoft\Windows\SettingSync",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Device Metadata",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\DeviceSetup",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\NcdAutoSetup\Private",
         @"SOFTWARE\Microsoft\OneDrive",
         @"SOFTWARE\Microsoft\Windows\Shell\Copilot",

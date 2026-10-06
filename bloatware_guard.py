@@ -1266,6 +1266,7 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Policies\Microsoft\Windows\Kernel DMA Protection",
     r"SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Device Metadata",
+    r"SOFTWARE\Microsoft\Windows\CurrentVersion\DeviceSetup",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\NcdAutoSetup\Private",
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked",
     # --- coverage completion (audit: every HKLM write path backed up) ---
@@ -3658,6 +3659,12 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword("HKLM",
                                r"SOFTWARE\Microsoft\Windows\CurrentVersion\NcdAutoSetup\Private",
                                "AutoSetup", 0)
+            # No device-software downloads over metered connections —
+            # closes the last silent-provision path for OEM companion
+            # payloads (LeDragoX/Win-Debloat-Tools)
+            set_registry_dword("HKLM",
+                               r"SOFTWARE\Microsoft\Windows\CurrentVersion\DeviceSetup",
+                               "CostedNetworkPolicy", 1)
             logger.info("Applied: BlockOemDriverUpdates "
                         "(ExcludeWUDriversInQualityUpdate=1)")
 
