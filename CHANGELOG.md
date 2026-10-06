@@ -2,6 +2,18 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 81 (admin/elevation/service-install parity — clean):
+  `is_admin`/`_relaunch_elevated` verified aligned with the C#
+  elevation model — same `runas` mechanism (ShellExecuteW vs
+  `ProcessStartInfo.Verb`), same install/uninstall self-elevation
+  gates. Service lifecycle matches: stop→delete→strip hosts block
+  on uninstall (registry/deprovision/startup markers intentionally
+  persist on both sides). Documented divergences kept: py installs
+  via NSSM+pythonw (pythonw isn't SCM-aware — error 1053 without
+  a wrapper; the code itself steers users to `BloatwareGuard.exe
+  install`), and cs adds `sc failure` restart-on-failure +
+  description that has no NSSM equivalent. `--status` uses the
+  same `sc query` (cs bounds it at 30s + 5s drain).
 - Audit round 80 (process-runner parity):
   `run_powershell`/`run_cmd` now decode console output in the
   machine's actual OEM code page via `GetOEMCP()` instead of
