@@ -2,6 +2,15 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 63+ (RegiLattice residual sweep + config-integrity
+  audit — no changes required): non-SetDword RegOps mined —
+  207 SetString sites are app-specific telemetry kills
+  (VSCode/Java/LibreOffice, out of product scope) or cosmetic
+  WindowMetrics; 6,975 DeleteValue sites are revert-ops/UI-resets.
+  Toggle↔config integrity verified: all 46 `Prevention` keys in
+  config.json are read by both implementations and every read key
+  exists — zero orphan toggles. Per-user backup coverage already
+  pinned by T12 (py + cs writers ⊆ backup lists).
 - Audit round 63 (RajwanYair/RegiLattice diff — 7,718-tweak toolkit):
   per-user `Privacy UserInfoSharing=0` (app account-info access),
   `CurrentVersion\WindowsAI ProactivelyHelpEnabled=0`,
