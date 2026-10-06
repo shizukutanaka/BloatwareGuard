@@ -2,6 +2,17 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 79 (reinstall-monitor parity):
+  `CheckReinstalls` now diffs provisioned packages on DisplayName —
+  Python's `run_scan` monitor keys on DisplayName ("stable across
+  versions"), but the C# monitor keyed on PackageName which embeds
+  version+arch, so any provisioned-package version bump tripped a
+  spurious RE-INSTALLED flag and re-removal attempt. Added
+  `GetBlacklistedProvisionedPackagePairs` (DisplayName→PackageName
+  pairs); the string-only API delegates to it. The other channels
+  (appx family diff via `PackageFullName` lookup, Win32 display
+  diff with user-hive report-only skip, dry-run gating, seen-set
+  rollover after first scan) were already aligned.
 - Audit round 78 (ETW autologger/channel parity — clean):
   `disable_telemetry_autologgers`/`DisableTelemetryAutologgers`
   verified identical — same 18-session list, same open-only

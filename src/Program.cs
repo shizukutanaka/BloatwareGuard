@@ -824,9 +824,17 @@ public static class AppxManager
     }
 
     /// <summary>Get all provisioned packages (these re-deploy on new user creation)</summary>
-    public static List<string> GetBlacklistedProvisionedPackages(List<string> blacklist, List<string> whitelist)
+    public static List<string> GetBlacklistedProvisionedPackages(List<string> blacklist, List<string> whitelist) =>
+        GetBlacklistedProvisionedPackagePairs(blacklist, whitelist)
+            .Select(p => p.PackageName).ToList();
+
+    /// <summary>(DisplayName, PackageName) pairs — the reinstall monitor diffs
+    /// on DisplayName (stable across versions; PackageName embeds version +
+    /// arch) so a version bump is not mistaken for a reinstall. Python parity.</summary>
+    public static List<(string DisplayName, string PackageName)> GetBlacklistedProvisionedPackagePairs(
+        List<string> blacklist, List<string> whitelist)
     {
-        var results = new List<string>();
+        var results = new List<(string, string)>();
         var pattern = string.Join("|",
             blacklist.Where(b => !string.IsNullOrWhiteSpace(b)).Select(Regex.Escape));
         if (pattern.Length == 0)
@@ -852,7 +860,7 @@ public static class AppxManager
                 var pkg = el.GetProperty("PackageName").GetString() ?? "";
                 var display = el.GetProperty("DisplayName").GetString() ?? "";
                 if (!string.IsNullOrEmpty(pkg) && !IsWhitelisted(display, whitelist))
-                    results.Add(pkg);
+                    results.Add((display, pkg));
             }
 
             var doc = JsonDocument.Parse(output.Trim());
@@ -6083,8 +6091,11 @@ public class GuardService : BackgroundService
         HashSet<string> seenProvisioned, HashSet<string> seenInstalled,
         HashSet<string> seenWin32, bool firstScan)
     {
+        // Keyed by DisplayName (stable across versions) → PackageName for removal
+        var provisionedPairs = AppxManager.GetBlacklistedProvisionedPackagePairs(
+            _config.Blacklist, _config.Whitelist);
         var currentProvisioned = new HashSet<string>(
-            AppxManager.GetBlacklistedProvisionedPackages(_config.Blacklist, _config.Whitelist),
+            provisionedPairs.Select(p => p.DisplayName),
             StringComparer.OrdinalIgnoreCase);
         var installed = AppxManager.GetBlacklistedPackages(_config.Blacklist, _config.Whitelist);
         var currentInstalled = new HashSet<string>(
@@ -6095,15 +6106,18 @@ public class GuardService : BackgroundService
 
         if (!firstScan)
         {
-            foreach (var pkg in currentProvisioned.Except(seenProvisioned))
+            foreach (var display in currentProvisioned.Except(seenProvisioned))
             {
-                GuardLogger.Warn($"[MONITOR] RE-INSTALLED detected: {pkg} — removing immediately!");
+                GuardLogger.Warn($"[MONITOR] RE-INSTALLED detected: {display} — removing immediately!");
+                var pkg = provisionedPairs
+                    .First(p => string.Equals(p.DisplayName, display,
+                        StringComparison.OrdinalIgnoreCase)).PackageName;
                 if (_config.DryRun)
-                    GuardLogger.Info($"[DRY-RUN] Would re-remove provisioned: {pkg}");
+                    GuardLogger.Info($"[DRY-RUN] Would re-remove provisioned: {display}");
                 else if (AppxManager.RemoveProvisionedPackage(pkg))
-                    GuardLogger.Info($"[MONITOR] Re-removal complete: {pkg}");
+                    GuardLogger.Info($"[MONITOR] Re-removal complete: {display}");
                 else
-                    GuardLogger.Warn($"[MONITOR] Re-removal failed: {pkg} [admin required]");
+                    GuardLogger.Warn($"[MONITOR] Re-removal failed: {display} [admin required]");
             }
 
             var fullNameByFamily = installed
