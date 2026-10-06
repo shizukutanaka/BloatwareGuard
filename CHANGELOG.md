@@ -2,6 +2,16 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 73 (scheduled-task + log-severity parity):
+  `DisableOemTasks`/`disable_oem_scheduled_tasks` and the telemetry/
+  OneDrive/EdgeUpdate task kills verified aligned — same
+  Get-ScheduledTask sweep (OEM TaskPath or TaskName match, 120s),
+  protected `Microsoft\*` prefix guard, `schtasks /Change /TN ...
+  /DISABLE` at 15s, dict→array wrap. Fixed divergence: 32
+  RegistryGuard layer-failure catches logged Error while Python
+  logs the same non-fatal failures as warnings — all now
+  `GuardLogger.Warn` (scan-loop and scan-error catches were
+  already correct and untouched).
 - Audit round 72 (winget sweep + restore parity — clean):
   `winget_sweep`/`WingetGuard.Sweep` verified fully aligned — same
   presence probe (`shutil.which` vs `--version` probe, 15s), same id

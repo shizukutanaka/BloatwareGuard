@@ -2231,7 +2231,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable consumer experiences: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable consumer experiences: {ex.Message}");
         }
     }
 
@@ -2271,7 +2271,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable cloud content: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable cloud content: {ex.Message}");
         }
     }
 
@@ -2286,7 +2286,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to prevent device metadata: {ex.Message}");
+            GuardLogger.Warn($"Failed to prevent device metadata: {ex.Message}");
         }
     }
 
@@ -2439,7 +2439,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to block provisioning: {ex.Message}");
+            GuardLogger.Warn($"Failed to block provisioning: {ex.Message}");
         }
     }
 
@@ -2609,7 +2609,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable Copilot: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable Copilot: {ex.Message}");
         }
     }
 
@@ -2763,7 +2763,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable Recall: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable Recall: {ex.Message}");
         }
     }
 
@@ -2875,7 +2875,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable search suggestions: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable search suggestions: {ex.Message}");
         }
     }
 
@@ -2902,7 +2902,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable widgets: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable widgets: {ex.Message}");
         }
     }
 
@@ -3970,7 +3970,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable telemetry: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable telemetry: {ex.Message}");
         }
     }
 
@@ -4009,7 +4009,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable GameDVR: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable GameDVR: {ex.Message}");
         }
     }
 
@@ -4040,7 +4040,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable delivery optimization: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable delivery optimization: {ex.Message}");
         }
     }
 
@@ -4071,7 +4071,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable OneDrive: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable OneDrive: {ex.Message}");
         }
     }
 
@@ -4096,7 +4096,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable chat taskbar: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable chat taskbar: {ex.Message}");
         }
     }
 
@@ -4256,7 +4256,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable Edge bloat: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable Edge bloat: {ex.Message}");
         }
     }
 
@@ -4425,7 +4425,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable startup bloat: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable startup bloat: {ex.Message}");
         }
     }
 
@@ -4526,7 +4526,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable error reporting: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable error reporting: {ex.Message}");
         }
     }
 
@@ -4575,7 +4575,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable Edge update bloat: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable Edge update bloat: {ex.Message}");
         }
     }
 
@@ -4646,7 +4646,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable app permissions: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable app permissions: {ex.Message}");
         }
     }
 
@@ -4686,7 +4686,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to demote Xbox services: {ex.Message}");
+            GuardLogger.Warn($"Failed to demote Xbox services: {ex.Message}");
         }
     }
 
@@ -4741,7 +4741,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to block OEM driver updates: {ex.Message}");
+            GuardLogger.Warn($"Failed to block OEM driver updates: {ex.Message}");
         }
     }
 
@@ -5124,7 +5124,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable Print Spooler: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable Print Spooler: {ex.Message}");
         }
     }
 
@@ -5143,7 +5143,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable Modern Standby networking: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable Modern Standby networking: {ex.Message}");
         }
     }
 
@@ -5162,7 +5162,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to block WPBT: {ex.Message}");
+            GuardLogger.Warn($"Failed to block WPBT: {ex.Message}");
         }
     }
 
@@ -5188,7 +5188,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable reserved storage: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable reserved storage: {ex.Message}");
         }
     }
 
@@ -5217,7 +5217,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable cloud clipboard: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable cloud clipboard: {ex.Message}");
         }
     }
 
@@ -5239,7 +5239,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable Remote Assistance: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable Remote Assistance: {ex.Message}");
         }
     }
 
@@ -5268,7 +5268,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to block Insider preview: {ex.Message}");
+            GuardLogger.Warn($"Failed to block Insider preview: {ex.Message}");
         }
     }
 
@@ -5411,7 +5411,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to demote misc services: {ex.Message}");
+            GuardLogger.Warn($"Failed to demote misc services: {ex.Message}");
         }
     }
 
@@ -5494,7 +5494,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable Spotlight: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable Spotlight: {ex.Message}");
         }
     }
 
@@ -5520,7 +5520,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable AutoPlay: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable AutoPlay: {ex.Message}");
         }
     }
 
@@ -5543,7 +5543,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to set reboot policy: {ex.Message}");
+            GuardLogger.Warn($"Failed to set reboot policy: {ex.Message}");
         }
     }
 
@@ -5580,7 +5580,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to hide Start recommendations: {ex.Message}");
+            GuardLogger.Warn($"Failed to hide Start recommendations: {ex.Message}");
         }
     }
 
