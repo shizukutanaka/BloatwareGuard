@@ -2,6 +2,17 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 104 (reinstall-monitor internals parity — clean):
+  the three-channel seen-set semantics verified equivalent —
+  empty sets + first-scan baseline so diffs fire only after cycle
+  one, provisioned re-removal keyed by DisplayName→PackageName
+  map, AppxPackage by family→PackageFullName map, Win32 by
+  display name with user-hive entries kept report-only, per-item
+  DryRun gates, warn-on-detect / warn-on-fail severities, whole-
+  set refresh each cycle, and the same catch→log→sleep loop.
+  Cosmetic delta noted: cs uses OrdinalIgnoreCase sets so a
+  case-only rename wouldn't alert while py's sets would
+  (re-removes once — harmless).
 - Audit round 103 (winget sweep internals parity — clean):
   `WingetGuard.Sweep`/`winget_sweep` verified equivalent — same
   ID gate (`^[A-Za-z0-9_.\-]+$` plus a required dot), same
