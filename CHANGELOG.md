@@ -2,6 +2,18 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 77 (capabilities + persistence-marker parity — clean):
+  `remove_optional_capabilities`/`RemoveOptionalCapabilities`
+  verified identical — same 6-name pattern, Installed-state filter,
+  60s query + 180s remove, safe-name gate, post-remove re-query so
+  only actually-gone capabilities reach the ledger. Persistence
+  markers aligned: `MarkDeprovisioned` writes the same subkey under
+  both Deprovisioned and EndOfLife roots;
+  `ApplyRemoveDefaultStorePackages` does the same
+  Enabled=1 + DynamicRemovalList merge (prior + legacy PackageList
+  migration + new, case-insensitive first-seen dedupe), drops the
+  legacy PackageList value, and writes RemovePackage=1 per family
+  subkey.
 - Audit round 76 (service-demotion parity — clean):
   `demote_service`/`DemoteService` verified identical — open
   (never create) `SYSTEM\CurrentControlSet\Services\<name>`
