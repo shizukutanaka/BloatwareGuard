@@ -2,6 +2,19 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 88 (resident-service loop parity — clean):
+  the `--service` monitor loop verified identical — same 300s
+  default with the same <60s→60s clamp + Warn, same three-channel
+  reinstall diff (provisioned DisplayName→PackageName, installed
+  family→fullName, Win32 display minus user-hive/report-only),
+  same first-scan baseline and seen-rollover, same dry-run gate
+  before every re-removal, same no-hot-reload contract (config is
+  fixed at startup on both — a mid-loop reload feature was
+  previously rejected). py `int()` tolerates a quoted
+  ScanIntervalSeconds where cs JSON-deserializes int strictly —
+  both clamp the result identically; py's unconditional `time.sleep`
+  vs cs cancellable `Task.Delay(stoppingToken)` is the documented
+  SCM-awareness split.
 - Audit round 87 (Active Setup stub sweep parity — clean):
   `disable_active_setup_stubs`/`DisableActiveSetupStubs` verified
   identical — same two key paths (64-bit + WOW6432Node
