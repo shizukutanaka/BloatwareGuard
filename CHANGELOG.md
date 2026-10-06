@@ -2,6 +2,19 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 86 (matching-engine parity — clean):
+  blacklist predicate verified equivalent on both sides — py
+  `is_target_package` does a client-side case-folded literal
+  substring over the full catalog; cs pushes the same literal
+  semantics down to PowerShell `-match` via `Regex.Escape`'d
+  alternation (case-insensitive by default) on the same field
+  (PackageFamilyName installed / DisplayName provisioned).
+  Whitelist-first ordering, empty/whitespace entry guards,
+  IsFramework skip, fullName→family dedupe key and the
+  -AllUsers admin→non-admin fallback all match. Documented perf
+  divergence: py downloads the whole catalog each scan and
+  filters in-process, cs ships a 236-name alternation and
+  filters server-side — same result set.
 - Audit round 85 (prevention-layer dispatch parity — clean):
   all 35 toggles verified present and gated on both sides; every
   layer wrapped in its own catch→Warn so one failure can't abort
