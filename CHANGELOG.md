@@ -2,6 +2,413 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 105 (py fix + OEM task-sweep mechanics parity):
+  `disable_oem_scheduled_tasks` now warns when the
+  Get-ScheduledTask query fails or returns nothing instead of
+  silently returning — C# logs the same event as
+  "Scheduled task scan error". Mechanism verified identical:
+  same Get-ScheduledTask→`-match` query (25 escaped patterns,
+  TaskPath `*OEM*`), 120s bound, dict→single wrap, same
+  protected-prefix skip via `startswith(prefix+"\")`,
+  `schtasks /Change /TN /DISABLE` 15s per task, info/warn per
+  result, processed/skipped summary.
+- Audit round 104 (reinstall-monitor internals parity — clean):
+  the three-channel seen-set semantics verified equivalent —
+  empty sets + first-scan baseline so diffs fire only after cycle
+  one, provisioned re-removal keyed by DisplayName→PackageName
+  map, AppxPackage by family→PackageFullName map, Win32 by
+  display name with user-hive entries kept report-only, per-item
+  DryRun gates, warn-on-detect / warn-on-fail severities, whole-
+  set refresh each cycle, and the same catch→log→sleep loop.
+  Cosmetic delta noted: cs uses OrdinalIgnoreCase sets so a
+  case-only rename wouldn't alert while py's sets would
+  (re-removes once — harmless).
+- Audit round 103 (winget sweep internals parity — clean):
+  `WingetGuard.Sweep`/`winget_sweep` verified equivalent — same
+  ID gate (`^[A-Za-z0-9_.\-]+$` plus a required dot), same
+  trim/non-empty guard, same case-insensitive whitelist
+  containment that wins over removal, identical uninstall argv
+  (`uninstall -e --id <e> --silent --disable-interactivity
+  --accept-source-agreements`, 300s), same `winget` ledger kind
+  and applied-count summary. The only delta is the already-
+  documented probe style (spawned `winget --version` vs PATH
+  existence) whose end-state is the same.
+- Audit round 102 (task-disable mechanics parity — clean):
+  `DisableTelemetryTasks` and `DisableEdgeUpdateBloat` verified
+  byte-for-byte equivalent in mechanism — both iterate the same
+  explicit task paths through `schtasks /Change /TN "<path>"
+  /DISABLE` with a 15s bound, info-on-success / warn-on-failure,
+  and an applied-count summary. EdgeUpdate layer identical too:
+  same 3 demoted services, same 3 updater task names, same 4
+  channel-GUID shortcut suppressions plus
+  `DisableEdgeDesktopShortcutCreation`.
+- Audit round 101 (service status probe parity — clean):
+  `ShowStatus`/`--status` verified equivalent — both run
+  `sc query BloatwareGuard` and print stdout verbatim, same 30s
+  bound (cs adds a 5s output-drain grace after kill; py hard-caps
+  at subprocess timeout — identical for an instant query,
+  differing only in the never-hit timeout path's display text).
+- Audit round 100 (package-query degrade parity — clean):
+  `GetBlacklistedPackages`/`_enum_blacklisted_packages` degrade
+  paths verified equivalent — cs tries `-AllUsers` and falls back
+  to current-user scope on non-admin failure; py checks
+  `is_admin()` upfront and never attempts it. Same end-state
+  coverage, same dedupe (fullName→family fallback, case-insensitive
+  seen set), same whitelist-first substring matching on
+  PackageFamilyName (client-side literal `in` vs server-side
+  `-match` with Regex.Escape — documented semantics equal),
+  same empty-pattern guard.
+- Audit round 99 (self-test invariant coverage — clean):
+  cross-mapped py T1–T12 against cs T1–T8. Shared invariants pin
+  the same contracts (logger T4≈T2, prevention keys/defaults
+  T6+T9≈T7, duplicate-free lists T10≈T8); cs-only tests cover
+  .NET-specific surfaces with no py analog (arg parsing, assembly
+  metadata, SystemApp wiring, trim safety). The strongest gates
+  live py-side and read `Program.cs` directly: T11 value-name
+  parity and T12 which is fully bidirectional — HKLM writes,
+  per-user writes, and demoted/disabled services are each checked
+  against both sides' backup lists, so a cross-language drift
+  cannot pass both gates. No silent-drift hole found.
+- Audit round 98 (config schema + defaults parity — clean):
+  machine-verified: all 46 Prevention toggles are consumed at
+  `prev.get` call sites whose per-site defaults equal both the
+  `load_config` literal and the C# `GuardConfig` initializers —
+  including the three opt-in-false layers (DisableOneDrive,
+  DisablePrintSpooler, DisableModernStandbyNetworking use
+  `, False`). Top-level fields match too: ScanIntervalSeconds=300,
+  DryRun=false, BackupDirectory/LogFilePath fallbacks, Blacklist/
+  Whitelist default lists, missing-file → write-then-return and
+  BOM-tolerant reads on both sides.
+- Audit round 97 (restore-path internals parity — clean):
+  `RestorePackages`/`run_restore` verified equivalent — same ledger
+  path, per-line JSON tolerance, name→family→"?" display fallback,
+  all four kind dispatches (appx re-register 60s, winget install
+  300s with `--disable-interactivity` + both accept flags,
+  capability Add-WindowsCapability 180s, provisioned re-register
+  then manual), same safe-name/ID gates before interpolation,
+  restored/manual tally. Probe divergence noted: cs executes
+  `winget --version` once and caches (catches dead App-Installer
+  aliases); py's `shutil.which` only sees PATH presence — a dead
+  alias reaches `winget install`, fails, and lands in the same
+  manual bucket, so the end-state is identical.
+- Audit round 96 (py fix — framework visibility in package enum):
+  `_enum_blacklisted_packages` now returns 5-tuples carrying the
+  IsFramework flag instead of dropping framework rows silently — the
+  C# `GetBlacklistedPackages` contract it was documented to mirror.
+  Callers skip framework rows for removal (scan, matched-families,
+  monitor skip only in removal contexts — the monitor still watches
+  framework families for re-installs, matching C#) and
+  `--list-installed` prints them with the `[FRAMEWORK]` tag, same as
+  `ListInstalled`. Framework skips in the scan are Warn-severity on
+  both sides now. `get_blacklisted_packages` keeps its public
+  3-tuple non-framework view for external callers.
+- Audit round 95 (Appx removal-path parity — clean):
+  the admin→user dual path verified equivalent — py keeps the
+  is_admin → `-AllUsers` → user-level fallback inside
+  `remove_appx_package`; cs splits it as `RemoveAppxPackage`
+  (unconditional `-AllUsers`) with the user-level fallback in
+  `RunScan` on failure (caller-side vs callee-side placement —
+  same coverage, same 60s bound, same safe-name gate).
+  SystemApp per-user skip uses the same InstallPath-empty
+  detection at the same stage on both sides, and provisioned
+  removal (`Remove-AppxProvisionedPackage -Online -PackageName`,
+  120s, stderr warn) matches exactly.
+- Audit round 94 (logging substrate parity — clean):
+  `setup_logging`/`GuardLogger` verified equivalent — identical
+  `[yyyy-MM-dd HH:mm:ss] [LEVEL] msg` line format on both
+  console and file, same 1 MB rotation keeping one prior
+  generation (`.1` vs `.old` suffix — cosmetic), same
+  file-write-failure → console-only fallback, same once-per-
+  process source check. cs additionally mirrors into the Windows
+  Event Log — a cs-only sink; py's equivalent channel is NSSM's
+  service-stdout capture (documented SCM-awareness split).
+- Audit round 92/93 (scan orchestration + Win32 parity):
+  `run_scan`/`RunScan` stage order verified — restore point →
+  backup → appx → provisioned → capabilities → win32 →
+  deprovision/store-policy markers → registry prevention → OEM
+  + telemetry tasks → ETW/hosts → winget sweep → summary, with
+  identical toggles and dry-run gates at every stage. Documented
+  sequencing divergences (end-state identical, all layers
+  idempotent and re-applied each interval): cs runs the winget
+  sweep before the registry block and autologgers/hosts inside
+  `ApplyAll`, while py orders registry → tasks → autologgers →
+  hosts → winget; cs also double-checks whitelist/framework
+  inside the removal loop and counts skipped/failed/systemApps
+  separately where py tracks a single matched counter.
+- Audit round 92 (Win32 enumeration parity — clean):
+  `get_blacklisted_win32`/`GetBlacklistedPrograms` verified
+  identical — same 4-way hive walk (HKLM 64 + WOW6432Node +
+  HKCU + every loaded `S-1-5-21-*` user hive, the last two
+  report-only since user-writable uninstall strings must never
+  run under an admin token), same DisplayName+UninstallString
+  presence gate, same SystemComponent=1 skip, same
+  whitelist-first predicate over blacklist+Win32BloatNames, same
+  case-insensitive display dedupe.
+- Audit round 91 (Win32 uninstall dispatch parity — clean):
+  `remove_win32_program`/`RemoveProgram` verified identical —
+  same quote-aware `SplitCommandLine` (quoted path + verbatim
+  args → CreateProcess), same QuietUninstallString-first
+  preference, same `msiexec` substring trigger feeding the same
+  `\{[0-9A-Fa-f\-]{36}\}` GUID regex into
+  `msiexec /x {guid} /qn /norestart`, same 300s timeout, same
+  manual-removal log instead of guessing vendor switches. py
+  passes the vendor line as one verbatim string; cs splits
+  FileName/Arguments — equivalent CreateProcess outcome.
+- Audit round 90 (restore-point creation parity): py
+  `create_restore_point` now runs through `run_powershell`
+  instead of a hand-rolled `run_cmd` argv — it was the one
+  PowerShell call site missing `-NonInteractive`, so a stray
+  prompt could hold the subprocess until the 120s timeout. Same
+  command text, same timeout, same Info/Warn outcome as C#
+  `CreateRestorePoint`.
+- Audit round 89 (deprovision markers + OEM-task sweep parity):
+  `MarkDeprovisioned` now degrades per base key — previously both
+  `Deprovisioned` and `EndOfLife` opens sat in one try, so a
+  failure on either silently lost BOTH marker sets; the Python
+  side always tolerated per-base failure. Same paths, same
+  per-family subkey creation and count contract. OEM-task sweep
+  verified identical: same 120s `Get-ScheduledTask` query
+  (TaskPath `-like '*OEM*'` OR TaskName `-match` the shared
+  25-pattern set), same protected `\Microsoft\Windows\…` prefix
+  skip, same `schtasks /Change /DISABLE` 15s per task. cs's
+  `Regex.Escape` on patterns vs py's raw alternation is a no-op —
+  the token set carries no regex metachars.
+- Audit round 88 (resident-service loop parity — clean):
+  the `--service` monitor loop verified identical — same 300s
+  default with the same <60s→60s clamp + Warn, same three-channel
+  reinstall diff (provisioned DisplayName→PackageName, installed
+  family→fullName, Win32 display minus user-hive/report-only),
+  same first-scan baseline and seen-rollover, same dry-run gate
+  before every re-removal, same no-hot-reload contract (config is
+  fixed at startup on both — a mid-loop reload feature was
+  previously rejected). py `int()` tolerates a quoted
+  ScanIntervalSeconds where cs JSON-deserializes int strictly —
+  both clamp the result identically; py's unconditional `time.sleep`
+  vs cs cancellable `Task.Delay(stoppingToken)` is the documented
+  SCM-awareness split.
+- Audit round 87 (Active Setup stub sweep parity — clean):
+  `disable_active_setup_stubs`/`DisableActiveSetupStubs` verified
+  identical — same two key paths (64-bit + WOW6432Node
+  `Installed Components`), same match blob (subkey name +
+  default value + LocalizedName + StubPath), same whitelist-first
+  bloat predicate over the same needle set (blacklist +
+  startup-bloat names), same `DeleteSubKey`/`DeleteKey` removal,
+  same per-key error isolation and identical log line.
+- Audit round 86 (matching-engine parity — clean):
+  blacklist predicate verified equivalent on both sides — py
+  `is_target_package` does a client-side case-folded literal
+  substring over the full catalog; cs pushes the same literal
+  semantics down to PowerShell `-match` via `Regex.Escape`'d
+  alternation (case-insensitive by default) on the same field
+  (PackageFamilyName installed / DisplayName provisioned).
+  Whitelist-first ordering, empty/whitespace entry guards,
+  IsFramework skip, fullName→family dedupe key and the
+  -AllUsers admin→non-admin fallback all match. Documented perf
+  divergence: py downloads the whole catalog each scan and
+  filters in-process, cs ships a 236-name alternation and
+  filters server-side — same result set.
+- Audit round 85 (prevention-layer dispatch parity — clean):
+  all 35 toggles verified present and gated on both sides; every
+  layer wrapped in its own catch→Warn so one failure can't abort
+  the rest. Two documented structural divergences (same
+  semantics): (a) py splits dispatch — `apply_registry_prevention`
+  covers 33 while autologgers/hosts-block/winget/tasks live in
+  `run_scan` so dry-run prints "[DRY-RUN] Would …" per layer, vs
+  cs `ApplyAll` dispatching all 35 and skipping the whole call in
+  dry-run ("Startup prevention changes skipped"); (b) py's
+  `BlockTelemetryEndpoints` call stays unconditional in both —
+  required so toggling off removes a previously written hosts
+  block. `DisableXboxServices` call order differs (independent
+  layers — no cross-dependencies).
+- Audit round 84 (restore dispatch parity — clean):
+  `run_restore`/`RestorePackages` verified identical — same ledger
+  path + JSONL line-tolerant parse, same display fallback
+  (name→family→"?"), all four kinds with identical gates,
+  commands and timeouts: appx/provisioned re-register
+  (`Add-AppxPackage -Register` 60s, safe-name gate first), winget
+  (`install -e --id` 300s, ID-regex + presence gate), capability
+  (`Add-WindowsCapability` 180s), everything else → manual bucket.
+  Same restored/manual accounting and Info/Warn log severity.
+- Audit round 83 (registry backup-net parity): C# `BackupKeyPaths`
+  synced 122→191 and `UserBackupKeyPaths` 2→91 to match the Python
+  lists — the service's `.reg` export safety net was missing
+  coverage for ~70 HKLM write paths (SCHANNEL/TLS kills, Wdigest,
+  Lsa, Tcpip/6 hardening, DriverSearching, WindowsUpdate, OOBE,
+  EdgeUI, WDI, Windows Chat, etc.) and nearly every per-user
+  hardening path. Both implementations now snapshot every key the
+  tool touches on first apply.
+- Audit round 82 (per-user hive enumeration parity — clean):
+  `for_each_user_hive`/`ForEachUserHive` verified identical —
+  same `S-1-5-21-*` SID filter (excludes .DEFAULT/service
+  accounts/*_Classes), same ordering (loaded hives →
+  default-profile NTUSER.DAT mounted under the same
+  `BloatwareGuard_DefaultProfile` name via `reg load`/`unload`
+  at 15s → HKCU fallback), same per-hive error isolation, same
+  warn-when-zero-applies contract. `GetDefaultProfileDat` now
+  mirrors `_default_profile_dat` (ProfileList read +
+  expandvars + exists check, try-scoped read only).
+- Audit round 81 (admin/elevation/service-install parity — clean):
+  `is_admin`/`_relaunch_elevated` verified aligned with the C#
+  elevation model — same `runas` mechanism (ShellExecuteW vs
+  `ProcessStartInfo.Verb`), same install/uninstall self-elevation
+  gates. Service lifecycle matches: stop→delete→strip hosts block
+  on uninstall (registry/deprovision/startup markers intentionally
+  persist on both sides). Documented divergences kept: py installs
+  via NSSM+pythonw (pythonw isn't SCM-aware — error 1053 without
+  a wrapper; the code itself steers users to `BloatwareGuard.exe
+  install`), and cs adds `sc failure` restart-on-failure +
+  description that has no NSSM equivalent. `--status` uses the
+  same `sc query` (cs bounds it at 30s + 5s drain).
+- Audit round 80 (process-runner parity):
+  `run_powershell`/`run_cmd` now decode console output in the
+  machine's actual OEM code page via `GetOEMCP()` instead of
+  hardcoded cp932 — C# `Proc.Capture` uses
+  `TextInfo.OEMCodePage`, so on non-Japanese Windows (cp437/cp850)
+  the Python side mojibake'd non-ASCII output, corrupting package
+  display names before matching. cp932 remains the fallback when
+  the CP lookup fails. Invocation flags, timeout semantics
+  (rc=-1 vs null), tree-kill and both-stream capture were already
+  aligned.
+- Audit round 79 (reinstall-monitor parity):
+  `CheckReinstalls` now diffs provisioned packages on DisplayName —
+  Python's `run_scan` monitor keys on DisplayName ("stable across
+  versions"), but the C# monitor keyed on PackageName which embeds
+  version+arch, so any provisioned-package version bump tripped a
+  spurious RE-INSTALLED flag and re-removal attempt. Added
+  `GetBlacklistedProvisionedPackagePairs` (DisplayName→PackageName
+  pairs); the string-only API delegates to it. The other channels
+  (appx family diff via `PackageFullName` lookup, Win32 display
+  diff with user-hive report-only skip, dry-run gating, seen-set
+  rollover after first scan) were already aligned.
+- Audit round 78 (ETW autologger/channel parity — clean):
+  `disable_telemetry_autologgers`/`DisableTelemetryAutologgers`
+  verified identical — same 18-session list, same open-only
+  `Start=0` write, same 3 diagnostic WINEVT channels with
+  `Enabled=0`. DisableRecall's wevtutil kills match too (same 4
+  AI/MCP channel names, `sl <chan> /e:false`, 15s) plus the
+  `Disable-WindowsOptionalFeature -FeatureName 'Recall'` probe at
+  120s (py gates it on `is_admin()`; cs runs unconditionally —
+  harmless since ErrorAction SilentlyContinue absorbs the
+  non-admin failure).
+- Audit round 77 (capabilities + persistence-marker parity — clean):
+  `remove_optional_capabilities`/`RemoveOptionalCapabilities`
+  verified identical — same 6-name pattern, Installed-state filter,
+  60s query + 180s remove, safe-name gate, post-remove re-query so
+  only actually-gone capabilities reach the ledger. Persistence
+  markers aligned: `MarkDeprovisioned` writes the same subkey under
+  both Deprovisioned and EndOfLife roots;
+  `ApplyRemoveDefaultStorePackages` does the same
+  Enabled=1 + DynamicRemovalList merge (prior + legacy PackageList
+  migration + new, case-insensitive first-seen dedupe), drops the
+  legacy PackageList value, and writes RemovePackage=1 per family
+  subkey.
+- Audit round 76 (service-demotion parity — clean):
+  `demote_service`/`DemoteService` verified identical — open
+  (never create) `SYSTEM\CurrentControlSet\Services\<name>`
+  writable, `Start=3` demand-start, errors swallowed; py returns
+  bool (unused by callers, matching cs void). All demotion call
+  sites aligned: MiscBloatServices loop (91), Xbox 4 + GamingAI
+  ActivationType + SmartGlass, DoSvc, WSAIFabricSvc,
+  wercplsupport, Edge update 3. Outright disables (RemoteRegistry,
+  DiagTrack, RetailDemo, WerSvc, Spooler) use the same
+  `sc.exe stop`/`config start= disabled` pair at 15s.
+- Audit round 75 (telemetry hosts-block parity — clean):
+  `set_telemetry_hosts_block`/`SetTelemetryHostsBlock` verified
+  fully aligned — same `%SystemRoot%\System32\drivers\etc\hosts`
+  resolution, strict UTF-8 decode (skip on undecodable bytes),
+  identical `>>> BloatwareGuard telemetry block`/`<<<` markers and
+  newline-normalized splice, same three no-op conditions (no
+  block+disabled, absent file, content already desired), atomic
+  rewrite, 520=520 domain set (no drift — the lone extractor
+  artifact was a code comment, not a domain).
+- Audit round 74 (startup-bloat layer parity — clean):
+  `disable_startup_bloat`/`DisableStartupBloat` verified fully
+  aligned — identical 8-way scan matrix (HKLM Run/RunOnce 64+32-bit
+  views, four per-user hive combos), same 0x03+11-byte
+  StartupApproved marker, same peer-view block (same-named
+  non-bloat entry in the paired view suppresses the marker), same
+  Explorer\Run policy-key purge with data logging, same
+  `.bgdisabled` folder rename in user+common Startup dirs, and the
+  Active Setup stub sweep deletes matching subkeys from the same
+  two Installed Components paths with the same blob fields
+  (name/default/LocalizedName/StubPath). Needle sources
+  (blacklist + startup names, whitelist precedence) identical.
+- Audit round 73 (scheduled-task + log-severity parity):
+  `DisableOemTasks`/`disable_oem_scheduled_tasks` and the telemetry/
+  OneDrive/EdgeUpdate task kills verified aligned — same
+  Get-ScheduledTask sweep (OEM TaskPath or TaskName match, 120s),
+  protected `Microsoft\*` prefix guard, `schtasks /Change /TN ...
+  /DISABLE` at 15s, dict→array wrap. Fixed divergence: 32
+  RegistryGuard layer-failure catches logged Error while Python
+  logs the same non-fatal failures as warnings — all now
+  `GuardLogger.Warn` (scan-loop and scan-error catches were
+  already correct and untouched).
+- Audit round 72 (winget sweep + restore parity — clean):
+  `winget_sweep`/`WingetGuard.Sweep` verified fully aligned — same
+  presence probe (`shutil.which` vs `--version` probe, 15s), same id
+  gate (dot required + `^[A-Za-z0-9_.\-]+$`), whitelist substring
+  precedence, identical `uninstall -e --id {e} --silent
+  --disable-interactivity --accept-source-agreements` args, 300s
+  timeout, ledger kind `winget`. Restore side identical too:
+  `install -e --id ... --accept-package-agreements` (cs caches
+  availability, py probes per entry — same outcome). Dry-run skips
+  the sweep entirely on both sides.
+- Audit round 71 (win32 uninstall path + dry-run counter parity):
+  `get_blacklisted_win32`/`GetBlacklistedPrograms` verified aligned —
+  same three hive scans (HKLM64/HKLM32/HKCU+HKU S-1-5-21 report-only),
+  SystemComponent skip, QuietUninstallString preference, msiexec GUID
+  `/x {guid} /qn /norestart` fallback, 300s timeout, user-hive strings
+  never executed as SYSTEM. Fixed divergence: `run_scan` now counts
+  dry-run would-removals in `removed` and reports them as "would
+  remove N" in the scan summary, matching `RunScan`'s counter
+  semantics (previously py always logged "removed 0" on dry-runs).
+- Audit round 70 (appx enumeration parity):
+  `GetBlacklistedPackages` dedupe now keys on `fullName or family`
+  (family fallback when PackageFullName is empty) — previously every
+  full-name-less row collapsed into a single `seen` entry so only
+  the first such package was ever queued for removal, diverging
+  from `_enum_blacklisted_packages`. Server-side regex filter vs
+  client-side substring match verified equivalent (both substring
+  semantics on `PackageFamilyName`); `-AllUsers`→fallback scope,
+  120s timeout, dict→array wrap, whitelist precedence and
+  IsFramework handling all aligned.
+- Audit round 69 (removal-ledger parity — clean):
+  `record_removal`/`RemovalLedger.Record` write the same JSONL
+  schema (`ts` + `kind`/`name`/`family`/`full_name`); Python stores
+  sparse dicts while C# always emits all four keys — both readers
+  tolerate missing keys so the formats are interchangeable. Restore
+  dispatch verified identical: appx/provisioned → staged re-register
+  (`Get-AppxPackage -AllUsers` + `Add-AppxPackage -Register`),
+  capability → `Add-WindowsCapability` (180s), winget → strict-ID
+  `winget install` (300s), unknown kinds → manual bucket; same
+  safe-name and winget-ID gates. Both ledgers append-only
+  (rotation exists only on the log file, by design).
+- Audit round 68 (registry write-kind parity — clean):
+  machine-diffed every `set_registry_*` py call vs every
+  `RegistryValueKind` cs SetValue by value-name — no DWord/String
+  kind drift. `SendTelemetryData` verified as the intended
+  DWORD `0` + REG_SZ `"0"` dual-write on both sides (covers
+  consumers reading either type); remaining name-level diffs were
+  extraction artifacts of variable-path call sites, all confirmed
+  present in the counterpart implementation by targeted check.
+- Audit round 67 (config load-path parity — semantics aligned):
+  both loaders give the user's `config.json` full replace semantics
+  for `Blacklist`/`Whitelist` (no merge with defaults) — identical
+  contract. Noted divergence (kept intentionally): C#
+  `ConfigLoader.Load` returns `CreateDefault()` when the file parses
+  to JSON `null`; Python returns `None` which surfaces as a loud
+  `AttributeError` — a broken/empty config file should fail noisily
+  rather than silently re-run with defaults, so no change made.
+  Remaining verified-clean surfaces: startup-bloat names, win32
+  removal names, OEM task patterns, protected task prefixes.
+- Audit round 66 (user-hive enumeration parity):
+  `RegistryGuard.GetDefaultProfileDat` no longer returns null when the
+  ProfileList read itself throws — it now degrades to
+  `C:\Users\Default` and still validates via `File.Exists`, matching
+  `_default_profile_dat`'s semantics. Previously any ProfileList read
+  exception skipped the default-profile hive entirely, so new-user
+  template hardening silently did not apply on machines where the
+  ProfileList query fails.
 - Audit round 62 (LeDragoX/Win-Debloat-Tools diff):
   `CurrentVersion\DeviceSetup CostedNetworkPolicy=1` — no
   device-software downloads over metered connections; closes the last

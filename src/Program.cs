@@ -734,7 +734,11 @@ public static class AppxManager
                 var fullName = el.GetProperty("PackageFullName").GetString() ?? "";
                 var isFw = el.TryGetProperty("IsFramework", out var fw) && fw.ValueKind == JsonValueKind.True;
                 var installPath = el.TryGetProperty("InstallPath", out var ip) ? ip.GetString() : null;
-                if (!IsWhitelisted(family, whitelist) && seen.Add(fullName))
+                // Dedupe key falls back to family when the full name is
+                // empty — otherwise every full-name-less row collapses
+                // into one seen entry (Python parity).
+                if (!IsWhitelisted(family, whitelist) &&
+                    seen.Add(fullName.Length > 0 ? fullName : family))
                     results.Add((family, name, fullName, isFw, installPath));
             }
         }
@@ -820,9 +824,17 @@ public static class AppxManager
     }
 
     /// <summary>Get all provisioned packages (these re-deploy on new user creation)</summary>
-    public static List<string> GetBlacklistedProvisionedPackages(List<string> blacklist, List<string> whitelist)
+    public static List<string> GetBlacklistedProvisionedPackages(List<string> blacklist, List<string> whitelist) =>
+        GetBlacklistedProvisionedPackagePairs(blacklist, whitelist)
+            .Select(p => p.PackageName).ToList();
+
+    /// <summary>(DisplayName, PackageName) pairs — the reinstall monitor diffs
+    /// on DisplayName (stable across versions; PackageName embeds version +
+    /// arch) so a version bump is not mistaken for a reinstall. Python parity.</summary>
+    public static List<(string DisplayName, string PackageName)> GetBlacklistedProvisionedPackagePairs(
+        List<string> blacklist, List<string> whitelist)
     {
-        var results = new List<string>();
+        var results = new List<(string, string)>();
         var pattern = string.Join("|",
             blacklist.Where(b => !string.IsNullOrWhiteSpace(b)).Select(Regex.Escape));
         if (pattern.Length == 0)
@@ -848,7 +860,7 @@ public static class AppxManager
                 var pkg = el.GetProperty("PackageName").GetString() ?? "";
                 var display = el.GetProperty("DisplayName").GetString() ?? "";
                 if (!string.IsNullOrEmpty(pkg) && !IsWhitelisted(display, whitelist))
-                    results.Add(pkg);
+                    results.Add((display, pkg));
             }
 
             var doc = JsonDocument.Parse(output.Trim());
@@ -977,12 +989,29 @@ public static class AppxManager
     public static int MarkDeprovisioned(IEnumerable<string> familyNames)
     {
         var marked = 0;
+        // Per-base degrade: one key failing to open must not lose the other's
+        // marks (py mark_deprovisioned parity).
+        RegistryKey? baseKey = null, eolKey = null;
         try
         {
-            using var baseKey = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+            baseKey = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                 DeprovisionedPath, writable: true);
-            using var eolKey = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Warn($"Deprovisioned markers: cannot open HKLM key ({ex.Message})");
+        }
+        try
+        {
+            eolKey = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                 EndOfLifePath, writable: true);
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Warn($"Deprovisioned markers: cannot open HKLM key ({ex.Message})");
+        }
+        try
+        {
             foreach (var family in familyNames)
             {
                 try
@@ -994,9 +1023,10 @@ public static class AppxManager
                 catch { }
             }
         }
-        catch (Exception ex)
+        finally
         {
-            GuardLogger.Warn($"Deprovisioned markers: {ex.Message}");
+            baseKey?.Dispose();
+            eolKey?.Dispose();
         }
         return marked;
     }
@@ -2169,21 +2199,20 @@ public static class RegistryGuard
     /// <summary>Default profile template path (usually C:\Users\Default\NTUSER.DAT).</summary>
     private static string? GetDefaultProfileDat()
     {
+        string dir;
         try
         {
             using var pl = Registry.LocalMachine.OpenSubKey(
                 @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList");
-            var dir = pl?.GetValue("Default") as string;
-            if (string.IsNullOrEmpty(dir))
-                dir = @"C:\Users\Default";
-            dir = Environment.ExpandEnvironmentVariables(dir);
-            var dat = Path.Combine(dir, "NTUSER.DAT");
-            return File.Exists(dat) ? dat : null;
+            dir = pl?.GetValue("Default") as string ?? @"C:\Users\Default";
         }
         catch
         {
-            return null;
+            dir = @"C:\Users\Default";
         }
+        dir = Environment.ExpandEnvironmentVariables(dir);
+        var dat = Path.Combine(dir, "NTUSER.DAT");
+        return File.Exists(dat) ? dat : null;
     }
 
     /// <summary>Set a DWORD inside a mounted user hive root.</summary>
@@ -2228,7 +2257,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable consumer experiences: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable consumer experiences: {ex.Message}");
         }
     }
 
@@ -2268,7 +2297,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable cloud content: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable cloud content: {ex.Message}");
         }
     }
 
@@ -2283,7 +2312,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to prevent device metadata: {ex.Message}");
+            GuardLogger.Warn($"Failed to prevent device metadata: {ex.Message}");
         }
     }
 
@@ -2436,7 +2465,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to block provisioning: {ex.Message}");
+            GuardLogger.Warn($"Failed to block provisioning: {ex.Message}");
         }
     }
 
@@ -2606,7 +2635,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable Copilot: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable Copilot: {ex.Message}");
         }
     }
 
@@ -2760,7 +2789,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable Recall: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable Recall: {ex.Message}");
         }
     }
 
@@ -2872,7 +2901,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable search suggestions: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable search suggestions: {ex.Message}");
         }
     }
 
@@ -2899,7 +2928,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable widgets: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable widgets: {ex.Message}");
         }
     }
 
@@ -3967,7 +3996,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable telemetry: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable telemetry: {ex.Message}");
         }
     }
 
@@ -4006,7 +4035,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable GameDVR: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable GameDVR: {ex.Message}");
         }
     }
 
@@ -4037,7 +4066,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable delivery optimization: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable delivery optimization: {ex.Message}");
         }
     }
 
@@ -4068,7 +4097,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable OneDrive: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable OneDrive: {ex.Message}");
         }
     }
 
@@ -4093,7 +4122,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable chat taskbar: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable chat taskbar: {ex.Message}");
         }
     }
 
@@ -4253,7 +4282,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable Edge bloat: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable Edge bloat: {ex.Message}");
         }
     }
 
@@ -4422,7 +4451,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable startup bloat: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable startup bloat: {ex.Message}");
         }
     }
 
@@ -4523,7 +4552,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable error reporting: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable error reporting: {ex.Message}");
         }
     }
 
@@ -4572,7 +4601,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable Edge update bloat: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable Edge update bloat: {ex.Message}");
         }
     }
 
@@ -4643,7 +4672,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable app permissions: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable app permissions: {ex.Message}");
         }
     }
 
@@ -4683,7 +4712,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to demote Xbox services: {ex.Message}");
+            GuardLogger.Warn($"Failed to demote Xbox services: {ex.Message}");
         }
     }
 
@@ -4738,7 +4767,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to block OEM driver updates: {ex.Message}");
+            GuardLogger.Warn($"Failed to block OEM driver updates: {ex.Message}");
         }
     }
 
@@ -4799,32 +4828,8 @@ public static class RegistryGuard
         @"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate",
         @"SOFTWARE\Policies\Microsoft\Windows\AppPrivacy",
         @"SOFTWARE\Policies\Microsoft\WindowsInkWorkspace",
-        @"SYSTEM\CurrentControlSet\Control\WMI\AutoLogger\AutoLogger-Diagtrack-Listener",
-        @"SYSTEM\CurrentControlSet\Control\Session Manager",
-        @"SYSTEM\CurrentControlSet\Services\NetBT\Parameters",
-        @"SOFTWARE\Microsoft\Windows\CurrentVersion\ReserveManager",
-        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked",
-        @"SYSTEM\CurrentControlSet\Control\Remote Assistance",
-        @"SOFTWARE\Policies\Microsoft\Windows\PreviewBuilds",
-        @"SOFTWARE\Policies\Microsoft\Windows\WindowsBackup",
-        @"SOFTWARE\Policies\Microsoft\Windows\Backup",
-        @"SOFTWARE\Policies\Microsoft\Windows\BITS",
-        @"SOFTWARE\Policies\Microsoft\Windows NT\Rpc",
-        @"SOFTWARE\Policies\Microsoft\Windows\Kernel DMA Protection",
-        @"SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management",
-        @"SOFTWARE\Policies\Microsoft\Windows Defender\Spynet",
-        @"SOFTWARE\Microsoft\PolicyManager\current\device\System",
-        @"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU",
-        @"SOFTWARE\Policies\Microsoft\MRT",
-        @"SOFTWARE\Policies\Microsoft\WMDRM",
-        @"SOFTWARE\Policies\Microsoft\Windows\Explorer",
-        @"SOFTWARE\Microsoft\Speech_OneCore\Preferences",
-        @"SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo",
-        @"SOFTWARE\Policies\Microsoft\FindMyDevice",
-        @"SOFTWARE\Policies\Microsoft\Windows\SettingSync",
-        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Device Metadata",
-        @"SOFTWARE\Microsoft\Windows\CurrentVersion\DeviceSetup",
-        @"SOFTWARE\Microsoft\Windows\CurrentVersion\NcdAutoSetup\Private",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\Deprovisioned",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\EndOfLife",
         @"SOFTWARE\Microsoft\OneDrive",
         @"SOFTWARE\Microsoft\Windows\Shell\Copilot",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Search",
@@ -4838,12 +4843,9 @@ public static class RegistryGuard
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\systemAIModels",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\generativeAI",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\RunNotification",
-        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\Deprovisioned",
-        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\EndOfLife",
         @"SOFTWARE\Policies\Microsoft\MicrosoftEdge\SearchScopes",
         @"SOFTWARE\Policies\Microsoft\MicrosoftEdge\Books",
         @"SOFTWARE\Policies\Microsoft\Peernet",
-        @"SOFTWARE\Policies\Microsoft\Messenger\Client",
         @"SOFTWARE\Policies\Microsoft\Windows\CredentialsDelegation",
         @"SOFTWARE\Microsoft\Cryptography\Wintrust\Config",
         @"SOFTWARE\Wow6432Node\Microsoft\Cryptography\Wintrust\Config",
@@ -4852,41 +4854,66 @@ public static class RegistryGuard
         @"SOFTWARE\Policies\Microsoft\Windows\WCN\Registrars",
         @"SOFTWARE\Policies\Microsoft\Windows\Appx",
         @"SOFTWARE\Policies\Microsoft\Windows\Appx\RemoveDefaultMicrosoftStorePackages",
-                @"SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing",
-                @"SOFTWARE\Microsoft\Windows\CurrentVersion\Diagnostics\DiagTrack\EventTranscriptKey",
-                @"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer",
-                @"SOFTWARE\Microsoft\Windows\CurrentVersion\SmartGlass",
-                @"SOFTWARE\Policies\Microsoft\DeviceHealthAttestationService",
-                @"SOFTWARE\Policies\Microsoft\PCHealth\ErrorReporting",
-                @"SOFTWARE\Policies\Microsoft\PCHealth\HelpSvc",
-                @"SOFTWARE\Policies\Microsoft\Speech",
-                @"SOFTWARE\Microsoft\Windows\CurrentVersion\Internet Settings\WinHttp",
-                @"SOFTWARE\Policies\Microsoft\Windows NT\DNSClient",
-                @"SOFTWARE\Policies\Microsoft\Windows\Bowser",
-                @"SOFTWARE\Policies\Microsoft\Windows\DeviceInstall\Settings",
-                @"SOFTWARE\Policies\Microsoft\Windows\LLTD",
-                @"SOFTWARE\Policies\Microsoft\Windows\Messaging",
-                @"SOFTWARE\Policies\Microsoft\Windows\NetworkProvider",
-                @"SOFTWARE\Policies\Microsoft\Windows\WDI\{9C5A40DA-B965-4FC3-8781-88DD50A6299D}",
-                @"SOFTWARE\Policies\WindowsNotepad",
-                @"SYSTEM\CurrentControlSet\Control\Diagnostics\Performance",
-                @"SYSTEM\CurrentControlSet\Control\Lsa",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Diagnostics\DiagTrack\EventTranscriptKey",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\SmartGlass",
+        @"SOFTWARE\Policies\Microsoft\DeviceHealthAttestationService",
+        @"SOFTWARE\Policies\Microsoft\PCHealth\ErrorReporting",
+        @"SOFTWARE\Policies\Microsoft\PCHealth\HelpSvc",
+        @"SOFTWARE\Policies\Microsoft\Speech",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Internet Settings\WinHttp",
+        @"SOFTWARE\Policies\Microsoft\Windows NT\DNSClient",
+        @"SOFTWARE\Policies\Microsoft\Windows\Bowser",
+        @"SOFTWARE\Policies\Microsoft\Windows\DeviceInstall\Settings",
+        @"SOFTWARE\Policies\Microsoft\Windows\LLTD",
+        @"SOFTWARE\Policies\Microsoft\Windows\Messaging",
+        @"SOFTWARE\Policies\Microsoft\Windows\NetworkProvider",
+        @"SOFTWARE\Policies\Microsoft\Windows\WDI\{9C5A40DA-B965-4FC3-8781-88DD50A6299D}",
+        @"SOFTWARE\Policies\WindowsNotepad",
+        @"SYSTEM\CurrentControlSet\Control\Diagnostics\Performance",
+        @"SYSTEM\CurrentControlSet\Control\Lsa",
         @"SYSTEM\CurrentControlSet\Control\SecurityProviders\Wdigest",
         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Internet Settings\Wpad",
-                @"SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters",
-                @"SOFTWARE\Microsoft\PolicyManager\current\device\Bluetooth",
-                @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\TextInput",
-                @"SOFTWARE\Microsoft\Input\Settings",
-                @"SOFTWARE\Microsoft\Input\TIPC",
-                @"SOFTWARE\Microsoft\WcmSvc",
-                @"SOFTWARE\Microsoft\PolicyManager\default\WiFi",
-                @"SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
-                @"SOFTWARE\Microsoft\PolicyManager\default\System\AllowTelemetry",
-                @"SOFTWARE\Microsoft\Windows\CurrentVersion\CPSS",
-                @"SOFTWARE\Policies\Microsoft\Internet Explorer\SQM",
-                @"SOFTWARE\Policies\Microsoft\Internet Explorer\Main",
-                @"SOFTWARE\Policies\Microsoft\Windows\Windows Chat",
-        // --- coverage completion (audit: every HKLM write path backed up) ---
+        @"SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters",
+        @"SOFTWARE\Microsoft\PolicyManager\current\device\Bluetooth",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\TextInput",
+        @"SOFTWARE\Microsoft\Input\Settings",
+        @"SOFTWARE\Microsoft\Input\TIPC",
+        @"SOFTWARE\Microsoft\WcmSvc",
+        @"SOFTWARE\Microsoft\PolicyManager\default\WiFi",
+        @"SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Policies\DataCollection",
+        @"SOFTWARE\Microsoft\PolicyManager\default\System\AllowTelemetry",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\CPSS",
+        @"SOFTWARE\Policies\Microsoft\Internet Explorer\SQM",
+        @"SOFTWARE\Policies\Microsoft\Internet Explorer\Main",
+        @"SOFTWARE\Policies\Microsoft\Windows\Windows Chat",
+        @"SYSTEM\CurrentControlSet\Control\WMI\AutoLogger\AutoLogger-Diagtrack-Listener",
+        @"SYSTEM\CurrentControlSet\Control\Session Manager",
+        @"SYSTEM\CurrentControlSet\Services\NetBT\Parameters",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\ReserveManager",
+        @"SYSTEM\CurrentControlSet\Control\Remote Assistance",
+        @"SOFTWARE\Policies\Microsoft\Windows\PreviewBuilds",
+        @"SOFTWARE\Policies\Microsoft\Windows Defender\Spynet",
+        @"SOFTWARE\Microsoft\PolicyManager\current\device\System",
+        @"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU",
+        @"SOFTWARE\Policies\Microsoft\MRT",
+        @"SOFTWARE\Policies\Microsoft\WMDRM",
+        @"SOFTWARE\Policies\Microsoft\Windows\Explorer",
+        @"SOFTWARE\Microsoft\Speech_OneCore\Preferences",
+        @"SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo",
+        @"SOFTWARE\Policies\Microsoft\FindMyDevice",
+        @"SOFTWARE\Policies\Microsoft\Windows\SettingSync",
+        @"SOFTWARE\Policies\Microsoft\Windows\WindowsBackup",
+        @"SOFTWARE\Policies\Microsoft\Windows\Backup",
+        @"SOFTWARE\Policies\Microsoft\Windows\BITS",
+        @"SOFTWARE\Policies\Microsoft\Windows NT\Rpc",
+        @"SOFTWARE\Policies\Microsoft\Windows\Kernel DMA Protection",
+        @"SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Device Metadata",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\DeviceSetup",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\NcdAutoSetup\Private",
+        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked",
         @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\UnattendSettings\SQMClient",
         @"SOFTWARE\Microsoft\WindowsRuntime\ActivatableClassId",
         @"SOFTWARE\Microsoft\WindowsSelfHost\UI\Visibility",
@@ -4933,10 +4960,10 @@ public static class RegistryGuard
         @"SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Server",
         @"SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Client",
         @"SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Server",
-        @"SOFTWARE\Policies\Microsoft\Notepad",
         @"SYSTEM\CurrentControlSet\Services\Tcpip\Parameters",
         @"SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters",
         @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\LSASS.exe",
+        @"SOFTWARE\Policies\Microsoft\Notepad",
         @"SOFTWARE\Policies\Microsoft\Windows\OOBE",
     };
     private static readonly string[] ExtraBackupServiceNames =
@@ -4972,14 +4999,14 @@ public static class RegistryGuard
         @"Software\Microsoft\Personalization\Settings",
         @"Software\Microsoft\Siuf\Rules",
         @"Software\Microsoft\SQMClient\Windows",
-        @"Software\Microsoft\Speech_OneCore\Settings\OnlineSpeechPrivacy",
         @"Software\Microsoft\Speech_OneCore\Preferences",
+        @"Software\Microsoft\Speech_OneCore\Settings\OnlineSpeechPrivacy",
         @"Software\Microsoft\Speech_OneCore\Settings\VoiceActivation\UserPreferenceForAllApps",
         @"Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo",
         @"Software\Microsoft\Windows\CurrentVersion\CDP",
-        @"Software\Microsoft\Windows\CurrentVersion\CDP\SettingsPage",
         @"Software\Microsoft\Windows\CurrentVersion\M365Copilot",
         @"Software\Policies\Microsoft\Windows\CopilotKey",
+        @"Software\Microsoft\Windows\CurrentVersion\CDP\SettingsPage",
         @"Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager",
         @"Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager\Context\CloudExperienceHostIntent\Wireless",
         @"Software\Microsoft\Windows\CurrentVersion\DeliveryOptimization\Settings",
@@ -4987,7 +5014,6 @@ public static class RegistryGuard
         @"Software\Microsoft\Windows\CurrentVersion\Diagnostics\DiagTrack",
         @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
         @"Software\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers",
-        @"Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel",
         @"Software\Microsoft\Windows\CurrentVersion\Feeds",
         @"Software\Microsoft\Windows\CurrentVersion\GameDVR",
         @"Software\Microsoft\Windows\CurrentVersion\Mobility",
@@ -5000,17 +5026,18 @@ public static class RegistryGuard
         @"Software\Microsoft\Windows\CurrentVersion\Search",
         @"Software\Microsoft\Windows\CurrentVersion\DeliveryOptimization",
         @"Software\Microsoft\Windows\CurrentVersion\UploadUserActivities",
-        @"Software\Microsoft\Windows\CurrentVersion\Explorer\Taskband\AuxilliaryPins",
-        @"Software\Microsoft\Windows\CurrentVersion\Explorer\AutoInstalledPWAs",
-        @"Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications",
-        @"Software\Microsoft\Windows\CurrentVersion\Applets\Paint\View",
-        @"Software\Microsoft\Windows\CurrentVersion\Explorer",
         @"Software\Microsoft\Windows\CurrentVersion\SearchSettings",
         @"Software\Microsoft\Windows\CurrentVersion\SearchSettings\WebSearchPro",
         @"Software\Microsoft\Windows\CurrentVersion\A9\SnapshotCapture",
         @"Software\Microsoft\Windows\CurrentVersion\WindowsCopilot",
         @"Software\Microsoft\Windows\CurrentVersion\WindowsBackup",
         @"Software\Microsoft\Windows\CurrentVersion\SmartActionPlatform\SmartClipboard",
+        @"Software\Microsoft\Windows\CurrentVersion\Explorer\Taskband\AuxilliaryPins",
+        @"Software\Microsoft\Windows\CurrentVersion\Explorer\AutoInstalledPWAs",
+        @"Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications",
+        @"Software\Microsoft\Windows\CurrentVersion\Applets\Paint\View",
+        @"Software\Microsoft\Windows\CurrentVersion\Explorer",
+        @"Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel",
         @"Software\Microsoft\Windows\CurrentVersion\Internet Settings\Wpad",
         @"Software\Microsoft\Notepad",
         @"Software\Microsoft\Paint",
@@ -5121,7 +5148,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable Print Spooler: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable Print Spooler: {ex.Message}");
         }
     }
 
@@ -5140,7 +5167,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable Modern Standby networking: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable Modern Standby networking: {ex.Message}");
         }
     }
 
@@ -5159,7 +5186,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to block WPBT: {ex.Message}");
+            GuardLogger.Warn($"Failed to block WPBT: {ex.Message}");
         }
     }
 
@@ -5185,7 +5212,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable reserved storage: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable reserved storage: {ex.Message}");
         }
     }
 
@@ -5214,7 +5241,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable cloud clipboard: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable cloud clipboard: {ex.Message}");
         }
     }
 
@@ -5236,7 +5263,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable Remote Assistance: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable Remote Assistance: {ex.Message}");
         }
     }
 
@@ -5265,7 +5292,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to block Insider preview: {ex.Message}");
+            GuardLogger.Warn($"Failed to block Insider preview: {ex.Message}");
         }
     }
 
@@ -5408,7 +5435,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to demote misc services: {ex.Message}");
+            GuardLogger.Warn($"Failed to demote misc services: {ex.Message}");
         }
     }
 
@@ -5491,7 +5518,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable Spotlight: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable Spotlight: {ex.Message}");
         }
     }
 
@@ -5517,7 +5544,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to disable AutoPlay: {ex.Message}");
+            GuardLogger.Warn($"Failed to disable AutoPlay: {ex.Message}");
         }
     }
 
@@ -5540,7 +5567,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to set reboot policy: {ex.Message}");
+            GuardLogger.Warn($"Failed to set reboot policy: {ex.Message}");
         }
     }
 
@@ -5577,7 +5604,7 @@ public static class RegistryGuard
         }
         catch (Exception ex)
         {
-            GuardLogger.Error($"Failed to hide Start recommendations: {ex.Message}");
+            GuardLogger.Warn($"Failed to hide Start recommendations: {ex.Message}");
         }
     }
 
@@ -6080,8 +6107,11 @@ public class GuardService : BackgroundService
         HashSet<string> seenProvisioned, HashSet<string> seenInstalled,
         HashSet<string> seenWin32, bool firstScan)
     {
+        // Keyed by DisplayName (stable across versions) → PackageName for removal
+        var provisionedPairs = AppxManager.GetBlacklistedProvisionedPackagePairs(
+            _config.Blacklist, _config.Whitelist);
         var currentProvisioned = new HashSet<string>(
-            AppxManager.GetBlacklistedProvisionedPackages(_config.Blacklist, _config.Whitelist),
+            provisionedPairs.Select(p => p.DisplayName),
             StringComparer.OrdinalIgnoreCase);
         var installed = AppxManager.GetBlacklistedPackages(_config.Blacklist, _config.Whitelist);
         var currentInstalled = new HashSet<string>(
@@ -6092,15 +6122,18 @@ public class GuardService : BackgroundService
 
         if (!firstScan)
         {
-            foreach (var pkg in currentProvisioned.Except(seenProvisioned))
+            foreach (var display in currentProvisioned.Except(seenProvisioned))
             {
-                GuardLogger.Warn($"[MONITOR] RE-INSTALLED detected: {pkg} — removing immediately!");
+                GuardLogger.Warn($"[MONITOR] RE-INSTALLED detected: {display} — removing immediately!");
+                var pkg = provisionedPairs
+                    .First(p => string.Equals(p.DisplayName, display,
+                        StringComparison.OrdinalIgnoreCase)).PackageName;
                 if (_config.DryRun)
-                    GuardLogger.Info($"[DRY-RUN] Would re-remove provisioned: {pkg}");
+                    GuardLogger.Info($"[DRY-RUN] Would re-remove provisioned: {display}");
                 else if (AppxManager.RemoveProvisionedPackage(pkg))
-                    GuardLogger.Info($"[MONITOR] Re-removal complete: {pkg}");
+                    GuardLogger.Info($"[MONITOR] Re-removal complete: {display}");
                 else
-                    GuardLogger.Warn($"[MONITOR] Re-removal failed: {pkg} [admin required]");
+                    GuardLogger.Warn($"[MONITOR] Re-removal failed: {display} [admin required]");
             }
 
             var fullNameByFamily = installed

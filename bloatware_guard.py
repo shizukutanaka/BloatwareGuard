@@ -19,6 +19,7 @@ Windowsサービス化可能な常駐型bloatware自動削除ツール
 
 import subprocess
 import ast
+import codecs
 import json
 import os
 import re
@@ -425,6 +426,20 @@ def _relaunch_elevated(flag: str) -> None:
     print(f"Elevation requested — '{flag}' is running in an elevated window.")
 
 
+def _oem_decode(data: bytes) -> str:
+    """Decode console output in the machine's OEM code page — cp932 on ja-JP
+    but cp437/cp850 on Western systems, so a hardcoded cp932 mojibakes
+    non-ASCII text elsewhere (C# Proc uses TextInfo.OEMCodePage)."""
+    enc = "cp932"
+    try:
+        cp = ctypes.windll.kernel32.GetOEMCP()
+        if codecs.lookup(f"cp{cp}"):
+            enc = f"cp{cp}"
+    except Exception:
+        pass
+    return data.decode(enc, errors="replace")
+
+
 def run_powershell(cmd: str, timeout: int = 60) -> Tuple[str, str, int]:
     """Run a PowerShell command and return (stdout, stderr, exit_code).
     Missing binaries/hangs return rc=-1 instead of propagating."""
@@ -435,9 +450,8 @@ def run_powershell(cmd: str, timeout: int = 60) -> Tuple[str, str, int]:
         )
     except (OSError, subprocess.TimeoutExpired) as e:
         return "", str(e), -1
-    # Windows console output is often CP932/Shift-JIS — use errors="replace" to avoid crashes
-    stdout = proc.stdout.decode("cp932", errors="replace") if proc.stdout else ""
-    stderr = proc.stderr.decode("cp932", errors="replace") if proc.stderr else ""
+    stdout = _oem_decode(proc.stdout) if proc.stdout else ""
+    stderr = _oem_decode(proc.stderr) if proc.stderr else ""
     return stdout.strip(), stderr.strip(), proc.returncode
 
 
@@ -448,7 +462,7 @@ def run_cmd(args, timeout: int = 30) -> Tuple[str, int]:
         proc = subprocess.run(args, capture_output=True, timeout=timeout)
     except (OSError, subprocess.TimeoutExpired) as e:
         return str(e), -1
-    out = proc.stdout.decode("cp932", errors="replace") if proc.stdout else ""
+    out = _oem_decode(proc.stdout) if proc.stdout else ""
     return out.strip(), proc.returncode
 
 
@@ -467,16 +481,19 @@ def get_blacklisted_packages(blacklist: List[str], whitelist: List[str]) -> List
     """Public 3-tuple view (PackageFamilyName, Name, InstallPath) — kept for
     external callers (CI verification snippet unpacks 3 fields). The scan path
     uses _enum_blacklisted_packages which also carries PackageFullName."""
-    return [(f, n, p) for f, n, p, _full in _enum_blacklisted_packages(blacklist, whitelist)]
+    return [(f, n, p) for f, n, p, _full, fw in _enum_blacklisted_packages(blacklist, whitelist)
+            if not fw]
 
 
-def _enum_blacklisted_packages(blacklist: List[str], whitelist: List[str]) -> List[Tuple[str, str, str, str]]:
-    """Return (PackageFamilyName, Name, InstallPath, PackageFullName) for
-    packages matching blacklist. InstallPath is None for SystemApps (cannot be
-    removed per-user); PackageFullName comes from the same query — no second
-    PowerShell call per scan (C# GetBlacklistedPackages parity).
-    Whitelisted packages are never returned, and IsFramework packages (dependency
-    DLLs for other apps) are skipped. Enumerates -AllUsers when admin so packages
+def _enum_blacklisted_packages(blacklist: List[str], whitelist: List[str]) -> List[Tuple[str, str, str, str, bool]]:
+    """Return (PackageFamilyName, Name, InstallPath, PackageFullName,
+    IsFramework) for packages matching blacklist. InstallPath is None for
+    SystemApps (cannot be removed per-user); PackageFullName comes from the
+    same query — no second PowerShell call per scan (C#
+    GetBlacklistedPackages parity). Whitelisted packages are never returned.
+    IsFramework packages (dependency DLLs for other apps) are returned
+    flagged — callers skip them for removal but --list-installed shows them
+    tagged, same as C#. Enumerates -AllUsers when admin so packages
     installed for other profiles are caught too."""
     if not blacklist:
         return []
@@ -503,12 +520,14 @@ def _enum_blacklisted_packages(blacklist: List[str], whitelist: List[str]) -> Li
             name = pkg.get("Name", "")
             install_path = pkg.get("InstallPath", "")  # None for SystemApps
             full_name = pkg.get("PackageFullName", "")
+            is_framework = bool(pkg.get("IsFramework"))
             key = full_name or family
-            if bool(pkg.get("IsFramework")) or key in seen:
+            if key in seen:
                 continue
             if is_target_package(family, blacklist, whitelist):
                 seen.add(key)
-                results.append((family, name, install_path, full_name))
+                results.append((family, name, install_path, full_name,
+                                is_framework))
     except (json.JSONDecodeError, TypeError):
         pass
 
@@ -878,11 +897,10 @@ def remove_win32_program(display, uninstall, quiet, logger):
 def create_restore_point(logger):
     """Create a system restore point before destructive changes. Windows throttles
     checkpoints to ~1 per 24h; failure is non-fatal."""
-    _, rc = run_cmd(
-        ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
-         "Enable-ComputerRestore -Drive \"$env:SystemDrive\\\" -ErrorAction SilentlyContinue | Out-Null; "
-         "Checkpoint-Computer -Description 'BloatwareGuard pre-scan' "
-         "-RestorePointType 'MODIFY_SETTINGS' -ErrorAction SilentlyContinue | Out-Null"],
+    _, _, rc = run_powershell(
+        "Enable-ComputerRestore -Drive \"$env:SystemDrive\\\" -ErrorAction SilentlyContinue | Out-Null; "
+        "Checkpoint-Computer -Description 'BloatwareGuard pre-scan' "
+        "-RestorePointType 'MODIFY_SETTINGS' -ErrorAction SilentlyContinue | Out-Null",
         timeout=120)
     if rc == 0:
         logger.info("Applied: CreateRestorePoint (created or throttled)")
@@ -5052,6 +5070,8 @@ def disable_oem_scheduled_tasks(logger: logging.Logger):
     stdout, _, rc = run_powershell(ps_cmd, timeout=120)
 
     if rc != 0 or not stdout:
+        logger.warning("Scheduled task scan: Get-ScheduledTask query failed "
+                       "or returned nothing (C# parity: scan error warn)")
         return
 
     try:
@@ -5324,8 +5344,11 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
     # 1. Remove installed packages
     if prev.get("RemoveAppxPackages", True):
         packages = _enum_blacklisted_packages(blacklist, whitelist)
-        matched += len(packages)
-        for family_name, display_name, install_path, full_name in packages:
+        matched += sum(1 for *_rest, fw in packages if not fw)
+        for family_name, display_name, install_path, full_name, is_framework in packages:
+            if is_framework:
+                logger.warning(f"Framework package (skip): {family_name}")
+                continue
             matched_families.add(family_name)
             is_system_app = not install_path or install_path.strip() == ""
             if dry_run:
@@ -5337,6 +5360,7 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
                     logger.info(
                         f"[DRY-RUN] Would remove AppxPackage: {family_name} "
                         f"(non-admin: full name not resolvable) {note}")
+                removed += 1  # would-remove count (C# dry-run parity)
             else:
                 if is_system_app:
                     logger.info(f"SystemApp skipped (requires admin): {family_name}")
@@ -5358,6 +5382,7 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
             matched_families.add(_provisioned_family(package_name, display_name))
             if dry_run:
                 logger.info(f"[DRY-RUN] Would remove ProvisionedPackage: {display_name} [requires admin]")
+                removed += 1
             else:
                 if remove_provisioned_package(package_name):
                     logger.info(f"Removed ProvisionedPackage: {display_name}")
@@ -5388,6 +5413,7 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
                 continue
             if dry_run:
                 logger.info(f"[DRY-RUN] Would uninstall Win32 program: {display} [requires admin]")
+                removed += 1
             else:
                 if remove_win32_program(display, uninstall, quiet, logger):
                     logger.info(f"Removed Win32 program: {display}")
@@ -5402,8 +5428,10 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
     if prev.get("MarkDeprovisioned", True) or prev.get("RemoveDefaultStorePackages", True):
         if not (prev.get("RemoveAppxPackages", True)
                 and prev.get("RemoveProvisionedPackages", True)):
-            for family_name, _, _, _ in _enum_blacklisted_packages(blacklist, whitelist):
-                matched_families.add(family_name)
+            for family_name, _, _, _, is_framework in _enum_blacklisted_packages(
+                    blacklist, whitelist):
+                if not is_framework:
+                    matched_families.add(family_name)
             for display_name, package_name in get_blacklisted_provisioned(
                     blacklist, whitelist):
                 matched_families.add(_provisioned_family(package_name, display_name))
@@ -5474,7 +5502,8 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
             except Exception as e:
                 logger.warning(f"WingetSweep layer failed: {e}")
 
-    logger.info(f"Scan complete. {matched} packages matched blacklist; removed {removed}.")
+    verb = "would remove" if dry_run else "removed"
+    logger.info(f"Scan complete. {matched} packages matched blacklist; {verb} {removed}.")
     return removed
 
 
@@ -5545,7 +5574,7 @@ def run_service(config: dict, logger: logging.Logger):
                 current_provisioned = set(prov_map)
                 installed_map = {
                     family: full_name
-                    for family, _, _, full_name
+                    for family, _, _, full_name, _fw
                     in _enum_blacklisted_packages(blacklist, whitelist)
                 }
                 current_installed = set(installed_map)
@@ -5723,6 +5752,7 @@ def run_self_test() -> int:
         globals()["run_powershell"] = lambda cmd, timeout=60: (fake_json, "", 0)
         try:
             pkgs = _enum_blacklisted_packages(["Xbox"], [])
+            pkgs = [(f, n, p, full) for f, n, p, full, _fw in pkgs]
             assert pkgs and pkgs[0][3] == \
                 "Microsoft.XboxGamingOverlay_1.0_x64__8wekyb3d8bbwe"
         finally:
@@ -6275,10 +6305,11 @@ def main():
     if args.list_installed:
         blacklist = config.get("Blacklist", [])
         whitelist = config.get("Whitelist", [])
-        pkgs = get_blacklisted_packages(blacklist, whitelist)
+        pkgs = _enum_blacklisted_packages(blacklist, whitelist)
         logger.info("Installed packages matching blacklist:")
-        for family, name, _install_path in pkgs:
-            logger.info(f"  {family} ({name})")
+        for family, name, _install_path, _full_name, is_framework in pkgs:
+            tag = " [FRAMEWORK]" if is_framework else ""
+            logger.info(f"  {family} ({name}){tag}")
         logger.info("Total: %d package(s) installed.", len(pkgs))
         return
 
