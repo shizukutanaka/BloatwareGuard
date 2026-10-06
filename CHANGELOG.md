@@ -2,6 +2,18 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 63 (RajwanYair/RegiLattice diff — 7,718-tweak toolkit):
+  per-user `Privacy UserInfoSharing=0` (app account-info access),
+  `CurrentVersion\WindowsAI ProactivelyHelpEnabled=0`,
+  `Copilot\BingChat IsUserActivityUploadEnabled=0`, SearchSettings
+  `IsPersonalSearchEnabled/IsLockScreenSearchEnabled/OnlineTipsEnabled=0`;
+  HKLM `DataCollection DisableDeviceMetadataServiceUrlAccess=1`
+  (pairs with PreventDeviceMetadataFromNetwork), `Windows Search
+  EnableBingAnswers=0`, `Internet Explorer\Geolocation
+  PolicyDisableGeolocation=1`, `Policies\Microsoft\Loop DisableLoop=1`.
+  Both implementations; new write paths registered in all four backup
+  lists. Skipped: indexing-perf prefs, store-autoplay/cosmetic prefs,
+  WindowsStore app-kill policies (store stays whitelisted).
 - Audit round 62 (LeDragoX/Win-Debloat-Tools diff):
   `CurrentVersion\DeviceSetup CostedNetworkPolicy=1` — no
   device-software downloads over metered connections; closes the last

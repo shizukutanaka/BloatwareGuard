@@ -2545,6 +2545,9 @@ public static class RegistryGuard
                 @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
                 "ShowCopilotNudges", 0);
             SetUserDwordAllHives(UserShellCopilotPath + @"\BingChat", "IsUserEligible", 0);
+            // BingChat user-activity upload off (RegiLattice)
+            SetUserDwordAllHives(UserShellCopilotPath + @"\BingChat",
+                "IsUserActivityUploadEnabled", 0);
             // Copilot voice-agent activation off (all user hives)
             SetUserDwordAllHives(UserVoiceActivationPath, "AgentActivationEnabled", 0);
             SetUserDwordAllHives(UserVoiceActivationPath, "AgentActivationOnLockScreenEnabled", 0);
@@ -2823,6 +2826,8 @@ public static class RegistryGuard
             key?.SetValue("EnableDynamicContentInWSB", 0, Microsoft.Win32.RegistryValueKind.DWord);
             // Hard kill for web results in search (RegiLattice v6.35.0)
             key?.SetValue("DoNotUseWebResults", 1, Microsoft.Win32.RegistryValueKind.DWord);
+            // Bing answers surface inside Windows Search off (RegiLattice)
+            key?.SetValue("EnableBingAnswers", 0, Microsoft.Win32.RegistryValueKind.DWord);
             // Connected-search web results (noid-privacy)
             key?.SetValue("ConnectedSearchUseWeb", 0, Microsoft.Win32.RegistryValueKind.DWord);
 
@@ -2852,6 +2857,11 @@ public static class RegistryGuard
                 SetHiveDword(hive, UserSearchSettingsPath, "IsStoreSuggestionsEnabled", 0);
                 SetHiveDword(hive, UserSearchSettingsPath, "IsGlobalFileSearchProviderToggleEnabled", 0);
                 SetHiveDword(hive, UserSearchSettingsPath, "IsWebSuggestionsEnabled", 0);
+                // Personalized/lock-screen search + online tips off
+                // (RegiLattice PolicyWindowsSearch)
+                SetHiveDword(hive, UserSearchSettingsPath, "IsPersonalSearchEnabled", 0);
+                SetHiveDword(hive, UserSearchSettingsPath, "IsLockScreenSearchEnabled", 0);
+                SetHiveDword(hive, UserSearchSettingsPath, "OnlineTipsEnabled", 0);
                 // Background-apps master toggle + Iris recommendations
                 SetHiveDword(hive, UserSearchPath, "BackgroundAppGlobalToggle", 0);
                 SetHiveDword(hive, UserExplorerAdvancedPath, "Start_IrisRecommendationEnabled", 0);
@@ -2966,6 +2976,11 @@ public static class RegistryGuard
                 SetHiveDword(hive, UserAdvertisingInfoPath, "Enabled", 0);
                 SetHiveDword(hive, UserPrivacyPath, "TailoredExperiencesWithDiagnosticDataEnabled", 0);
                 SetHiveDword(hive, UserPrivacyPath, "PersonalizedOffersEnabled", 0);
+                // Account-info access between apps off (RegiLattice)
+                SetHiveDword(hive, UserPrivacyPath, "UserInfoSharing", 0);
+                // Proactive AI-help suggestions off (RegiLattice)
+                SetHiveDword(hive, @"Software\Microsoft\Windows\CurrentVersion\WindowsAI",
+                    "ProactivelyHelpEnabled", 0);
                 SetHiveDword(hive, @"Software\Microsoft\Windows\CurrentVersion\A9\SnapshotCapture",
                              "IsFilteringTelemetryEnabled", 0);
                 // Suggested content surface (HST) — app suggestions in the
@@ -3540,6 +3555,14 @@ public static class RegistryGuard
                 using var pchc = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Microsoft\PCHC");
                 pchc?.SetValue("PreviousUninstall", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // IE/WebOC geolocation prompt off (RegiLattice)
+                using var iegeo = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Internet Explorer\Geolocation");
+                iegeo?.SetValue("PolicyDisableGeolocation", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // Microsoft Loop app kill (RegiLattice)
+                using var loop = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\Policies\Microsoft\Loop");
+                loop?.SetValue("DisableLoop", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 // Per-app tagged-energy collection off (battery telemetry)
                 using var teg = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SYSTEM\CurrentControlSet\Control\Power\EnergyEstimation\TaggedEnergy");
@@ -3789,6 +3812,9 @@ public static class RegistryGuard
                 // OneSettings download kill at the DataCollection alias
                 // path + recent-items graph off (noid-privacy)
                 fdb?.SetValue("DisableOneSettingsDownloads", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                // Device-metadata service URL access off at the policy
+                // layer (pairs with PreventDeviceMetadataFromNetwork)
+                fdb?.SetValue("DisableDeviceMetadataServiceUrlAccess", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 using var expol = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                     @"SOFTWARE\Policies\Microsoft\Windows\Explorer");
                 expol?.SetValue("DisableGraphRecentItems", 1, Microsoft.Win32.RegistryValueKind.DWord);
@@ -4760,6 +4786,8 @@ public static class RegistryGuard
         @"SOFTWARE\Policies\Microsoft\Windows\System",
         @"SOFTWARE\Microsoft\SQMClient",
         @"SOFTWARE\Microsoft\PCHC",
+        @"SOFTWARE\Policies\Microsoft\Internet Explorer\Geolocation",
+        @"SOFTWARE\Policies\Microsoft\Loop",
         @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform",
         @"Software\Policies\Microsoft\Windows NT\CurrentVersion\Software Protection Platform",
         @"SYSTEM\CurrentControlSet\Control\Power\EnergyEstimation\TaggedEnergy",
@@ -4995,6 +5023,7 @@ public static class RegistryGuard
         @"Software\Microsoft\Windows\CurrentVersion\Notifications\Settings\Windows.SystemToast.Suggested",
         @"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer",
         @"Software\Microsoft\Windows\CurrentVersion\Privacy",
+        @"Software\Microsoft\Windows\CurrentVersion\WindowsAI",
         @"Software\Microsoft\Windows\CurrentVersion\PublishUserActivities",
         @"Software\Microsoft\Windows\CurrentVersion\Recall",
         @"Software\Microsoft\Windows\CurrentVersion\Search",

@@ -1143,6 +1143,8 @@ _BACKUP_KEY_PATHS = (
     r"SOFTWARE\Policies\Microsoft\Windows\System",
     r"SOFTWARE\Microsoft\SQMClient",
     r"SOFTWARE\Microsoft\PCHC",
+    r"SOFTWARE\Policies\Microsoft\Internet Explorer\Geolocation",
+    r"SOFTWARE\Policies\Microsoft\Loop",
     r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform",
     r"Software\Policies\Microsoft\Windows NT\CurrentVersion\Software Protection Platform",
     r"SYSTEM\CurrentControlSet\Control\Power\EnergyEstimation\TaggedEnergy",
@@ -1495,6 +1497,7 @@ _USER_BACKUP_KEY_PATHS = (
     r"Software\Microsoft\Windows\CurrentVersion\Notifications\Settings\Windows.SystemToast.Suggested",
     r"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer",
     r"Software\Microsoft\Windows\CurrentVersion\Privacy",
+    r"Software\Microsoft\Windows\CurrentVersion\WindowsAI",
     r"Software\Microsoft\Windows\CurrentVersion\PublishUserActivities",
     r"Software\Microsoft\Windows\CurrentVersion\Recall",
     r"Software\Microsoft\Windows\CurrentVersion\Search",
@@ -1911,6 +1914,9 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
                 "ShowCopilotNudges", 0, logger)
             set_user_dword_all_hives(_USER_SHELL_COPILOT_BINGCHAT, "IsUserEligible", 0, logger)
+            # BingChat user-activity upload off (RegiLattice)
+            set_user_dword_all_hives(_USER_SHELL_COPILOT_BINGCHAT,
+                                     "IsUserActivityUploadEnabled", 0, logger)
             # Copilot voice-agent activation off (all user hives)
             set_user_dword_all_hives(_USER_VOICE_ACTIVATION, "AgentActivationEnabled", 0, logger)
             set_user_dword_all_hives(
@@ -2186,6 +2192,10 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_registry_dword("HKLM",
                                r"SOFTWARE\Policies\Microsoft\Windows\Windows Search",
                                "AllowCloudSearch", 0)
+            # Bing answers surface inside Windows Search off (RegiLattice)
+            set_registry_dword("HKLM",
+                               r"SOFTWARE\Policies\Microsoft\Windows\Windows Search",
+                               "EnableBingAnswers", 0)
             set_user_dword_all_hives(_USER_SEARCH, "BingSearchEnabled", 0, logger)
             # SearchSettings: dynamic search box + cloud search integrations
             set_user_dword_all_hives(_USER_SEARCH_SETTINGS, "IsDynamicSearchBoxEnabled", 0, logger)
@@ -2195,6 +2205,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             set_user_dword_all_hives(_USER_SEARCH_SETTINGS, "IsStoreSuggestionsEnabled", 0, logger)
             set_user_dword_all_hives(_USER_SEARCH_SETTINGS, "IsGlobalFileSearchProviderToggleEnabled", 0, logger)
             set_user_dword_all_hives(_USER_SEARCH_SETTINGS, "IsWebSuggestionsEnabled", 0, logger)
+            # Personalized/lock-screen search + online tips off
+            # (RegiLattice PolicyWindowsSearch)
+            set_user_dword_all_hives(_USER_SEARCH_SETTINGS, "IsPersonalSearchEnabled", 0, logger)
+            set_user_dword_all_hives(_USER_SEARCH_SETTINGS, "IsLockScreenSearchEnabled", 0, logger)
+            set_user_dword_all_hives(_USER_SEARCH_SETTINGS, "OnlineTipsEnabled", 0, logger)
             # Background-apps master toggle + Iris Start recommendations
             set_user_dword_all_hives(_USER_SEARCH, "BackgroundAppGlobalToggle", 0, logger)
             set_user_dword_all_hives(_USER_EXPLORER_ADV, "Start_IrisRecommendationEnabled", 0, logger)
@@ -2328,6 +2343,12 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 w(_USER_ADVERTISING_INFO, "Enabled", 0)
                 w(_USER_PRIVACY, "TailoredExperiencesWithDiagnosticDataEnabled", 0)
                 w(_USER_PRIVACY, "PersonalizedOffersEnabled", 0)
+                # Account-info access between apps off (RegiLattice)
+                w(_USER_PRIVACY, "UserInfoSharing", 0)
+                # Proactive AI-help suggestions off (CurrentVersion
+                # surface — RegiLattice; policy twin covered separately)
+                w(r"Software\Microsoft\Windows\CurrentVersion\WindowsAI",
+                  "ProactivelyHelpEnabled", 0)
                 w(r"Software\Microsoft\Windows\CurrentVersion\A9\SnapshotCapture",
                   "IsFilteringTelemetryEnabled", 0)
                 # Suggested content surface (HST) — app suggestions in the
@@ -2834,6 +2855,17 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
                 "HKLM",
                 r"SOFTWARE\Microsoft\PCHC",
                 "PreviousUninstall", 1)
+            # IE/WebOC geolocation prompt off (RegiLattice)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Policies\Microsoft\Internet Explorer\Geolocation",
+                "PolicyDisableGeolocation", 1)
+            # Microsoft Loop app kill — policy keeps the collaborative
+            # app surface from opening (RegiLattice)
+            set_registry_dword(
+                "HKLM",
+                r"SOFTWARE\Policies\Microsoft\Loop",
+                "DisableLoop", 1)
             # Per-app tagged-energy collection off (battery-usage
             # telemetry pipeline)
             for _v in ("TelemetryMaxApplication",
@@ -3121,6 +3153,11 @@ def apply_registry_prevention(config: dict, logger: logging.Logger):
             # recent-items graph off (noid-privacy)
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\DataCollection",
                                "DisableOneSettingsDownloads", 1)
+            # Device-metadata service URL access off at the policy layer
+            # too (pairs with PreventDeviceMetadataFromNetwork —
+            # RegiLattice PolicyDataCollection)
+            set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\DataCollection",
+                               "DisableDeviceMetadataServiceUrlAccess", 1)
             # OEM system-tray promotions off (Taskbar.admx policy)
             set_registry_dword("HKLM", r"SOFTWARE\Policies\Microsoft\Windows\Explorer",
                                "NoSystraySystemPromotion", 1)
