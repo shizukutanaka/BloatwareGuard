@@ -2,6 +2,18 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 89 (deprovision markers + OEM-task sweep parity):
+  `MarkDeprovisioned` now degrades per base key — previously both
+  `Deprovisioned` and `EndOfLife` opens sat in one try, so a
+  failure on either silently lost BOTH marker sets; the Python
+  side always tolerated per-base failure. Same paths, same
+  per-family subkey creation and count contract. OEM-task sweep
+  verified identical: same 120s `Get-ScheduledTask` query
+  (TaskPath `-like '*OEM*'` OR TaskName `-match` the shared
+  25-pattern set), same protected `\Microsoft\Windows\…` prefix
+  skip, same `schtasks /Change /DISABLE` 15s per task. cs's
+  `Regex.Escape` on patterns vs py's raw alternation is a no-op —
+  the token set carries no regex metachars.
 - Audit round 88 (resident-service loop parity — clean):
   the `--service` monitor loop verified identical — same 300s
   default with the same <60s→60s clamp + Warn, same three-channel

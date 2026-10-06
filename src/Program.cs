@@ -989,12 +989,29 @@ public static class AppxManager
     public static int MarkDeprovisioned(IEnumerable<string> familyNames)
     {
         var marked = 0;
+        // Per-base degrade: one key failing to open must not lose the other's
+        // marks (py mark_deprovisioned parity).
+        RegistryKey? baseKey = null, eolKey = null;
         try
         {
-            using var baseKey = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+            baseKey = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                 DeprovisionedPath, writable: true);
-            using var eolKey = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Warn($"Deprovisioned markers: cannot open HKLM key ({ex.Message})");
+        }
+        try
+        {
+            eolKey = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
                 EndOfLifePath, writable: true);
+        }
+        catch (Exception ex)
+        {
+            GuardLogger.Warn($"Deprovisioned markers: cannot open HKLM key ({ex.Message})");
+        }
+        try
+        {
             foreach (var family in familyNames)
             {
                 try
@@ -1006,9 +1023,10 @@ public static class AppxManager
                 catch { }
             }
         }
-        catch (Exception ex)
+        finally
         {
-            GuardLogger.Warn($"Deprovisioned markers: {ex.Message}");
+            baseKey?.Dispose();
+            eolKey?.Dispose();
         }
         return marked;
     }
