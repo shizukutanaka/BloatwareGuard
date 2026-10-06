@@ -2,6 +2,17 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 69 (removal-ledger parity — clean):
+  `record_removal`/`RemovalLedger.Record` write the same JSONL
+  schema (`ts` + `kind`/`name`/`family`/`full_name`); Python stores
+  sparse dicts while C# always emits all four keys — both readers
+  tolerate missing keys so the formats are interchangeable. Restore
+  dispatch verified identical: appx/provisioned → staged re-register
+  (`Get-AppxPackage -AllUsers` + `Add-AppxPackage -Register`),
+  capability → `Add-WindowsCapability` (180s), winget → strict-ID
+  `winget install` (300s), unknown kinds → manual bucket; same
+  safe-name and winget-ID gates. Both ledgers append-only
+  (rotation exists only on the log file, by design).
 - Audit round 68 (registry write-kind parity — clean):
   machine-diffed every `set_registry_*` py call vs every
   `RegistryValueKind` cs SetValue by value-name — no DWord/String
