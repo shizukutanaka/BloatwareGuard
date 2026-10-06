@@ -2,6 +2,16 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 76 (service-demotion parity — clean):
+  `demote_service`/`DemoteService` verified identical — open
+  (never create) `SYSTEM\CurrentControlSet\Services\<name>`
+  writable, `Start=3` demand-start, errors swallowed; py returns
+  bool (unused by callers, matching cs void). All demotion call
+  sites aligned: MiscBloatServices loop (91), Xbox 4 + GamingAI
+  ActivationType + SmartGlass, DoSvc, WSAIFabricSvc,
+  wercplsupport, Edge update 3. Outright disables (RemoteRegistry,
+  DiagTrack, RetailDemo, WerSvc, Spooler) use the same
+  `sc.exe stop`/`config start= disabled` pair at 15s.
 - Audit round 75 (telemetry hosts-block parity — clean):
   `set_telemetry_hosts_block`/`SetTelemetryHostsBlock` verified
   fully aligned — same `%SystemRoot%\System32\drivers\etc\hosts`
