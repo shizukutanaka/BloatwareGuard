@@ -2,6 +2,14 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 66 (user-hive enumeration parity):
+  `RegistryGuard.GetDefaultProfileDat` no longer returns null when the
+  ProfileList read itself throws — it now degrades to
+  `C:\Users\Default` and still validates via `File.Exists`, matching
+  `_default_profile_dat`'s semantics. Previously any ProfileList read
+  exception skipped the default-profile hive entirely, so new-user
+  template hardening silently did not apply on machines where the
+  ProfileList query fails.
 - Audit round 62 (LeDragoX/Win-Debloat-Tools diff):
   `CurrentVersion\DeviceSetup CostedNetworkPolicy=1` — no
   device-software downloads over metered connections; closes the last

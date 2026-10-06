@@ -2169,21 +2169,20 @@ public static class RegistryGuard
     /// <summary>Default profile template path (usually C:\Users\Default\NTUSER.DAT).</summary>
     private static string? GetDefaultProfileDat()
     {
+        string dir;
         try
         {
             using var pl = Registry.LocalMachine.OpenSubKey(
                 @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList");
-            var dir = pl?.GetValue("Default") as string;
-            if (string.IsNullOrEmpty(dir))
-                dir = @"C:\Users\Default";
-            dir = Environment.ExpandEnvironmentVariables(dir);
-            var dat = Path.Combine(dir, "NTUSER.DAT");
-            return File.Exists(dat) ? dat : null;
+            dir = pl?.GetValue("Default") as string ?? @"C:\Users\Default";
         }
         catch
         {
-            return null;
+            dir = @"C:\Users\Default";
         }
+        dir = Environment.ExpandEnvironmentVariables(dir);
+        var dat = Path.Combine(dir, "NTUSER.DAT");
+        return File.Exists(dat) ? dat : null;
     }
 
     /// <summary>Set a DWORD inside a mounted user hive root.</summary>
