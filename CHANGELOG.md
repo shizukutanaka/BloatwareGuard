@@ -2,6 +2,12 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 115 (provisioned-package enumeration internals — clean):
+  same split as the Appx enum — py fetches the full catalog and matches
+  `is_target_package` client-side, cs pushes the blacklist down as a
+  `-match` alternation then filters whitelist-only; identical literal
+  semantics. Both wrap single-object JSON, return [] on query/parse
+  failure, and gate removal on non-empty PackageName.
 - Audit round 114 (removal-ledger file placement — clean): path
   resolution `BackupDirectory` → `%ProgramData%\BloatwareGuard\Backups`
   fallback and `removed-packages.jsonl` name, append-only +best-effort
