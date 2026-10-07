@@ -2,6 +2,14 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 159 (--restore path — clean): restore pipeline
+  identical end-to-end — same ledger JSONL read + skip-on-
+  JSONDecodeError, kind dispatch (appx re-register → winget
+  install -e --id --silent --disable-interactivity --accept-* →
+  Add-WindowsCapability 180s → provisioned same re-register →
+  default vendor/Settings manual), identical _safe_pkg_name/
+  IsPackageNameSafe injection guards, manual counter, and
+  final restored/manual tally line.
 - Audit round 158 (dry-run gate coverage — clean): every
   mutating path verified behind a DryRun gate both sides —
   RunScan's 16 log-would/mutate branch pairs, restore point,
