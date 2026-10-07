@@ -2,6 +2,10 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 151 (DisableTelemetryTasks layer write-surface —
+  clean): both loop the pinned task-path table → path/name split
+  → `schtasks /Change /DISABLE` — identical (mechanism also
+  audited round 102).
 - Audit round 150 (DisableOemTasks layer write-surface —
   clean): 120s schtasks query, 25-pattern match table, 34
   protected prefixes, /DISABLE at 15s, OEM-binary decode —
