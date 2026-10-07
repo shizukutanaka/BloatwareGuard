@@ -2,6 +2,10 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 142 (HideStartRecommendations layer
+  write-surface — clean): value-name extraction — zero diffs:
+  HideRecommendedSection + HideRecentlyAddedApps Explorer
+  policies — identical.
 - Audit round 141 (NoForcedReboot layer write-surface —
   clean): identical AU policy writes —
   NoAutoRebootWithLoggedOnUsers=1, AlwaysAutoRebootAtScheduledTime=0.
