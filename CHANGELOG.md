@@ -2,6 +2,12 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 129 (DisableEdgeUpdateBloat layer write-surface —
+  clean): value-name extraction — zero diffs: EdgeUpdate service
+  demotions, update-disable policies, task scheduler kills, IFEO
+  blocks — all identical (py inlines the OEM-driver-update block
+  under its own gate inside the same apply fn; cs splits it to a
+  separate function — placement diff, same end-state).
 - Audit round 128 (DisableErrorReporting layer write-surface —
   clean): value-name extraction — zero diffs: DontShowUI, Disabled,
   consent overrides, WerSvc demotion, send-request/generic-driver
