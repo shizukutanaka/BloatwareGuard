@@ -2,6 +2,14 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 148 (BlockProvisioning layer write-surface —
+  clean): value-name extraction — zero diffs: silent-install +
+  suggestion surfaces across all hives (chat auto-install,
+  cross-device, DevHome/Outlook update kills, BITS notification,
+  push-to-install, safe-search, phone-link, dynamic content,
+  OEM update schedulers) — identical. `NoSystraySystemPromotion`
+  placement differs (py under DisableTelemetry / cs under
+  BlockProvisioning — both default-on, same end-state).
 - Audit round 147 (BlockOemDriverUpdates layer write-surface —
   clean): value-name extraction — zero diffs: ExcludeWUDrivers,
   SearchOrderConfig, device-metadata/drive-search kills,
