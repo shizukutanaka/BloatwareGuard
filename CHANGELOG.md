@@ -2,6 +2,13 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 168 (telemetry hosts block — clean): identical
+  marker strings (`# >>> BloatwareGuard telemetry block` /
+  end), strict-UTF8 read with skip-on-undecodable (cs
+  UTF8Encoding(false,true) ≡ py strict), strip-then-append
+  idempotence, both no-op guards (disabled-no-block and
+  unchanged-text), atomic write, same applied/removed tally —
+  line-for-line equivalent.
 - Audit round 167 (telemetry autologgers/channels — clean):
   identical 18-entry AutoLogger list (Diagtrack-Listener,
   SQMLogger, CKCL, DataMarket, WdiContextLog, ...) with
