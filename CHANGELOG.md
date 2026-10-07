@@ -2,6 +2,9 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 126 (DisableChatTaskbar layer write-surface — clean):
+  value-name extraction — zero diffs: TaskbarMn icon, Chat policy,
+  Teams autostart kill, meet-now hide — all identical.
 - Audit round 125 (DisableOneDrive layer write-surface — clean):
   value-name extraction — zero diffs: DisableFileSyncNGSC policy,
   GPO pin/unpin kills, OneDriveSetup process exit + uninstaller
