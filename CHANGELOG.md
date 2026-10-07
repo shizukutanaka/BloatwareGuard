@@ -2,6 +2,11 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 152 (RemoveDefaultStorePackages layer
+  write-surface — clean): Enabled=1 + DynamicRemovalList
+  REG_MULTI_SZ merge + per-family RemovePackage=1 subkeys +
+  legacy PackageList migration — identical. Also confirms the
+  combined MarkDeprovisioned||RDS gate shape matches both sides.
 - Audit round 151 (DisableTelemetryTasks layer write-surface —
   clean): both loop the pinned task-path table → path/name split
   → `schtasks /Change /DISABLE` — identical (mechanism also
