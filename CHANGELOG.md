@@ -2,6 +2,18 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 119 (DisableCopilot layer write-surface — clean):
+  machine-checked value-name extraction across both bodies — every
+  policy/preference write matches: TurnOffWindowsCopilot (HKLM+hives),
+  shell eligibility (IsCopilotAvailable/IsUserEligible/
+  CopilotDisabledReason), context-menu CLSID block, app browsing
+  kills, EdgeUpdate Copilot GUIDs, pin overrides, BGA disables,
+  velocity RIDs, NVIDIA telemetry, voice-agent + speech + CHS AI
+  suggestions, notification/nudge/taskbar/systray overrides, Run-key
+  autolaunch, generic/SAM app-permission denies. One structural diff:
+  py also writes VoiceActivationEnableAboveLockscreen inside
+  DisableCopilot (cs covers it once under DisableSearchSuggestions) —
+  idempotent same value/hives, so end state is identical.
 - Audit round 118 (DisableRecall layer write-surface — clean): all
   ~30 writes match 1:1 — WindowsAI policy values, model-management
   download kills, export denies, agent consent floors,
