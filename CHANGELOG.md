@@ -2,6 +2,12 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 156 (timeout values — clean): extracted every
+  numeric timeout both sides — py {15,60,120,180,300}s map
+  1:1 to cs {15000,...,300000}ms; cs's extra 30000ms sites are
+  service stop/delete/query which py covers via run_cmd's
+  default timeout=30s. No drift; site-count asymmetry is
+  py's per-call kwarg vs cs's centralised Proc.Wait helper.
 - Audit round 155 (external-command surface — clean):
   all spawned-tool invocations compared: `sc stop|config` set
   (DiagTrack/RetailDemo/WerSvc/Spooler/RemoteRegistry stop+disable
