@@ -2,6 +2,13 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 162 (Win32 silent-uninstall executor — clean):
+  QuietUninstallString → verbatim cmdline split (identical
+  quoted-path handling both sides), else msiexec fallback via
+  the same `\{[0-9A-Fa-f-]{36}\}` GUID regex →
+  `msiexec /x {guid} /qn /norestart`, else manual-only (no
+  vendor-switch guessing) — 300s timeout and rc==0 success
+  test identical.
 - Audit round 161 (Win32 uninstall enumeration — clean):
   HKLM 64/32 (incl. WOW6432Node) + HKCU + loaded S-1-5-21
   hives, identical paths, same filters (DisplayName+UninstallString
