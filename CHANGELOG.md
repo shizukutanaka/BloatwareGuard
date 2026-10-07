@@ -2,6 +2,15 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 154 (registry-write PATH parity — clean):
+  machine-extracted every literal registry path both sides and
+  normalized concat-vs-literal parents — zero real diffs:
+  PolicyManager WiFi/telemetry defaults, CPSS DevicePolicy/Store,
+  SCHANNEL protocol template paths, WinRT ActivatableClassId
+  kills, Orchestrator/WinEvt channel templates, ReservedStorage
+  power GUID, StartupApproved\Run|RunOnce, Diagnostics\Performance
+  — all present both sides (remaining deltas are concat-parent
+  vs expanded-literal representation of the same key).
 - Audit round 153 (registry-write VALUE parity — clean):
   deeper audit than layer names — extracted every (name, value)
   pair across all write idioms (direct calls, helper wrappers,
