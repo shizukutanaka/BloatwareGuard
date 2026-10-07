@@ -2,6 +2,14 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 164 (DisableStartupBloat internals — clean):
+  identical marker bytes (0x03 + 11 NULs, REG_BINARY), same
+  32/64-bit peer-view collision guard (same-named non-bloat
+  in the paired view blocks the stamp), all 8 scan sites
+  (HKLM Run/Run32/RunOnce/RunOnce32 + 4 per-hive), IsBloat
+  haystack semantics (name+data, whitelist first), policy-Run
+  purge present both sides (cs inline / py own function —
+  placement diff only).
 - Audit round 163 (Appx enumeration — clean): same fields
   selected (PackageFamilyName/Name/InstallPath/IsFramework/
   PackageFullName in one query — no second PS call), single-
