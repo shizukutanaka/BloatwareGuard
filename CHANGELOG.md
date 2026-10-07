@@ -2,6 +2,13 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 158 (dry-run gate coverage — clean): every
+  mutating path verified behind a DryRun gate both sides —
+  RunScan's 16 log-would/mutate branch pairs, restore point,
+  registry backup, prevention, appx/provisioned/capability/
+  win32/winget removal, AND the monitor's 3 re-removal
+  channels (provisioned/Appx/Win32: RE-INSTALLED warn →
+  DryRun → remove ordering identical). No unguarded mutation.
 - Audit round 157 (log surface — clean): severity-by-severity
   extraction (error/warn/info both sides). All behavioural
   branches identical — ScanIntervalSeconds clamps to 60s both,
