@@ -2,6 +2,14 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 160 (service registration — py parity fix):
+  NSSM-wrapped py service now sets the same SCM-level config
+  as the C# service — `sc description` and `sc failure`
+  restart-on-failure backoff (60s/60s/5min, reset 86400),
+  which were previously NSSM-default only. Install/uninstall
+  flow (stop+delete idempotent → create → auto-start) verified
+  equivalent; NSSM-vs-SCM-native is the documented mechanism
+  split. UAC-decline warn covered (round 109).
 - Audit round 159 (--restore path — clean): restore pipeline
   identical end-to-end — same ledger JSONL read + skip-on-
   JSONDecodeError, kind dispatch (appx re-register → winget

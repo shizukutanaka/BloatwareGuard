@@ -5681,7 +5681,14 @@ def install_service():
     run_cmd([nssm, "set", SERVICE_NAME, "Start", "SERVICE_AUTO_START"])
     run_cmd(
         [nssm, "set", SERVICE_NAME, "AppStdout", str(LOG_DIR / "service-stdout.log")])
-    print(f"Service '{SERVICE_NAME}' installed via NSSM. "
+    # SCM-level config works on NSSM-wrapped services too — set the same
+    # description and failure backoff the C# service configures.
+    run_cmd(["sc", "description", SERVICE_NAME,
+             "Blocks and removes pre-installed Windows bloatware"])
+    run_cmd(["sc", "failure", SERVICE_NAME, "reset=", "86400",
+             "actions=", "restart/60000/restart/60000/restart/300000"])
+    print(f"Service '{SERVICE_NAME}' installed via NSSM "
+          "(restart-on-failure: 60s/60s/5min). "
           f"Use 'sc start {SERVICE_NAME}' to start.")
     return True
 
