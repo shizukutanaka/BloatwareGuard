@@ -2,6 +2,15 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 121 (DisableSearchSuggestions layer write-surface —
+  clean): value-name extraction across both bodies — zero diffs.
+  Cortana policy kills, ConnectedSearchPrivacy=3, location deny,
+  search-provider deactivation (ActivationType/Server), SearchBox
+  suggestions off (HKLM + user), BingSearchEnabled, cloud-search +
+  dynamic box + device history + store suggestions off, background
+  apps toggle, Iris recommendations, voice activation, delivery-
+  optimization for settings, search history view, global web
+  provider — all 20+ writes identical.
 - Audit round 120 (DisableWidgets layer write-surface — clean): all 8
   writes identical — AllowNewsAndInterests=0, EnableFeeds=0, the
   counter-intuitive DisableWidgetsBoard/DisableWidgetsOnLockScreen=0
