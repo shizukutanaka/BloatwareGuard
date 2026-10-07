@@ -2,6 +2,17 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 106 (Devin Review remediation on merged #45 — 3 fixes):
+  monitor no longer watches framework families (py `installed_map`
+  and cs `installed` both exclude IsFramework rows — a dependency
+  package arriving later can't trigger a re-removal);
+  `GetDefaultProfileDat` now falls back to `C:\Users\Default` when
+  ProfileList's `Default` value is an empty string, not only on
+  null/exception (py `or`-semantics parity); dry-run would-remove
+  count in py now gates on the same eligibility the real path uses
+  (`full_name and not is_system_app`) so SystemApps no longer
+  inflate the reported total — cs kept unconditional because its
+  real admin path does attempt SystemApps via `-AllUsers`.
 - Audit round 105 (py fix + OEM task-sweep mechanics parity):
   `disable_oem_scheduled_tasks` now warns when the
   Get-ScheduledTask query fails or returns nothing instead of

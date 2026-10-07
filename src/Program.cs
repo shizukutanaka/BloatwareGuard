@@ -2210,6 +2210,8 @@ public static class RegistryGuard
         {
             dir = @"C:\Users\Default";
         }
+        if (string.IsNullOrEmpty(dir))
+            dir = @"C:\Users\Default";
         dir = Environment.ExpandEnvironmentVariables(dir);
         var dat = Path.Combine(dir, "NTUSER.DAT");
         return File.Exists(dat) ? dat : null;
@@ -6113,7 +6115,11 @@ public class GuardService : BackgroundService
         var currentProvisioned = new HashSet<string>(
             provisionedPairs.Select(p => p.DisplayName),
             StringComparer.OrdinalIgnoreCase);
-        var installed = AppxManager.GetBlacklistedPackages(_config.Blacklist, _config.Whitelist);
+        // Framework rows are dependency packages — the monitor must never
+        // re-remove them even when the enum reports them (flagged for
+        // list-installed visibility only)
+        var installed = AppxManager.GetBlacklistedPackages(_config.Blacklist, _config.Whitelist)
+            .Where(p => !p.IsFramework).ToList();
         var currentInstalled = new HashSet<string>(
             installed.Select(p => p.PackageFamilyName), StringComparer.OrdinalIgnoreCase);
         // Win32 display names — OEMs re-push these via their updaters, so the
