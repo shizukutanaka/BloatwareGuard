@@ -6329,7 +6329,28 @@ def main():
         return
 
     if args.scan:
-        run_scan(config, logger, dry_run=False)
+        try:
+            run_scan(config, logger, dry_run=False)
+        except Exception as e:
+            # A scan aborting before its prevention phase leaves a one-shot
+            # run unhardened — apply the layers once (all idempotent), then
+            # re-raise so the scan still reports failure.
+            logger.warning(f"Scan aborted ({e}) — applying prevention layers once")
+            try:
+                apply_registry_prevention(config, logger)
+            except Exception as e2:
+                logger.warning(f"RegistryPrevention layer failed: {e2}")
+            if config.get("Prevention", {}).get("DisableOemScheduledTasks", True):
+                try:
+                    disable_oem_scheduled_tasks(logger)
+                except Exception as e2:
+                    logger.warning(f"DisableOemScheduledTasks layer failed: {e2}")
+            if config.get("Prevention", {}).get("DisableTelemetryTasks", True):
+                try:
+                    disable_telemetry_tasks(logger)
+                except Exception as e2:
+                    logger.warning(f"DisableTelemetryTasks layer failed: {e2}")
+            raise
         return
 
     if args.dry_run:

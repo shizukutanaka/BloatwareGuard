@@ -6556,7 +6556,26 @@ public class Program
         // disables (idempotent) — no pre-scan block needed here (py parity:
         // a single pass inside the scan, not two).
         var service = new GuardService();
-        service.RunScanPublic(dryRun);
+        try
+        {
+            service.RunScanPublic(dryRun);
+        }
+        catch (Exception ex) when (!dryRun)
+        {
+            // A scan aborting before its prevention phase leaves a one-shot
+            // run unhardened — apply the layers once (all idempotent), then
+            // rethrow so the scan still reports failure.
+            GuardLogger.Warn($"Scan aborted ({ex.Message}) — applying prevention layers once");
+            try { RegistryGuard.ApplyAll(config.Prevention, config.Blacklist, config.Whitelist); }
+            catch (Exception ex2) { GuardLogger.Warn($"RegistryPrevention layer failed: {ex2.Message}"); }
+            if (config.Prevention.DisableOemScheduledTasks)
+                try { ScheduledTaskGuard.DisableOemTasks(); }
+                catch (Exception ex2) { GuardLogger.Warn($"DisableOemTasks layer failed: {ex2.Message}"); }
+            if (config.Prevention.DisableTelemetryTasks)
+                try { ScheduledTaskGuard.DisableTelemetryTasks(); }
+                catch (Exception ex2) { GuardLogger.Warn($"DisableTelemetryTasks layer failed: {ex2.Message}"); }
+            throw;
+        }
 
         GuardLogger.Info("Scan complete.");
     }
