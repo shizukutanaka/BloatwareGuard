@@ -2,6 +2,14 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 161 (Win32 uninstall enumeration — clean):
+  HKLM 64/32 (incl. WOW6432Node) + HKCU + loaded S-1-5-21
+  hives, identical paths, same filters (DisplayName+UninstallString
+  required, SystemComponent=1 skip, whitelist veto BEFORE
+  blacklist match, empty-entry guard, Win32BloatNames merged
+  into the blacklist at call-time), QuietUninstallString
+  captured, user-hive entries flagged report-only, case-fold
+  dedupe — all identical.
 - Audit round 160 (service registration — py parity fix):
   NSSM-wrapped py service now sets the same SCM-level config
   as the C# service — `sc description` and `sc failure`
