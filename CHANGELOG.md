@@ -2,6 +2,12 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 147 (BlockOemDriverUpdates layer write-surface —
+  clean): value-name extraction — zero diffs: ExcludeWUDrivers,
+  SearchOrderConfig, device-metadata/drive-search kills,
+  SCHANNEL min-key-lengths, insecure-guest/renego denies,
+  DisableCoInstallers, NcdAutoSetup, CostedNetworkPolicy —
+  identical.
 - Audit round 146 (BlockInsiderPreview layer write-surface —
   clean): value-name extraction — zero diffs: flighting/preview-
   build policy kills (ManagePreviewBuildsPolicyValue etc.) —
