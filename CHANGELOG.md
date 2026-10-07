@@ -2,6 +2,11 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 125 (DisableOneDrive layer write-surface — clean):
+  value-name extraction — zero diffs: DisableFileSyncNGSC policy,
+  GPO pin/unpin kills, OneDriveSetup process exit + uninstaller
+  run, folder redirect restores, and the scheduled-task disables —
+  all identical (opt-in layer, same `False` default both sides).
 - Audit round 124 (DisableDeliveryOptimization layer write-surface —
   clean): value-name extraction — zero diffs: DODownloadMode,
   DownloadMode policy keys, DoSvc demotion, CDN-bypass and
