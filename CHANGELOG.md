@@ -2,6 +2,10 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 146 (BlockInsiderPreview layer write-surface —
+  clean): value-name extraction — zero diffs: flighting/preview-
+  build policy kills (ManagePreviewBuildsPolicyValue etc.) —
+  identical.
 - Audit round 145 (PreventDeviceMetadata layer write-surface —
   clean): value-name extraction — zero diffs:
   PreventDeviceMetadataFromNetwork kill — identical.
