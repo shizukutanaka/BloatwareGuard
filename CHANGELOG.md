@@ -2,6 +2,12 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 116 (whitelist/blacklist matching internals — clean):
+  both sides do case-insensitive *substring* matching (py `in` on
+  lowercased names; cs `Contains(OrdinalIgnoreCase)` for whitelist and
+  `Regex.Escape`-alternation `-match` for blacklist) with whitelist
+  always winning and empty entries guarded — identical semantics, no
+  prefix/anchor drift.
 - Audit round 115 (provisioned-package enumeration internals — clean):
   same split as the Appx enum — py fetches the full catalog and matches
   `is_target_package` client-side, cs pushes the blacklist down as a
