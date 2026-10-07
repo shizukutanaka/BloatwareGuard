@@ -2,6 +2,10 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 144 (DisableCloudContent layer write-surface —
+  clean): value-name extraction — zero diffs: Windows Spotlight
+  cloud-content policies + CloudContent service demotion —
+  identical.
 - Audit round 143 (DisableConsumerExperiences layer
   write-surface — clean): value-name extraction — zero diffs:
   consumer-features/auto-app-install policies — identical.
