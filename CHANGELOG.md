@@ -2,6 +2,9 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 137 (DisableRemoteAssistance layer write-surface —
+  clean): value-name extraction — zero diffs: Remote Assistance
+  policy kills — identical.
 - Audit round 136 (DisableCloudClipboard layer write-surface —
   clean): value-name extraction — zero diffs: cloud-clipboard
   sync/history policies — identical.
