@@ -2,6 +2,10 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 150 (DisableOemTasks layer write-surface —
+  clean): 120s schtasks query, 25-pattern match table, 34
+  protected prefixes, /DISABLE at 15s, OEM-binary decode —
+  identical.
 - Audit round 149 (DisableStartupBloat layer write-surface —
   clean): Run/RunOnce + 32-bit views, per-hive + per-user
   StartupApproved markers, startup-folder sweep, match-blob
