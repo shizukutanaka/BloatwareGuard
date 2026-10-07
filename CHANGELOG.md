@@ -2,6 +2,10 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 124 (DisableDeliveryOptimization layer write-surface —
+  clean): value-name extraction — zero diffs: DODownloadMode,
+  DownloadMode policy keys, DoSvc demotion, CDN-bypass and
+  P2P-disable switches — all identical.
 - Audit round 123 (DisableGameDvr layer write-surface — clean):
   value-name extraction — zero diffs: GameBar FTF/overrides,
   GameDVR policies (AllowGameDVR=0), GameConfig Store settings,
