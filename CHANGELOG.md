@@ -2,6 +2,13 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 171 (OEM task sweep internals — clean):
+  identical 25-pattern alternation (cs Regex.Escape-joined
+  strings ≡ py literal regex), same `TaskPath -like '*OEM*'`
+  OR `TaskName -match` filter, protected-prefix check
+  `StartsWith(p+"\\", OrdinalIgnoreCase)` before schtasks
+  /DISABLE 15s, warn-per-disable-fail, protected-skip warn,
+  same Disabled tally.
 - Audit round 170 (task lists — clean): TELEMETRY_TASK_PATHS
   = cs TelemetryTaskPaths — 136 entries identical (incl. CEIP,
   Flighting, WindowsAI Recall/ClickToDo, Office telemetry,
