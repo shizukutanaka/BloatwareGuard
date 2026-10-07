@@ -2,6 +2,9 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 141 (NoForcedReboot layer write-surface —
+  clean): identical AU policy writes —
+  NoAutoRebootWithLoggedOnUsers=1, AlwaysAutoRebootAtScheduledTime=0.
 - Audit round 140 (DisableAutoplay layer write-surface —
   clean): value-name extraction — zero diffs: NoDriveTypeAutoRun
   + autorun.inf policy kills — identical.
