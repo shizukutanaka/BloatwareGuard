@@ -2,6 +2,9 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 145 (PreventDeviceMetadata layer write-surface —
+  clean): value-name extraction — zero diffs:
+  PreventDeviceMetadataFromNetwork kill — identical.
 - Audit round 144 (DisableCloudContent layer write-surface —
   clean): value-name extraction — zero diffs: Windows Spotlight
   cloud-content policies + CloudContent service demotion —
