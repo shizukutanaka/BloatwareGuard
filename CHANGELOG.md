@@ -2,6 +2,9 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 134 (BlockOemWpbtExecution layer write-surface —
+  clean): value-name extraction — zero diffs: WPBT platform-binary
+  execution block — identical.
 - Audit round 133 (DisableModernStandbyNetworking layer
   write-surface — clean): value-name extraction — zero diffs:
   ConnectivityInStandby policy, same opt-in `False` default.
