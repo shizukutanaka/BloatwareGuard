@@ -2,6 +2,11 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 131 (DisableXboxServices layer write-surface —
+  clean): value-name extraction — zero diffs: 4 Xbox service
+  demotions (XblAuthManager/XblGameSave/XboxNetApiSvc/XboxGipSvc),
+  WinRT GamingAI companion-host neuter, SmartGlass=never — all
+  identical.
 - Audit round 130 (DisableAppPermissions layer write-surface —
   clean): value-name extraction — zero diffs: all 24 LetAppsAccess*
   denies (contacts/calendar/email/messaging/motion/notifications/
