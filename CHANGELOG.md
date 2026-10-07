@@ -2,6 +2,12 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 174 (monitor baseline lifecycle — clean):
+  identical 3-set baseline (seenProvisioned/seenInstalled/
+  seenWin32 empty outside the loop), firstScan gate so the
+  initial snapshot is never re-removed, sets refreshed at
+  end of each iteration, framework rows filtered out of the
+  installed channel both sides, case-insensitive hash sets.
 - Audit round 173 (RemoveOptionalCapabilities — clean):
   identical 6-capability pattern (IE/StepsRecorder/WordPad/
   XPS/Fax/WirelessDisplay), same Get-WindowsCapability query
