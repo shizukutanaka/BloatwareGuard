@@ -2,6 +2,14 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 157 (log surface — clean): severity-by-severity
+  extraction (error/warn/info both sides). All behavioural
+  branches identical — ScanIntervalSeconds clamps to 60s both,
+  admin→user-level removal fallback mirrors, MONITOR
+  re-removal covered by 3 channels each (Appx/provisioned/
+  Win32). Remaining diffs are message-text shape and helper
+  split (cs's per-layer catch Warn vs py's layer-failed /
+  try-except) — no uncovered failure path.
 - Audit round 156 (timeout values — clean): extracted every
   numeric timeout both sides — py {15,60,120,180,300}s map
   1:1 to cs {15000,...,300000}ms; cs's extra 30000ms sites are
