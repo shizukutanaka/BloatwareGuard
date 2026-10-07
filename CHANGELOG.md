@@ -2,6 +2,9 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 143 (DisableConsumerExperiences layer
+  write-surface — clean): value-name extraction — zero diffs:
+  consumer-features/auto-app-install policies — identical.
 - Audit round 142 (HideStartRecommendations layer
   write-surface — clean): value-name extraction — zero diffs:
   HideRecommendedSection + HideRecentlyAddedApps Explorer
