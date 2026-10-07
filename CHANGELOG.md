@@ -2,6 +2,9 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 140 (DisableAutoplay layer write-surface —
+  clean): value-name extraction — zero diffs: NoDriveTypeAutoRun
+  + autorun.inf policy kills — identical.
 - Audit round 139 (DisableSpotlight layer write-surface —
   clean): value-name extraction — zero diffs: per-hive Spotlight
   content kills — identical.
