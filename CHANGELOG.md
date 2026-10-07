@@ -2,6 +2,15 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 122 (DisableTelemetry layer write-surface — clean):
+  value-name extraction — every registry write matches (AllowTelemetry,
+  DiagTrack EventTranscriptKey zeroing, advertising ID, tailored
+  experiences, speech, ink/type, feedback nag, app-launch tracking,
+  activity history, Edge diagnostics). Diffs are placement only: py
+  inlines the DiagTrack/WerSvc `sc stop`+`config` kills and telemetry
+  task names inside this layer; cs reaches the same end state via its
+  DisableTelemetryTasks/misc-service layers. NoSystraySystemPromotion
+  sits under DisableConsumerExperiences in cs.
 - Audit round 121 (DisableSearchSuggestions layer write-surface —
   clean): value-name extraction across both bodies — zero diffs.
   Cortana policy kills, ConnectedSearchPrivacy=3, location deny,
