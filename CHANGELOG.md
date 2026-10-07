@@ -2,6 +2,12 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 117 (registry-write helper internals — clean): py
+  `set_registry_*` (`CreateKeyEx`+`SetValueEx`, exception→False) and
+  cs inline `CreateSubKey`+`SetValue` both write the native 64-bit
+  view in a 64-bit process (neither pins a Wow64 view, so both miss
+  nothing) and both absorb write failures — py silently returns
+  False, cs logs Warn per layer; same net effect.
 - Audit round 116 (whitelist/blacklist matching internals — clean):
   both sides do case-insensitive *substring* matching (py `in` on
   lowercased names; cs `Contains(OrdinalIgnoreCase)` for whitelist and
