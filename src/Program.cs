@@ -2210,6 +2210,8 @@ public static class RegistryGuard
         {
             dir = @"C:\Users\Default";
         }
+        if (string.IsNullOrEmpty(dir))
+            dir = @"C:\Users\Default";
         dir = Environment.ExpandEnvironmentVariables(dir);
         var dat = Path.Combine(dir, "NTUSER.DAT");
         return File.Exists(dat) ? dat : null;
@@ -5098,15 +5100,16 @@ public static class RegistryGuard
                 var file = Path.Combine(dir, $"{stamp}-{exported++}.reg");
                 // reg.exe export fails for non-existent keys — that is expected
                 RunToolSilent("reg.exe", $"export \"HKLM\\{path}\" \"{file}\" /y");
-                if (!File.Exists(file))
-                    File.Delete(file);  // no-op guard — keep dir clean
+                // keep the dir clean when the export left an empty artifact
+                if (File.Exists(file) && new FileInfo(file).Length == 0)
+                    File.Delete(file);
             }
             foreach (var svc in MiscBloatServices.Concat(ExtraBackupServiceNames))
             {
                 var file = Path.Combine(dir, $"{stamp}-s{exported++}.reg");
                 RunToolSilent("reg.exe",
                     $"export \"HKLM\\SYSTEM\\CurrentControlSet\\Services\\{svc}\" \"{file}\" /y");
-                if (!File.Exists(file))
+                if (File.Exists(file) && new FileInfo(file).Length == 0)
                     File.Delete(file);
             }
             var roots = new List<string> { "HKCU" };
@@ -5124,7 +5127,7 @@ public static class RegistryGuard
                     var file = Path.Combine(dir, $"{stamp}-u{exported++}.reg");
                     RunToolSilent("reg.exe",
                         $"export \"{root}\\{path}\" \"{file}\" /y");
-                    if (!File.Exists(file))
+                    if (File.Exists(file) && new FileInfo(file).Length == 0)
                         File.Delete(file);
                 }
             }
@@ -6113,7 +6116,11 @@ public class GuardService : BackgroundService
         var currentProvisioned = new HashSet<string>(
             provisionedPairs.Select(p => p.DisplayName),
             StringComparer.OrdinalIgnoreCase);
-        var installed = AppxManager.GetBlacklistedPackages(_config.Blacklist, _config.Whitelist);
+        // Framework rows are dependency packages — the monitor must never
+        // re-remove them even when the enum reports them (flagged for
+        // list-installed visibility only)
+        var installed = AppxManager.GetBlacklistedPackages(_config.Blacklist, _config.Whitelist)
+            .Where(p => !p.IsFramework).ToList();
         var currentInstalled = new HashSet<string>(
             installed.Select(p => p.PackageFamilyName), StringComparer.OrdinalIgnoreCase);
         // Win32 display names — OEMs re-push these via their updaters, so the
@@ -6453,25 +6460,34 @@ public class Program
         {
             switch (args[cmdIndex].ToLower())
             {
+                // Bare and --dashed forms both accepted (py parity: the Python
+                // entry point only takes --flags; users copy-paste between them)
                 case "scan":
+                case "--scan":
                     RunOnce(config, dryRun: false);
                     return;
                 case "dry-run":
+                case "--dry-run":
                     RunOnce(config, dryRun: true);
                     return;
                 case "list-installed":
+                case "--list-installed":
                     ListInstalled(config);
                     return;
                 case "install":
+                case "--install":
                     InstallService();
                     return;
                 case "uninstall":
+                case "--uninstall":
                     UninstallService();
                     return;
                 case "status":
+                case "--status":
                     ShowStatus();
                     return;
                 case "restore":
+                case "--restore":
                     RestorePackages(config);
                     return;
                 case "help":
@@ -6486,6 +6502,10 @@ public class Program
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
                     return;
+                case "--service":
+                    // py parity: explicit service-mode flag is a no-op —
+                    // no args already means console/service loop
+                    break;
                 case "--service-dry-run":
                     config.DryRun = true;
                     GuardLogger.Info("Service mode: DRY-RUN (no removal actions will execute)");
@@ -6588,6 +6608,9 @@ Commands:
   --self-test   Run internal wiring self-test (no admin required)
   help          Show this help
 
+All commands also accept the --dashed form (e.g. --scan, --dry-run) — same
+flags as the Python entry point.
+
 Without arguments: runs in console mode (interactive) or as Windows Service.
 ";
         Console.WriteLine(help);
@@ -6615,7 +6638,16 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
             UseShellExecute = true,
             Verb = "runas"
         };
-        Process.Start(psi)?.WaitForExit(60000);
+        try
+        {
+            Process.Start(psi)?.WaitForExit(60000);
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            // py parity: UAC declined — report cleanly instead of crashing
+            GuardLogger.Warn("Elevation declined — service install skipped.");
+            return;
+        }
         GuardLogger.Info("Service installed (idempotent, restart-on-failure: 60s/60s/5min). Use 'sc start BloatwareGuard' to start.");
     }
 
@@ -6630,15 +6662,23 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
             UseShellExecute = true,
             Verb = "runas"
         };
-        Process.Start(stopPsi)?.WaitForExit(30000);
-        var psi = new ProcessStartInfo
+        try
         {
-            FileName = "sc.exe",
-            Arguments = "delete BloatwareGuard",
-            UseShellExecute = true,
-            Verb = "runas"
-        };
-        Process.Start(psi)?.WaitForExit(30000);
+            Process.Start(stopPsi)?.WaitForExit(30000);
+            var psi = new ProcessStartInfo
+            {
+                FileName = "sc.exe",
+                Arguments = "delete BloatwareGuard",
+                UseShellExecute = true,
+                Verb = "runas"
+            };
+            Process.Start(psi)?.WaitForExit(30000);
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            GuardLogger.Warn("Elevation declined — service uninstall skipped.");
+            return;
+        }
         GuardLogger.Info("Service uninstalled.");
 
         // The hosts block is tool-owned runtime state that outlives the

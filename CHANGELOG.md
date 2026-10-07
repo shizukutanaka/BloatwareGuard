@@ -2,6 +2,426 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 174 (monitor baseline lifecycle — clean):
+  identical 3-set baseline (seenProvisioned/seenInstalled/
+  seenWin32 empty outside the loop), firstScan gate so the
+  initial snapshot is never re-removed, sets refreshed at
+  end of each iteration, framework rows filtered out of the
+  installed channel both sides, case-insensitive hash sets.
+- Audit round 173 (RemoveOptionalCapabilities — clean):
+  identical 6-capability pattern (IE/StepsRecorder/WordPad/
+  XPS/Fax/WirelessDisplay), same Get-WindowsCapability query
+  (Name -match + State=Installed), safe-name filter on both
+  name lists, 180s DISM timeout, rc==0 → re-query diff and
+  ledger only actually-removed names, same tally + absent-
+  or-admin warn.
+- Audit round 172 (BackupRegistry internals): mechanism
+  identical — once-per-process guard, %ProgramData%\
+  BloatwareGuard\backup\, yyyyMMdd-HHmmss stamp, HKLM keys +
+  demoted-service keys + HKCU/loaded-SID user keys via
+  `reg.exe export /y` 15s with per-key failure absorbed.
+  cs fix: the keep-dir-clean guard `if (!File.Exists(file))
+  File.Delete(file)` was dead code (deletes only when the
+  file is absent — never true) → now deletes the artifact
+  only when the export produced an EMPTY file, which is the
+  stated intent.
+- Audit round 171 (OEM task sweep internals — clean):
+  identical 25-pattern alternation (cs Regex.Escape-joined
+  strings ≡ py literal regex), same `TaskPath -like '*OEM*'`
+  OR `TaskName -match` filter, protected-prefix check
+  `StartsWith(p+"\\", OrdinalIgnoreCase)` before schtasks
+  /DISABLE 15s, warn-per-disable-fail, protected-skip warn,
+  same Disabled tally.
+- Audit round 170 (task lists — clean): TELEMETRY_TASK_PATHS
+  = cs TelemetryTaskPaths — 136 entries identical (incl. CEIP,
+  Flighting, WindowsAI Recall/ClickToDo, Office telemetry,
+  input/pen/mouse sync, RetailDemo); MICROSOFT_SYSTEM_TASK_
+  PREFIXES = cs MicrosoftSystemPrefixes — 34 identical
+  protected prefixes.
+- Audit round 169 (per-user hive application — clean):
+  identical 3-source structure — loaded S-1-5-21 SIDs
+  (same regex), Default NTUSER.DAT mounted via reg load/
+  unload at the same `BloatwareGuard_DefaultProfile` name,
+  HKCU always, same per-hive try/warn and applied==0 warn.
+  Default-dir resolution (ProfileList\Default → expandvars →
+  C:\Users\Default → file-exists) equivalent.
+- Audit round 168 (telemetry hosts block — clean): identical
+  marker strings (`# >>> BloatwareGuard telemetry block` /
+  end), strict-UTF8 read with skip-on-undecodable (cs
+  UTF8Encoding(false,true) ≡ py strict), strip-then-append
+  idempotence, both no-op guards (disabled-no-block and
+  unchanged-text), atomic write, same applied/removed tally —
+  line-for-line equivalent.
+- Audit round 167 (telemetry autologgers/channels — clean):
+  identical 18-entry AutoLogger list (Diagtrack-Listener,
+  SQMLogger, CKCL, DataMarket, WdiContextLog, ...) with
+  Start=0 via open-only keys, same 3 diagnostic ETW channels
+  with Enabled=0, same Applied tally line — all identical.
+- Audit round 166 (Active Setup stub sweep — clean):
+  identical 2 paths (HKLM + WOW6432Node\Active Setup\Installed
+  Components), same haystack blob (key name + default value +
+  LocalizedName + StubPath), same bloat match with whitelist
+  veto, per-sub DeleteSubKey + Applied tally — all identical.
+- Audit round 165 (WingetSweep internals — clean): identical
+  winget-id regex `^[A-Za-z0-9_.-]+$`, `.` requirement,
+  whitelist veto with skip log, identical uninstall args
+  (-e --id X --silent --disable-interactivity
+  --accept-source-agreements), 300s timeout, ledger on rc==0,
+  same Applied tally. Probe differs (shutil.which vs
+  `winget --version`) — documented mechanism split.
+- Audit round 164 (DisableStartupBloat internals — clean):
+  identical marker bytes (0x03 + 11 NULs, REG_BINARY), same
+  32/64-bit peer-view collision guard (same-named non-bloat
+  in the paired view blocks the stamp), all 8 scan sites
+  (HKLM Run/Run32/RunOnce/RunOnce32 + 4 per-hive), IsBloat
+  haystack semantics (name+data, whitelist first), policy-Run
+  purge present both sides (cs inline / py own function —
+  placement diff only).
+- Audit round 163 (Appx enumeration — clean): same fields
+  selected (PackageFamilyName/Name/InstallPath/IsFramework/
+  PackageFullName in one query — no second PS call), single-
+  object wrap, dedupe keyed on PackageFullName-or-family,
+  whitelist veto before match, IsFramework flag carried
+  through. Push-down diff (cs `Where-Object -match` vs py
+  enumerate-all + is_target_package) is the round-115
+  documented structural split; `-AllUsers` selection differs
+  in mechanism (admin probe vs try-then-fallback) with the
+  same end-state.
+- Audit round 162 (Win32 silent-uninstall executor — clean):
+  QuietUninstallString → verbatim cmdline split (identical
+  quoted-path handling both sides), else msiexec fallback via
+  the same `\{[0-9A-Fa-f-]{36}\}` GUID regex →
+  `msiexec /x {guid} /qn /norestart`, else manual-only (no
+  vendor-switch guessing) — 300s timeout and rc==0 success
+  test identical.
+- Audit round 161 (Win32 uninstall enumeration — clean):
+  HKLM 64/32 (incl. WOW6432Node) + HKCU + loaded S-1-5-21
+  hives, identical paths, same filters (DisplayName+UninstallString
+  required, SystemComponent=1 skip, whitelist veto BEFORE
+  blacklist match, empty-entry guard, Win32BloatNames merged
+  into the blacklist at call-time), QuietUninstallString
+  captured, user-hive entries flagged report-only, case-fold
+  dedupe — all identical.
+- Audit round 160 (service registration — py parity fix):
+  NSSM-wrapped py service now sets the same SCM-level config
+  as the C# service — `sc description` and `sc failure`
+  restart-on-failure backoff (60s/60s/5min, reset 86400),
+  which were previously NSSM-default only. Install/uninstall
+  flow (stop+delete idempotent → create → auto-start) verified
+  equivalent; NSSM-vs-SCM-native is the documented mechanism
+  split. UAC-decline warn covered (round 109).
+- Audit round 159 (--restore path — clean): restore pipeline
+  identical end-to-end — same ledger JSONL read + skip-on-
+  JSONDecodeError, kind dispatch (appx re-register → winget
+  install -e --id --silent --disable-interactivity --accept-* →
+  Add-WindowsCapability 180s → provisioned same re-register →
+  default vendor/Settings manual), identical _safe_pkg_name/
+  IsPackageNameSafe injection guards, manual counter, and
+  final restored/manual tally line.
+- Audit round 158 (dry-run gate coverage — clean): every
+  mutating path verified behind a DryRun gate both sides —
+  RunScan's 16 log-would/mutate branch pairs, restore point,
+  registry backup, prevention, appx/provisioned/capability/
+  win32/winget removal, AND the monitor's 3 re-removal
+  channels (provisioned/Appx/Win32: RE-INSTALLED warn →
+  DryRun → remove ordering identical). No unguarded mutation.
+- Audit round 157 (log surface — clean): severity-by-severity
+  extraction (error/warn/info both sides). All behavioural
+  branches identical — ScanIntervalSeconds clamps to 60s both,
+  admin→user-level removal fallback mirrors, MONITOR
+  re-removal covered by 3 channels each (Appx/provisioned/
+  Win32). Remaining diffs are message-text shape and helper
+  split (cs's per-layer catch Warn vs py's layer-failed /
+  try-except) — no uncovered failure path.
+- Audit round 156 (timeout values — clean): extracted every
+  numeric timeout both sides — py {15,60,120,180,300}s map
+  1:1 to cs {15000,...,300000}ms; cs's extra 30000ms sites are
+  service stop/delete/query which py covers via run_cmd's
+  default timeout=30s. No drift; site-count asymmetry is
+  py's per-call kwarg vs cs's centralised Proc.Wait helper.
+- Audit round 155 (external-command surface — clean):
+  all spawned-tool invocations compared: `sc stop|config` set
+  (DiagTrack/RetailDemo/WerSvc/Spooler/RemoteRegistry stop+disable
+  pairs), `schtasks /Change /TN /DISABLE`, `winget uninstall|install`
+  arg strings (--silent --disable-interactivity --accept-* flags),
+  Add-AppxPackage re-register (-DisableDevelopmentMode
+  -Register AppxManifest), capability add/remove PS commands,
+  restore-point + Checkpoint-Computer — all identical.
+  (service-drain uses ping vs sleep — recorded round 101.)
+- Audit round 154 (registry-write PATH parity — clean):
+  machine-extracted every literal registry path both sides and
+  normalized concat-vs-literal parents — zero real diffs:
+  PolicyManager WiFi/telemetry defaults, CPSS DevicePolicy/Store,
+  SCHANNEL protocol template paths, WinRT ActivatableClassId
+  kills, Orchestrator/WinEvt channel templates, ReservedStorage
+  power GUID, StartupApproved\Run|RunOnce, Diagnostics\Performance
+  — all present both sides (remaining deltas are concat-parent
+  vs expanded-literal representation of the same key).
+- Audit round 153 (registry-write VALUE parity — clean):
+  deeper audit than layer names — extracted every (name, value)
+  pair across all write idioms (direct calls, helper wrappers,
+  loop tables, tuple unpacks, ~570+ writes). Zero name-set
+  diffs, zero value diffs. Verified Recall deny-lists
+  (DenyAppList/DenyUriList) byte-identical, CPSS
+  DefaultValue/Value pairs, and PolicyManager `value` writes.
+- Audit round 152 (RemoveDefaultStorePackages layer
+  write-surface — clean): Enabled=1 + DynamicRemovalList
+  REG_MULTI_SZ merge + per-family RemovePackage=1 subkeys +
+  legacy PackageList migration — identical. Also confirms the
+  combined MarkDeprovisioned||RDS gate shape matches both sides.
+- Audit round 151 (DisableTelemetryTasks layer write-surface —
+  clean): both loop the pinned task-path table → path/name split
+  → `schtasks /Change /DISABLE` — identical (mechanism also
+  audited round 102).
+- Audit round 150 (DisableOemTasks layer write-surface —
+  clean): 120s schtasks query, 25-pattern match table, 34
+  protected prefixes, /DISABLE at 15s, OEM-binary decode —
+  identical.
+- Audit round 149 (DisableStartupBloat layer write-surface —
+  clean): Run/RunOnce + 32-bit views, per-hive + per-user
+  StartupApproved markers, startup-folder sweep, match-blob
+  construction — identical. cs inlines the Active-Setup stub
+  sweep inside the layer; py keeps it in `disable_active_setup_stubs`
+  (audited clean, round 87) — placement diff, same end-state.
+- Audit round 148 (BlockProvisioning layer write-surface —
+  clean): value-name extraction — zero diffs: silent-install +
+  suggestion surfaces across all hives (chat auto-install,
+  cross-device, DevHome/Outlook update kills, BITS notification,
+  push-to-install, safe-search, phone-link, dynamic content,
+  OEM update schedulers) — identical. `NoSystraySystemPromotion`
+  placement differs (py under DisableTelemetry / cs under
+  BlockProvisioning — both default-on, same end-state).
+- Audit round 147 (BlockOemDriverUpdates layer write-surface —
+  clean): value-name extraction — zero diffs: ExcludeWUDrivers,
+  SearchOrderConfig, device-metadata/drive-search kills,
+  SCHANNEL min-key-lengths, insecure-guest/renego denies,
+  DisableCoInstallers, NcdAutoSetup, CostedNetworkPolicy —
+  identical.
+- Audit round 146 (BlockInsiderPreview layer write-surface —
+  clean): value-name extraction — zero diffs: flighting/preview-
+  build policy kills (ManagePreviewBuildsPolicyValue etc.) —
+  identical.
+- Audit round 145 (PreventDeviceMetadata layer write-surface —
+  clean): value-name extraction — zero diffs:
+  PreventDeviceMetadataFromNetwork kill — identical.
+- Audit round 144 (DisableCloudContent layer write-surface —
+  clean): value-name extraction — zero diffs: Windows Spotlight
+  cloud-content policies + CloudContent service demotion —
+  identical.
+- Audit round 143 (DisableConsumerExperiences layer
+  write-surface — clean): value-name extraction — zero diffs:
+  consumer-features/auto-app-install policies — identical.
+- Audit round 142 (HideStartRecommendations layer
+  write-surface — clean): value-name extraction — zero diffs:
+  HideRecommendedSection + HideRecentlyAddedApps Explorer
+  policies — identical.
+- Audit round 141 (NoForcedReboot layer write-surface —
+  clean): identical AU policy writes —
+  NoAutoRebootWithLoggedOnUsers=1, AlwaysAutoRebootAtScheduledTime=0.
+- Audit round 140 (DisableAutoplay layer write-surface —
+  clean): value-name extraction — zero diffs: NoDriveTypeAutoRun
+  + autorun.inf policy kills — identical.
+- Audit round 139 (DisableSpotlight layer write-surface —
+  clean): value-name extraction — zero diffs: per-hive Spotlight
+  content kills — identical.
+- Audit round 138 (DisableMiscBloatServices layer write-surface —
+  clean): same service list (91, T-pinned), same RemoteRegistry
+  `stop`+`start= disabled` at 15s, same log — identical.
+- Audit round 137 (DisableRemoteAssistance layer write-surface —
+  clean): value-name extraction — zero diffs: Remote Assistance
+  policy kills — identical.
+- Audit round 136 (DisableCloudClipboard layer write-surface —
+  clean): value-name extraction — zero diffs: cloud-clipboard
+  sync/history policies — identical.
+- Audit round 135 (DisableReservedStorage layer write-surface —
+  clean): value-name extraction — zero diffs: ShippedWithReserves=0
+  storage-reservation kill — identical.
+- Audit round 134 (BlockOemWpbtExecution layer write-surface —
+  clean): value-name extraction — zero diffs: WPBT platform-binary
+  execution block — identical.
+- Audit round 133 (DisableModernStandbyNetworking layer
+  write-surface — clean): value-name extraction — zero diffs:
+  ConnectivityInStandby policy, same opt-in `False` default.
+- Audit round 132 (DisablePrintSpooler layer write-surface —
+  clean): identical `sc stop Spooler` + `sc config Spooler
+  start= disabled` at 15s, same opt-in `False` default, same
+  log line.
+- Audit round 131 (DisableXboxServices layer write-surface —
+  clean): value-name extraction — zero diffs: 4 Xbox service
+  demotions (XblAuthManager/XblGameSave/XboxNetApiSvc/XboxGipSvc),
+  WinRT GamingAI companion-host neuter, SmartGlass=never — all
+  identical.
+- Audit round 130 (DisableAppPermissions layer write-surface —
+  clean): value-name extraction — zero diffs: all 24 LetAppsAccess*
+  denies (contacts/calendar/email/messaging/motion/notifications/
+  phone/radios/system-AI/tasks/trusted-devices/sync/diag/voice/
+  voice-above-lock/generative-AI/gaze/human-presence/graphics-
+  capture x2/spatial-perception) + LetAppsRunInBackground —
+  identical (cs keeps the name table as a static array above the
+  method; py inlines it).
+- Audit round 129 (DisableEdgeUpdateBloat layer write-surface —
+  clean): value-name extraction — zero diffs: EdgeUpdate service
+  demotions, update-disable policies, task scheduler kills, IFEO
+  blocks — all identical (py inlines the OEM-driver-update block
+  under its own gate inside the same apply fn; cs splits it to a
+  separate function — placement diff, same end-state).
+- Audit round 128 (DisableErrorReporting layer write-surface —
+  clean): value-name extraction — zero diffs: DontShowUI, Disabled,
+  consent overrides, WerSvc demotion, send-request/generic-driver
+  WER switches, CPL-support suppression, auto-approve dumps,
+  report-queue cap — all identical.
+- Audit round 127 (DisableEdgeBloat layer write-surface — clean):
+  value-name extraction across the largest policy layer (~80 Edge
+  policies) — zero diffs: Copilot NTP/address-bar/page-context,
+  reading-mode, shopping/wallet/donation, rewards, sidebar/hubs,
+  prerender/prediction, telemetry/feature-request/url-diagnostics,
+  startup boost/prelaunch, shortcuts, implicit-signin default,
+  3P-serp, site-safety, EdgeUpdate suppression, first-run/user-
+  feedback — all identical.
+- Audit round 126 (DisableChatTaskbar layer write-surface — clean):
+  value-name extraction — zero diffs: TaskbarMn icon, Chat policy,
+  Teams autostart kill, meet-now hide — all identical.
+- Audit round 125 (DisableOneDrive layer write-surface — clean):
+  value-name extraction — zero diffs: DisableFileSyncNGSC policy,
+  GPO pin/unpin kills, OneDriveSetup process exit + uninstaller
+  run, folder redirect restores, and the scheduled-task disables —
+  all identical (opt-in layer, same `False` default both sides).
+- Audit round 124 (DisableDeliveryOptimization layer write-surface —
+  clean): value-name extraction — zero diffs: DODownloadMode,
+  DownloadMode policy keys, DoSvc demotion, CDN-bypass and
+  P2P-disable switches — all identical.
+- Audit round 123 (DisableGameDvr layer write-surface — clean):
+  value-name extraction — zero diffs: GameBar FTF/overrides,
+  GameDVR policies (AllowGameDVR=0), GameConfig Store settings,
+  Broadcast capture off, Game Mode toggle, GameBarFTServer
+  deny-list entries, plus per-user GameDVR keys — all identical.
+- Audit round 122 (DisableTelemetry layer write-surface — clean):
+  value-name extraction — every registry write matches (AllowTelemetry,
+  DiagTrack EventTranscriptKey zeroing, advertising ID, tailored
+  experiences, speech, ink/type, feedback nag, app-launch tracking,
+  activity history, Edge diagnostics). Diffs are placement only: py
+  inlines the DiagTrack/WerSvc `sc stop`+`config` kills and telemetry
+  task names inside this layer; cs reaches the same end state via its
+  DisableTelemetryTasks/misc-service layers. NoSystraySystemPromotion
+  sits under DisableConsumerExperiences in cs.
+- Audit round 121 (DisableSearchSuggestions layer write-surface —
+  clean): value-name extraction across both bodies — zero diffs.
+  Cortana policy kills, ConnectedSearchPrivacy=3, location deny,
+  search-provider deactivation (ActivationType/Server), SearchBox
+  suggestions off (HKLM + user), BingSearchEnabled, cloud-search +
+  dynamic box + device history + store suggestions off, background
+  apps toggle, Iris recommendations, voice activation, delivery-
+  optimization for settings, search history view, global web
+  provider — all 20+ writes identical.
+- Audit round 120 (DisableWidgets layer write-surface — clean): all 8
+  writes identical — AllowNewsAndInterests=0, EnableFeeds=0, the
+  counter-intuitive DisableWidgetsBoard/DisableWidgetsOnLockScreen=0
+  (NewsAndInterests.admx enabledValue IS 0 — verified the comment is
+  right, not a copy-paste bug), TaskbarDa=0,
+  ShellFeedsTaskbarViewMode=2, ShellFeedsTaskbarOpenOnHover=0.
+- Audit round 119 (DisableCopilot layer write-surface — clean):
+  machine-checked value-name extraction across both bodies — every
+  policy/preference write matches: TurnOffWindowsCopilot (HKLM+hives),
+  shell eligibility (IsCopilotAvailable/IsUserEligible/
+  CopilotDisabledReason), context-menu CLSID block, app browsing
+  kills, EdgeUpdate Copilot GUIDs, pin overrides, BGA disables,
+  velocity RIDs, NVIDIA telemetry, voice-agent + speech + CHS AI
+  suggestions, notification/nudge/taskbar/systray overrides, Run-key
+  autolaunch, generic/SAM app-permission denies. One structural diff:
+  py also writes VoiceActivationEnableAboveLockscreen inside
+  DisableCopilot (cs covers it once under DisableSearchSuggestions) —
+  idempotent same value/hives, so end state is identical.
+- Audit round 118 (DisableRecall layer write-surface — clean): all
+  ~30 writes match 1:1 — WindowsAI policy values, model-management
+  download kills, export denies, agent consent floors,
+  RemoveMicrosoftCopilotApp (HKLM + all user hives), Copilot-keyboard
+  telemetry trio, ClickToDo, Notepad/Paint/Photos AI toggles,
+  IsRecallAllowed/EnableRecall/ClickToDoEnabled user prefs,
+  Disable-WindowsOptionalFeature 'Recall' (120s), WSAIFabricSvc
+  demand-start, and the AI event-log channel sweep.
+- Audit round 117 (registry-write helper internals — clean): py
+  `set_registry_*` (`CreateKeyEx`+`SetValueEx`, exception→False) and
+  cs inline `CreateSubKey`+`SetValue` both write the native 64-bit
+  view in a 64-bit process (neither pins a Wow64 view, so both miss
+  nothing) and both absorb write failures — py silently returns
+  False, cs logs Warn per layer; same net effect.
+- Audit round 116 (whitelist/blacklist matching internals — clean):
+  both sides do case-insensitive *substring* matching (py `in` on
+  lowercased names; cs `Contains(OrdinalIgnoreCase)` for whitelist and
+  `Regex.Escape`-alternation `-match` for blacklist) with whitelist
+  always winning and empty entries guarded — identical semantics, no
+  prefix/anchor drift.
+- Audit round 115 (provisioned-package enumeration internals — clean):
+  same split as the Appx enum — py fetches the full catalog and matches
+  `is_target_package` client-side, cs pushes the blacklist down as a
+  `-match` alternation then filters whitelist-only; identical literal
+  semantics. Both wrap single-object JSON, return [] on query/parse
+  failure, and gate removal on non-empty PackageName.
+- Audit round 114 (removal-ledger file placement — clean): path
+  resolution `BackupDirectory` → `%ProgramData%\BloatwareGuard\Backups`
+  fallback and `removed-packages.jsonl` name, append-only +best-effort
+  catch, and `yyyy-MM-ddTHH:mm:ss` timestamps identical; py writes a
+  sparse dict (only provided keys) vs cs's fixed 4-key object — the
+  restore reader tolerates missing keys both ways, so the files are
+  mutually readable.
+- Audit round 113 (`--list-installed` output parity — clean): row
+  format `  family (display) [FRAMEWORK]`, header, and
+  `Total: N package(s) installed.` line identical on both sides;
+  both enumerate via the same blacklist query (no dedupe needed —
+  enum already dedupes).
+- Audit round 112 (service-loop exception isolation — clean): each
+  scan iteration is wrapped in try/catch → `Scan error` log on both
+  sides (py `logger.error` / cs `GuardLogger.Error`), so one failed
+  scan never kills the service; `first_scan`/`firstScan` flips only
+  on a successful pass identically, and the sleep sits outside the
+  guard in both.
+- Audit round 111 (atomic-write helper parity — clean): both
+  implementations write via a same-directory temp file + rename
+  (py `os.replace`, cs `File.Move(overwrite: true)`) — a crash
+  mid-write can never leave a truncated config/ledger/hosts file.
+- Audit round 110 (config-file I/O parity — clean): missing-config
+  default generation + atomic write-back and BOM tolerance
+  (py `utf-8-sig`, cs `ReadAllText` BOM-detect) match; corrupt JSON
+  intentionally hard-fails on both sides (py `json.loads` raises,
+  cs `Deserialize` throws) — loud failure over silent default
+  hardening is the design, not a divergence.
+- Audit round 109 (cs fix + version/elevation parity): `InstallService`
+  and `UninstallService` launched their `Verb="runas"` sc.exe/cmd chains
+  unguarded — declining the UAC prompt threw `Win32Exception`
+  (ERROR_CANCELLED) and crashed the tool, while py's
+  `_relaunch_elevated` reports declined elevation cleanly. Both chains
+  now catch `Win32Exception` and warn. Verified version strings
+  identical across py `APP_VERSION`, cs output, and csproj PE metadata
+  (1.61.3), and the elevation mechanisms semantically equivalent
+  (py relaunches itself elevated; cs prompts per-operation via runas).
+- Audit round 108 (removal-ledger call-site coverage — clean): every
+  removal path records to the ledger on both sides — appx (py's single
+  site sits after `remove_appx_package`, which internally tries admin
+  `-AllUsers` then per-user = cs's two sites), provisioned, capability,
+  win32, winget. Monitor re-removals deliberately do NOT record in
+  either implementation — the package was already ledgered at initial
+  removal, so a re-record would only duplicate a restore attempt.
+- Audit round 107 (cs CLI fix + flag-table parity): the C# entry point
+  only accepted bare commands (`dry-run`, `scan`) — every `--`-prefixed
+  form except --version/--self-test/--service-dry-run/--config/--help
+  was rejected as "Unknown command" while the Python entry point takes
+  only `--`-flags, so copy-pasting a documented py invocation into the
+  exe failed. All commands now accept both forms (`scan` or `--scan`,
+  etc.) and `--service` is accepted as an explicit no-op (py defines it
+  unused — default path already runs the service loop). ShowHelp notes
+  the dashed forms. --version output and flag semantics verified
+  identical across implementations.
+- Audit round 106 (Devin Review remediation on merged #45 — 3 fixes):
+  monitor no longer watches framework families (py `installed_map`
+  and cs `installed` both exclude IsFramework rows — a dependency
+  package arriving later can't trigger a re-removal);
+  `GetDefaultProfileDat` now falls back to `C:\Users\Default` when
+  ProfileList's `Default` value is an empty string, not only on
+  null/exception (py `or`-semantics parity); dry-run would-remove
+  count in py now gates on the same eligibility the real path uses
+  (`full_name and not is_system_app`) so SystemApps no longer
+  inflate the reported total — cs kept unconditional because its
+  real admin path does attempt SystemApps via `-AllUsers`.
 - Audit round 105 (py fix + OEM task-sweep mechanics parity):
   `disable_oem_scheduled_tasks` now warns when the
   Get-ScheduledTask query fails or returns nothing instead of

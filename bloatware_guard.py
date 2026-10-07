@@ -5360,7 +5360,10 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
                     logger.info(
                         f"[DRY-RUN] Would remove AppxPackage: {family_name} "
                         f"(non-admin: full name not resolvable) {note}")
-                removed += 1  # would-remove count (C# dry-run parity)
+                # Count only rows the real path would attempt — a SystemApp
+                # or nameless package can never actually be removed
+                if full_name and not is_system_app:
+                    removed += 1
             else:
                 if is_system_app:
                     logger.info(f"SystemApp skipped (requires admin): {family_name}")
@@ -5576,6 +5579,7 @@ def run_service(config: dict, logger: logging.Logger):
                     family: full_name
                     for family, _, _, full_name, _fw
                     in _enum_blacklisted_packages(blacklist, whitelist)
+                    if not _fw  # frameworks are dependencies — never re-remove
                 }
                 current_installed = set(installed_map)
                 # Win32 display names — OEMs re-push these via their updaters,
@@ -5677,7 +5681,14 @@ def install_service():
     run_cmd([nssm, "set", SERVICE_NAME, "Start", "SERVICE_AUTO_START"])
     run_cmd(
         [nssm, "set", SERVICE_NAME, "AppStdout", str(LOG_DIR / "service-stdout.log")])
-    print(f"Service '{SERVICE_NAME}' installed via NSSM. "
+    # SCM-level config works on NSSM-wrapped services too — set the same
+    # description and failure backoff the C# service configures.
+    run_cmd(["sc", "description", SERVICE_NAME,
+             "Blocks and removes pre-installed Windows bloatware"])
+    run_cmd(["sc", "failure", SERVICE_NAME, "reset=", "86400",
+             "actions=", "restart/60000/restart/60000/restart/300000"])
+    print(f"Service '{SERVICE_NAME}' installed via NSSM "
+          "(restart-on-failure: 60s/60s/5min). "
           f"Use 'sc start {SERVICE_NAME}' to start.")
     return True
 
