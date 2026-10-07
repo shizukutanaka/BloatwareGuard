@@ -2,6 +2,11 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 166 (Active Setup stub sweep — clean):
+  identical 2 paths (HKLM + WOW6432Node\Active Setup\Installed
+  Components), same haystack blob (key name + default value +
+  LocalizedName + StubPath), same bloat match with whitelist
+  veto, per-sub DeleteSubKey + Applied tally — all identical.
 - Audit round 165 (WingetSweep internals — clean): identical
   winget-id regex `^[A-Za-z0-9_.-]+$`, `.` requirement,
   whitelist veto with skip log, identical uninstall args
