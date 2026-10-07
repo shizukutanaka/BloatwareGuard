@@ -2,6 +2,16 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 163 (Appx enumeration — clean): same fields
+  selected (PackageFamilyName/Name/InstallPath/IsFramework/
+  PackageFullName in one query — no second PS call), single-
+  object wrap, dedupe keyed on PackageFullName-or-family,
+  whitelist veto before match, IsFramework flag carried
+  through. Push-down diff (cs `Where-Object -match` vs py
+  enumerate-all + is_target_package) is the round-115
+  documented structural split; `-AllUsers` selection differs
+  in mechanism (admin probe vs try-then-fallback) with the
+  same end-state.
 - Audit round 162 (Win32 silent-uninstall executor — clean):
   QuietUninstallString → verbatim cmdline split (identical
   quoted-path handling both sides), else msiexec fallback via
