@@ -2,6 +2,18 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 175 (entry-point dispatch + one-shot scan):
+  dispatch parity clean — UTF-8 console hardening, --config
+  pre-scan, install/uninstall self-elevation (py ShellExecuteW
+  runas ≡ cs Verb="runas" chains), uninstall strips hosts
+  block both sides, cs intentionally more lenient (bare
+  commands, help/-v forms, unknown→ExitCode 1). cs fix:
+  `RunOnce` applied ApplyAll + DisableOemTasks +
+  DisableTelemetryTasks before RunScanPublic, which applies
+  the same layers again — one-shot `--scan` ran every
+  registry write and both task sweeps twice (idempotent but
+  ~190 redundant mutations + 2 schtasks passes). Removed the
+  duplicate pre-scan block; RunScan covers all of it.
 - Audit round 174 (monitor baseline lifecycle — clean):
   identical 3-set baseline (seenProvisioned/seenInstalled/
   seenWin32 empty outside the loop), firstScan gate so the
