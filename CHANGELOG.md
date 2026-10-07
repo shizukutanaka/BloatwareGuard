@@ -2,6 +2,13 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 108 (removal-ledger call-site coverage — clean): every
+  removal path records to the ledger on both sides — appx (py's single
+  site sits after `remove_appx_package`, which internally tries admin
+  `-AllUsers` then per-user = cs's two sites), provisioned, capability,
+  win32, winget. Monitor re-removals deliberately do NOT record in
+  either implementation — the package was already ledgered at initial
+  removal, so a re-record would only duplicate a restore attempt.
 - Audit round 107 (cs CLI fix + flag-table parity): the C# entry point
   only accepted bare commands (`dry-run`, `scan`) — every `--`-prefixed
   form except --version/--self-test/--service-dry-run/--config/--help
