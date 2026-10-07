@@ -2,6 +2,12 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 110 (config-file I/O parity — clean): missing-config
+  default generation + atomic write-back and BOM tolerance
+  (py `utf-8-sig`, cs `ReadAllText` BOM-detect) match; corrupt JSON
+  intentionally hard-fails on both sides (py `json.loads` raises,
+  cs `Deserialize` throws) — loud failure over silent default
+  hardening is the design, not a divergence.
 - Audit round 109 (cs fix + version/elevation parity): `InstallService`
   and `UninstallService` launched their `Verb="runas"` sc.exe/cmd chains
   unguarded — declining the UAC prompt threw `Win32Exception`
