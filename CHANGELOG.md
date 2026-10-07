@@ -2,6 +2,11 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 123 (DisableGameDvr layer write-surface — clean):
+  value-name extraction — zero diffs: GameBar FTF/overrides,
+  GameDVR policies (AllowGameDVR=0), GameConfig Store settings,
+  Broadcast capture off, Game Mode toggle, GameBarFTServer
+  deny-list entries, plus per-user GameDVR keys — all identical.
 - Audit round 122 (DisableTelemetry layer write-surface — clean):
   value-name extraction — every registry write matches (AllowTelemetry,
   DiagTrack EventTranscriptKey zeroing, advertising ID, tailored
