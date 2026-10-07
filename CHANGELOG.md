@@ -2,6 +2,11 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 128 (DisableErrorReporting layer write-surface —
+  clean): value-name extraction — zero diffs: DontShowUI, Disabled,
+  consent overrides, WerSvc demotion, send-request/generic-driver
+  WER switches, CPL-support suppression, auto-approve dumps,
+  report-queue cap — all identical.
 - Audit round 127 (DisableEdgeBloat layer write-surface — clean):
   value-name extraction across the largest policy layer (~80 Edge
   policies) — zero diffs: Copilot NTP/address-bar/page-context,
