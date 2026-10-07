@@ -2,6 +2,13 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 173 (RemoveOptionalCapabilities — clean):
+  identical 6-capability pattern (IE/StepsRecorder/WordPad/
+  XPS/Fax/WirelessDisplay), same Get-WindowsCapability query
+  (Name -match + State=Installed), safe-name filter on both
+  name lists, 180s DISM timeout, rc==0 → re-query diff and
+  ledger only actually-removed names, same tally + absent-
+  or-admin warn.
 - Audit round 172 (BackupRegistry internals): mechanism
   identical — once-per-process guard, %ProgramData%\
   BloatwareGuard\backup\, yyyyMMdd-HHmmss stamp, HKLM keys +
