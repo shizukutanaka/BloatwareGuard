@@ -2,6 +2,12 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 120 (DisableWidgets layer write-surface — clean): all 8
+  writes identical — AllowNewsAndInterests=0, EnableFeeds=0, the
+  counter-intuitive DisableWidgetsBoard/DisableWidgetsOnLockScreen=0
+  (NewsAndInterests.admx enabledValue IS 0 — verified the comment is
+  right, not a copy-paste bug), TaskbarDa=0,
+  ShellFeedsTaskbarViewMode=2, ShellFeedsTaskbarOpenOnHover=0.
 - Audit round 119 (DisableCopilot layer write-surface — clean):
   machine-checked value-name extraction across both bodies — every
   policy/preference write matches: TurnOffWindowsCopilot (HKLM+hives),
