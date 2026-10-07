@@ -2,6 +2,11 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 113 (`--list-installed` output parity — clean): row
+  format `  family (display) [FRAMEWORK]`, header, and
+  `Total: N package(s) installed.` line identical on both sides;
+  both enumerate via the same blacklist query (no dedupe needed —
+  enum already dedupes).
 - Audit round 112 (service-loop exception isolation — clean): each
   scan iteration is wrapped in try/catch → `Scan error` log on both
   sides (py `logger.error` / cs `GuardLogger.Error`), so one failed
