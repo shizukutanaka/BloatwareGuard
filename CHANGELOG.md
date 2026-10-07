@@ -2,6 +2,10 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 111 (atomic-write helper parity — clean): both
+  implementations write via a same-directory temp file + rename
+  (py `os.replace`, cs `File.Move(overwrite: true)`) — a crash
+  mid-write can never leave a truncated config/ledger/hosts file.
 - Audit round 110 (config-file I/O parity — clean): missing-config
   default generation + atomic write-back and BOM tolerance
   (py `utf-8-sig`, cs `ReadAllText` BOM-detect) match; corrupt JSON
