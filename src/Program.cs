@@ -6552,22 +6552,9 @@ public class Program
         GuardLogger.Info(dryRun ? "Running DRY-RUN scan (no changes)..." : "Running one-time scan...");
         ServiceConfig.Current = config;
 
-        if (!dryRun)
-        {
-            try { RegistryGuard.ApplyAll(config.Prevention, config.Blacklist, config.Whitelist); }
-            catch (Exception ex) { GuardLogger.Warn($"RegistryPrevention layer failed: {ex.Message}"); }
-            if (config.Prevention.DisableOemScheduledTasks)
-                try { ScheduledTaskGuard.DisableOemTasks(); }
-                catch (Exception ex) { GuardLogger.Warn($"DisableOemTasks layer failed: {ex.Message}"); }
-            if (config.Prevention.DisableTelemetryTasks)
-                try { ScheduledTaskGuard.DisableTelemetryTasks(); }
-                catch (Exception ex) { GuardLogger.Warn($"DisableTelemetryTasks layer failed: {ex.Message}"); }
-        }
-        else
-        {
-            GuardLogger.Info("[DRY-RUN] Skipping registry + task changes.");
-        }
-
+        // RunScan already re-applies registry prevention + OEM/telemetry task
+        // disables (idempotent) — no pre-scan block needed here (py parity:
+        // a single pass inside the scan, not two).
         var service = new GuardService();
         service.RunScanPublic(dryRun);
 
