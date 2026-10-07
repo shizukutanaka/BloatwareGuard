@@ -2,6 +2,10 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 132 (DisablePrintSpooler layer write-surface —
+  clean): identical `sc stop Spooler` + `sc config Spooler
+  start= disabled` at 15s, same opt-in `False` default, same
+  log line.
 - Audit round 131 (DisableXboxServices layer write-surface —
   clean): value-name extraction — zero diffs: 4 Xbox service
   demotions (XblAuthManager/XblGameSave/XboxNetApiSvc/XboxGipSvc),
