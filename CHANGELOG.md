@@ -2,6 +2,11 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 167 (telemetry autologgers/channels — clean):
+  identical 18-entry AutoLogger list (Diagtrack-Listener,
+  SQMLogger, CKCL, DataMarket, WdiContextLog, ...) with
+  Start=0 via open-only keys, same 3 diagnostic ETW channels
+  with Enabled=0, same Applied tally line — all identical.
 - Audit round 166 (Active Setup stub sweep — clean):
   identical 2 paths (HKLM + WOW6432Node\Active Setup\Installed
   Components), same haystack blob (key name + default value +
