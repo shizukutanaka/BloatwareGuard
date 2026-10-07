@@ -2,6 +2,13 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 165 (WingetSweep internals — clean): identical
+  winget-id regex `^[A-Za-z0-9_.-]+$`, `.` requirement,
+  whitelist veto with skip log, identical uninstall args
+  (-e --id X --silent --disable-interactivity
+  --accept-source-agreements), 300s timeout, ledger on rc==0,
+  same Applied tally. Probe differs (shutil.which vs
+  `winget --version`) — documented mechanism split.
 - Audit round 164 (DisableStartupBloat internals — clean):
   identical marker bytes (0x03 + 11 NULs, REG_BINARY), same
   32/64-bit peer-view collision guard (same-named non-bloat
