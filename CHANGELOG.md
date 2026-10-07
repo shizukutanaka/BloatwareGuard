@@ -2,6 +2,15 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 155 (external-command surface — clean):
+  all spawned-tool invocations compared: `sc stop|config` set
+  (DiagTrack/RetailDemo/WerSvc/Spooler/RemoteRegistry stop+disable
+  pairs), `schtasks /Change /TN /DISABLE`, `winget uninstall|install`
+  arg strings (--silent --disable-interactivity --accept-* flags),
+  Add-AppxPackage re-register (-DisableDevelopmentMode
+  -Register AppxManifest), capability add/remove PS commands,
+  restore-point + Checkpoint-Computer — all identical.
+  (service-drain uses ping vs sleep — recorded round 101.)
 - Audit round 154 (registry-write PATH parity — clean):
   machine-extracted every literal registry path both sides and
   normalized concat-vs-literal parents — zero real diffs:
