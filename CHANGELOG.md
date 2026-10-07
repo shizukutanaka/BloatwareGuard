@@ -2,6 +2,13 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 114 (removal-ledger file placement — clean): path
+  resolution `BackupDirectory` → `%ProgramData%\BloatwareGuard\Backups`
+  fallback and `removed-packages.jsonl` name, append-only +best-effort
+  catch, and `yyyy-MM-ddTHH:mm:ss` timestamps identical; py writes a
+  sparse dict (only provided keys) vs cs's fixed 4-key object — the
+  restore reader tolerates missing keys both ways, so the files are
+  mutually readable.
 - Audit round 113 (`--list-installed` output parity — clean): row
   format `  family (display) [FRAMEWORK]`, header, and
   `Total: N package(s) installed.` line identical on both sides;
