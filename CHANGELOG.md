@@ -2,6 +2,13 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 153 (registry-write VALUE parity — clean):
+  deeper audit than layer names — extracted every (name, value)
+  pair across all write idioms (direct calls, helper wrappers,
+  loop tables, tuple unpacks, ~570+ writes). Zero name-set
+  diffs, zero value diffs. Verified Recall deny-lists
+  (DenyAppList/DenyUriList) byte-identical, CPSS
+  DefaultValue/Value pairs, and PolicyManager `value` writes.
 - Audit round 152 (RemoveDefaultStorePackages layer
   write-surface — clean): Enabled=1 + DynamicRemovalList
   REG_MULTI_SZ merge + per-family RemovePackage=1 subkeys +
