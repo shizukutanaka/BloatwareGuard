@@ -2,6 +2,15 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 109 (cs fix + version/elevation parity): `InstallService`
+  and `UninstallService` launched their `Verb="runas"` sc.exe/cmd chains
+  unguarded — declining the UAC prompt threw `Win32Exception`
+  (ERROR_CANCELLED) and crashed the tool, while py's
+  `_relaunch_elevated` reports declined elevation cleanly. Both chains
+  now catch `Win32Exception` and warn. Verified version strings
+  identical across py `APP_VERSION`, cs output, and csproj PE metadata
+  (1.61.3), and the elevation mechanisms semantically equivalent
+  (py relaunches itself elevated; cs prompts per-operation via runas).
 - Audit round 108 (removal-ledger call-site coverage — clean): every
   removal path records to the ledger on both sides — appx (py's single
   site sits after `remove_appx_package`, which internally tries admin

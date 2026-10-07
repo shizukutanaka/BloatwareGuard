@@ -6637,7 +6637,16 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
             UseShellExecute = true,
             Verb = "runas"
         };
-        Process.Start(psi)?.WaitForExit(60000);
+        try
+        {
+            Process.Start(psi)?.WaitForExit(60000);
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            // py parity: UAC declined — report cleanly instead of crashing
+            GuardLogger.Warn("Elevation declined — service install skipped.");
+            return;
+        }
         GuardLogger.Info("Service installed (idempotent, restart-on-failure: 60s/60s/5min). Use 'sc start BloatwareGuard' to start.");
     }
 
@@ -6652,15 +6661,23 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
             UseShellExecute = true,
             Verb = "runas"
         };
-        Process.Start(stopPsi)?.WaitForExit(30000);
-        var psi = new ProcessStartInfo
+        try
         {
-            FileName = "sc.exe",
-            Arguments = "delete BloatwareGuard",
-            UseShellExecute = true,
-            Verb = "runas"
-        };
-        Process.Start(psi)?.WaitForExit(30000);
+            Process.Start(stopPsi)?.WaitForExit(30000);
+            var psi = new ProcessStartInfo
+            {
+                FileName = "sc.exe",
+                Arguments = "delete BloatwareGuard",
+                UseShellExecute = true,
+                Verb = "runas"
+            };
+            Process.Start(psi)?.WaitForExit(30000);
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            GuardLogger.Warn("Elevation declined — service uninstall skipped.");
+            return;
+        }
         GuardLogger.Info("Service uninstalled.");
 
         // The hosts block is tool-owned runtime state that outlives the
