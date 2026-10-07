@@ -2,6 +2,12 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 170 (task lists — clean): TELEMETRY_TASK_PATHS
+  = cs TelemetryTaskPaths — 136 entries identical (incl. CEIP,
+  Flighting, WindowsAI Recall/ClickToDo, Office telemetry,
+  input/pen/mouse sync, RetailDemo); MICROSOFT_SYSTEM_TASK_
+  PREFIXES = cs MicrosoftSystemPrefixes — 34 identical
+  protected prefixes.
 - Audit round 169 (per-user hive application — clean):
   identical 3-source structure — loaded S-1-5-21 SIDs
   (same regex), Default NTUSER.DAT mounted via reg load/
