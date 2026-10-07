@@ -2,6 +2,12 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 149 (DisableStartupBloat layer write-surface —
+  clean): Run/RunOnce + 32-bit views, per-hive + per-user
+  StartupApproved markers, startup-folder sweep, match-blob
+  construction — identical. cs inlines the Active-Setup stub
+  sweep inside the layer; py keeps it in `disable_active_setup_stubs`
+  (audited clean, round 87) — placement diff, same end-state.
 - Audit round 148 (BlockProvisioning layer write-surface —
   clean): value-name extraction — zero diffs: silent-install +
   suggestion surfaces across all hives (chat auto-install,
