@@ -2,6 +2,14 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 127 (DisableEdgeBloat layer write-surface — clean):
+  value-name extraction across the largest policy layer (~80 Edge
+  policies) — zero diffs: Copilot NTP/address-bar/page-context,
+  reading-mode, shopping/wallet/donation, rewards, sidebar/hubs,
+  prerender/prediction, telemetry/feature-request/url-diagnostics,
+  startup boost/prelaunch, shortcuts, implicit-signin default,
+  3P-serp, site-safety, EdgeUpdate suppression, first-run/user-
+  feedback — all identical.
 - Audit round 126 (DisableChatTaskbar layer write-surface — clean):
   value-name extraction — zero diffs: TaskbarMn icon, Chat policy,
   Teams autostart kill, meet-now hide — all identical.
