@@ -2,6 +2,12 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 112 (service-loop exception isolation — clean): each
+  scan iteration is wrapped in try/catch → `Scan error` log on both
+  sides (py `logger.error` / cs `GuardLogger.Error`), so one failed
+  scan never kills the service; `first_scan`/`firstScan` flips only
+  on a successful pass identically, and the sleep sits outside the
+  guard in both.
 - Audit round 111 (atomic-write helper parity — clean): both
   implementations write via a same-directory temp file + rename
   (py `os.replace`, cs `File.Move(overwrite: true)`) — a crash
