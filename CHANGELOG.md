@@ -2,6 +2,17 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 176 (PR #47 review remediation — one-shot
+  fallback): removing RunOnce's duplicate pre-scan block
+  regressed the failure path — a scan aborting before its
+  prevention phase (e.g. powershell.exe fails to start on
+  the first Appx query) left a one-shot `--scan` with zero
+  hardening applied (the monitor loop catches per-cycle, the
+  one-shot path had none; py had the same gap). Both impls:
+  the one-shot caller now catches a scan abort and applies
+  registry prevention + OEM + telemetry-task disables once
+  (all idempotent) before rethrowing, so the scan still
+  reports failure. Successful scans unchanged — single pass.
 - Audit round 175 (entry-point dispatch + one-shot scan):
   dispatch parity clean — UTF-8 console hardening, --config
   pre-scan, install/uninstall self-elevation (py ShellExecuteW
