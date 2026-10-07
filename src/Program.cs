@@ -6459,25 +6459,34 @@ public class Program
         {
             switch (args[cmdIndex].ToLower())
             {
+                // Bare and --dashed forms both accepted (py parity: the Python
+                // entry point only takes --flags; users copy-paste between them)
                 case "scan":
+                case "--scan":
                     RunOnce(config, dryRun: false);
                     return;
                 case "dry-run":
+                case "--dry-run":
                     RunOnce(config, dryRun: true);
                     return;
                 case "list-installed":
+                case "--list-installed":
                     ListInstalled(config);
                     return;
                 case "install":
+                case "--install":
                     InstallService();
                     return;
                 case "uninstall":
+                case "--uninstall":
                     UninstallService();
                     return;
                 case "status":
+                case "--status":
                     ShowStatus();
                     return;
                 case "restore":
+                case "--restore":
                     RestorePackages(config);
                     return;
                 case "help":
@@ -6492,6 +6501,10 @@ public class Program
                 case "--self-test":
                     Environment.ExitCode = RunSelfTest(config);
                     return;
+                case "--service":
+                    // py parity: explicit service-mode flag is a no-op —
+                    // no args already means console/service loop
+                    break;
                 case "--service-dry-run":
                     config.DryRun = true;
                     GuardLogger.Info("Service mode: DRY-RUN (no removal actions will execute)");
@@ -6593,6 +6606,9 @@ Commands:
   --version     Show version
   --self-test   Run internal wiring self-test (no admin required)
   help          Show this help
+
+All commands also accept the --dashed form (e.g. --scan, --dry-run) — same
+flags as the Python entry point.
 
 Without arguments: runs in console mode (interactive) or as Windows Service.
 ";

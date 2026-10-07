@@ -2,6 +2,16 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 107 (cs CLI fix + flag-table parity): the C# entry point
+  only accepted bare commands (`dry-run`, `scan`) — every `--`-prefixed
+  form except --version/--self-test/--service-dry-run/--config/--help
+  was rejected as "Unknown command" while the Python entry point takes
+  only `--`-flags, so copy-pasting a documented py invocation into the
+  exe failed. All commands now accept both forms (`scan` or `--scan`,
+  etc.) and `--service` is accepted as an explicit no-op (py defines it
+  unused — default path already runs the service loop). ShowHelp notes
+  the dashed forms. --version output and flag semantics verified
+  identical across implementations.
 - Audit round 106 (Devin Review remediation on merged #45 — 3 fixes):
   monitor no longer watches framework families (py `installed_map`
   and cs `installed` both exclude IsFramework rows — a dependency
