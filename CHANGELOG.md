@@ -2,6 +2,9 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 135 (DisableReservedStorage layer write-surface —
+  clean): value-name extraction — zero diffs: ShippedWithReserves=0
+  storage-reservation kill — identical.
 - Audit round 134 (BlockOemWpbtExecution layer write-surface —
   clean): value-name extraction — zero diffs: WPBT platform-binary
   execution block — identical.
