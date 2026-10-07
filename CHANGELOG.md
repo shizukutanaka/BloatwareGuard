@@ -2,6 +2,9 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 133 (DisableModernStandbyNetworking layer
+  write-surface — clean): value-name extraction — zero diffs:
+  ConnectivityInStandby policy, same opt-in `False` default.
 - Audit round 132 (DisablePrintSpooler layer write-surface —
   clean): identical `sc stop Spooler` + `sc config Spooler
   start= disabled` at 15s, same opt-in `False` default, same
