@@ -2,6 +2,9 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 138 (DisableMiscBloatServices layer write-surface —
+  clean): same service list (91, T-pinned), same RemoteRegistry
+  `stop`+`start= disabled` at 15s, same log — identical.
 - Audit round 137 (DisableRemoteAssistance layer write-surface —
   clean): value-name extraction — zero diffs: Remote Assistance
   policy kills — identical.
