@@ -2,6 +2,13 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 169 (per-user hive application — clean):
+  identical 3-source structure — loaded S-1-5-21 SIDs
+  (same regex), Default NTUSER.DAT mounted via reg load/
+  unload at the same `BloatwareGuard_DefaultProfile` name,
+  HKCU always, same per-hive try/warn and applied==0 warn.
+  Default-dir resolution (ProfileList\Default → expandvars →
+  C:\Users\Default → file-exists) equivalent.
 - Audit round 168 (telemetry hosts block — clean): identical
   marker strings (`# >>> BloatwareGuard telemetry block` /
   end), strict-UTF8 read with skip-on-undecodable (cs
