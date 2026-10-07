@@ -5100,15 +5100,16 @@ public static class RegistryGuard
                 var file = Path.Combine(dir, $"{stamp}-{exported++}.reg");
                 // reg.exe export fails for non-existent keys — that is expected
                 RunToolSilent("reg.exe", $"export \"HKLM\\{path}\" \"{file}\" /y");
-                if (!File.Exists(file))
-                    File.Delete(file);  // no-op guard — keep dir clean
+                // keep the dir clean when the export left an empty artifact
+                if (File.Exists(file) && new FileInfo(file).Length == 0)
+                    File.Delete(file);
             }
             foreach (var svc in MiscBloatServices.Concat(ExtraBackupServiceNames))
             {
                 var file = Path.Combine(dir, $"{stamp}-s{exported++}.reg");
                 RunToolSilent("reg.exe",
                     $"export \"HKLM\\SYSTEM\\CurrentControlSet\\Services\\{svc}\" \"{file}\" /y");
-                if (!File.Exists(file))
+                if (File.Exists(file) && new FileInfo(file).Length == 0)
                     File.Delete(file);
             }
             var roots = new List<string> { "HKCU" };
@@ -5126,7 +5127,7 @@ public static class RegistryGuard
                     var file = Path.Combine(dir, $"{stamp}-u{exported++}.reg");
                     RunToolSilent("reg.exe",
                         $"export \"{root}\\{path}\" \"{file}\" /y");
-                    if (!File.Exists(file))
+                    if (File.Exists(file) && new FileInfo(file).Length == 0)
                         File.Delete(file);
                 }
             }

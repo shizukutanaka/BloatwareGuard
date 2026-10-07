@@ -2,6 +2,16 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 172 (BackupRegistry internals): mechanism
+  identical — once-per-process guard, %ProgramData%\
+  BloatwareGuard\backup\, yyyyMMdd-HHmmss stamp, HKLM keys +
+  demoted-service keys + HKCU/loaded-SID user keys via
+  `reg.exe export /y` 15s with per-key failure absorbed.
+  cs fix: the keep-dir-clean guard `if (!File.Exists(file))
+  File.Delete(file)` was dead code (deletes only when the
+  file is absent — never true) → now deletes the artifact
+  only when the export produced an EMPTY file, which is the
+  stated intent.
 - Audit round 171 (OEM task sweep internals — clean):
   identical 25-pattern alternation (cs Regex.Escape-joined
   strings ≡ py literal regex), same `TaskPath -like '*OEM*'`
