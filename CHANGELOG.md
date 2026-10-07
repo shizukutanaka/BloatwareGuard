@@ -2,6 +2,14 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 118 (DisableRecall layer write-surface — clean): all
+  ~30 writes match 1:1 — WindowsAI policy values, model-management
+  download kills, export denies, agent consent floors,
+  RemoveMicrosoftCopilotApp (HKLM + all user hives), Copilot-keyboard
+  telemetry trio, ClickToDo, Notepad/Paint/Photos AI toggles,
+  IsRecallAllowed/EnableRecall/ClickToDoEnabled user prefs,
+  Disable-WindowsOptionalFeature 'Recall' (120s), WSAIFabricSvc
+  demand-start, and the AI event-log channel sweep.
 - Audit round 117 (registry-write helper internals — clean): py
   `set_registry_*` (`CreateKeyEx`+`SetValueEx`, exception→False) and
   cs inline `CreateSubKey`+`SetValue` both write the native 64-bit
