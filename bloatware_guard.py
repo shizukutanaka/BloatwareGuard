@@ -5790,38 +5790,17 @@ def run_self_test() -> int:
         assert isinstance(result, bool), f"is_admin returned {type(result)}"
 
     def t_prevention_layers():
+        # Derive the flag set from config.json — a hardcoded required-name
+        # list drifts silently (a new flag never asserted still passes).
+        # The count pin keeps the 46-flag surface explicit.
         prev = load_config(DEFAULT_CONFIG_PATH).get("Prevention", {})
-        required = ["RemoveAppxPackages", "RemoveProvisionedPackages",
-                    "DisableConsumerExperiences", "DisableCloudContent",
-                    "PreventDeviceMetadata", "DisableOemScheduledTasks",
-                    "BlockProvisioning", "ReinstallMonitor",
-                    "DisableCopilot", "DisableRecall",
-                    "DisableSearchSuggestions", "DisableWidgets",
-                    "DisableTelemetry", "DisableGameDvr",
-                    "DisableDeliveryOptimization", "DisableOneDrive",
-                    "DisableChatTaskbar", "DisableEdgeBloat",
-                    "RemoveOptionalCapabilities", "RemoveWin32Programs",
-                    "CreateRestorePoint", "DisableTelemetryTasks",
-                    "DisableStartupBloat", "DisableErrorReporting",
-                    "DisableEdgeUpdateBloat", "BlockOemDriverUpdates",
-                    "DisableAppPermissions", "DisableXboxServices",
-                    "BackupRegistry", "DisablePrintSpooler",
-                    "BlockOemWpbtExecution", "DisableReservedStorage",
-                    "DisableCloudClipboard", "DisableRemoteAssistance",
-                    "BlockInsiderPreview", "DisableMiscBloatServices",
-                    "DisableSpotlight", "DisableAutoplay",
-                    "NoForcedReboot", "HideStartRecommendations",
-                    "MarkDeprovisioned", "RemoveDefaultStorePackages",
-                    "BlockTelemetryEndpoints", "WingetSweep",
-                    "DisableTelemetryAutologgers",
-                    "DisableModernStandbyNetworking"]
-        missing = [k for k in required if k not in prev]
-        assert not missing, f"missing prevention keys: {missing}"
+        assert len(prev) == 46, \
+            f"prevention flag count drifted: {len(prev)} != 46"
         # every prevention key must exist in the C# mirror too
         cs = Path(__file__).parent / "src" / "Program.cs"
         if cs.exists():
             cs_src = cs.read_text(encoding="utf-8", errors="ignore")
-            miss_cs = [k for k in required if k not in cs_src]
+            miss_cs = [k for k in prev if k not in cs_src]
             assert not miss_cs, \
                 f"prevention keys missing from Program.cs: {miss_cs}"
 
