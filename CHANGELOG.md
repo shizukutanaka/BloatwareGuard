@@ -2,6 +2,14 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 179 (-AllUsers enumeration scope — clean):
+  same scope coverage via different guards (recorded
+  structure diff): py probes `is_admin()` first and never
+  emits a doomed -AllUsers query; cs tries -AllUsers and
+  falls back to current-user scope on nonzero rc/empty
+  output (RunPackageQuery returns "" on rc≠0 so partial
+  output can't leak a half-enum). Dedupe identical both
+  sides: PackageFullName key with family fallback.
 - Audit round 178 (self-test coverage map — clean):
   complementary by design. Overlap: config roundtrip
   (py T1 ↔ cs T3), logger wiring (T4 ↔ T2), dup-free
