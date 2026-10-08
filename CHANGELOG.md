@@ -2,6 +2,27 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 179 (-AllUsers enumeration scope — clean):
+  same scope coverage via different guards (recorded
+  structure diff): py probes `is_admin()` first and never
+  emits a doomed -AllUsers query; cs tries -AllUsers and
+  falls back to current-user scope on nonzero rc/empty
+  output (RunPackageQuery returns "" on rc≠0 so partial
+  output can't leak a half-enum). Dedupe identical both
+  sides: PackageFullName key with family fallback.
+- Audit round 178 (self-test coverage map — clean):
+  complementary by design. Overlap: config roundtrip
+  (py T1 ↔ cs T3), logger wiring (T4 ↔ T2), dup-free
+  lists (T10 ↔ T8), 46-flag prevention surface (py T6
+  name+count assert ↔ cs T7 config↔props set-equality).
+  py-only checks the shared-constant/internals surface —
+  matching engine, appx JSON parse, ledger, fullname map,
+  defaults↔config, py↔cs registry-name parity and HKLM
+  backup coverage (both text-scan Program.cs so cs is
+  guarded from the py side). cs-only checks platform
+  wiring py can't express — arg parsing, assembly
+  metadata, SystemAppDetector, trim safety. No missing
+  test on either side.
 - Audit round 177 (PR #48 review remediation — fallback
   completeness): the one-shot py fallback replayed registry
   prevention + both task sweeps but omitted the two
