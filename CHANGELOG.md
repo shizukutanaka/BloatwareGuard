@@ -2,6 +2,15 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 181 (first-principles simplification — T6
+  drift trap): the self-test's required-name list hardcoded
+  all 46 prevention flags, so a flag added later but never
+  appended there passed silently. Replaced the 46-line
+  literal with set derivation from config.json + a count
+  pin (`len(prev) == 46`): the check can no longer drift,
+  and 47 lines of hand-maintained names are gone. Same
+  assertions kept — every config flag still verified
+  present in Program.cs.
 - Audit round 180 (first-principles deletion sweep — clean):
   Socratic stage-5 "what can be deleted" applied machine-
   wide: py AST scan finds zero uncalled functions and zero
