@@ -6350,6 +6350,20 @@ def main():
                     disable_telemetry_tasks(logger)
                 except Exception as e2:
                     logger.warning(f"DisableTelemetryTasks layer failed: {e2}")
+            # run_scan continues with autologgers + the hosts block after the
+            # task sweeps (cs folds both into ApplyAll) — replay them too or
+            # an early abort leaves those protections unapplied.
+            if config.get("Prevention", {}).get("DisableTelemetryAutologgers", True):
+                try:
+                    disable_telemetry_autologgers(logger)
+                except Exception as e2:
+                    logger.warning(f"DisableTelemetryAutologgers layer failed: {e2}")
+            try:
+                set_telemetry_hosts_block(
+                    config.get("Prevention", {}).get("BlockTelemetryEndpoints", True),
+                    logger)
+            except Exception as e2:
+                logger.warning(f"TelemetryHostsBlock layer failed: {e2}")
             raise
         return
 

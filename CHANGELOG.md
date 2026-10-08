@@ -2,6 +2,19 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 177 (PR #48 review remediation — fallback
+  completeness): the one-shot py fallback replayed registry
+  prevention + both task sweeps but omitted the two
+  protections run_scan applies afterward —
+  `disable_telemetry_autologgers` (under
+  `DisableTelemetryAutologgers`) and
+  `set_telemetry_hosts_block` (unconditional, honoring the
+  `BlockTelemetryEndpoints` toggle so an abort doesn't leave
+  ETW sessions and telemetry null-routes unblocked). cs was
+  already complete: ApplyAll folds both in (documented
+  placement difference — py keeps them in run_scan steps
+  4.6/4.7). Added the two replay steps, each individually
+  guarded, before the rethrow.
 - Audit round 176 (PR #47 review remediation — one-shot
   fallback): removing RunOnce's duplicate pre-scan block
   regressed the failure path — a scan aborting before its
