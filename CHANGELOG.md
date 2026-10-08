@@ -2,6 +2,19 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 180 (first-principles deletion sweep — clean):
+  Socratic stage-5 "what can be deleted" applied machine-
+  wide: py AST scan finds zero uncalled functions and zero
+  unreferenced module constants; cs finds zero uncalled
+  private/public methods and zero unreferenced fields
+  (build warnings already at 0); every config.json key is
+  referenced in BOTH implementations. The 3-way list
+  duplication (py constants ↔ cs embedded arrays ↔
+  config.json) is structurally minimal — each impl needs
+  embedded defaults for file-less runs and its own
+  config file; a shared external list would add a runtime
+  dependency instead of removing one. Nothing safe left
+  to delete; "do nothing" is the answer this round.
 - Audit round 179 (-AllUsers enumeration scope — clean):
   same scope coverage via different guards (recorded
   structure diff): py probes `is_admin()` first and never
