@@ -5313,6 +5313,55 @@ def disable_telemetry_tasks(logger: logging.Logger):
 
 # ─── Main Scan Logic ─────────────────────────────────────────────────────────
 
+def apply_prevention_layers(config: dict, logger: logging.Logger,
+                            dry_run: bool = False) -> None:
+    """The idempotent prevention sequence — registry policies, OEM and
+    telemetry task sweeps, ETW autologgers, and the telemetry hosts block.
+    Service startup, every scan pass, and the one-shot abort fallback all
+    call this so layer order and per-layer error handling exist once."""
+    prev = config.get("Prevention", {})
+    if dry_run:
+        logger.info("[DRY-RUN] Would apply registry prevention")
+    else:
+        try:
+            apply_registry_prevention(config, logger)
+        except Exception as e:
+            logger.warning(f"RegistryPrevention layer failed: {e}")
+    if prev.get("DisableOemScheduledTasks", True):
+        if dry_run:
+            logger.info("[DRY-RUN] Would disable OEM scheduled tasks")
+        else:
+            try:
+                disable_oem_scheduled_tasks(logger)
+            except Exception as e:
+                logger.warning(f"DisableOemScheduledTasks layer failed: {e}")
+    if prev.get("DisableTelemetryTasks", True):
+        if dry_run:
+            logger.info("[DRY-RUN] Would disable Microsoft telemetry tasks")
+        else:
+            try:
+                disable_telemetry_tasks(logger)
+            except Exception as e:
+                logger.warning(f"DisableTelemetryTasks layer failed: {e}")
+    if prev.get("DisableTelemetryAutologgers", True):
+        if dry_run:
+            logger.info("[DRY-RUN] Would disable telemetry ETW autologgers")
+        else:
+            try:
+                disable_telemetry_autologgers(logger)
+            except Exception as e:
+                logger.warning(f"DisableTelemetryAutologgers layer failed: {e}")
+    # Called unconditionally so toggling off removes a previously written block.
+    if dry_run:
+        logger.info("[DRY-RUN] Would manage telemetry endpoints hosts block")
+    else:
+        try:
+            set_telemetry_hosts_block(
+                prev.get("BlockTelemetryEndpoints", True), logger)
+        except Exception as e:
+            logger.warning(f"TelemetryHostsBlock layer failed: {e}")
+
+
 def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int:
     """Run one scan cycle. Returns number of packages removed."""
     if dry_run:
@@ -5449,51 +5498,9 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
                 if prev.get("RemoveDefaultStorePackages", True):
                     apply_remove_default_store_packages(sorted(matched_families), logger)
 
-    # 3. Re-apply registry (idempotent, Windows Update may reset)
-    if dry_run:
-        logger.info("[DRY-RUN] Would apply registry prevention")
-    else:
-        try:
-            apply_registry_prevention(config, logger)
-        except Exception as e:
-            logger.warning(f"RegistryPrevention layer failed: {e}")
-
-    # 4. Disable OEM tasks
-    if prev.get("DisableOemScheduledTasks", True):
-        if dry_run:
-            logger.info("[DRY-RUN] Would disable OEM scheduled tasks")
-        else:
-            try:
-                disable_oem_scheduled_tasks(logger)
-            except Exception as e:
-                logger.warning(f"DisableOemScheduledTasks layer failed: {e}")
-
-    # 4.5 Disable Microsoft telemetry/CEIP tasks (CompatTelRunner etc.)
-    if prev.get("DisableTelemetryTasks", True):
-        if dry_run:
-            logger.info("[DRY-RUN] Would disable Microsoft telemetry tasks")
-        else:
-            try:
-                disable_telemetry_tasks(logger)
-            except Exception as e:
-                logger.warning(f"DisableTelemetryTasks layer failed: {e}")
-
-    # 4.6 Boot-time ETW autologgers (diagtrack listener etc.)
-    if prev.get("DisableTelemetryAutologgers", True):
-        if dry_run:
-            logger.info("[DRY-RUN] Would disable telemetry ETW autologgers")
-        else:
-            try:
-                disable_telemetry_autologgers(logger)
-            except Exception as e:
-                logger.warning(f"DisableTelemetryAutologgers layer failed: {e}")
-
-    # 4.7 hosts-file null-route for pure telemetry endpoints (reversible).
-    # Called unconditionally so toggling off removes a previously written block.
-    if dry_run:
-        logger.info("[DRY-RUN] Would manage telemetry endpoints hosts block")
-    else:
-        set_telemetry_hosts_block(prev.get("BlockTelemetryEndpoints", True), logger)
+    # 3-4.7 Re-apply prevention layers (idempotent — Windows Update and
+    # OEM updaters reset these between scans)
+    apply_prevention_layers(config, logger, dry_run)
 
     # 4.8 winget sweep for Store apps Appx removal can't see
     if prev.get("WingetSweep", True):
@@ -5547,20 +5554,7 @@ def run_service(config: dict, logger: logging.Logger):
     else:
         if not is_admin():
             logger.warning("Running without admin rights — some prevention may fail.")
-        try:
-            apply_registry_prevention(config, logger)
-        except Exception as e:
-            logger.warning(f"RegistryPrevention layer failed: {e}")
-        if prev.get("DisableOemScheduledTasks", True):
-            try:
-                disable_oem_scheduled_tasks(logger)
-            except Exception as e:
-                logger.warning(f"DisableOemScheduledTasks layer failed: {e}")
-        if prev.get("DisableTelemetryTasks", True):
-            try:
-                disable_telemetry_tasks(logger)
-            except Exception as e:
-                logger.warning(f"DisableTelemetryTasks layer failed: {e}")
+        apply_prevention_layers(config, logger)
 
     while True:
         try:
@@ -6315,34 +6309,7 @@ def main():
             # run unhardened — apply the layers once (all idempotent), then
             # re-raise so the scan still reports failure.
             logger.warning(f"Scan aborted ({e}) — applying prevention layers once")
-            try:
-                apply_registry_prevention(config, logger)
-            except Exception as e2:
-                logger.warning(f"RegistryPrevention layer failed: {e2}")
-            if config.get("Prevention", {}).get("DisableOemScheduledTasks", True):
-                try:
-                    disable_oem_scheduled_tasks(logger)
-                except Exception as e2:
-                    logger.warning(f"DisableOemScheduledTasks layer failed: {e2}")
-            if config.get("Prevention", {}).get("DisableTelemetryTasks", True):
-                try:
-                    disable_telemetry_tasks(logger)
-                except Exception as e2:
-                    logger.warning(f"DisableTelemetryTasks layer failed: {e2}")
-            # run_scan continues with autologgers + the hosts block after the
-            # task sweeps (cs folds both into ApplyAll) — replay them too or
-            # an early abort leaves those protections unapplied.
-            if config.get("Prevention", {}).get("DisableTelemetryAutologgers", True):
-                try:
-                    disable_telemetry_autologgers(logger)
-                except Exception as e2:
-                    logger.warning(f"DisableTelemetryAutologgers layer failed: {e2}")
-            try:
-                set_telemetry_hosts_block(
-                    config.get("Prevention", {}).get("BlockTelemetryEndpoints", True),
-                    logger)
-            except Exception as e2:
-                logger.warning(f"TelemetryHostsBlock layer failed: {e2}")
+            apply_prevention_layers(config, logger)
             raise
         return
 

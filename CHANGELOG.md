@@ -2,6 +2,18 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 182 (first-principles consolidation — single
+  prevention sequence): the 5-layer prevention sequence was
+  hand-copied at THREE call sites in each implementation
+  (scan pass, service startup, --scan abort fallback) — the
+  exact drift class that twice shipped incomplete fallbacks.
+  py gains `apply_prevention_layers()` and cs gains
+  `GuardService.ApplyPreventionLayers()`; all six sites now
+  call the single definition. Side effects: service startup
+  now applies autologgers + the hosts block immediately
+  (previously deferred to the first scan), and the hosts
+  block became per-layer fault-isolated in run_scan like
+  every sibling layer. ~110 duplicated lines removed.
 - Audit round 181 (first-principles simplification — T6
   drift trap): the self-test's required-name list hardcoded
   all 46 prevention flags, so a flag added later but never

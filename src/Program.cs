@@ -6059,21 +6059,7 @@ public class GuardService : BackgroundService
         else
         {
             GuardLogger.Info("Applying registry-based prevention layers...");
-            try { RegistryGuard.ApplyAll(_config.Prevention, _config.Blacklist, _config.Whitelist); }
-            catch (Exception ex) { GuardLogger.Warn($"RegistryPrevention layer failed: {ex.Message}"); }
-
-            if (_config.Prevention.DisableOemScheduledTasks)
-            {
-                GuardLogger.Info("Disabling OEM scheduled tasks...");
-                try { ScheduledTaskGuard.DisableOemTasks(); }
-                catch (Exception ex) { GuardLogger.Warn($"DisableOemTasks layer failed: {ex.Message}"); }
-            }
-            if (_config.Prevention.DisableTelemetryTasks)
-            {
-                GuardLogger.Info("Disabling Microsoft telemetry tasks...");
-                try { ScheduledTaskGuard.DisableTelemetryTasks(); }
-                catch (Exception ex) { GuardLogger.Warn($"DisableTelemetryTasks layer failed: {ex.Message}"); }
-            }
+            ApplyPreventionLayers(_config);
         }
 
         // Layer 7: baseline-diff detection — a package that appears after being
@@ -6185,6 +6171,25 @@ public class GuardService : BackgroundService
         seenInstalled.UnionWith(currentInstalled);
         seenWin32.Clear();
         seenWin32.UnionWith(currentWin32.Select(p => p.DisplayName));
+    }
+
+    /// <summary>The idempotent prevention sequence — registry policies
+    /// (incl. ETW autologgers + telemetry hosts block inside ApplyAll),
+    /// OEM and telemetry task sweeps. Service startup, every scan pass,
+    /// and the one-shot abort fallback all call this so layer order and
+    /// per-layer error handling exist once.</summary>
+    internal static void ApplyPreventionLayers(GuardConfig config)
+    {
+        try { RegistryGuard.ApplyAll(config.Prevention, config.Blacklist, config.Whitelist); }
+        catch (Exception ex) { GuardLogger.Warn($"RegistryPrevention layer failed: {ex.Message}"); }
+        // OEM updaters re-enable their tasks between boots — re-disable
+        // every scan, same as the Python scan loop.
+        if (config.Prevention.DisableOemScheduledTasks)
+            try { ScheduledTaskGuard.DisableOemTasks(); }
+            catch (Exception ex) { GuardLogger.Warn($"DisableOemTasks layer failed: {ex.Message}"); }
+        if (config.Prevention.DisableTelemetryTasks)
+            try { ScheduledTaskGuard.DisableTelemetryTasks(); }
+            catch (Exception ex) { GuardLogger.Warn($"DisableTelemetryTasks layer failed: {ex.Message}"); }
     }
 
     public void RunScanPublic(bool dryRun = false) => RunScan(dryRun);
@@ -6392,20 +6397,9 @@ public class GuardService : BackgroundService
                 catch (Exception ex) { GuardLogger.Warn($"WingetSweep layer failed: {ex.Message}"); }
         }
 
-        // 3. Re-apply registry settings (they can be reset by Windows Update)
+        // 3. Re-apply prevention layers (they can be reset by Windows Update)
         if (!dryRun)
-        {
-            try { RegistryGuard.ApplyAll(_config.Prevention, _config.Blacklist, _config.Whitelist); }
-            catch (Exception ex) { GuardLogger.Warn($"RegistryPrevention layer failed: {ex.Message}"); }
-            // OEM updaters re-enable their tasks between boots — re-disable
-            // every scan, same as the Python scan loop.
-            if (_config.Prevention.DisableOemScheduledTasks)
-                try { ScheduledTaskGuard.DisableOemTasks(); }
-                catch (Exception ex) { GuardLogger.Warn($"DisableOemTasks layer failed: {ex.Message}"); }
-            if (_config.Prevention.DisableTelemetryTasks)
-                try { ScheduledTaskGuard.DisableTelemetryTasks(); }
-                catch (Exception ex) { GuardLogger.Warn($"DisableTelemetryTasks layer failed: {ex.Message}"); }
-        }
+            ApplyPreventionLayers(_config);
         else
             GuardLogger.Info("[DRY-RUN] Would re-apply registry prevention settings");
 
@@ -6566,14 +6560,7 @@ public class Program
             // run unhardened — apply the layers once (all idempotent), then
             // rethrow so the scan still reports failure.
             GuardLogger.Warn($"Scan aborted ({ex.Message}) — applying prevention layers once");
-            try { RegistryGuard.ApplyAll(config.Prevention, config.Blacklist, config.Whitelist); }
-            catch (Exception ex2) { GuardLogger.Warn($"RegistryPrevention layer failed: {ex2.Message}"); }
-            if (config.Prevention.DisableOemScheduledTasks)
-                try { ScheduledTaskGuard.DisableOemTasks(); }
-                catch (Exception ex2) { GuardLogger.Warn($"DisableOemTasks layer failed: {ex2.Message}"); }
-            if (config.Prevention.DisableTelemetryTasks)
-                try { ScheduledTaskGuard.DisableTelemetryTasks(); }
-                catch (Exception ex2) { GuardLogger.Warn($"DisableTelemetryTasks layer failed: {ex2.Message}"); }
+            GuardService.ApplyPreventionLayers(config);
             throw;
         }
 
