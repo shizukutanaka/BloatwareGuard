@@ -5371,6 +5371,9 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
     prev = config.get("Prevention", {})
     removed = 0
     matched = 0
+    skipped = 0
+    system_apps_skipped = 0
+    failed = 0
 
     # 0. Safety net: restore point before destructive changes (self-throttles)
     if prev.get("CreateRestorePoint", True):
@@ -5397,6 +5400,7 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
         for family_name, display_name, install_path, full_name, is_framework in packages:
             if is_framework:
                 logger.warning(f"Framework package (skip): {family_name}")
+                skipped += 1
                 continue
             matched_families.add(family_name)
             is_system_app = not install_path or install_path.strip() == ""
@@ -5416,6 +5420,7 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
             else:
                 if is_system_app:
                     logger.info(f"SystemApp skipped (requires admin): {family_name}")
+                    system_apps_skipped += 1
                 elif full_name and remove_appx_package(full_name):
                     logger.info(f"Removed AppxPackage: {family_name} ({display_name})")
                     record_removal(config, {
@@ -5425,6 +5430,7 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
                     removed += 1
                 else:
                     logger.warning(f"Failed to remove AppxPackage: {family_name}")
+                    failed += 1
 
     # 2. Remove provisioned packages (independent toggle — prevents re-deploy on new users)
     if prev.get("RemoveProvisionedPackages", True):
@@ -5442,6 +5448,9 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
                     removed += 1
                 else:
                     logger.warning(f"Failed to remove ProvisionedPackage: {display_name} [admin required]")
+                    # cs parity: provisioned removal failure counts toward the
+                    # systemAppsSkipped bucket, not failed
+                    system_apps_skipped += 1
 
     # 2.5 Remove optional Windows capabilities (IE mode, Steps Recorder, WordPad)
     if prev.get("RemoveOptionalCapabilities", True):
@@ -5473,6 +5482,7 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
                     removed += 1
                 else:
                     logger.warning(f"Failed/manual: {display} [admin required or no silent uninstaller]")
+                    failed += 1
 
     # 2.9 Reprovisioning persistence — the deprovision markers + the 25H2
     # policy need the family list even when a removal toggle is off, so
@@ -5513,7 +5523,9 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
                 logger.warning(f"WingetSweep layer failed: {e}")
 
     verb = "would remove" if dry_run else "removed"
-    logger.info(f"Scan complete. {matched} packages matched blacklist; {verb} {removed}.")
+    logger.info(f"Scan complete. {matched} packages matched blacklist; "
+                f"{verb} {removed}, skipped {skipped}, "
+                f"system apps skipped {system_apps_skipped}, failed {failed}.")
     return removed
 
 

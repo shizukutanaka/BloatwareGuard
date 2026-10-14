@@ -2,6 +2,18 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 184 (per-process subdivision — scan summary
+  counters): the end-of-scan line — the user's main result
+  signal — reported different fields per implementation:
+  py printed only `matched`/`removed`, cs printed
+  `removed`/`skipped`/`systemAppsSkipped`/`failed` (no
+  matched). py gained the three missing counters at the
+  same decision points cs already counts (framework skip,
+  SystemApp skip, appx/win32 failure; provisioned failure
+  shares cs's systemAppsSkipped bucket), cs gained
+  `matched`. Both now print the same five-field summary —
+  `failed > 0` is the actionable "re-run elevated" signal
+  that py previously only implied per-item.
 - Audit round 183 (real-world usability — elevation
   visibility): a non-admin `--scan`/`--dry-run` produced a
   silently-partial result — layers failed individually with
