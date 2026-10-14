@@ -6302,6 +6302,10 @@ def main():
         return
 
     if args.scan:
+        if not is_admin():
+            logger.warning("Not running as administrator — HKLM/policy layers, "
+                           "provisioned-package removal and task changes will be "
+                           "skipped or fail (re-run elevated for full coverage)")
         try:
             run_scan(config, logger, dry_run=False)
         except Exception as e:
@@ -6314,6 +6318,10 @@ def main():
         return
 
     if args.dry_run:
+        if not is_admin():
+            logger.warning("Not running as administrator — dry-run will "
+                           "under-report admin-only surfaces (provisioned "
+                           "packages, HKLM writes)")
         run_scan(config, logger, dry_run=True)
         return
 

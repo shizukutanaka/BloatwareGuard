@@ -2,6 +2,17 @@
 
 All notable changes to BloatwareGuard. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+- Audit round 183 (real-world usability — elevation
+  visibility): a non-admin `--scan`/`--dry-run` produced a
+  silently-partial result — layers failed individually with
+  no headline telling the user to re-run elevated. py gains
+  entry warnings on both paths; cs gains `Program.IsAdmin()`
+  (WindowsPrincipal, no new deps) + the same warnings in
+  `RunOnce`, plus the service-startup "without admin rights"
+  warning py already had. Locale audit clean: every
+  enumeration is PowerShell→JSON (invariant property names);
+  schtasks/sc/reg/winget are write-only call sites whose
+  localized output is never parsed.
 - Audit round 182 (first-principles consolidation — single
   prevention sequence): the 5-layer prevention sequence was
   hand-copied at THREE call sites in each implementation

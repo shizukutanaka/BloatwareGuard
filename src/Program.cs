@@ -6059,6 +6059,8 @@ public class GuardService : BackgroundService
         else
         {
             GuardLogger.Info("Applying registry-based prevention layers...");
+            if (!Program.IsAdmin())
+                GuardLogger.Warn("Running without admin rights — some prevention may fail.");
             ApplyPreventionLayers(_config);
         }
 
@@ -6541,9 +6543,24 @@ public class Program
         }
     }
 
+    internal static bool IsAdmin()
+    {
+        try
+        {
+            using var id = System.Security.Principal.WindowsIdentity.GetCurrent();
+            return new System.Security.Principal.WindowsPrincipal(id)
+                .IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
+        }
+        catch { return false; }
+    }
+
     private static void RunOnce(GuardConfig config, bool dryRun = false)
     {
         GuardLogger.Info(dryRun ? "Running DRY-RUN scan (no changes)..." : "Running one-time scan...");
+        if (!IsAdmin())
+            GuardLogger.Warn(dryRun
+                ? "Not running as administrator — dry-run will under-report admin-only surfaces (provisioned packages, HKLM writes)"
+                : "Not running as administrator — HKLM/policy layers, provisioned-package removal and task changes will be skipped or fail (re-run elevated for full coverage)");
         ServiceConfig.Current = config;
 
         // RunScan already re-applies registry prevention + OEM/telemetry task
