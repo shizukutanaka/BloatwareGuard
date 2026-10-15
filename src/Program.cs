@@ -6202,6 +6202,7 @@ public class GuardService : BackgroundService
             : "Starting bloatware scan...");
 
         int removed = 0;
+        int matched = 0;
         int skipped = 0;
         int systemAppsSkipped = 0;
         int failed = 0;
@@ -6238,6 +6239,7 @@ public class GuardService : BackgroundService
                     skipped++;
                     continue;
                 }
+                matched++;
                 matchedFamilies.Add(familyName);
 
                 // Use PackageFullName from the query (no second PowerShell call needed)
@@ -6294,6 +6296,7 @@ public class GuardService : BackgroundService
                     skipped++;
                     continue;
                 }
+                matched++;
                 matchedFamilies.Add(AppxManager.ProvisionedFamilyName(pkgName));
 
                 if (dryRun)
@@ -6333,6 +6336,7 @@ public class GuardService : BackgroundService
             var programs = Win32Guard.GetBlacklistedPrograms(_config.Blacklist, _config.Whitelist);
             foreach (var (display, uninstall, quiet, userHive) in programs)
             {
+                matched++;
                 if (userHive)
                 {
                     // HKU\<sid> is user-writable — never run its strings as SYSTEM
@@ -6405,7 +6409,7 @@ public class GuardService : BackgroundService
         else
             GuardLogger.Info("[DRY-RUN] Would re-apply registry prevention settings");
 
-        GuardLogger.Info($"Scan complete. {(dryRun ? "Would remove" : "Removed")} {removed} packages, skipped {skipped}, system apps skipped {systemAppsSkipped}, failed {failed}.");
+        GuardLogger.Info($"Scan complete. {matched} packages matched blacklist; {(dryRun ? "would remove" : "removed")} {removed}, skipped {skipped}, system apps skipped {systemAppsSkipped}, failed {failed}.");
     }
 
     private bool IsWhitelisted(string packageFamilyName)
