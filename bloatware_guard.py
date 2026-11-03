@@ -402,7 +402,18 @@ def load_config(path: Path) -> dict:
         return config
 
     # utf-8-sig tolerates a BOM (Notepad saves UTF-8 with BOM by default)
-    return json.loads(path.read_text(encoding="utf-8-sig"))
+    config = json.loads(path.read_text(encoding="utf-8-sig"))
+    # A non-string or empty Blacklist/Whitelist element is not just dead
+    # weight — `w.lower()` mid-scan crashes every service cycle with a
+    # generic "Scan error", leaving the service running but removing
+    # nothing. Drop unusable entries once at load so every downstream
+    # matcher only ever sees real needles.
+    for key in ("Blacklist", "Whitelist"):
+        values = config.get(key)
+        if isinstance(values, list):
+            config[key] = [v for v in values
+                           if isinstance(v, str) and v.strip()]
+    return config
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
