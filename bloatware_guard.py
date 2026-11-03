@@ -5443,7 +5443,11 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
                 if is_system_app:
                     logger.info(f"SystemApp skipped (requires admin): {family_name}")
                     system_apps_skipped += 1
-                elif full_name and remove_appx_package(full_name):
+                elif not full_name:
+                    # cs parity: an unremovable row counts as skipped, not failed
+                    logger.info(f"No PackageFullName (skip): {family_name}")
+                    skipped += 1
+                elif remove_appx_package(full_name):
                     logger.info(f"Removed AppxPackage: {family_name} ({display_name})")
                     record_removal(config, {
                         "kind": "appx", "name": display_name,
