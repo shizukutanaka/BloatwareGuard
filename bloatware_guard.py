@@ -4857,16 +4857,27 @@ def set_telemetry_hosts_block(enabled: bool, logger: logging.Logger) -> None:
         return
     original = text  # single read — a second read could fail on absent file
 
-    begin = text.find(_HOSTS_BLOCK_BEGIN)
-    end = text.find(_HOSTS_BLOCK_END)
-    if begin >= 0 and end >= 0:
-        text = (text[:begin].rstrip("\n") + "\n"
-                + text[end + len(_HOSTS_BLOCK_END):].lstrip("\n"))
+    # Strip the marked block linewise: a complete BEGIN…END region, an orphan
+    # BEGIN plus the 0.0.0.0 lines it introduced, or an orphan END on its own.
+    # Both markers present was the only handled shape before — a partially
+    # deleted block could never be removed or rewritten cleanly.
+    out_lines, in_block, had_marker = [], False, False
+    for line in text.split("\n"):
+        if line == _HOSTS_BLOCK_BEGIN:
+            in_block, had_marker = True, True
+            continue
+        if line == _HOSTS_BLOCK_END:
+            in_block, had_marker = False, True
+            continue
+        if in_block and line.startswith("0.0.0.0 "):
+            continue
+        out_lines.append(line)
+    text = "\n".join(out_lines).rstrip("\n") + "\n" if had_marker else text
     if enabled:
         block = "\n".join(f"0.0.0.0 {d}" for d in _TELEMETRY_HOSTS)
         text = (text.rstrip("\n")
                 + f"\n\n{_HOSTS_BLOCK_BEGIN}\n{block}\n{_HOSTS_BLOCK_END}\n")
-    if begin == -1 and not enabled:
+    if not had_marker and not enabled:
         return  # nothing to do — don't touch the file
     if hosts.exists() and text == original:
         return  # already in the desired state
