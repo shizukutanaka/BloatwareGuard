@@ -6308,8 +6308,8 @@ public class GuardService : BackgroundService
         // 2. Remove provisioned packages (independent toggle — prevents re-deploy on new users)
         if (_config.Prevention.RemoveProvisionedPackages)
         {
-            var provisioned = AppxManager.GetBlacklistedProvisionedPackages(_config.Blacklist, _config.Whitelist);
-            foreach (var pkgName in provisioned)
+            var provisioned = AppxManager.GetBlacklistedProvisionedPackagePairs(_config.Blacklist, _config.Whitelist);
+            foreach (var (displayName, pkgName) in provisioned)
             {
                 if (IsWhitelisted(pkgName))
                 {
@@ -6322,18 +6322,21 @@ public class GuardService : BackgroundService
 
                 if (dryRun)
                 {
-                    GuardLogger.Info($"[DRY-RUN] Would remove provisioned: {pkgName} [requires admin]");
+                    GuardLogger.Info($"[DRY-RUN] Would remove provisioned: {displayName} [requires admin]");
                     removed++;
                 }
                 else if (AppxManager.RemoveProvisionedPackage(pkgName))
                 {
-                    GuardLogger.Info($"Removed ProvisionedPackage: {pkgName}");
-                    RemovalLedger.Record(_config, "provisioned", pkgName);
+                    GuardLogger.Info($"Removed ProvisionedPackage: {displayName}");
+                    // Ledger needs display + full PackageName: restore derives
+                    // the query Name from PackageName's first '_' segment.
+                    RemovalLedger.Record(_config, "provisioned", displayName,
+                        AppxManager.ProvisionedFamilyName(pkgName), pkgName);
                     removed++;
                 }
                 else
                 {
-                    GuardLogger.Warn($"Failed to remove provisioned: {pkgName} [admin required]");
+                    GuardLogger.Warn($"Failed to remove provisioned: {displayName} [admin required]");
                     systemAppsSkipped++;
                 }
             }
@@ -6791,6 +6794,7 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
             entry.TryGetValue("kind", out var kind);
             entry.TryGetValue("name", out var name);
             entry.TryGetValue("family", out var family);
+            entry.TryGetValue("full_name", out var fullName);
             var display = !string.IsNullOrEmpty(name) ? name
                 : (!string.IsNullOrEmpty(family) ? family : "?");
 
@@ -6862,11 +6866,18 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
                     manual++;
                 }
             }
-            else if (kind == "provisioned" && !string.IsNullOrEmpty(name))
+            else if (kind == "provisioned" &&
+                (!string.IsNullOrEmpty(name) || !string.IsNullOrEmpty(fullName)))
             {
                 // The provisioned payload may still exist for another user —
                 // try the same re-register path before declaring it manual.
-                if (RestoreStagedPackage(name))
+                // Get-AppxPackage -Name matches the Name property, not
+                // DisplayName nor PackageName: derive Name from PackageName's
+                // first '_' segment when full_name was recorded.
+                var queryName = !string.IsNullOrEmpty(fullName) && fullName.Contains('_')
+                    ? fullName.Split('_')[0]
+                    : name ?? "";
+                if (RestoreStagedPackage(queryName))
                 {
                     GuardLogger.Info($"Restored (re-registered): {name}");
                     restored++;

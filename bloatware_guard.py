@@ -672,14 +672,21 @@ def run_restore(config: dict, logger: logging.Logger) -> int:
                 logger.warning(f"Capability restore failed: {name} "
                                "(Settings → Optional features)")
                 manual += 1
-        elif entry.get("kind") == "provisioned" and name:
+        elif entry.get("kind") == "provisioned" and (name or entry.get("full_name")):
             # The provisioned payload may still exist for another user —
             # try the same re-register path before declaring it manual.
-            if not _safe_pkg_name(name):
-                logger.warning(f"Ledger entry with unsafe name skipped: {name!r}")
+            # Get-AppxPackage -Name matches the Name property, not DisplayName
+            # nor PackageName: derive Name from PackageName's first '_'
+            # segment when full_name was recorded (cs parity).
+            full_name = entry.get("full_name", "")
+            query_name = (full_name.split("_")[0]
+                          if full_name and "_" in full_name else name)
+            if not query_name or not _safe_pkg_name(query_name):
+                logger.warning(
+                    f"Ledger entry with unsafe name skipped: {name!r}")
                 manual += 1
                 continue
-            rc = _reregister_appx(name)
+            rc = _reregister_appx(query_name)
             if rc == 0:
                 logger.info(f"Restored (re-registered): {name}")
                 restored += 1
@@ -5470,7 +5477,11 @@ def run_scan(config: dict, logger: logging.Logger, dry_run: bool = False) -> int
             else:
                 if remove_provisioned_package(package_name):
                     logger.info(f"Removed ProvisionedPackage: {display_name}")
-                    record_removal(config, {"kind": "provisioned", "name": display_name})
+                    record_removal(config, {
+                        "kind": "provisioned", "name": display_name,
+                        "family": _provisioned_family(package_name, display_name),
+                        "full_name": package_name,
+                    })
                     removed += 1
                 else:
                     logger.warning(f"Failed to remove ProvisionedPackage: {display_name} [admin required]")
