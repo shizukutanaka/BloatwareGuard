@@ -6438,7 +6438,11 @@ public class GuardService : BackgroundService
 
     private bool IsWhitelisted(string packageFamilyName)
     {
+        // Empty/whitespace entries must be skipped like the other three
+        // whitelist checks — Contains("") matches every package and would
+        // silently whitelist the entire scan (py skips them too).
         var match = _config.Whitelist.FirstOrDefault(w =>
+            !string.IsNullOrWhiteSpace(w) &&
             packageFamilyName.Contains(w, StringComparison.OrdinalIgnoreCase));
         if (match != null)
             GuardLogger.Info($"  WHITELIST MATCH: '{packageFamilyName}' contains '{match}'");
