@@ -6260,13 +6260,20 @@ public class GuardService : BackgroundService
                 if (string.IsNullOrEmpty(fullName))
                 {
                     GuardLogger.Info($"No PackageFullName (skip): {familyName}");
+                    skipped++;  // py parity: unremovable row counts as skipped, not failed
                     continue;
                 }
 
+                // SystemApps (no InstallPath) can never be removed per-user —
+                // py excludes them from the dry-run "would remove" total.
+                var systemApp = string.IsNullOrEmpty(installPath);
                 if (dryRun)
                 {
-                    GuardLogger.Info($"[DRY-RUN] Would remove: {fullName}");
-                    removed++;
+                    GuardLogger.Info($"[DRY-RUN] Would remove AppxPackage: {familyName} ({fullName})" +
+                        (systemApp ? " [SystemApp: requires admin]" : ""));
+                    if (!systemApp)
+                        removed++;
+                    continue;
                 }
                 else if (AppxManager.RemoveAppxPackage(fullName))
                 {
