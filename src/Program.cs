@@ -6824,7 +6824,9 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
                 var psi = new ProcessStartInfo
                 {
                     FileName = "powershell.exe",
-                    Arguments = $"-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"Add-WindowsCapability -Online -Name '{name}' -ErrorAction SilentlyContinue | Out-Null\"",
+                    // -ErrorAction Stop so a real failure surfaces via the exit
+                    // code — SilentlyContinue would exit 0 and log a restore.
+                    Arguments = $"-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"try {{ Add-WindowsCapability -Online -Name '{name}' -ErrorAction Stop | Out-Null }} catch {{ exit 4 }}\"",
                     UseShellExecute = false,
                     CreateNoWindow = true
                 };
@@ -6877,9 +6879,13 @@ Without arguments: runs in console mode (interactive) or as Windows Service.
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = "-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"Get-AppxPackage -AllUsers -Name '" +
-                name + "' | ForEach-Object { Add-AppxPackage -DisableDevelopmentMode -Register " +
-                "\\\"$($_.InstallLocation)\\AppxManifest.xml\\\" -ErrorAction SilentlyContinue }\"",
+            // Verify the outcome, not just the process exit code: a bare
+            // pipeline with -ErrorAction SilentlyContinue exits 0 whether the
+            // staged package existed and re-registered or not.
+            Arguments = "-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"$pkgs = @(Get-AppxPackage -AllUsers -Name '" +
+                name + "'); if ($pkgs.Count -eq 0) { exit 3 }; " +
+                "foreach ($p in $pkgs) { try { Add-AppxPackage -DisableDevelopmentMode -Register " +
+                "\\\"$($p.InstallLocation)\\AppxManifest.xml\\\" -ErrorAction Stop } catch { exit 4 } }\"",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,

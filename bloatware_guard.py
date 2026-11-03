@@ -590,6 +590,23 @@ def record_removal(config: dict, entry: dict):
         pass
 
 
+def _reregister_appx(name: str) -> int:
+    """Re-register a staged AppxPackage; returns the PowerShell exit code.
+    Non-zero when no staged copy exists or Add-AppxPackage actually failed —
+    a bare pipeline with -ErrorAction SilentlyContinue exits 0 either way and
+    would be logged as a successful restore of nothing."""
+    ps_cmd = (
+        f"$pkgs = @(Get-AppxPackage -AllUsers -Name '{name}'); "
+        "if ($pkgs.Count -eq 0) { exit 3 }; "
+        "foreach ($p in $pkgs) { try { "
+        "Add-AppxPackage -DisableDevelopmentMode "
+        "-Register \"$($p.InstallLocation)\\AppxManifest.xml\" "
+        "-ErrorAction Stop } catch { exit 4 } }"
+    )
+    _, _, rc = run_powershell(ps_cmd, timeout=60)
+    return rc
+
+
 def run_restore(config: dict, logger: logging.Logger) -> int:
     """Re-register staged AppxPackages recorded in the removal ledger.
     Provisioned packages cannot be restored from the image — reported as manual."""
@@ -613,13 +630,7 @@ def run_restore(config: dict, logger: logging.Logger) -> int:
                 logger.warning(f"Ledger entry with unsafe name skipped: {name!r}")
                 manual += 1
                 continue
-            ps_cmd = (
-                f"Get-AppxPackage -AllUsers -Name '{name}' | "
-                f"ForEach-Object {{ Add-AppxPackage -DisableDevelopmentMode "
-                f"-Register \"$($_.InstallLocation)\\AppxManifest.xml\" "
-                f"-ErrorAction SilentlyContinue }}"
-            )
-            _, _, rc = run_powershell(ps_cmd, timeout=60)
+            rc = _reregister_appx(name)
             if rc == 0:
                 logger.info(f"Restored (re-registered): {name}")
                 restored += 1
@@ -646,9 +657,11 @@ def run_restore(config: dict, logger: logging.Logger) -> int:
                 logger.warning(f"Ledger entry with unsafe name skipped: {name!r}")
                 manual += 1
                 continue
+            # -ErrorAction Stop so a real failure surfaces via the exit code —
+            # SilentlyContinue would exit 0 and be logged as a restore.
             _, _, rc = run_powershell(
-                f"Add-WindowsCapability -Online -Name '{name}' "
-                "-ErrorAction SilentlyContinue | Out-Null", timeout=180)
+                f"try {{ Add-WindowsCapability -Online -Name '{name}' "
+                "-ErrorAction Stop | Out-Null } catch { exit 4 }", timeout=180)
             if rc == 0:
                 logger.info(f"Restored capability: {name}")
                 restored += 1
@@ -663,13 +676,7 @@ def run_restore(config: dict, logger: logging.Logger) -> int:
                 logger.warning(f"Ledger entry with unsafe name skipped: {name!r}")
                 manual += 1
                 continue
-            ps_cmd = (
-                f"Get-AppxPackage -AllUsers -Name '{name}' | "
-                f"ForEach-Object {{ Add-AppxPackage -DisableDevelopmentMode "
-                f"-Register \"$($_.InstallLocation)\\AppxManifest.xml\" "
-                f"-ErrorAction SilentlyContinue }}"
-            )
-            _, _, rc = run_powershell(ps_cmd, timeout=60)
+            rc = _reregister_appx(name)
             if rc == 0:
                 logger.info(f"Restored (re-registered): {name}")
                 restored += 1
