@@ -563,15 +563,18 @@ def get_blacklisted_provisioned(blacklist: List[str], whitelist: List[str]) -> L
 def remove_appx_package(package_full_name: str) -> bool:
     if not _safe_pkg_name(package_full_name):
         return False
+    # -ErrorAction Stop: SilentlyContinue exits 0 on every failure mode, so a
+    # removal that never happened would be counted as removed and ledgered.
     # Admin: remove for all users first (mirrors C# admin→user fallback)
     if is_admin():
         _, _, rc = run_powershell(
-            f"Remove-AppxPackage -Package '{package_full_name}' -AllUsers "
-            f"-ErrorAction SilentlyContinue", timeout=60)
+            f"try {{ Remove-AppxPackage -Package '{package_full_name}' -AllUsers "
+            f"-ErrorAction Stop }} catch {{ exit 4 }}", timeout=60)
         if rc == 0:
             return True
     _, _, rc = run_powershell(
-        f"Remove-AppxPackage -Package '{package_full_name}' -ErrorAction SilentlyContinue",
+        f"try {{ Remove-AppxPackage -Package '{package_full_name}' "
+        f"-ErrorAction Stop }} catch {{ exit 4 }}",
         timeout=60)
     return rc == 0
 
@@ -700,8 +703,9 @@ def remove_provisioned_package(package_name: str) -> bool:
         return False
     # Caller supplies the exact PackageName — no second PowerShell lookup needed
     ps_cmd = (
-        f"Remove-AppxProvisionedPackage -Online "
-        f"-PackageName '{package_name}' -ErrorAction SilentlyContinue"
+        f"try {{ Remove-AppxProvisionedPackage -Online "
+        f"-PackageName '{package_name}' -ErrorAction Stop }} "
+        "catch { exit 4 }"
     )
     # 120s — provisioned removal is a servicing op (parity: C# 120000ms)
     _, _, rc = run_powershell(ps_cmd, timeout=120)

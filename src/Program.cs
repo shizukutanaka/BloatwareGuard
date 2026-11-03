@@ -886,7 +886,9 @@ public static class AppxManager
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = $"-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"Remove-AppxPackage -Package '{packageFullName}' -AllUsers -ErrorAction SilentlyContinue\"",
+            // -ErrorAction Stop: SilentlyContinue exits 0 on every failure
+            // mode, so a removal that never happened counted as removed.
+            Arguments = $"-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"try {{ Remove-AppxPackage -Package '{packageFullName}' -AllUsers -ErrorAction Stop }} catch {{ exit 4 }}\"",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -915,7 +917,7 @@ public static class AppxManager
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = $"-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"Remove-AppxPackage -Package '{packageFullName}' -ErrorAction SilentlyContinue\"",
+            Arguments = $"-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"try {{ Remove-AppxPackage -Package '{packageFullName}' -ErrorAction Stop }} catch {{ exit 4 }}\"",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -935,7 +937,7 @@ public static class AppxManager
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = $"-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"Remove-AppxProvisionedPackage -Online -PackageName '{packageName}' -ErrorAction SilentlyContinue\"",
+            Arguments = $"-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"try {{ Remove-AppxProvisionedPackage -Online -PackageName '{packageName}' -ErrorAction Stop }} catch {{ exit 4 }}\"",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
