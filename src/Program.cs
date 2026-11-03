@@ -2105,17 +2105,29 @@ public static class RegistryGuard
         }
         var original = text;  // single read — a second read could fail on absent file
 
-        var beginIdx = text.IndexOf(HostsBlockBegin, StringComparison.Ordinal);
-        var endIdx = text.IndexOf(HostsBlockEnd, StringComparison.Ordinal);
-        if (beginIdx >= 0 && endIdx >= 0)
-            text = text[..beginIdx].TrimEnd('\n') + "\n" +
-                text[(endIdx + HostsBlockEnd.Length)..].TrimStart('\n');
+        // Strip the marked block linewise: a complete BEGIN…END region, an
+        // orphan BEGIN plus the 0.0.0.0 lines it introduced, or an orphan END
+        // on its own. Both-markers-present was the only handled shape — a
+        // partially deleted block could never be removed or rewritten cleanly.
+        var lines = text.Split('\n');
+        var stripped = new List<string>();
+        var inBlock = false;
+        var hadMarker = false;
+        foreach (var line in lines)
+        {
+            if (line == HostsBlockBegin) { inBlock = true; hadMarker = true; continue; }
+            if (line == HostsBlockEnd) { inBlock = false; hadMarker = true; continue; }
+            if (inBlock && line.StartsWith("0.0.0.0 ", StringComparison.Ordinal)) continue;
+            stripped.Add(line);
+        }
+        if (hadMarker)
+            text = string.Join("\n", stripped).TrimEnd('\n') + "\n";
         if (enabled)
         {
             var block = string.Join("\n", TelemetryHosts.Select(d => $"0.0.0.0 {d}"));
             text = text.TrimEnd('\n') + $"\n\n{HostsBlockBegin}\n{block}\n{HostsBlockEnd}\n";
         }
-        if (beginIdx < 0 && !enabled)
+        if (!hadMarker && !enabled)
             return; // nothing to do — don't touch the file
         if (File.Exists(hostsPath) && text == original)
             return; // already in the desired state
