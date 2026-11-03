@@ -430,9 +430,14 @@ public static class ConfigLoader
         }
 
         var json = File.ReadAllText(path);
-        var config = JsonSerializer.Deserialize(json, GuardJsonContext.Default.GuardConfig);
-
-        return config ?? CreateDefault();
+        var config = JsonSerializer.Deserialize(json, GuardJsonContext.Default.GuardConfig) ?? CreateDefault();
+        // A null/empty Blacklist/Whitelist element is dead weight that would
+        // substring-match everything (Contains("")). Non-string JSON scalars
+        // already fail loudly in Deserialize; drop the silent ones so the
+        // loaded lists match what py's load_config sanitizes.
+        config.Blacklist?.RemoveAll(string.IsNullOrWhiteSpace);
+        config.Whitelist?.RemoveAll(string.IsNullOrWhiteSpace);
+        return config;
     }
 
     /// <summary>Write `text` to `path` via a same-dir temp file + replace — a
