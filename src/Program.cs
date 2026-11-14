@@ -6479,14 +6479,45 @@ public class Program
                 !string.IsNullOrWhiteSpace(args[i + 1]))
                 configPath = args[i + 1];
         }
-        var config = ConfigLoader.Load(configPath);
-
         // First non-flag argument is the command (flags like --config <path>
         // are consumed above and skipped here).
         var cmdIndex = 0;
         while (cmdIndex < args.Length &&
                args[cmdIndex].Equals("--config", StringComparison.OrdinalIgnoreCase))
             cmdIndex += 2;
+
+        // --version / help must work even when config.json is broken
+        // (Python parity: they return before load_config runs).
+        if (cmdIndex < args.Length)
+        {
+            switch (args[cmdIndex].ToLower())
+            {
+                case "--version":
+                case "-v":
+                    Console.WriteLine("BloatwareGuard v1.61.3");
+                    return;
+                case "help":
+                case "--help":
+                case "-h":
+                    ShowHelp();
+                    return;
+            }
+        }
+
+        // A malformed config.json (hand-edited JSON typo) must surface as a
+        // clear, actionable error, not an unhandled-exception dump.
+        GuardConfig config;
+        try
+        {
+            config = ConfigLoader.Load(configPath);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"ERROR: could not load config {configPath}: {ex.Message}");
+            Console.WriteLine("Fix the file (it must be valid JSON), or delete it and re-run to regenerate the defaults.");
+            Environment.ExitCode = 2;
+            return;
+        }
 
         // Handle CLI commands
         if (cmdIndex < args.Length)

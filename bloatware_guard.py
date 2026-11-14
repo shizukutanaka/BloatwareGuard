@@ -6336,8 +6336,16 @@ def main():
         uninstall_service()
         return
 
-    # Load config
-    config = load_config(args.config)
+    # Load config — a malformed config.json (hand-edited JSON typo) must
+    # surface as a clear, actionable error, not a raw traceback.
+    try:
+        config = load_config(args.config)
+    except (OSError, ValueError) as e:
+        print(f"ERROR: could not load config {args.config}: {e}",
+              file=sys.stderr)
+        print("Fix the file (it must be valid JSON), or delete it and "
+              "re-run to regenerate the defaults.", file=sys.stderr)
+        sys.exit(2)
 
     # Setup logging
     log_path = Path(config.get("LogFilePath", str(LOG_FILE)))
