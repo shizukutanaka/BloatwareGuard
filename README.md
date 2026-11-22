@@ -6,6 +6,18 @@ Removes Windows bloatware across **46 prevention layers** in both **Python** and
 Per-user settings are written to **every loaded user hive + the Default profile template**, so they
 also apply correctly when the tool runs as a SYSTEM service and for users created later.
 
+### Why a guard, not a one-shot cleaner
+
+Windows re-installs removed apps and reverts policies on feature updates —
+removal alone does not hold. BloatwareGuard runs as a resident service that
+re-applies every layer each scan cycle and blocks re-provisioning at the
+source (deprovisioned markers, the 25H2 RemoveDefaultMicrosoftStorePackages
+policy). Every removal is recorded in a ledger (`removed-packages.jsonl`)
+and can be restored. This continuous enforcement is the capability
+commercial tools charge for (e.g. the background service in O&O ShutUp10++
+Premium); here it is free, MIT-licensed, and runs entirely on your own
+machine — no account, nothing sent anywhere.
+
 ### Layers
 
 || Layer | Python | C# | Non-Admin |
